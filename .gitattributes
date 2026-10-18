@@ -1,0 +1,109 @@
+
+# =========================================================
+# Default: auto-detect text files and normalize to LF in Git
+# =========================================================
+* text=auto
+
+# =========================================================
+# Source code & configuration
+# =========================================================
+*.ts       text eol=lf
+*.tsx      text eol=lf
+*.js       text eol=lf
+*.jsx      text eol=lf
+*.mjs      text eol=lf
+*.cjs      text eol=lf
+*.json     text eol=lf
+*.jsonc    text eol=lf
+*.css      text eol=lf
+*.scss     text eol=lf
+*.sass     text eol=lf
+*.html     text eol=lf
+*.md       text eol=lf
+*.mdx      text eol=lf
+*.yml      text eol=lf
+*.yaml     text eol=lf
+*.xml      text eol=lf
+*.toml     text eol=lf
+*.ini      text eol=lf
+*.conf     text eol=lf
+*.properties text eol=lf
+
+# Environment templates (never commit real secrets)
+.env.example       text eol=lf
+.env.*.example     text eol=lf
+
+# =========================================================
+# Backend & scripts
+# =========================================================
+*.java      text eol=lf
+*.kt        text eol=lf
+*.py        text eol=lf
+*.sql       text eol=lf
+*.sh        text eol=lf
+*.bash      text eol=lf
+*.zsh       text eol=lf
+*.dockerfile text eol=lf
+
+# Files without extensions
+Dockerfile       text eol=lf
+Makefile         text eol=lf
+Jenkinsfile      text eol=lf
+Containerfile    text eol=lf
+
+# Docker Compose and other infrastructure configuration
+docker-compose*.yml  text eol=lf
+docker-compose*.yaml text eol=lf
+
+# =========================================================
+# Windows scripts
+# =========================================================
+*.bat    text eol=crlf
+*.cmd    text eol=crlf
+*.ps1    text eol=crlf
+
+# =========================================================
+# Binary / media
+# =========================================================
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.webp      binary
+*.ico       binary
+*.bmp       binary
+*.tif       binary
+*.tiff      binary
+*.avif      binary
+
+*.mp3       binary
+*.wav       binary
+*.ogg       binary
+*.mp4       binary
+*.mov       binary
+*.webm      binary
+*.avi       binary
+
+*.pdf       binary
+*.zip       binary
+*.7z        binary
+*.gz        binary
+*.tar       binary
+*.rar       binary
+
+*.woff      binary
+*.woff2     binary
+*.ttf       binary
+*.otf       binary
+
+*.xlsx      binary
+*.xls       binary
+*.docx      binary
+*.doc       binary
+*.pptx      binary
+*.ppt       binary
+
+# =========================================================
+# SVG: textual source, normalized to LF
+# =========================================================
+*.svg       text eol=lf

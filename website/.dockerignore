@@ -1,0 +1,62 @@
+# 1. CÁC THƯ MỤC BUILD HỆ THỐNG VÀ CACHE (CRITICAL)
+# Ngăn Docker copy cache cũ từ máy thật vào làm sai lệch bản build mới hoặc gây lỗi xung đột OS
+node_modules/
+.next/
+out/
+build/
+dist/
+.turbo/
+.cache/
+.eslintcache
+.npm/
+.yarn/
+.pnpm-store/
+
+# 2. BIẾN MÔI TRƯỜNG (SECURITY)
+# Vì Env đã được nạp tập trung qua Docker Compose (Runtime & Build-time environment),
+# Chặn TOÀN BỘ file .env vật lý để tránh rò rỉ thông tin bảo mật vào trong Image.
+.env
+.env.*
+*.env
+*.env.*
+!.env.example
+
+# 3. FILE RÁC CỦA HỆ ĐIỀU HÀNH VÀ IDE
+.vscode/
+.idea/
+.history/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+Ehthumbs.db
+Desktop.ini
+*.bak
+*.orig
+
+# 4. LOGS, TESTING VÀ DỮ LIỆU ĐẦU RA
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+lerna-debug.log*
+coverage/
+test-results/
+.jest/
+
+# 5. FILE CHÍNH DOCKER & TÀI LIỆU (KHÔNG PHỤC VỤ RUNTIME)
+# Không cần thiết phải copy chính Dockerfile hay tài liệu vào môi trường chạy sản phẩm
+Dockerfile
+.dockerignore
+docker-compose*.yml
+*.md
+*.txt
+*.xlsx
+*.xls
+*.csv

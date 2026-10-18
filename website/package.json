@@ -1,0 +1,41 @@
+{
+  "name": "website",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@reduxjs/toolkit": "^2.12.0",
+    "antd": "^6.6.5",
+    "axios": "^1.20.0",
+    "country-flag-icons": "^1.6.20",
+    "date-fns": "^4.4.0",
+    "js-cookie": "^3.0.8",
+    "lucide-react": "^1.47.0",
+    "next": "16.3.5",
+    "nextjs-toploader": "^3.9.17",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-markdown": "^10.1.0",
+    "react-redux": "^9.3.0",
+    "redux-persist": "^6.0.0",
+    "rehype-raw": "^7.0.0",
+    "remark-gfm": "^4.0.1",
+    "swiper": "^14.2.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "babel-plugin-react-compiler": "1.0.0",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.5",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

@@ -1,0 +1,202 @@
+# =========================================================
+# Dependencies
+# =========================================================
+**/node_modules/
+**/.pnp
+**/.pnp.*
+**/.yarn/*
+!**/.yarn/patches/
+!**/.yarn/plugins/
+!**/.yarn/releases/
+!**/.yarn/versions/
+
+# =========================================================
+# Environment Variables & Secrets
+# =========================================================
+.env
+.env.*
+**/.env
+**/.env.*
+
+# Keep environment templates
+!.env.example
+!.env.*.example
+!**/.env.example
+!**/.env.*.example
+
+# Secret keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+
+# =========================================================
+# Build Outputs
+# =========================================================
+**/dist/
+**/build/
+**/out/
+**/coverage/
+**/.nyc_output/
+**/*.tsbuildinfo
+**/next-env.d.ts
+
+# Next.js
+/website/.next/
+/website/.vercel/
+
+# Vite
+**/.vite/
+
+# Mobile / React Native / Expo
+/mobile/.expo/
+/mobile/web-build/
+/mobile/android/.gradle/
+/mobile/ios/Pods/
+
+# =========================================================
+# Cache & Generated Files
+# =========================================================
+**/.cache/
+**/.turbo/
+**/.next/
+**/.eslintcache
+**/.stylelintcache
+**/.prettiercache
+**/stats.html
+
+# =========================================================
+# Logs & Diagnostics
+# =========================================================
+**/logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+*.cpuprofile
+*.heapprofile
+*.memprofile
+
+# Runtime process files
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# =========================================================
+# Temporary Files
+# =========================================================
+/temp
+**/.temp/
+**/.tmp/
+**/temp/
+**/note/
+**/tmp/
+*.bak
+*.orig
+*.swp
+*.swo
+*~
+note.txt
+
+# =========================================================
+# Testing
+# =========================================================
+**/test-results/
+**/playwright-report/
+**/cypress/screenshots/
+**/cypress/videos/
+
+# =========================================================
+# Backend: NestJS
+# =========================================================
+/backend/dist/
+/backend/build/
+/backend/coverage/
+/backend/.nestjs/
+
+# Runtime uploads and temporary storage
+/backend/upload-tmp/
+/backend/tus-cache/
+/backend/uploads/
+
+# =========================================================
+# Frontend: Next.js
+# =========================================================
+/website/.next/
+/website/out/
+/website/build/
+
+# =========================================================
+# Database & Local Services
+# =========================================================
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+/data
+/disk
+.db-data/
+postgres-data/
+mysql-data/
+mongo-data/
+elasticsearch-data/
+redis-data/
+
+# =========================================================
+# Local Python Environments
+# =========================================================
+**/.venv/
+**/venv/
+**/__pycache__/
+**/*.py[cod]
+
+# =========================================================
+# Local Disk Storage
+# =========================================================
+# Uncomment only if disk/default contains runtime-generated files:
+# /disk/default/*
+# !/disk/default/.gitkeep
+
+# Uncomment only if disk/example contains local-only files:
+# /disk/example/*
+# !/disk/example/.gitkeep
+
+# =========================================================
+# IDEs & Editors
+# =========================================================
+.idea/
+.history/
+.project
+.classpath
+.settings/
+*.sublime-workspace
+*.sublime-project
+*.code-workspace
+
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# =========================================================
+# Operating System
+# =========================================================
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# =========================================================
+# Project-specific local files
+# =========================================================
+# Add local-only files here when their purpose is confirmed.

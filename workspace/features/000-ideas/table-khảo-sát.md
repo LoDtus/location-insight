@@ -1,0 +1,2 @@
+Loại hình	Pháp lý	"Diện tích
+(m2)"	Giá bán	Giá mỗi đơn vị	Chủ nhân	Liên lạc	Lý do bán	Ghi chú	Ưu điểm	Nhược điểm	Tới khu vực văn phòng	Tới chợ	Tới hiệu thuốc	Tới trường cấp 1 (tốt)	Tới trường cấp 2 (tốt)	Tới đường lớn	Tới cửa hàng vật tư	Tới UBND	Tới siêu thị	Tới bệnh viện	Tới nội đô	Dễ ngập?	Xe cứu hỏa dễ tiếp cận?	Là khu vực dân trí cao?	Nhiều quán ăn sáng?	Có vỉa hè?	Nhiều muỗi?	Độ thân thiện của hàng xóm	Khả năng lưu thông của đường phố trước cửa (max)	Mức độ an ninh	Mức độ ô nhiễm	Đánh giá hình dáng mảnh đất	Mật độ dân cư

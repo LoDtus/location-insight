@@ -1,0 +1,11 @@
+name: location-insight-dev
+services:
+
+    postgresql:
+        container_name: postgresql
+    seeder:
+        container_name: seeder
+    backend:
+        container_name: backend
+    website:
+        container_name: website

@@ -1,0 +1,22 @@
+# Context: Real Estate and Property Management
+
+- **Users and setting:** buyers and renters (browsing on phones, comparing many options, emotionally invested), agents and brokers (leads, viewings, listings), property managers (units, tenants, rent, maintenance), developers and investors (inventory, sales status).
+- **What they need most:** find suitable properties fast, trust what they see, compare, arrange viewings; agents need to follow up leads; managers need rent, leases and requests under control.
+- **Stakes:** very large purchases, trust, legal accuracy, lead response time.
+- **UI posture:** spacious, imagery-led, aspirational yet trustworthy. Neutral premium palette with one accent; strong photography; calm, precise data. Management tools: regular density, tidy tables.
+- **Signature screens and components:**
+  - Search with a map and list split view, sticky filters (price, area, bedrooms, type, location), saved searches and alerts.
+  - Listing card: photo carousel, price, key specs, location, status badge.
+  - Listing detail: gallery with lightbox, key facts, floor plan, map and neighborhood, price per area, contact card that stays reachable, mortgage estimator, share and save.
+  - Compare view (up to 4), favorites, viewing scheduler.
+  - Agent CRM: leads, listings, viewing calendar, activity timeline.
+  - Development or project page: master plan, unit availability matrix by floor, price list, payment schedule.
+  - Property management: units, tenants, leases, rent roll, maintenance requests, payments.
+- **Domain rules:**
+  - Price always with currency, unit and area basis; area units consistent (m² or sq ft); dates and formats per locale.
+  - Honest availability and status; "verified" or "hot" badges only when true; no fake scarcity.
+  - Provide a list alternative to the map; cluster markers; keep filter state when going back.
+  - Quick contact through the channels used locally (call, Zalo, WhatsApp, form) with a fast response promise only if it is real.
+  - Show legal and disclaimer information where required (ownership status, planning notes).
+- **Imagery:** high-quality real property photos, floor plans, virtual tours or video. Generated renderings must be labeled illustrative. Keep consistent crop and color grade across a listing set.
+- **Pitfalls:** map-only experience, price hidden behind a form, low-quality or misleading photos, overloaded filter panels, slow galleries, stock images that don't represent the property.

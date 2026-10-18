@@ -1,0 +1,22 @@
+# Context: Education, Schools, E-Learning
+
+- **Users and setting:** students (from children to adult learners), teachers, parents, school administrators. Phones and shared computers; teachers are time-poor; learners are easily discouraged.
+- **What they need most:** know what to do next, see progress, meet deadlines, get clear feedback; teachers need fast marking and attendance; parents need a concise summary.
+- **Stakes:** learner motivation, fairness of grades, privacy of minors.
+- **UI posture:** friendly, encouraging and clear. Learner side may be brighter and more illustrative; teacher and admin side calmer and efficient. Age-appropriate: children get larger targets, simple words and playful but not chaotic visuals; adults get efficiency. Low density for learners, regular for staff.
+- **Signature screens and components:**
+  - Course and module path with progress and "continue where you left off".
+  - Lesson player focused on content, with previous/next, notes, captions and transcripts.
+  - Quiz and exam: one question per screen on mobile, visible progress and timer that does not create panic, autosave, review before submit.
+  - Assignment list with due dates and clear status; feedback view with strengths first.
+  - Gradebook: students by assessments, sticky headers, numbers with subtle color; attendance with tap-to-mark and present as default.
+  - Timetable and calendar; parent view with child switcher and weekly summary; certificates.
+- **Domain rules:**
+  - Never lose answers; save continuously and show it.
+  - Present deadlines with time zone and time remaining.
+  - Plain language at the appropriate reading level; avoid justified text; line-height 1.5 or more; captions for video.
+  - Positive, specific feedback; don't publicly rank students.
+  - Protect minors: minimal data collection, no manipulative engagement mechanics or ads, parental controls where required.
+  - Accessibility is not optional: keyboard, screen reader, contrast, dyslexia-friendly typography.
+- **Imagery:** real learning contexts or consistent illustration; for children, friendly characters in a single style.
+- **Pitfalls:** gamification overload, streak pressure, tiny tap targets, dense gradebooks without sticky headers, timers that induce anxiety.

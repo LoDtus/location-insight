@@ -1,0 +1,22 @@
+# Context: Website, CMS and Hosting Administration
+
+- **Users and setting:** site owners, content editors, webmasters, developers, agencies managing several sites. Range from non-technical to expert, mostly on desktop.
+- **What they need most:** create and publish content safely, keep the site healthy and secure, understand traffic and SEO, manage domains, forms and users.
+- **Stakes:** a broken or unpublished page is public; downtime and SEO regressions cost money.
+- **UI posture:** tool-like and clear. Light theme, neutral surfaces, one accent, regular density. Keep the editor distraction-free with a calm canvas.
+- **Signature screens and components:**
+  - Content list with status (Draft, Scheduled, Published), author, last updated, and filters.
+  - Editor with side panel for settings and live preview with device toggle; autosave, revision history and restore.
+  - Media library: grid with search, alt-text prompts, usage info.
+  - SEO panel: title and description with a search-result preview, specific fixes rather than a vague score.
+  - Site health checklist: uptime, SSL expiry, backups, updates, performance, security alerts, each with a next step.
+  - Traffic summary: trend, top pages, sources (one chart at most plus a small table). Leads and form submissions inbox.
+  - Redirects, domains and DNS records tables; users and roles; deployments with rollback.
+- **Domain rules:**
+  - Publish state must always be unmistakable; show the live URL with copy and "View live".
+  - Guard unsaved changes; trash with restore instead of immediate deletion; schedule with time zone.
+  - Warnings are actionable and non-blocking unless they would break the site.
+  - Permissions per role (editor cannot change domains); multi-site and multi-language switchers visible.
+  - Use plain words for non-technical owners; advanced settings behind a clear "Advanced" section.
+- **Imagery:** real screenshots and page thumbnails, simple diagrams for DNS and deployment steps; avoid abstract hero art in work tools.
+- **Pitfalls:** plugin-style clutter with dozens of settings pages, hidden publish status, "optimization scores" with no explanation, vanity analytics.

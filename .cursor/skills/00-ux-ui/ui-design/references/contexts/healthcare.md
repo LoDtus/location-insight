@@ -1,0 +1,22 @@
+# Context: Medicine, Clinics, Hospitals, Health Apps
+
+- **Users and setting:** clinicians (time-poor, high stakes, frequent interruptions), nurses, reception and billing staff, pharmacists, and patients (often anxious, of all ages and abilities).
+- **What they need most:** identify the right patient, see the critical facts quickly, record accurately, schedule efficiently; patients need clarity, reassurance and easy booking.
+- **Stakes:** patient safety, privacy, legal and regulatory compliance.
+- **UI posture:** calm, clean and clear. Cool or neutral palette with restrained semantic colors; large legible type; low clutter. Reserve red for genuinely critical items. Patient-facing: warm and plain; clinician-facing: efficient and unambiguous.
+- **Signature screens and components:**
+  - Persistent patient banner (name, age, sex, ID, allergies, key flags) on every clinical screen.
+  - Appointment schedule (day or week, resource columns, drag to reschedule, status with text); check-in and queue board.
+  - Encounter note with templates and structured fields; vitals entry with reference ranges and abnormal flags.
+  - Medication list and orders with dose, unit, route, frequency; interaction and allergy alerts.
+  - Lab results with reference range, flags and a small trend; imaging list; e-prescription; billing and insurance.
+  - Patient portal: book, results, messages, reminders; telehealth join screen with device check.
+- **Domain rules:**
+  - Verify identity before any action (two identifiers). Show author and time of every entry; keep an audit trail.
+  - Units explicit and unambiguous (mg versus mcg); avoid error-prone abbreviations; confirm irreversible orders with a summary.
+  - Alerts are tiered: critical interrupts, others inform. Avoid alert fatigue; require a reason to override safety alerts.
+  - Never rely on color alone; support high contrast and large text.
+  - Privacy by default: mask data, auto-lock, role-based access, no personal health data in URLs, notifications or logs.
+  - Patient-facing copy at a plain reading level; don't present the tool as diagnosing; explain consent. Verify local regulatory requirements (for example HIPAA, GDPR or the local data-protection law) with the team's compliance owner.
+- **Imagery:** respectful photography or illustration of care and facilities; avoid graphic clinical imagery. Do not fabricate doctors, certifications, reviews or before/after results.
+- **Pitfalls:** alert overload, hiding allergies below the fold, tiny dense forms, cold sterile visuals, ambiguous appointment statuses.

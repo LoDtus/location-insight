@@ -1,0 +1,22 @@
+# Context: Finance, Accounting, Banking, Fintech
+
+- **Users and setting:** accountants, finance managers, CFOs, auditors, and end customers using banking or payment apps. Desks and phones; careful, detail-oriented work with deadlines at period end.
+- **What they need most:** numbers they can trust, clear totals, reconciliation, approvals, a record of who did what.
+- **Stakes:** money, compliance, fraud, audit findings.
+- **UI posture:** restrained and trustworthy. Neutral surfaces, one deep brand hue, minimal ornament, generous spacing in summaries, regular density in ledgers. Tabular numerals, right-aligned amounts. Consumer fintech can be warmer and lighter; B2B stays quiet.
+- **Signature screens and components:**
+  - Transaction and ledger tables with status, totals row, sticky header, filters by period, account and status.
+  - Invoice and bill detail with line items, taxes, payment status and history.
+  - Approval workflow: stepper showing who approved and who is next, maker-checker.
+  - Reconciliation: split view of bank lines and ledger entries with match suggestions.
+  - Budget versus actual with variance; cash-flow summary; period selector with open/closed state.
+  - Payment flow: review, confirm, receipt. Statements and report exports (PDF, CSV).
+- **Domain rules:**
+  - Always show currency, period and "as of" time. Never mix currencies silently.
+  - Format by locale (for example VND without decimals: 1.234.567 ₫). Negative values with a minus sign, optionally also colored; follow the organization's accounting convention if it uses brackets.
+  - Totals and rounding must reconcile exactly. Show fees and taxes before commitment.
+  - Money-moving steps: review, explicit confirm with amount and recipient, then a receipt. Mask sensitive numbers with reveal on demand.
+  - Keep audit trail, permissions by role, locked periods, and printable reports.
+  - Never lose entered data on error.
+- **Imagery:** minimal. Abstract geometry, real product screenshots, documents. Avoid coins, dollar signs and handshake clichés.
+- **Pitfalls:** neon "crypto" look in a conservative B2B tool, hiding fees, ambiguous status wording, charts without a table, too many KPIs competing on one screen.

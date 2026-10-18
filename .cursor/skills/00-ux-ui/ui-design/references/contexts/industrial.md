@@ -1,0 +1,23 @@
+# Context: Engineering, Industry, Machinery, Materials
+
+- **Users and setting:** machine operators (standing, gloves, glare, tablets or fixed panels), supervisors, maintenance engineers, warehouse and procurement staff, planners at desks. Interruptions are constant; shifts hand over work.
+- **What they need most:** know machine and line status at a glance, react to alarms, record work fast and accurately, trace materials, plan maintenance.
+- **Stakes:** safety, downtime cost, scrap, wrong stock counts.
+- **UI posture:** sober and sturdy. Neutral base, strong contrast, a small status palette. Light theme by default; offer dark for dim control rooms. Floor screens: type 18px or larger, targets 48-64px, few elements. Office screens: regular density.
+- **Signature screens and components:**
+  - Machine or line status board (Running, Idle, Fault, Maintenance, Offline) with color, icon and text.
+  - Alarm list with severity, time, duration, acknowledge and cause.
+  - Work orders and maintenance calendar; downtime reason picker with large buttons.
+  - Production counters versus plan; OEE and availability tiles with a definition link.
+  - Inventory with min/max levels, stock status, locations; goods receipt and issue with scan input.
+  - Bill of materials as a tree; equipment hierarchy; spare-parts catalog with photos.
+  - Layout or P&ID map with status overlays, only when spatial context matters.
+- **Domain rules:**
+  - Show units and ranges everywhere (°C, bar, kg, rpm); keep decimals consistent.
+  - Alarm severities limited to 3-4 levels, each distinct by icon, text and color. Acknowledge flow, no silent dismissal.
+  - Show data freshness and communication loss explicitly; stale is not zero.
+  - Control actions (start, stop, setpoint changes) require confirmation stating the consequence, and are logged with user and time.
+  - Barcode input: autofocus, accept scanner Enter, immediate visual and audible feedback, fast correction.
+  - Support offline or poor connectivity in warehouses; queue and sync visibly.
+- **Imagery:** real equipment photos, line drawings, exploded diagrams, isometric technical illustration. Avoid stock images of generic smiling workers.
+- **Pitfalls:** SCADA-style clutter and rainbow colors, tiny fonts on floor screens, charts that need a trained eye, color-only status, burying the "report downtime" action.

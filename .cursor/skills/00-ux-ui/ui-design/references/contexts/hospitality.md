@@ -1,0 +1,21 @@
+# Context: F&B, Restaurants, Hotels
+
+- **Users and setting:** guests (consumers on phones, deciding with their eyes), and staff (waiters, cashiers, kitchen, front desk, housekeeping) working fast on tablets and POS screens, with wet hands, noise and time pressure; managers reviewing performance.
+- **What they need most:** guests want to see, choose and book or order with confidence; staff want speed, accuracy and real-time coordination.
+- **Stakes:** conversion, order accuracy, guest experience, table and room turnover.
+- **UI posture:** two registers. **Guest-facing:** atmospheric, photography-led and brand-driven (high identity need, use the Identity brief in `patterns/landing.md` when creating). **Staff-facing:** large targets, high contrast, minimal taps, quiet and fast; dark or light chosen for the environment (kitchens often prefer high-contrast dark).
+- **Signature screens and components:**
+  - Menu with photography, category navigation, dietary and allergen icons, item sheet with modifiers; cart and checkout; QR table ordering.
+  - POS: category tabs, item grid, order panel, split bills and payment.
+  - Kitchen display: ticket cards by status and elapsed time, color plus labels for urgency, bump action.
+  - Table map and reservations timeline; waitlist.
+  - Hotel booking: dates and guests, room results with photos and cancellation terms, extras, payment, confirmation.
+  - Room rack and availability grid (rooms by dates); housekeeping status board; guest profile and folio; inventory and recipe costing.
+- **Domain rules:**
+  - Prices include taxes and fees up front; cancellation policy visible before payment.
+  - Real-time availability and sold-out states; allergen information easy to find.
+  - Adding an item takes at most 3 taps; staff screens are one-handed and touch-first; timers are visible but calm.
+  - Support multiple languages and currencies; clear booking confirmation with map, contact and what to expect.
+  - Photos must depict what is actually served or offered.
+- **Imagery:** appetizing, honest, consistent photography (lighting, color grade, plating, rooms at believable angles) is core. Generate or source high-quality images and keep a single treatment. Avoid generic stock that does not match the venue.
+- **Pitfalls:** tiny POS buttons, hidden fees until the last step, inconsistent photo styles, carousels that hide the menu, dark patterns such as fake scarcity.

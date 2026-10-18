@@ -1,0 +1,22 @@
+# Context: HR and People Administration
+
+- **Users and setting:** HR staff, managers, and every employee through self-service (often on phones, often non-technical). Moments of stress: leave, pay, reviews, hiring decisions.
+- **What they need most:** request and approve things quickly, find people and records, understand process status, keep sensitive data private.
+- **Stakes:** privacy, fairness, legal compliance, trust.
+- **UI posture:** human, warm and calm; professional but not corporate-cold. Softer palette, avatars and names prominent, friendly microcopy. Moderate density for HR staff, low density for employee self-service.
+- **Signature screens and components:**
+  - Employee directory with card and table toggle; profile with tabs (Overview, Job, Compensation, Documents, Time off, Performance).
+  - Time-off request and balance; team availability calendar.
+  - Attendance and timesheet as a weekly grid, with exceptions highlighted.
+  - Approval inbox with bulk approve and reasons for rejection.
+  - Recruiting pipeline as a board with at most 6 stages, plus list view; candidate profile with timeline and scorecards.
+  - Onboarding and offboarding checklists with progress and owners.
+  - Org chart with zoom and a list fallback; payroll run with review steps; payslip view.
+- **Domain rules:**
+  - Role-based visibility: hide sensitive fields (salary, ID numbers, health, disciplinary) from those who may not see them, rather than just disabling. Mask by default, log reveals.
+  - Handle names with diacritics, multiple name parts and preferred names. Locale date formats and working-week conventions.
+  - Statuses are explicit (Pending, Approved, Rejected, Cancelled) with who, when and why.
+  - Evaluate fairness: avoid ranking individuals in public leaderboards; avoid a surveillance feel in attendance views.
+  - Self-service must work well on mobile with minimal steps.
+- **Imagery:** licensed photos or illustrations of real working life, diverse and natural; avoid staged stock clichés. Use initials avatars when no photo exists.
+- **Pitfalls:** exposing compensation to the wrong role, kanban boards with too many stages, org charts that collapse into unreadable mazes, jargon-heavy forms for employees.

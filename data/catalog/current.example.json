@@ -1,0 +1,13 @@
+{
+  "places": {
+    "osm": "2026-10-18"
+  },
+  "transport": {
+    "gtfs": "2026-10-02"
+  },
+  "environment": {
+    "fabdem": "v1-0",
+    "worldpop": "R2025A"
+  },
+  "admin": {}
+}

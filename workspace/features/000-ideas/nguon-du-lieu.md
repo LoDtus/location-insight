@@ -1,6 +1,6 @@
 # Nguồn dữ liệu theo tiêu chí
 
-File này đi cùng [tieu-chi.md](tieu-chi.md). Mỗi tiêu chí có một hoặc nhiều nguồn. Ghép lại rồi bỏ trùng để lớp điểm dày hơn. Không có nguồn nào vừa sống, vừa đủ, vừa chuẩn cho mọi tiêu chí. Chỗ dữ liệu chỉ đổi vài năm một lần được ghi thẳng là bản tĩnh.
+File này đi cùng [tieu-chi.md](tieu-chi.md). File tải về đặt trong [data/](../../../data/README.md), không commit byte dữ liệu. Mỗi tiêu chí có một hoặc nhiều nguồn. Ghép lại rồi bỏ trùng để lớp điểm dày hơn. Không có nguồn nào vừa sống, vừa đủ, vừa chuẩn cho mọi tiêu chí. Chỗ dữ liệu chỉ đổi vài năm một lần được ghi thẳng là bản tĩnh.
 
 Giá và điều khoản lấy từ trang công khai lúc khảo sát. Mở lại trước khi thu thập.
 

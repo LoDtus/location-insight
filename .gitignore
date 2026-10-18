@@ -140,7 +140,17 @@ note.txt
 *.sqlite
 *.sqlite3
 
-/data
+# Data lake: keep the layout, docs, and ingest receipts.
+# Payloads (pbf, tif, parquet, scrapes, ...) stay on disk only.
+/data/**
+!/data/README.md
+!/data/**/
+!/data/**/.gitkeep
+!/data/catalog/**/*.json
+!/data/catalog/**/*.yaml
+!/data/catalog/**/*.yml
+!/data/catalog/**/*.md
+
 /disk
 .db-data/
 postgres-data/

@@ -3,6 +3,8 @@
   const HISTORY = "li-history";
   const USED = "li-used";
   const VALUATION = "li-valuation";
+  const SAVED = "li-saved";
+  const LISTINGS = "li-listings";
   const DAILY = 10;
 
   function read(key, fallback) {
@@ -42,9 +44,9 @@
   }
 
   function safeNext(value) {
-    if (!value) return root() + "app/ghim.html";
-    if (!/^app\/[a-z0-9-]+\.html(\?[A-Za-z0-9=&%._-]*)?$/.test(value)) {
-      return root() + "app/ghim.html";
+    if (!value) return root() + "app/tra-cuu.html";
+    if (!/^(app\/[a-z0-9-]+\.html|dang-tin\.html)(\?[A-Za-z0-9=&%._-]*)?$/.test(value)) {
+      return root() + "app/tra-cuu.html";
     }
     return root() + value;
   }
@@ -89,6 +91,35 @@
     return read(VALUATION, {})[id] || null;
   }
 
+  function savedPlaces() {
+    return read(SAVED, []);
+  }
+
+  function putSaved(item) {
+    const items = savedPlaces().filter((row) => row.id !== item.id);
+    items.unshift(item);
+    write(SAVED, items.slice(0, 40));
+    return items.length <= 40;
+  }
+
+  function removeSaved(id) {
+    write(SAVED, savedPlaces().filter((row) => row.id !== id));
+  }
+
+  function listings() {
+    return read(LISTINGS, []);
+  }
+
+  function putListing(item) {
+    const items = listings();
+    items.unshift(item);
+    write(LISTINGS, items.slice(0, 20));
+  }
+
+  function removeListing(id) {
+    write(LISTINGS, listings().filter((row) => row.id !== id));
+  }
+
   function toast(message) {
     const node = document.createElement("div");
     node.className = "toast";
@@ -113,6 +144,12 @@
     button.addEventListener("click", () => {
       const open = nav.classList.toggle("is-open");
       button.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+    nav.querySelectorAll("a").forEach((link) => {
+      link.addEventListener("click", () => {
+        nav.classList.remove("is-open");
+        button.setAttribute("aria-expanded", "false");
+      });
     });
   }
 
@@ -143,6 +180,12 @@
     consume,
     saveValuation,
     loadValuation,
+    savedPlaces,
+    putSaved,
+    removeSaved,
+    listings,
+    putListing,
+    removeListing,
     toast,
     asset,
     icons,

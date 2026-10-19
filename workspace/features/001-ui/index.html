@@ -22,10 +22,11 @@
       <button class="icon-btn nav-toggle" type="button" data-nav-toggle aria-expanded="false" aria-controls="dieu-huong" aria-label="Mở menu"><i data-lucide="menu"></i></button>
       <nav class="site-nav" id="dieu-huong" data-nav aria-label="Chính">
         <a href="#tra-cuu">Tra cứu</a>
-        <a href="tinh-nang.html">Tính năng</a>
-        <a href="phap-ly.html">Pháp lý</a>
-        <a href="bai-viet.html">Bài viết</a>
-        <a href="app/bao-cao.html?id=van-mieu&mau=1">Báo cáo mẫu</a>
+        <a href="#dang-tin">Tin đang chào</a>
+        <a href="#bang-gia">Bảng giá</a>
+        <a href="#cach-lam">Cách làm</a>
+        <a href="#bai-viet">Bài viết</a>
+        <a href="#hoi-dap">Hỏi đáp</a>
         <a href="dang-nhap.html" data-auth="login">Đăng nhập</a>
       </nav>
       <div class="header-actions">
@@ -112,13 +113,165 @@
             </div>
           </div>
           <div class="lookup-layout">
-            <div id="ban-do-tra" class="map-canvas" role="application" aria-label="Bản đồ OpenStreetMap của Hà Nội. Chấm để xem điểm mạnh và điểm yếu."></div>
+            <div class="map-slot">
+              <div id="ban-do-tra" class="map-canvas" role="application" aria-label="Bản đồ OpenStreetMap của Hà Nội. Chấm để xem điểm mạnh và điểm yếu."></div>
+              <button class="btn btn-secondary map-expand" id="mo-ban-do" type="button" aria-expanded="false" aria-controls="ban-do-rong">
+                <i data-lucide="maximize-2"></i>
+                Mở rộng bản đồ
+              </button>
+            </div>
             <aside id="chi-tiet-diem" class="lookup-detail" aria-live="polite">
               <h3>Chưa chọn điểm</h3>
               <p>Chấm lên bản đồ, hoặc chọn Ngõ Văn Miếu, Hồ Gươm, Nội Bài. Popup trên bản đồ và cột này cùng hiện điểm mạnh, điểm yếu.</p>
             </aside>
           </div>
           <p class="fine" id="tra-trang-thai">Nền OpenStreetMap. Chỉ ba điểm đã đo có số. Chấm chỗ khác thì trang ghi chưa có số đo.</p>
+        </div>
+      </section>
+
+      <div id="ban-do-rong" class="map-stage" hidden role="dialog" aria-modal="true" aria-labelledby="tieu-de-ban-do-rong">
+        <div class="map-stage-top">
+          <h2 id="tieu-de-ban-do-rong" class="visually-hidden">Bản đồ toàn màn hình</h2>
+          <form class="map-search" id="form-tim-rong" role="search">
+            <label class="visually-hidden" for="tim-rong">Tìm điểm đã đo</label>
+            <input id="tim-rong" type="search" autocomplete="off" placeholder="Văn Miếu, Hồ Gươm, Nội Bài" />
+            <button class="btn btn-primary" type="submit">Tìm</button>
+          </form>
+          <button class="btn btn-secondary" id="dong-ban-do" type="button">Thu nhỏ</button>
+        </div>
+        <div class="map-stage-main">
+          <div class="map-stage-canvas" id="ban-do-cho">
+            <div class="map-ctrls" role="group" aria-label="Điều khiển bản đồ">
+              <button class="map-ctrl" id="phong-to" type="button" aria-label="Phóng to"><i data-lucide="plus"></i><span class="map-tip">Phóng to</span></button>
+              <button class="map-ctrl" id="thu-nho" type="button" aria-label="Thu nhỏ"><i data-lucide="minus"></i><span class="map-tip">Thu nhỏ</span></button>
+              <button class="map-ctrl" id="ve-dau" type="button" aria-label="Quay về vị trí ban đầu"><i data-lucide="rotate-ccw"></i><span class="map-tip">Quay về vị trí ban đầu</span></button>
+              <button class="map-ctrl" id="chia-se-diem" type="button" aria-label="Chia sẻ vị trí hiện tại"><i data-lucide="share-2"></i><span class="map-tip">Chia sẻ vị trí hiện tại</span></button>
+              <button class="map-ctrl" id="dia-diem-da-luu" type="button" aria-label="Địa điểm đã lưu" aria-pressed="false"><i data-lucide="bookmark"></i><span class="map-tip">Địa điểm đã lưu</span></button>
+            </div>
+            <p class="map-compass" id="la-ban" hidden>Đang xoay. Quay về vị trí ban đầu để đặt hướng bắc.</p>
+          </div>
+          <aside class="map-detail" aria-labelledby="tieu-de-chi-tiet-rong">
+            <div id="noi-dung-rong"></div>
+            <details class="map-help">
+              <summary>Cách dùng chuột và phím</summary>
+              <ul class="plain-list">
+                <li>Chuột trái kéo để di chuyển. Chấm để xem điểm.</li>
+                <li>Cuộn chuột hoặc nháy đúp để phóng to. Nháy đúp chuột phải để thu nhỏ.</li>
+                <li>Giữ Shift và kéo để khoanh vùng cần phóng.</li>
+                <li>Giữ Ctrl và kéo, hoặc kéo bằng chuột phải, để xoay bản đồ.</li>
+                <li>Giữ Alt và kéo dọc để phóng hoặc thu. Alt rồi chấm để ghim mà không đổi khung hình.</li>
+                <li>Phím mũi tên di chuyển. Phím + và − phóng hoặc thu khi bản đồ đang được chọn.</li>
+              </ul>
+            </details>
+          </aside>
+        </div>
+        <div id="menu-chuot" class="map-menu" role="menu" hidden></div>
+      </div>
+
+      <section class="section listing-band" id="dang-tin" aria-labelledby="tieu-de-dang-tin" style="padding-top: 0">
+        <div class="wrap">
+          <div class="listing-head">
+            <div>
+              <h2 id="tieu-de-dang-tin">Tin đang chào</h2>
+              <p>Giá trên mỗi dòng là giá người đăng chào, không phải kết luận của báo cáo vị trí. Tin gắn nhãn Tin mẫu không phải căn đang bán.</p>
+            </div>
+            <a class="btn btn-primary" id="nut-rao-ban" href="dang-ky.html?next=dang-tin.html">Đăng ký để rao bán tại đây</a>
+          </div>
+          <div id="danh-sach-tin" class="listing-board" aria-live="polite">
+              <article class="listing-row">
+                <p class="listing-price">7,5 tỷ</p>
+                <div>
+                  <p class="listing-kicker"><span class="listing-badge">Tin mẫu</span> Đất · Văn Miếu - Quốc Tử Giám</p>
+                  <dl class="listing-specs">
+                    <div><dt>Diện tích</dt><dd>42 m²</dd></div>
+                    <div><dt>Mặt tiền</dt><dd>Chưa khai</dd></div>
+                    <div><dt>Pháp lý khai</dt><dd>Sổ đỏ</dd></div>
+                  </dl>
+                  <p class="fine">Giá chào mẫu, không phải giao dịch đã chốt. Ảnh là ngõ khu vực, không phải thửa này.</p>
+                </div>
+                <img src="images/ngo-ha-noi.webp" width="160" height="120" alt="Ngõ ở Hà Nội, ảnh khu vực minh họa, không phải thửa trong tin." />
+              </article>
+              <article class="listing-row">
+                <p class="listing-price">9,2 tỷ</p>
+                <div>
+                  <p class="listing-kicker"><span class="listing-badge">Tin mẫu</span> Nhà phố · Hồ Gươm</p>
+                  <dl class="listing-specs">
+                    <div><dt>Diện tích</dt><dd>36 m²</dd></div>
+                    <div><dt>Mặt tiền</dt><dd>3,2 m</dd></div>
+                    <div><dt>Pháp lý khai</dt><dd>Sổ đỏ</dd></div>
+                  </dl>
+                  <p class="fine">Giá chào mẫu. Ảnh hồ là phong cảnh khu vực, không phải mặt nhà.</p>
+                </div>
+                <img src="images/ho-hoan-kiem.webp" width="160" height="120" alt="Hồ Gươm, ảnh khu vực minh họa, không phải căn trong tin." />
+              </article>
+              <article class="listing-row">
+                <p class="listing-price">2,4 tỷ</p>
+                <div>
+                  <p class="listing-kicker"><span class="listing-badge">Tin mẫu</span> Đất · Đông Anh</p>
+                  <dl class="listing-specs">
+                    <div><dt>Diện tích</dt><dd>80 m²</dd></div>
+                    <div><dt>Mặt tiền</dt><dd>4 m</dd></div>
+                    <div><dt>Pháp lý khai</dt><dd>Đang chờ sổ</dd></div>
+                  </dl>
+                  <p class="fine">Giá chào mẫu ngoài nội thành. Ảnh sân bay là mốc khu vực, không phải ô đất.</p>
+                </div>
+                <img src="images/noi-bai.webp" width="160" height="120" alt="Sân bay Nội Bài, ảnh mốc khu vực, không phải ô đất trong tin." />
+              </article>
+            </div>
+        </div>
+      </section>
+
+      <section class="section" id="bang-gia">
+        <div class="wrap">
+          <h2>Trả tiền khi bạn cần nhiều hơn</h2>
+          <p class="lede">Gói miễn phí đủ để đọc điểm mạnh và điểm yếu. Trả thêm khi hết 10 lượt một ngày, hoặc khi bạn muốn mở bước định giá.</p>
+          <div class="price-grid">
+            <article class="price-card">
+              <h3>Miễn phí</h3>
+              <p class="price-figure"><strong>0 đồng</strong></p>
+              <ul class="plain-list">
+                <li>Khoảng 10 lượt so sánh mỗi ngày.</li>
+                <li>Chỉ xem điểm mạnh và điểm yếu của ô đất.</li>
+                <li>Chưa mở bước định giá.</li>
+              </ul>
+              <div class="price-actions">
+                <a class="btn btn-secondary" href="dang-ky.html">Dùng miễn phí</a>
+              </div>
+            </article>
+            <article class="price-card is-recommended">
+              <h3>Không giới hạn lượt</h3>
+              <p class="fine">Nên dùng nếu bạn so nhiều điểm trong ngày.</p>
+              <p class="price-figure"><strong>30.000 đồng</strong> <span>mỗi tháng</span></p>
+              <p class="price-figure"><strong>300.000 đồng</strong> <span>mỗi năm</span></p>
+              <p class="fine">Năm bằng 10 tháng.</p>
+              <ul class="plain-list">
+                <li>Không giới hạn lượt so sánh.</li>
+                <li>Vẫn chỉ xem điểm mạnh và điểm yếu.</li>
+                <li>Định giá tính riêng, 10.000 đồng một lần.</li>
+              </ul>
+              <div class="price-actions">
+                <button class="btn btn-primary" type="button" data-plan="Không giới hạn lượt" data-cycle="tháng" data-amount="30.000 đồng">Trả theo tháng</button>
+                <button class="btn btn-secondary" type="button" data-plan="Không giới hạn lượt" data-cycle="năm" data-amount="300.000 đồng">Trả theo năm</button>
+              </div>
+            </article>
+            <article class="price-card">
+              <h3>Có định giá</h3>
+              <p class="price-figure"><strong>60.000 đồng</strong> <span>mỗi tháng</span></p>
+              <p class="price-figure"><strong>600.000 đồng</strong> <span>mỗi năm</span></p>
+              <p class="fine">Năm bằng 10 tháng.</p>
+              <ul class="plain-list">
+                <li>Không giới hạn lượt so sánh.</li>
+                <li>Thêm bước định giá khi bạn khai thuộc tính ô đất.</li>
+                <li>Khung giá vẫn là tham chiếu, không phải giá bán.</li>
+              </ul>
+              <div class="price-actions">
+                <button class="btn btn-secondary" type="button" data-plan="Có định giá" data-cycle="tháng" data-amount="60.000 đồng">Trả theo tháng</button>
+                <button class="btn btn-secondary" type="button" data-plan="Có định giá" data-cycle="năm" data-amount="600.000 đồng">Trả theo năm</button>
+              </div>
+            </article>
+          </div>
+          <p class="price-note">Chỉ cần một lần định giá, không mua gói: <strong>10.000 đồng</strong> cho một ô đất. Giá tháng và năm ở trên là mức minh họa để so các gói, chưa phải bảng giá đã chốt. Bản mock không thu tiền.</p>
+          <p id="xac-nhan-goi" class="banner success" hidden tabindex="-1"></p>
         </div>
       </section>
 
@@ -192,60 +345,6 @@
         </div>
       </section>
 
-      <section class="section" id="bang-gia" style="padding-top: 0">
-        <div class="wrap">
-          <h2>Trả tiền khi bạn cần nhiều hơn</h2>
-          <p class="lede">Gói miễn phí đủ để đọc điểm mạnh và điểm yếu. Trả thêm khi hết 10 lượt một ngày, hoặc khi bạn muốn mở bước định giá.</p>
-          <div class="price-grid">
-            <article class="price-card">
-              <h3>Miễn phí</h3>
-              <p class="price-figure"><strong>0 đồng</strong></p>
-              <ul class="plain-list">
-                <li>Khoảng 10 lượt so sánh mỗi ngày.</li>
-                <li>Chỉ xem điểm mạnh và điểm yếu của ô đất.</li>
-                <li>Chưa mở bước định giá.</li>
-              </ul>
-              <div class="price-actions">
-                <a class="btn btn-secondary" href="dang-ky.html">Dùng miễn phí</a>
-              </div>
-            </article>
-            <article class="price-card is-recommended">
-              <h3>Không giới hạn lượt</h3>
-              <p class="fine">Nên dùng nếu bạn so nhiều điểm trong ngày.</p>
-              <p class="price-figure"><strong>30.000 đồng</strong> <span>mỗi tháng</span></p>
-              <p class="price-figure"><strong>300.000 đồng</strong> <span>mỗi năm</span></p>
-              <p class="fine">Năm bằng 10 tháng.</p>
-              <ul class="plain-list">
-                <li>Không giới hạn lượt so sánh.</li>
-                <li>Vẫn chỉ xem điểm mạnh và điểm yếu.</li>
-                <li>Định giá tính riêng, 10.000 đồng một lần.</li>
-              </ul>
-              <div class="price-actions">
-                <button class="btn btn-primary" type="button" data-plan="Không giới hạn lượt" data-cycle="tháng" data-amount="30.000 đồng">Trả theo tháng</button>
-                <button class="btn btn-secondary" type="button" data-plan="Không giới hạn lượt" data-cycle="năm" data-amount="300.000 đồng">Trả theo năm</button>
-              </div>
-            </article>
-            <article class="price-card">
-              <h3>Có định giá</h3>
-              <p class="price-figure"><strong>60.000 đồng</strong> <span>mỗi tháng</span></p>
-              <p class="price-figure"><strong>600.000 đồng</strong> <span>mỗi năm</span></p>
-              <p class="fine">Năm bằng 10 tháng.</p>
-              <ul class="plain-list">
-                <li>Không giới hạn lượt so sánh.</li>
-                <li>Thêm bước định giá khi bạn khai thuộc tính ô đất.</li>
-                <li>Khung giá vẫn là tham chiếu, không phải giá bán.</li>
-              </ul>
-              <div class="price-actions">
-                <button class="btn btn-secondary" type="button" data-plan="Có định giá" data-cycle="tháng" data-amount="60.000 đồng">Trả theo tháng</button>
-                <button class="btn btn-secondary" type="button" data-plan="Có định giá" data-cycle="năm" data-amount="600.000 đồng">Trả theo năm</button>
-              </div>
-            </article>
-          </div>
-          <p class="price-note">Chỉ cần một lần định giá, không mua gói: <strong>10.000 đồng</strong> cho một ô đất. Giá tháng và năm ở trên là mức minh họa để so các gói, chưa phải bảng giá đã chốt. Bản mock không thu tiền.</p>
-          <p id="xac-nhan-goi" class="banner success" hidden tabindex="-1"></p>
-        </div>
-      </section>
-
       <section class="section" id="hoi-dap" style="padding-top: 0">
         <div class="wrap faq-split">
           <div class="faq">
@@ -304,8 +403,9 @@
         <nav class="footer-links" aria-label="Chân trang">
           <a href="index.html">Trang chủ</a>
           <a href="#tra-cuu">Tra cứu</a>
+          <a href="#dang-tin">Tin rao</a>
+          <a href="dang-tin.html">Đăng tin</a>
           <a href="tinh-nang.html">Tính năng</a>
-          <a href="phap-ly.html">Pháp lý</a>
           <a href="bai-viet.html">Bài viết</a>
           <a href="dang-nhap.html">Đăng nhập</a>
           <a href="dang-ky.html">Tạo tài khoản</a>
@@ -317,6 +417,7 @@
           <a href="app/khoang-gia.html?id=van-mieu">Khung giá</a>
           <a href="app/lich-su.html">Lịch sử</a>
           <a href="app/tai-khoan.html">Tài khoản</a>
+          <a href="phap-ly.html">Pháp lý</a>
         </nav>
       </div>
     </footer>

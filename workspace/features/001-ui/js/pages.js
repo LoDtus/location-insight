@@ -69,6 +69,15 @@
 
   function registerPage() {
     const form = document.getElementById("form-register");
+    const next = params().get("next");
+    if (next === "dang-tin.html") {
+      const lede = document.querySelector(".auth-card .lede");
+      const submit = form.querySelector("[type='submit']");
+      if (lede) lede.textContent = "Chỉ cần tên, email và mật khẩu. Xong là vào mẫu soạn tin rao bán.";
+      if (submit) submit.textContent = "Tạo tài khoản và soạn tin";
+    }
+    const loginLink = document.querySelector(".auth-card a[href='dang-nhap.html']");
+    if (loginLink && next) loginLink.href = "dang-nhap.html?next=" + encodeURIComponent(next);
     bindPasswordToggles(form);
     form.addEventListener("submit", (event) => {
       event.preventDefault();
@@ -98,7 +107,7 @@
         return;
       }
       store().signIn({ name, email });
-      location.href = store().root() + "app/ghim.html";
+      location.href = store().safeNext(params().get("next"));
     });
   }
 
@@ -308,6 +317,7 @@
 
     bindLookup();
     bindStories();
+    bindListings();
 
     const confirm = document.getElementById("xac-nhan-goi");
     document.querySelectorAll("[data-plan]").forEach((button) => {
@@ -361,6 +371,14 @@
     let map = null;
     let circle = null;
     let stray = null;
+    let current = null;
+    let stageOpen = false;
+    let stageMode = "detail";
+    let bearing = 0;
+    let swallowClick = false;
+    let savedFilter = "";
+    let pendingDelete = "";
+    let zoomControlBar = null;
     const markers = {};
 
     function formatMeters(meters) {
@@ -377,6 +395,7 @@
 
     function showPlace(place, note) {
       active = place;
+      current = { lat: place.lat, lng: place.lng, name: place.title, place: place, note: note || "" };
       panel.replaceChildren(el("h3", null, place.title), el("p", null, place.address));
       if (note) panel.append(el("p", "fine", note));
       panel.append(el("h4", null, "Điểm mạnh"), list(place.strengths));
@@ -388,13 +407,18 @@
         button.setAttribute("aria-pressed", button.dataset.place === place.id ? "true" : "false");
       });
       status.textContent = place.title + ". " + radiusCopy[radius];
+      paintStage();
     }
 
-    function showEmpty(message) {
+    function showEmpty(message, latlng) {
       active = null;
+      current = latlng
+        ? { lat: latlng.lat, lng: latlng.lng, name: "Điểm chưa có số đo", place: null, note: "" }
+        : null;
       panel.replaceChildren(el("h3", null, "Chưa có số đo"), el("p", null, message));
       document.querySelectorAll("[data-place]").forEach((button) => button.setAttribute("aria-pressed", "false"));
       status.textContent = message;
+      paintStage();
     }
 
     function popupHtml(place, note) {
@@ -442,7 +466,8 @@
       Object.keys(markers).forEach((id) => markers[id].closePopup());
     }
 
-    function select(place, meters) {
+    function select(place, meters, options) {
+      const fly = !options || options.fly !== false;
       closePopups();
       if (stray) {
         stray.remove();
@@ -455,8 +480,12 @@
       showPlace(place, note);
       if (!map || !markers[place.id]) return;
       drawCircle(place);
+      if (stageOpen) {
+        if (fly) moveTo(place);
+        return;
+      }
       markers[place.id].bindPopup(popupHtml(place, note), { maxWidth: 320, minWidth: 240, maxHeight: 280, autoPan: true, keepInView: true }).openPopup();
-      moveTo(place);
+      if (fly) moveTo(place);
     }
 
     function miss(latlng) {
@@ -468,10 +497,17 @@
       }
       document.querySelectorAll("[data-place]").forEach((button) => button.setAttribute("aria-pressed", "false"));
       const message = "Điểm vừa chấm chưa có số đo. Chọn Ngõ Văn Miếu, Hồ Gươm hoặc Nội Bài. Trang không điền điểm mạnh hay điểm yếu khi chưa có số.";
-      showEmpty(message);
+      showEmpty(message, latlng);
       if (!map) return;
       if (stray) stray.remove();
-      stray = L.marker(latlng, { icon: markerIcon() }).addTo(map);
+      stray = L.marker(latlng, { draggable: true, icon: markerIcon() }).addTo(map);
+      stray.on("dragend", () => {
+        const point = stray.getLatLng();
+        const near = data().nearest(point.lat, point.lng);
+        if (near.meters <= 600) select(near.place, near.meters, { fly: false });
+        else miss(point);
+      });
+      if (stageOpen) return;
       stray.bindPopup("<div class=\"map-popup\"><strong>Chưa có số đo</strong><p>" + escapeHtml(message) + "</p></div>", { maxWidth: 280, maxHeight: 220, autoPan: true, keepInView: true }).openPopup();
     }
 
@@ -511,9 +547,11 @@
       });
     });
 
-    function runSearch() {
-      if (!search) return;
-      const query = search.value.trim();
+    function runSearchFrom(value) {
+      const query = value.trim();
+      const wideInput = document.getElementById("tim-rong");
+      if (search && search.value !== value) search.value = value;
+      if (wideInput && wideInput.value !== value) wideInput.value = value;
       if (!query) return;
       const matches = data().searchPlaces(query);
       if (!matches.length) {
@@ -527,22 +565,24 @@
     }
 
     if (search) {
-      search.addEventListener("change", runSearch);
+      search.addEventListener("change", () => runSearchFrom(search.value));
       search.addEventListener("keydown", (event) => {
         if (event.key !== "Enter") return;
         event.preventDefault();
-        runSearch();
+        runSearchFrom(search.value);
       });
     }
 
     const mapNode = document.getElementById("ban-do-tra");
     if (!mapNode || !window.L) {
       status.textContent = "Không tải được bản đồ. Vẫn chọn một điểm đã đo ở phía trên để đọc điểm mạnh và điểm yếu.";
+      bindStage(null, null);
       return;
     }
 
     const places = data().places;
-    map = L.map(mapNode, { scrollWheelZoom: true });
+    map = L.map(mapNode, { scrollWheelZoom: true, boxZoom: true, zoomControl: false });
+    const zoomBar = L.control.zoom({ zoomInTitle: "Phóng to", zoomOutTitle: "Thu nhỏ" }).addTo(map);
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
@@ -550,20 +590,535 @@
     const icon = markerIcon();
     places.forEach((place) => {
       const marker = L.marker([place.lat, place.lng], { icon }).addTo(map);
-      marker.bindTooltip(place.title + " · " + place.coverage + " trong 500 m", { direction: "top" });
+      marker.bindTooltip(place.title, { direction: "top" });
       marker.on("click", () => select(place, 0));
       markers[place.id] = marker;
     });
     map.on("click", (event) => {
+      if (swallowClick) {
+        swallowClick = false;
+        return;
+      }
+      hideMenu();
+      const fly = !event.originalEvent || !event.originalEvent.altKey;
       const near = data().nearest(event.latlng.lat, event.latlng.lng);
-      if (near.meters <= 600) select(near.place, near.meters);
+      if (near.meters <= 600) select(near.place, near.meters, { fly: fly });
       else miss(event.latlng);
     });
-    map.fitBounds(
-      L.latLngBounds(places.map((place) => [place.lat, place.lng])),
-      { padding: [28, 28] }
-    );
+    const homeBounds = L.latLngBounds(places.map((place) => [place.lat, place.lng]));
+    map.fitBounds(homeBounds, { padding: [28, 28] });
+    map.on("move zoom", applyBearing);
+    bindStage(homeBounds, zoomBar);
+    openSharedPoint();
     window.setTimeout(() => map.invalidateSize(), 150);
+
+    function pointKey(lat, lng) {
+      return Number(lat).toFixed(5) + "," + Number(lng).toFixed(5);
+    }
+
+    function findSaved(lat, lng) {
+      const key = pointKey(lat, lng);
+      return store().savedPlaces().find((row) => pointKey(row.lat, row.lng) === key) || null;
+    }
+
+    function applyBearing() {
+      if (!map) return;
+      const pane = map.getPane("mapPane");
+      if (!pane) return;
+      const base = (pane.style.transform || "").replace(/ rotate\([^)]+\)/g, "");
+      pane.style.transformOrigin = "50% 50%";
+      pane.style.transform = Math.abs(bearing) > 0.4 ? base + " rotate(" + bearing.toFixed(1) + "deg)" : base;
+    }
+
+    function paintCompass() {
+      const node = document.getElementById("la-ban");
+      if (!node) return;
+      const turned = Math.abs(bearing) > 0.5;
+      node.hidden = !turned;
+      if (turned) node.textContent = "Đang xoay " + Math.round(bearing) + "°. Quay về vị trí ban đầu để đặt hướng bắc.";
+    }
+
+    function hideMenu() {
+      const menu = document.getElementById("menu-chuot");
+      if (menu) menu.hidden = true;
+    }
+
+    function copyText(value) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(value).catch(() => fallbackCopy(value));
+      }
+      return fallbackCopy(value);
+    }
+
+    function fallbackCopy(value) {
+      const area = document.createElement("textarea");
+      area.value = value;
+      area.setAttribute("readonly", "");
+      document.body.append(area);
+      area.select();
+      document.execCommand("copy");
+      area.remove();
+      return Promise.resolve();
+    }
+
+    function sharePoint() {
+      const point = current || (map ? { lat: map.getCenter().lat, lng: map.getCenter().lng, name: "Tâm bản đồ" } : null);
+      if (!point) {
+        store().toast("Chưa có điểm để chia sẻ.");
+        return;
+      }
+      const url = new URL(location.href);
+      url.searchParams.set("diem", point.lat.toFixed(5) + "," + point.lng.toFixed(5));
+      url.searchParams.set("z", String(map ? Math.round(map.getZoom()) : 12));
+      url.searchParams.set("rong", "1");
+      url.hash = "tra-cuu";
+      const link = url.toString();
+      const copied = () => store().toast(current ? "Đã chép liên kết vị trí đang xem." : "Đã chép liên kết tâm bản đồ.");
+      if (navigator.share) {
+        navigator.share({ title: point.name, text: point.name + " trên Location Insight", url: link }).catch((error) => {
+          if (error && error.name === "AbortError") return;
+          copyText(link).then(copied);
+        });
+        return;
+      }
+      copyText(link).then(copied);
+    }
+
+    function paintStage() {
+      const root = document.getElementById("noi-dung-rong");
+      const savedBtn = document.getElementById("dia-diem-da-luu");
+      if (!root) return;
+      if (savedBtn) savedBtn.setAttribute("aria-pressed", stageMode === "saved" ? "true" : "false");
+      if (stageMode === "saved") paintSaved(root);
+      else paintDetail(root);
+    }
+
+    function paintDetail(root) {
+      root.replaceChildren();
+      const title = el("h3", null, current ? current.name : "Chưa chọn điểm");
+      title.id = "tieu-de-chi-tiet-rong";
+      root.append(title);
+      if (!current) {
+        root.append(el("p", null, "Chấm lên bản đồ hoặc tìm một điểm đã đo. Nút dấu trang mở các địa điểm đã lưu trên máy này."));
+        return;
+      }
+      if (current.place) {
+        root.append(el("p", null, current.place.address));
+        if (current.note) root.append(el("p", "fine", current.note));
+        root.append(el("h4", null, "Điểm mạnh"), list(current.place.strengths));
+        root.append(el("h4", null, "Điểm yếu hoặc chưa kết luận"), list(current.place.gaps));
+        const report = el("a", null, "Xem báo cáo đầy đủ");
+        report.href = "app/bao-cao.html?id=" + encodeURIComponent(current.place.id) + "&mau=1";
+        root.append(report);
+      } else {
+        root.append(el("p", null, current.lat.toFixed(5) + ", " + current.lng.toFixed(5)));
+        root.append(el("p", null, "Điểm này chưa có số đo. Có thể lưu để xem lại. Trang không điền điểm mạnh hay điểm yếu."));
+      }
+      const saved = findSaved(current.lat, current.lng);
+      const form = el("form", "map-save");
+      form.append(fieldInput("ten-diem", "Tên địa điểm", "text", saved ? saved.name : current.name));
+      form.append(fieldInput("nhom-diem", "Nhóm", "text", saved ? saved.category : ""));
+      const group = form.querySelector("#nhom-diem");
+      group.setAttribute("list", "goi-y-nhom");
+      group.setAttribute("placeholder", "Muốn xem lại, Đang so sánh…");
+      const hints = el("datalist");
+      hints.id = "goi-y-nhom";
+      ["Muốn xem lại", "Đang so sánh", "Không hợp"].forEach((name) => {
+        const option = el("option");
+        option.value = name;
+        hints.append(option);
+      });
+      form.append(hints);
+      const noteWrap = el("div", "field");
+      const noteLabel = el("label", null, "Ghi chú");
+      noteLabel.htmlFor = "ghi-chu-diem";
+      const note = el("textarea");
+      note.id = "ghi-chu-diem";
+      note.name = "ghi";
+      note.rows = 3;
+      note.value = saved && saved.note ? saved.note : "";
+      noteWrap.append(noteLabel, note);
+      form.append(noteWrap);
+      form.append(el("button", "btn btn-primary", saved ? "Cập nhật địa điểm" : "Lưu địa điểm"));
+      form.querySelector("button").type = "submit";
+      if (store().savedPlaces().length >= 35) {
+        form.append(el("p", "fine", "Máy này giữ tối đa 40 địa điểm. Lưu thêm sẽ bỏ địa điểm cũ nhất."));
+      }
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const nameInput = form.querySelector("#ten-diem");
+        const name = nameInput.value.trim();
+        if (!name) {
+          fieldError(nameInput, "Nhập tên địa điểm trước khi lưu.");
+          nameInput.focus();
+          return;
+        }
+        fieldError(nameInput, "");
+        store().putSaved({
+          id: saved ? saved.id : "s-" + Date.now().toString(36),
+          name: name,
+          lat: current.lat,
+          lng: current.lng,
+          category: form.querySelector("#nhom-diem").value.trim(),
+          note: note.value.trim(),
+          at: new Date().toISOString(),
+        });
+        store().toast(saved ? "Đã cập nhật địa điểm." : "Đã lưu địa điểm trên máy này.");
+        paintStage();
+      });
+      root.append(form);
+    }
+
+    function fieldInput(id, label, type, value) {
+      const wrap = el("div", "field");
+      const lab = el("label", null, label);
+      lab.htmlFor = id;
+      const input = el("input");
+      input.id = id;
+      input.name = id;
+      input.type = type;
+      input.value = value || "";
+      wrap.append(lab, input);
+      return wrap;
+    }
+
+    function paintSaved(root) {
+      root.replaceChildren();
+      const title = el("h3", null, "Địa điểm đã lưu");
+      title.id = "tieu-de-chi-tiet-rong";
+      const back = el("button", "btn btn-secondary", "Quay lại điểm đang xem");
+      back.type = "button";
+      back.addEventListener("click", () => {
+        stageMode = "detail";
+        pendingDelete = "";
+        paintStage();
+      });
+      root.append(title, back);
+      const items = store().savedPlaces();
+      const groups = [];
+      items.forEach((item) => {
+        const name = item.category || "Chưa phân loại";
+        if (!groups.includes(name)) groups.push(name);
+      });
+      if (groups.length > 1) {
+        const wrap = el("div", "field");
+        const lab = el("label", null, "Xem theo nhóm");
+        lab.htmlFor = "loc-nhom";
+        const pick = el("select");
+        pick.id = "loc-nhom";
+        const all = el("option", null, "Tất cả nhóm");
+        all.value = "";
+        pick.append(all);
+        groups.forEach((name) => {
+          const option = el("option", null, name);
+          option.value = name;
+          if (name === savedFilter) option.selected = true;
+          pick.append(option);
+        });
+        pick.addEventListener("change", () => {
+          savedFilter = pick.value;
+          paintSaved(root);
+        });
+        wrap.append(lab, pick);
+        root.append(wrap);
+      }
+      const shown = items.filter((item) => !savedFilter || (item.category || "Chưa phân loại") === savedFilter);
+      if (!shown.length) {
+        root.append(el("p", null, items.length ? "Không có địa điểm trong nhóm này." : "Chưa lưu địa điểm nào. Chấm một điểm, rồi ghi nhóm và ghi chú."));
+        return;
+      }
+      const listNode = el("div", "saved-list");
+      shown.forEach((item) => {
+        const row = el("article", "saved-row");
+        const open = el("button", "saved-open");
+        open.type = "button";
+        open.append(el("strong", null, item.name), el("span", null, item.category || "Chưa phân loại"));
+        if (item.note) open.append(el("span", null, item.note));
+        open.append(el("span", "fine", new Date(item.at).toLocaleDateString("vi-VN")));
+        open.addEventListener("click", () => openSaved(item));
+        row.append(open);
+        if (pendingDelete === item.id) {
+          const keep = el("button", "btn btn-secondary", "Giữ lại");
+          keep.type = "button";
+          keep.addEventListener("click", () => {
+            pendingDelete = "";
+            paintSaved(root);
+          });
+          const drop = el("button", "btn btn-danger", "Xóa hẳn");
+          drop.type = "button";
+          drop.addEventListener("click", () => {
+            store().removeSaved(item.id);
+            pendingDelete = "";
+            store().toast("Đã xóa địa điểm.");
+            paintSaved(root);
+          });
+          row.append(keep, drop);
+        } else {
+          const drop = el("button", "btn btn-secondary", "Xóa");
+          drop.type = "button";
+          drop.addEventListener("click", () => {
+            pendingDelete = item.id;
+            paintSaved(root);
+          });
+          row.append(drop);
+        }
+        listNode.append(row);
+      });
+      root.append(listNode);
+    }
+
+    function openSaved(item) {
+      stageMode = "detail";
+      pendingDelete = "";
+      if (!window.L) {
+        current = { lat: item.lat, lng: item.lng, name: item.name, place: null, note: "" };
+        paintStage();
+        return;
+      }
+      const near = data().nearest(item.lat, item.lng);
+      if (near.meters <= 600) select(near.place, near.meters, { fly: true });
+      else miss(L.latLng(item.lat, item.lng));
+    }
+
+    function showMenu(x, y, latlng) {
+      const menu = document.getElementById("menu-chuot");
+      if (!menu) return;
+      menu.replaceChildren();
+      const actions = [
+        ["Xem điểm này", () => {
+          const near = data().nearest(latlng.lat, latlng.lng);
+          if (near.meters <= 600) select(near.place, near.meters, { fly: false });
+          else miss(latlng);
+        }],
+        ["Lưu địa điểm", () => {
+          const near = data().nearest(latlng.lat, latlng.lng);
+          if (near.meters <= 600) select(near.place, near.meters, { fly: false });
+          else miss(latlng);
+          stageMode = "detail";
+          window.setTimeout(() => {
+            const input = document.getElementById("ten-diem");
+            if (input) input.focus();
+          }, 0);
+        }],
+        ["Chia sẻ vị trí", sharePoint],
+        ["Phóng to", () => map && map.zoomIn()],
+        ["Thu nhỏ", () => map && map.zoomOut()],
+      ];
+      actions.forEach(([label, run]) => {
+        const button = el("button", null, label);
+        button.type = "button";
+        button.setAttribute("role", "menuitem");
+        button.addEventListener("click", () => {
+          hideMenu();
+          run();
+        });
+        menu.append(button);
+      });
+      menu.hidden = false;
+      const width = 240;
+      const left = Math.min(x, window.innerWidth - width - 8);
+      const top = Math.min(y, window.innerHeight - 240);
+      menu.style.left = Math.max(8, left) + "px";
+      menu.style.top = Math.max(8, top) + "px";
+      menu.querySelector("button").focus();
+    }
+
+    function openStage() {
+      const stage = document.getElementById("ban-do-rong");
+      const slot = document.getElementById("ban-do-cho");
+      const node = document.getElementById("ban-do-tra");
+      const openBtn = document.getElementById("mo-ban-do");
+      if (!stage || !slot || !node) return;
+      stage.hidden = false;
+      stageOpen = true;
+      document.body.classList.add("map-open");
+      slot.insertBefore(node, slot.firstChild);
+      if (openBtn) openBtn.setAttribute("aria-expanded", "true");
+      if (zoomControlBar) zoomControlBar.remove();
+      closePopups();
+      paintStage();
+      window.setTimeout(() => {
+        if (map) map.invalidateSize();
+      }, 60);
+      const input = document.getElementById("tim-rong");
+      if (input) input.focus();
+    }
+
+    function closeStage() {
+      const stage = document.getElementById("ban-do-rong");
+      const slot = document.querySelector(".map-slot");
+      const node = document.getElementById("ban-do-tra");
+      const openBtn = document.getElementById("mo-ban-do");
+      if (!stage || !slot || !node) return;
+      hideMenu();
+      stage.hidden = true;
+      stageOpen = false;
+      document.body.classList.remove("map-open");
+      slot.insertBefore(node, slot.firstChild);
+      if (openBtn) openBtn.setAttribute("aria-expanded", "false");
+      if (map && zoomControlBar) zoomControlBar.addTo(map);
+      window.setTimeout(() => {
+        if (map) map.invalidateSize();
+      }, 60);
+      if (openBtn) openBtn.focus();
+    }
+
+    function bindStage(bounds, zoomControl) {
+      zoomControlBar = zoomControl;
+      const openBtn = document.getElementById("mo-ban-do");
+      const closeBtn = document.getElementById("dong-ban-do");
+      const form = document.getElementById("form-tim-rong");
+      if (openBtn) openBtn.addEventListener("click", openStage);
+      if (closeBtn) closeBtn.addEventListener("click", closeStage);
+      if (form) {
+        form.addEventListener("submit", (event) => {
+          event.preventDefault();
+          runSearchFrom(document.getElementById("tim-rong").value);
+        });
+      }
+      const zoomIn = document.getElementById("phong-to");
+      const zoomOut = document.getElementById("thu-nho");
+      const reset = document.getElementById("ve-dau");
+      const share = document.getElementById("chia-se-diem");
+      const savedBtn = document.getElementById("dia-diem-da-luu");
+      if (!map) {
+        [zoomIn, zoomOut, reset].forEach((button) => {
+          if (button) button.disabled = true;
+        });
+      }
+      if (zoomIn) zoomIn.addEventListener("click", () => map && map.zoomIn());
+      if (zoomOut) zoomOut.addEventListener("click", () => map && map.zoomOut());
+      if (reset) {
+        reset.addEventListener("click", () => {
+          bearing = 0;
+          applyBearing();
+          paintCompass();
+          if (!map || !bounds) return;
+          const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+          if (reduce) map.fitBounds(bounds, { padding: [28, 28] });
+          else map.flyToBounds(bounds, { padding: [28, 28] });
+        });
+      }
+      if (share) share.addEventListener("click", sharePoint);
+      if (savedBtn) {
+        savedBtn.addEventListener("click", () => {
+          stageMode = stageMode === "saved" ? "detail" : "saved";
+          pendingDelete = "";
+          if (!stageOpen) openStage();
+          else paintStage();
+        });
+      }
+      document.addEventListener("keydown", (event) => {
+        if (!stageOpen) return;
+        if (event.key !== "Escape") return;
+        const menu = document.getElementById("menu-chuot");
+        if (menu && !menu.hidden) {
+          hideMenu();
+          return;
+        }
+        closeStage();
+      });
+      if (!map) return;
+      const shell = map.getContainer();
+      let gesture = null;
+      let menuTimer = 0;
+      let lastRight = 0;
+      const toLatLng = map.mouseEventToLatLng.bind(map);
+      map.mouseEventToLatLng = function (event) {
+        if (Math.abs(bearing) < 0.4) return toLatLng(event);
+        const rect = shell.getBoundingClientRect();
+        const x = event.clientX - rect.left - rect.width / 2;
+        const y = event.clientY - rect.top - rect.height / 2;
+        const rad = (bearing * Math.PI) / 180;
+        const rx = x * Math.cos(rad) + y * Math.sin(rad);
+        const ry = -x * Math.sin(rad) + y * Math.cos(rad);
+        return toLatLng({ clientX: rect.left + rect.width / 2 + rx, clientY: rect.top + rect.height / 2 + ry });
+      };
+      shell.addEventListener("pointerdown", (event) => {
+        if (event.button === 0 && event.shiftKey) return;
+        const rotate = event.button === 2 || (event.button === 0 && event.ctrlKey);
+        const altZoom = event.button === 0 && event.altKey && !event.ctrlKey;
+        if (!rotate && !altZoom) return;
+        map.dragging.disable();
+        gesture = {
+          kind: rotate ? "rotate" : "altzoom",
+          x: event.clientX,
+          y: event.clientY,
+          bearing: bearing,
+          zoom: map.getZoom(),
+          moved: false,
+          id: event.pointerId,
+        };
+        if (shell.setPointerCapture) shell.setPointerCapture(event.pointerId);
+      }, true);
+      shell.addEventListener("pointermove", (event) => {
+        if (!gesture || event.pointerId !== gesture.id) return;
+        const dx = event.clientX - gesture.x;
+        const dy = event.clientY - gesture.y;
+        if (Math.abs(dx) + Math.abs(dy) > 6) gesture.moved = true;
+        if (gesture.kind === "rotate") {
+          bearing = gesture.bearing + dx * 0.35;
+          applyBearing();
+          paintCompass();
+          return;
+        }
+        const next = gesture.zoom + (gesture.y - event.clientY) / 90;
+        map.setZoom(Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), next)));
+      });
+      function endGesture(event) {
+        if (!gesture || (event && event.pointerId !== gesture.id)) return;
+        const moved = gesture.moved;
+        gesture = null;
+        map.dragging.enable();
+        if (moved) {
+          swallowClick = true;
+          window.setTimeout(() => {
+            swallowClick = false;
+          }, 350);
+        }
+      }
+      shell.addEventListener("pointerup", endGesture);
+      shell.addEventListener("pointercancel", endGesture);
+      shell.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+        const now = Date.now();
+        if (now - lastRight < 320) {
+          lastRight = 0;
+          window.clearTimeout(menuTimer);
+          hideMenu();
+          map.zoomOut();
+          return;
+        }
+        lastRight = now;
+        if (gesture && gesture.moved) return;
+        const moved = swallowClick;
+        window.clearTimeout(menuTimer);
+        if (moved) return;
+        const latlng = map.mouseEventToLatLng(event);
+        menuTimer = window.setTimeout(() => showMenu(event.clientX, event.clientY, latlng), 280);
+      });
+      map.on("boxzoomend", () => {
+        status.textContent = "Đã phóng tới vùng vừa khoanh.";
+      });
+      map.on("movestart", hideMenu);
+    }
+
+    function openSharedPoint() {
+      const raw = params().get("diem");
+      if (raw && map) {
+        const parts = raw.split(",");
+        const lat = Number(parts[0]);
+        const lng = Number(parts[1]);
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          const near = data().nearest(lat, lng);
+          if (near.meters <= 600) select(near.place, near.meters, { fly: false });
+          else miss(L.latLng(lat, lng));
+          const zoom = Number(params().get("z"));
+          map.setView([lat, lng], Number.isFinite(zoom) ? zoom : map.getZoom());
+        }
+      }
+      if (params().get("rong") === "1") openStage();
+    }
   }
 
   function escapeHtml(value) {
@@ -574,6 +1129,116 @@
       '"': "&quot;",
       "'": "&#39;",
     }[char]));
+  }
+
+  function bindListings() {
+    const board = document.getElementById("danh-sach-tin");
+    const form = document.getElementById("form-dang-tin");
+    const confirm = document.getElementById("xac-nhan-tin");
+    const cta = document.getElementById("nut-rao-ban");
+    if (cta && store().session()) {
+      cta.href = "dang-tin.html";
+      cta.textContent = "Rao bán tại đây";
+    }
+    if (board) paintStored(board);
+    if (!form) return;
+    if (!store().session()) {
+      location.href = "dang-ky.html?next=" + encodeURIComponent("dang-tin.html");
+      return;
+    }
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const area = Number(form.dienTich.value);
+      const price = Number(form.gia.value);
+      const front = form.matTien.value.trim();
+      const phone = form.lienHe.value.replace(/[^\d]/g, "");
+      let invalid = false;
+      invalid = requireField(form.loai, form.loai.value, "Chọn loại căn.") || invalid;
+      invalid = requireField(form.khu, form.khu.value.trim(), "Nhập khu hoặc phường ở Hà Nội.") || invalid;
+      invalid = requireField(form.dienTich, area > 0, "Nhập diện tích lớn hơn 0.") || invalid;
+      invalid = requireField(form.gia, price > 0, "Nhập giá chào lớn hơn 0.") || invalid;
+      invalid = requireField(form.phapLy, form.phapLy.value, "Chọn tình trạng pháp lý người đăng khai.") || invalid;
+      invalid = requireField(form.lienHe, phone.length >= 9 && phone.length <= 11, "Nhập số điện thoại 9 đến 11 chữ số.") || invalid;
+      if (invalid) {
+        const first = form.querySelector("[aria-invalid='true']");
+        if (first) first.focus();
+        return;
+      }
+      const unit = form.donVi.value === "trieu" ? " triệu" : " tỷ";
+      const frontText = front && Number(front) > 0 ? Number(front).toLocaleString("vi-VN") + " m" : "Chưa khai";
+      const item = {
+        id: "t-" + Date.now().toString(36),
+        priceText: price.toLocaleString("vi-VN") + unit,
+        loai: form.loai.value,
+        khu: form.khu.value.trim(),
+        area: area.toLocaleString("vi-VN") + " m²",
+        front: frontText,
+        phapLy: form.phapLy.value,
+        phone,
+        note: form.moTa.value.trim(),
+      };
+      store().putListing(item);
+      form.reset();
+      if (confirm) {
+        confirm.hidden = false;
+        confirm.replaceChildren();
+        const line = document.createElement("span");
+        line.append(
+          document.createTextNode("Đã ghi tin trên máy này. "),
+          Object.assign(document.createElement("a"), { href: "app/tin.html", textContent: "Xem trong tin của tôi" }),
+          document.createTextNode(". Tin cũng hiện ở "),
+          Object.assign(document.createElement("a"), { href: "index.html#dang-tin", textContent: "mục tin đang chào" }),
+          document.createTextNode(". Bản mock chưa đưa tin lên chỗ công khai, chưa kiểm tra sổ.")
+        );
+        confirm.append(line);
+        confirm.focus();
+      }
+    });
+
+    function requireField(input, ok, message) {
+      fieldError(input, ok ? "" : message);
+      return !ok;
+    }
+  }
+
+  function paintStored(board) {
+    const items = store().listings();
+    for (let i = items.length - 1; i >= 0; i -= 1) board.prepend(listingRow(items[i]));
+  }
+
+  function listingRow(item) {
+    const row = el("article", "listing-row");
+    const body = el("div");
+    const kicker = el("p", "listing-kicker");
+    const badge = el("span", "listing-badge is-own", "Tin của bạn");
+    kicker.append(badge, document.createTextNode(" " + item.loai + " · " + item.khu));
+    const specs = el("dl", "listing-specs");
+    specs.append(
+      spec("Diện tích", item.area),
+      spec("Mặt tiền", item.front),
+      spec("Pháp lý khai", item.phapLy),
+      spec("Liên hệ", item.phone)
+    );
+    const note = el(
+      "p",
+      "fine",
+      (item.note ? item.note + " " : "") + "Giá chào do bạn nhập. Bản mock chưa đăng công khai và chưa kiểm tra sổ."
+    );
+    body.append(kicker, specs, note);
+    const photo = el("img");
+    photo.src = store().asset("images/ngo-ha-noi-ngang.webp");
+    photo.width = 160;
+    photo.height = 120;
+    photo.alt = "Ảnh ngõ Hà Nội dùng tạm cho tin vừa soạn, không phải ảnh căn này.";
+    row.append(el("p", "listing-price", item.priceText), body, photo);
+    return row;
+
+    function spec(label, value) {
+      const wrap = el("div");
+      wrap.append(el("dt", null, label), el("dd", null, value));
+      return wrap;
+    }
   }
 
   function bindStories() {
@@ -632,14 +1297,18 @@
   }
 
   function postsPage() {
+    const list = document.getElementById("danh-sach-bai");
     const root = document.getElementById("noi-dung-bai");
     if (!root) return;
     const id = params().get("id");
-    root.classList.toggle("prose", Boolean(id));
     if (!id) {
-      renderPostIndex(root, data().posts);
+      if (list) list.hidden = false;
+      root.hidden = true;
+      renderPostIndex(data().posts);
       return;
     }
+    if (list) list.hidden = true;
+    root.hidden = false;
     const post = data().getPost(id);
     if (!post) {
       document.title = "Không thấy bài · Location Insight";
@@ -655,7 +1324,7 @@
     root.replaceChildren();
     const back = el("a", null, "Tất cả bài viết");
     back.href = "bai-viet.html";
-    const kicker = el("p", "quiet-line", "Bài viết · " + post.date);
+    const kicker = el("p", "quiet-line", (post.topic ? post.topic + " · " : "Bài viết · ") + post.date);
     root.append(back, kicker, el("h1", null, post.title));
     const image = document.createElement("img");
     image.src = post.image;
@@ -666,36 +1335,182 @@
     post.paragraphs.forEach((paragraph) => root.append(el("p", null, paragraph)));
   }
 
-  function renderPostIndex(root, posts) {
+  function renderPostIndex(posts) {
     document.title = "Bài viết · Location Insight";
-    root.replaceChildren();
-    root.append(el("h1", null, "Bài viết"));
-    root.append(el("p", "lede", "Cách đọc một điểm ở Hà Nội. Đây là bài giải thích trong bản mock, không phải tin tức hay số người dùng."));
-    const list = document.createElement("div");
-    list.className = "story-index";
-    posts.forEach((post) => {
+    const featured = posts.find((post) => post.featured) || posts[0];
+    const latest = posts.filter((post) => post !== featured).slice(0, 4);
+    const lead = document.getElementById("bai-noi-bat");
+    const fresh = document.getElementById("bai-moi");
+    if (lead && featured) lead.replaceChildren(featureLink(featured));
+    if (fresh) {
+      fresh.replaceChildren();
+      latest.forEach((post) => fresh.append(latestItem(post)));
+    }
+    paintPostGrid(posts);
+    bindPostSlide(posts);
+  }
+
+  function featureLink(post) {
+    const link = document.createElement("a");
+    link.className = "post-feature";
+    link.href = "bai-viet.html?id=" + encodeURIComponent(post.id);
+    const image = document.createElement("img");
+    image.src = post.image;
+    image.alt = post.imageAlt;
+    image.width = 1400;
+    image.height = 900;
+    const copy = el("span", "post-feature-copy");
+    if (post.topic) copy.append(el("span", "post-topic", post.topic));
+    const title = el("h2", null, post.title);
+    const time = document.createElement("time");
+    time.dateTime = post.iso;
+    time.textContent = post.date;
+    copy.append(title, time);
+    link.append(image, copy);
+    return link;
+  }
+
+  function latestItem(post) {
+    const item = document.createElement("li");
+    const link = document.createElement("a");
+    link.href = "bai-viet.html?id=" + encodeURIComponent(post.id);
+    const image = document.createElement("img");
+    image.src = post.image;
+    image.alt = "";
+    image.width = 72;
+    image.height = 72;
+    const copy = el("span");
+    const title = el("h3", null, post.title);
+    const time = document.createElement("time");
+    time.dateTime = post.iso;
+    time.textContent = post.date;
+    copy.append(title, time);
+    link.append(image, copy);
+    item.append(link);
+    return item;
+  }
+
+  function paintPostGrid(posts) {
+    const grid = document.getElementById("luoi-bai");
+    const status = document.getElementById("trang-bai");
+    const pager = document.getElementById("phan-trang");
+    if (!grid || !pager) return;
+    const pageSize = 9;
+    const pages = Math.max(1, Math.ceil(posts.length / pageSize));
+    const raw = Number(params().get("trang") || "1");
+    const asked = Number.isInteger(raw) && raw >= 1 ? raw : 1;
+    const page = asked > pages ? 1 : asked;
+    const slice = posts.slice((page - 1) * pageSize, page * pageSize);
+    grid.replaceChildren();
+    slice.forEach((post) => grid.append(gridCard(post)));
+    if (status) {
+      const from = (page - 1) * pageSize + 1;
+      const to = (page - 1) * pageSize + slice.length;
+      status.textContent =
+        (asked > pages ? "Không có trang " + asked + ". Đang mở trang 1. " : "") +
+        "Bài " + from + "–" + to + " trong " + posts.length + ".";
+    }
+    pager.replaceChildren();
+    pager.append(pageLink(page - 1, pages, "Trang trước", "arrow-left", page === 1));
+    for (let index = 1; index <= pages; index += 1) {
       const link = document.createElement("a");
-      link.className = "story-row";
-      link.href = "bai-viet.html?id=" + encodeURIComponent(post.id);
-      const image = document.createElement("img");
-      image.src = post.image;
-      image.alt = post.imageAlt;
-      image.width = 960;
-      image.height = 640;
-      const copy = document.createElement("span");
-      copy.className = "story-copy";
-      const time = document.createElement("time");
-      time.dateTime = post.iso;
-      time.textContent = post.date;
-      const title = document.createElement("h2");
-      title.textContent = post.title;
-      const excerpt = document.createElement("p");
-      excerpt.textContent = post.excerpt;
-      copy.append(time, title, excerpt);
-      link.append(image, copy);
-      list.append(link);
-    });
-    root.append(list);
+      link.href = index === 1 ? "bai-viet.html" : "bai-viet.html?trang=" + index;
+      link.textContent = String(index);
+      if (index === page) link.setAttribute("aria-current", "page");
+      link.setAttribute("aria-label", "Trang " + index);
+      pager.append(link);
+    }
+    pager.append(pageLink(page + 1, pages, "Trang sau", "arrow-right", page === pages));
+    store().icons();
+  }
+
+  function pageLink(target, pages, label, icon, disabled) {
+    if (disabled || target < 1 || target > pages) {
+      const span = el("span", "is-disabled");
+      span.setAttribute("aria-disabled", "true");
+      span.append(el("i"));
+      span.querySelector("i").setAttribute("data-lucide", icon);
+      span.setAttribute("aria-label", label);
+      return span;
+    }
+    const link = document.createElement("a");
+    link.href = target === 1 ? "bai-viet.html" : "bai-viet.html?trang=" + target;
+    link.setAttribute("aria-label", label);
+    link.append(el("i"));
+    link.querySelector("i").setAttribute("data-lucide", icon);
+    return link;
+  }
+
+  function gridCard(post) {
+    const link = document.createElement("a");
+    link.className = "post-tile";
+    link.href = "bai-viet.html?id=" + encodeURIComponent(post.id);
+    const media = el("span", "post-tile-media");
+    const image = document.createElement("img");
+    image.src = post.image;
+    image.alt = post.imageAlt;
+    image.width = 960;
+    image.height = 640;
+    image.loading = "lazy";
+    media.append(image);
+    if (post.topic) media.append(el("span", "post-topic", post.topic));
+    const title = el("h3", null, post.title);
+    const excerpt = el("p", null, post.excerpt);
+    const time = document.createElement("time");
+    time.dateTime = post.iso;
+    time.textContent = post.date;
+    link.append(media, title, excerpt, time);
+    return link;
+  }
+
+  function bindPostSlide(posts) {
+    const stage = document.getElementById("truot-bai");
+    const title = document.getElementById("tieu-de-truot");
+    const topic = document.getElementById("chu-de-truot");
+    const status = document.getElementById("trang-truot");
+    const prev = document.getElementById("truot-truoc");
+    const next = document.getElementById("truot-sau");
+    if (!stage || !posts.length || stage.dataset.bound === "1") return;
+    stage.dataset.bound = "1";
+    let index = 0;
+
+    function paint() {
+      const current = posts[index];
+      const upcoming = posts[(index + 1) % posts.length];
+      stage.replaceChildren(slideCard(current, false), slideCard(upcoming, true));
+      if (title) title.textContent = current.title;
+      if (topic) topic.textContent = current.topic || "Đọc lần lượt";
+      if (status) status.textContent = "Bài " + (index + 1) + " / " + posts.length + ". Bài kế tiếp nhô trên bài đang xem.";
+    }
+
+    function step(delta) {
+      index = (index + delta + posts.length) % posts.length;
+      paint();
+    }
+
+    if (prev) prev.addEventListener("click", () => step(-1));
+    if (next) next.addEventListener("click", () => step(1));
+    paint();
+  }
+
+  function slideCard(post, peek) {
+    const link = document.createElement("a");
+    link.className = peek ? "post-slide-card is-peek" : "post-slide-card";
+    link.href = "bai-viet.html?id=" + encodeURIComponent(post.id);
+    if (peek) link.setAttribute("aria-label", post.title + ", bài kế tiếp");
+    const image = document.createElement("img");
+    image.src = post.image;
+    image.alt = peek ? "" : post.imageAlt;
+    image.width = 1200;
+    image.height = 800;
+    const copy = el("span", "post-slide-copy");
+    const title = el("h3", null, post.title);
+    const time = document.createElement("time");
+    time.dateTime = post.iso;
+    time.textContent = post.date;
+    copy.append(title, time);
+    link.append(image, copy);
+    return link;
   }
 
   function answerFor(question) {
@@ -1142,11 +1957,263 @@
     });
   }
 
+  function lookupAppPage() {
+    if (!store().requireSession()) return;
+    const input = document.getElementById("tim-diem");
+    const results = document.getElementById("ket-qua-tim");
+    const card = document.getElementById("the-diem");
+    const mapNode = document.getElementById("map");
+    const status = document.getElementById("trang-thai-tim");
+    let map = null;
+    let pin = null;
+    let selected = null;
+
+    function paintCard() {
+      card.replaceChildren();
+      if (!selected) {
+        card.append(el("p", null, "Chọn một điểm đã đo trong danh sách, hoặc chấm lên bản đồ."));
+        return;
+      }
+      const place = selected.place;
+      card.append(el("h2", null, place ? place.title : "Điểm chưa có số đo"));
+      card.append(el("p", null, place ? place.address : selected.lat.toFixed(5) + ", " + selected.lng.toFixed(5)));
+      card.append(
+        el(
+          "p",
+          "fine",
+          place
+            ? place.coverage + ". " + place.coverageHint + "."
+            : "Trang không điền điểm mạnh hay điểm yếu cho điểm chưa đo."
+        )
+      );
+      const actions = el("div", "row-actions");
+      const analyze = el("a", "btn btn-primary", "Phân tích điểm này");
+      analyze.href = place ? "ghim.html?q=" + encodeURIComponent(place.title) : "ghim.html";
+      const already = store().savedPlaces().some((row) => nearPoint(row.lat, row.lng, selected.lat, selected.lng, 30));
+      const save = el("button", "btn btn-secondary", already ? "Đã có trong mục đã lưu" : "Lưu địa điểm");
+      save.type = "button";
+      save.disabled = already;
+      save.addEventListener("click", () => {
+        store().putSaved({
+          id: "s-" + Date.now().toString(36),
+          name: place ? place.title : "Điểm " + selected.lat.toFixed(4) + ", " + selected.lng.toFixed(4),
+          lat: selected.lat,
+          lng: selected.lng,
+          category: "Muốn xem lại",
+          note: "",
+          at: new Date().toISOString(),
+        });
+        store().toast("Đã lưu địa điểm trên máy này.");
+        paintCard();
+      });
+      actions.append(analyze, save);
+      card.append(actions);
+    }
+
+    function choose(place, lat, lng) {
+      selected = { place: place || null, lat: lat, lng: lng };
+      if (pin) pin.setLatLng([lat, lng]);
+      if (map) map.setView([lat, lng], place ? 15 : 16);
+      paintCard();
+      status.textContent = place ? "Đang xem " + place.title + "." : "Điểm này chưa có số đo.";
+      results.querySelectorAll("button").forEach((button) => {
+        button.setAttribute("aria-selected", place && button.dataset.id === place.id ? "true" : "false");
+      });
+    }
+
+    function pick(lat, lng) {
+      const near = data().nearest(lat, lng);
+      if (near && near.meters <= 500) choose(near.place, near.place.lat, near.place.lng);
+      else choose(null, lat, lng);
+    }
+
+    function paintResults(items) {
+      results.replaceChildren();
+      if (!items.length) {
+        const item = el("li");
+        const button = el("button", "", "Không thấy điểm đã đo khớp. Thử «Văn Miếu», «Hồ Gươm» hoặc «Nội Bài».");
+        button.type = "button";
+        button.disabled = true;
+        item.appendChild(button);
+        results.appendChild(item);
+        return;
+      }
+      items.forEach((place) => {
+        const item = el("li");
+        const button = document.createElement("button");
+        button.type = "button";
+        button.dataset.id = place.id;
+        button.innerHTML = "<strong></strong><br><span class='meta'></span>";
+        button.querySelector("strong").textContent = place.title;
+        button.querySelector("span").textContent = place.address;
+        button.addEventListener("click", () => choose(place, place.lat, place.lng));
+        item.appendChild(button);
+        results.appendChild(item);
+      });
+    }
+
+    input.form.addEventListener("submit", (event) => event.preventDefault());
+    input.addEventListener("input", () => {
+      const query = input.value.trim();
+      paintResults(query ? data().searchPlaces(query) : data().places);
+    });
+    paintResults(data().places);
+    paintCard();
+
+    const diem = params().get("diem");
+    if (!window.L) {
+      status.textContent = "Không tải được bản đồ. Vẫn chọn một điểm đã đo ở danh sách.";
+      if (diem) openSavedPoint(diem, choose);
+      return;
+    }
+    const start = data().places[0];
+    map = L.map(mapNode, { scrollWheelZoom: true }).setView([start.lat, start.lng], 12);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    }).addTo(map);
+    const icon = L.icon({
+      iconUrl: store().asset("js/vendor/images/marker-icon.png"),
+      iconRetinaUrl: store().asset("js/vendor/images/marker-icon-2x.png"),
+      shadowUrl: store().asset("js/vendor/images/marker-shadow.png"),
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowSize: [41, 41],
+    });
+    data().places.forEach((place) => {
+      L.marker([place.lat, place.lng], { icon, keyboard: false })
+        .addTo(map)
+        .on("click", () => choose(place, place.lat, place.lng));
+    });
+    pin = L.marker([start.lat, start.lng], { draggable: true, icon: icon, zIndexOffset: 500 }).addTo(map);
+    pin.on("dragend", () => {
+      const point = pin.getLatLng();
+      pick(point.lat, point.lng);
+    });
+    map.on("click", (event) => pick(event.latlng.lat, event.latlng.lng));
+    if (diem) openSavedPoint(diem, choose);
+    window.setTimeout(() => map.invalidateSize(), 150);
+  }
+
+  function openSavedPoint(diem, choose) {
+    const parts = diem.split(",");
+    const lat = Number(parts[0]);
+    const lng = Number(parts[1]);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    const near = data().nearest(lat, lng);
+    if (near && near.meters <= 80) choose(near.place, near.place.lat, near.place.lng);
+    else choose(null, lat, lng);
+  }
+
+  function nearPoint(lat, lng, otherLat, otherLng, meters) {
+    const dLat = (lat - otherLat) * 111000;
+    const dLng = (lng - otherLng) * 111000 * Math.cos((lat * Math.PI) / 180);
+    return Math.hypot(dLat, dLng) <= meters;
+  }
+
+  function myListingsPage() {
+    if (!store().requireSession()) return;
+    const board = document.getElementById("tin-cua-toi");
+    const empty = document.getElementById("tin-trong");
+
+    function paint() {
+      const items = store().listings();
+      board.replaceChildren();
+      empty.hidden = items.length > 0;
+      items.forEach((item) => {
+        const row = listingRow(item);
+        const actions = el("div", "row-actions");
+        const remove = el("button", "btn btn-secondary", "Gỡ tin");
+        remove.type = "button";
+        remove.addEventListener("click", () => askRemove(actions, "Gỡ hẳn", () => {
+          store().removeListing(item.id);
+          store().toast("Đã gỡ tin khỏi máy này.");
+          paint();
+        }, () => paint()));
+        actions.append(remove);
+        row.querySelector("div").append(actions);
+        board.append(row);
+      });
+    }
+
+    paint();
+  }
+
+  function savedPage() {
+    if (!store().requireSession()) return;
+    const list = document.getElementById("danh-sach-luu");
+    const empty = document.getElementById("luu-trong");
+    const filterWrap = document.getElementById("loc-nhom-khung");
+    const filter = document.getElementById("loc-nhom");
+    const count = document.getElementById("so-diem-luu");
+
+    function paint() {
+      const items = store().savedPlaces();
+      const groups = [];
+      items.forEach((item) => {
+        if (item.category && groups.indexOf(item.category) === -1) groups.push(item.category);
+      });
+      const current = filter.value;
+      filter.replaceChildren(new Option("Tất cả", ""));
+      groups.forEach((name) => filter.append(new Option(name, name)));
+      if (groups.indexOf(current) !== -1) filter.value = current;
+      filterWrap.hidden = groups.length < 2;
+      const shown = filter.value ? items.filter((item) => item.category === filter.value) : items;
+      count.textContent = items.length ? items.length + " địa điểm trên máy này." : "";
+      list.replaceChildren();
+      empty.hidden = shown.length > 0;
+      shown.forEach((item) => {
+        const row = el("li", "manage-item");
+        const text = el("div");
+        text.append(el("h2", null, item.name));
+        const meta = [item.category, item.lat.toFixed(5) + ", " + item.lng.toFixed(5)].filter(Boolean).join(" · ");
+        text.append(el("p", "meta", meta));
+        if (item.note) text.append(el("p", null, item.note));
+        const actions = el("div", "row-actions");
+        const open = el("a", "btn btn-secondary", "Mở trên bản đồ");
+        open.href = "tra-cuu.html?diem=" + encodeURIComponent(item.lat + "," + item.lng);
+        const near = data().nearest(item.lat, item.lng);
+        if (near && near.meters <= 80) {
+          const analyze = el("a", "btn btn-secondary", "Phân tích");
+          analyze.href = "ghim.html?q=" + encodeURIComponent(near.place.title);
+          actions.append(analyze);
+        }
+        const remove = el("button", "btn btn-secondary", "Xóa");
+        remove.type = "button";
+        remove.addEventListener("click", () => askRemove(actions, "Xóa hẳn", () => {
+          store().removeSaved(item.id);
+          store().toast("Đã xóa địa điểm đã lưu.");
+          paint();
+        }, () => paint()));
+        actions.append(open, remove);
+        row.append(text, actions);
+        list.append(row);
+      });
+    }
+
+    filter.addEventListener("change", paint);
+    paint();
+  }
+
+  function askRemove(host, label, onRemove, onKeep) {
+    host.replaceChildren();
+    const keep = el("button", "btn btn-primary", "Giữ lại");
+    keep.type = "button";
+    const gone = el("button", "btn btn-secondary", label);
+    gone.type = "button";
+    keep.addEventListener("click", onKeep);
+    gone.addEventListener("click", onRemove);
+    host.append(keep, gone);
+    keep.focus();
+  }
+
   window.LIPages = {
     landing: landingPage,
     "bai-viet": postsPage,
     login: loginPage,
     register: registerPage,
+    "dang-tin": bindListings,
     forgot: forgotPage,
     reset: resetPage,
     ghim: ghimPage,
@@ -1156,5 +2223,8 @@
     "khoang-gia": pricePage,
     "lich-su": historyPage,
     "tai-khoan": accountPage,
+    "tra-cuu": lookupAppPage,
+    tin: myListingsPage,
+    "da-luu": savedPage,
   };
 })();

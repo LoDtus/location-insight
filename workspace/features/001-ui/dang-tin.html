@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Đăng tin giao bán · Location Insight</title>
+    <meta name="description" content="Soạn một tin rao bán một căn ở Hà Nội. Giá do người đăng chào, không phải kết luận của báo cáo vị trí." />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/site.css" />
+  </head>
+  <body data-page="dang-tin">
+    <a class="skip" href="#noi-dung">Đi tới nội dung</a>
+    <header class="app-header">
+      <a class="logo" href="index.html">
+        <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#1b4332"/><path fill="#f4efe6" d="M16 5.5c-3.6 0-6.5 2.8-6.5 6.4 0 4.7 6.5 14.6 6.5 14.6s6.5-9.9 6.5-14.6c0-3.6-2.9-6.4-6.5-6.4zm0 8.7a2.3 2.3 0 1 1 0-4.6 2.3 2.3 0 0 1 0 4.6z"/></svg>
+        <span>Location Insight</span>
+      </a>
+      <button class="icon-btn nav-toggle" type="button" data-nav-toggle aria-expanded="false" aria-controls="dieu-huong" aria-label="Mở menu"><i data-lucide="menu"></i></button>
+      <nav class="app-nav" id="dieu-huong" data-nav aria-label="Trong ứng dụng">
+        <a href="app/tra-cuu.html">Tra cứu</a>
+        <a href="app/tin.html">Tin của tôi</a>
+        <a href="app/da-luu.html">Đã lưu</a>
+        <a href="app/lich-su.html">Lịch sử</a>
+        <a href="app/tai-khoan.html">Tài khoản</a>
+      </nav>
+      <div class="header-actions">
+        <span class="user-chip" data-user></span>
+      </div>
+    </header>
+    <main id="noi-dung">
+      <section class="section">
+        <div class="wrap listing-compose">
+          <p class="quiet-line"><a href="app/tin.html">Tin của tôi</a></p>
+          <h1>Đăng tin giao bán</h1>
+          <p class="lede">Soạn một tin cho một căn ở Hà Nội. Giá do bạn đưa ra, không phải kết luận của báo cáo vị trí. Bản mock ghi tin trên máy này, chưa đăng công khai và chưa kiểm tra sổ.</p>
+          <form id="form-dang-tin" class="form-stack panel" novalidate>
+            <div class="field">
+              <label for="tin-loai">Loại căn</label>
+              <select id="tin-loai" name="loai" required>
+                <option value="">Chọn loại</option>
+                <option>Đất</option>
+                <option>Nhà phố</option>
+                <option>Căn hộ</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="tin-khu">Khu, phường ở Hà Nội</label>
+              <input id="tin-khu" name="khu" type="text" required autocomplete="address-level2" />
+            </div>
+            <div class="listing-fields">
+              <div class="field">
+                <label for="tin-dien-tich">Diện tích (m²)</label>
+                <input id="tin-dien-tich" name="dienTich" type="number" min="1" step="0.1" required inputmode="decimal" />
+              </div>
+              <div class="field">
+                <label for="tin-mat-tien">Mặt tiền (m)</label>
+                <input id="tin-mat-tien" name="matTien" type="number" min="0" step="0.1" inputmode="decimal" />
+              </div>
+            </div>
+            <div class="listing-fields">
+              <div class="field">
+                <label for="tin-gia">Giá chào</label>
+                <input id="tin-gia" name="gia" type="number" min="0.1" step="0.1" required inputmode="decimal" />
+              </div>
+              <div class="field">
+                <label for="tin-don-vi">Đơn vị giá</label>
+                <select id="tin-don-vi" name="donVi">
+                  <option value="ty">tỷ</option>
+                  <option value="trieu">triệu</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label for="tin-phap-ly">Pháp lý người đăng khai</label>
+              <select id="tin-phap-ly" name="phapLy" required>
+                <option value="">Chọn tình trạng</option>
+                <option>Sổ đỏ</option>
+                <option>Đang chờ sổ</option>
+                <option>Hợp đồng góp vốn</option>
+                <option>Vướng quy hoạch</option>
+                <option>Chưa khai rõ</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="tin-mo-ta">Mô tả ngắn</label>
+              <textarea id="tin-mo-ta" name="moTa" rows="3"></textarea>
+            </div>
+            <div class="field">
+              <label for="tin-lien-he">Số điện thoại liên hệ</label>
+              <input id="tin-lien-he" name="lienHe" type="tel" required inputmode="tel" autocomplete="tel" />
+            </div>
+            <button class="btn btn-primary" type="submit">Đăng tin</button>
+          </form>
+          <p id="xac-nhan-tin" class="banner success" hidden tabindex="-1"></p>
+        </div>
+      </section>
+    </main>
+    <footer>
+      <div class="wrap site-footer">
+        <div>
+          <strong>Location Insight</strong>
+          <p class="fine">Bản mock giao diện. Số trên báo cáo là minh họa, chưa phải máy tính không gian.</p>
+        </div>
+        <nav class="footer-links" aria-label="Chân trang">
+          <a href="index.html">Trang chủ</a>
+          <a href="app/tin.html">Tin của tôi</a>
+          <a href="index.html#dang-tin">Tin rao</a>
+          <a href="dang-tin.html">Đăng tin</a>
+          <a href="tinh-nang.html">Tính năng</a>
+          <a href="bai-viet.html">Bài viết</a>
+          <a href="dang-nhap.html">Đăng nhập</a>
+          <a href="dang-ky.html">Tạo tài khoản</a>
+          <a href="phap-ly.html">Pháp lý</a>
+        </nav>
+      </div>
+    </footer>
+    <script src="js/vendor/lucide.min.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/store.js"></script>
+    <script src="js/pages.js"></script>
+    <script src="js/boot.js"></script>
+  </body>
+</html>

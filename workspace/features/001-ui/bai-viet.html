@@ -21,10 +21,11 @@
       <button class="icon-btn nav-toggle" type="button" data-nav-toggle aria-expanded="false" aria-controls="dieu-huong" aria-label="Mở menu"><i data-lucide="menu"></i></button>
       <nav class="site-nav" id="dieu-huong" data-nav aria-label="Chính">
         <a href="index.html#tra-cuu">Tra cứu</a>
-        <a href="tinh-nang.html">Tính năng</a>
-        <a href="phap-ly.html">Pháp lý</a>
-        <a href="bai-viet.html" aria-current="page">Bài viết</a>
-        <a href="app/bao-cao.html?id=van-mieu&mau=1">Báo cáo mẫu</a>
+        <a href="index.html#dang-tin">Tin đang chào</a>
+        <a href="index.html#bang-gia">Bảng giá</a>
+        <a href="index.html#cach-lam">Cách làm</a>
+        <a href="index.html#bai-viet">Bài viết</a>
+        <a href="index.html#hoi-dap">Hỏi đáp</a>
         <a href="dang-nhap.html" data-auth="login">Đăng nhập</a>
       </nav>
       <div class="header-actions">
@@ -33,7 +34,46 @@
       </div>
     </header>
     <main id="noi-dung">
-      <article id="noi-dung-bai" class="wrap section-tight"></article>
+      <div id="danh-sach-bai" class="post-screen">
+        <section class="section" aria-labelledby="tieu-de-bai">
+          <div class="wrap">
+            <h1 id="tieu-de-bai">Bài viết</h1>
+            <p class="lede">Cách đọc một điểm ở Hà Nội. Đây là bài giải thích trong bản mock, không phải tin rao.</p>
+            <div class="post-highlight">
+              <div id="bai-noi-bat"></div>
+              <aside aria-labelledby="tieu-de-moi">
+                <h2 id="tieu-de-moi">Bài mới</h2>
+                <ul id="bai-moi" class="post-latest"></ul>
+              </aside>
+            </div>
+          </div>
+        </section>
+        <section class="section" aria-labelledby="tieu-de-luoi">
+          <div class="wrap">
+            <h2 id="tieu-de-luoi">Tất cả bài</h2>
+            <div id="luoi-bai" class="post-grid"></div>
+            <p id="trang-bai" class="fine" role="status"></p>
+            <nav id="phan-trang" class="post-pages" aria-label="Phân trang bài viết"></nav>
+          </div>
+        </section>
+        <section class="section" aria-labelledby="tieu-de-truot">
+          <div class="wrap">
+            <div class="post-slide-head">
+              <div>
+                <p class="quiet-line" id="chu-de-truot">Đọc lần lượt</p>
+                <h2 id="tieu-de-truot">Bài viết</h2>
+              </div>
+              <div class="post-slide-nav">
+                <button class="icon-btn story-arrow" type="button" id="truot-truoc" aria-label="Bài trước"><i data-lucide="arrow-left"></i></button>
+                <button class="icon-btn story-arrow" type="button" id="truot-sau" aria-label="Bài sau"><i data-lucide="arrow-right"></i></button>
+              </div>
+            </div>
+            <div id="truot-bai" class="post-slide-stage" aria-live="polite"></div>
+            <p id="trang-truot" class="fine"></p>
+          </div>
+        </section>
+      </div>
+      <article id="noi-dung-bai" class="wrap section-tight prose" hidden></article>
     </main>
     <footer>
       <div class="wrap site-footer">
@@ -45,10 +85,10 @@
           <a href="index.html">Trang chủ</a>
           <a href="index.html#tra-cuu">Tra cứu</a>
           <a href="tinh-nang.html">Tính năng</a>
-          <a href="phap-ly.html">Pháp lý</a>
           <a href="bai-viet.html">Bài viết</a>
           <a href="dang-nhap.html">Đăng nhập</a>
           <a href="app/bao-cao.html?id=van-mieu&mau=1">Báo cáo mẫu</a>
+          <a href="phap-ly.html">Pháp lý</a>
         </nav>
       </div>
     </footer>

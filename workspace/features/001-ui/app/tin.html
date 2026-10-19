@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tin của tôi · Location Insight</title>
+    <meta name="description" content="Các tin rao bán bạn đã soạn trên máy này. Giá là giá bạn chào." />
+    <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../css/site.css" />
+  </head>
+  <body data-page="tin" data-root="../">
+    <a class="skip" href="#noi-dung">Đi tới nội dung</a>
+    <header class="app-header">
+      <a class="logo" href="../index.html">
+        <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#1b4332"/><path fill="#f4efe6" d="M16 5.5c-3.6 0-6.5 2.8-6.5 6.4 0 4.7 6.5 14.6 6.5 14.6s6.5-9.9 6.5-14.6c0-3.6-2.9-6.4-6.5-6.4zm0 8.7a2.3 2.3 0 1 1 0-4.6 2.3 2.3 0 0 1 0 4.6z"/></svg>
+        <span>Location Insight</span>
+      </a>
+      <button class="icon-btn nav-toggle" type="button" data-nav-toggle aria-expanded="false" aria-controls="dieu-huong" aria-label="Mở menu"><i data-lucide="menu"></i></button>
+      <nav class="app-nav" id="dieu-huong" data-nav aria-label="Trong ứng dụng">
+        <a href="tra-cuu.html">Tra cứu</a>
+        <a href="tin.html" aria-current="page">Tin của tôi</a>
+        <a href="da-luu.html">Đã lưu</a>
+        <a href="lich-su.html">Lịch sử</a>
+        <a href="tai-khoan.html">Tài khoản</a>
+      </nav>
+      <div class="header-actions">
+        <span class="user-chip" data-user></span>
+      </div>
+    </header>
+    <main id="noi-dung" class="app-shell">
+      <div class="listing-head">
+        <div>
+          <h1>Tin của tôi</h1>
+          <p class="lede">Tin bạn soạn, giữ trên máy này. Giá là giá bạn chào, không phải kết luận của báo cáo. Cùng bản ghi hiện ở mục tin đang chào trên trang chủ.</p>
+        </div>
+        <a class="btn btn-primary" href="../dang-tin.html">Đăng tin</a>
+      </div>
+      <p id="tin-trong" class="empty" hidden>Chưa có tin nào. Bấm Đăng tin để soạn tin đầu tiên.</p>
+      <div id="tin-cua-toi" class="listing-band"></div>
+    </main>
+    <footer>
+      <div class="wrap site-footer">
+        <p class="fine">Bản mock giao diện.</p>
+        <nav class="footer-links" aria-label="Chân trang">
+          <a href="../index.html">Trang chủ</a>
+          <a href="../phap-ly.html">Pháp lý</a>
+        </nav>
+      </div>
+    </footer>
+    <script src="../js/vendor/lucide.min.js"></script>
+    <script src="../js/data.js"></script>
+    <script src="../js/store.js"></script>
+    <script src="../js/pages.js"></script>
+    <script src="../js/boot.js"></script>
+  </body>
+</html>

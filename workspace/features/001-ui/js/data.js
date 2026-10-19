@@ -359,8 +359,88 @@
     };
   }
 
+  const posts = [
+    {
+      id: "ghim",
+      featured: true,
+      title: "Kéo ghim, vì địa chỉ hay lệch",
+      excerpt: "Bộ đổi địa chỉ thành tọa độ có thể lệch vài chục đến vài trăm mét, nhất là ngõ. Báo cáo bám điểm bạn đặt.",
+      date: "18/10/2026",
+      iso: "2026-10-18",
+      image: "images/ngo-ha-noi-ngang.webp",
+      imageAlt: "Ngõ Hà Nội với cửa hàng hai bên, ảnh khu vực minh họa.",
+      paragraphs: [
+        "Ô tìm chỉ đưa bạn tới gần. Ở ngõ Hà Nội, điểm geocode có thể rơi ra mặt đường hoặc sang một ngõ khác. Vì vậy bước đầu là kéo ghim vào đúng ô đất.",
+        "Mọi khoảng cách trong báo cáo tính từ ghim, không tính từ chuỗi địa chỉ. Nếu ghim lệch, hiệu thuốc “90 m” cũng lệch theo.",
+        "Ba điểm đã đo trên trang chủ là số mẫu để đọc cách báo cáo nói. Chấm một chỗ chưa đo thì trang ghi chưa có số, không điền tiện ích.",
+      ],
+    },
+    {
+      id: "thieu-du-lieu",
+      title: "Số tiện ích thấp không có nghĩa khu trống",
+      excerpt: "Không thấy cửa hàng trong bán kính thì ghi thiếu, kèm nguồn. Bản đồ mỏng khác với kết luận khu không có.",
+      date: "16/10/2026",
+      iso: "2026-10-16",
+      image: "images/noi-bai.webp",
+      imageAlt: "Sân bay Nội Bài nhìn từ xa, ảnh khu vực minh họa.",
+      paragraphs: [
+        "OpenStreetMap ở Hà Nội dày ở phố lớn và mỏng ở ngõ, ngoại thành. Điểm gần Nội Bài trong bản mẫu chỉ thấy 6 chỗ trong 500 m.",
+        "Câu đúng là “không thấy trên lớp hiện có”. Câu sai là “khu này không có cửa hàng”. Mỗi chỉ số vì vậy kèm số điểm và mức tin.",
+        "Cửa hàng vật tư, vỉa hè và trụ sở phường là những mục hay thiếu tag. Thiếu thì để trống có chủ đích, không suy diễn.",
+      ],
+    },
+    {
+      id: "khung-gia",
+      title: "Khung giá không phải giá bán",
+      excerpt: "Giá chỉ thành một khoảng sau khi bạn tự khai loại hình, pháp lý, diện tích và mặt tiền. Không chốt một mức từ địa chỉ.",
+      date: "14/10/2026",
+      iso: "2026-10-14",
+      image: "images/ho-hoan-kiem.webp",
+      imageAlt: "Hồ Hoàn Kiếm và tháp Rùa, ảnh khu vực minh họa.",
+      paragraphs: [
+        "Giá giao dịch thật gần như không công khai. Giá rao là giá chào. Bảng giá đất của UBND là mốc tính thuế, không phải giá bán.",
+        "Bản mock chỉ ra một khoảng minh họa. Thiếu mặt tiền thì khoảng nới rộng. Bạn khai đang vướng quy hoạch thì không kết luận giá.",
+        "Gói miễn phí dừng ở điểm mạnh và điểm yếu. Một lần định giá riêng trong bảng giá là 10.000 đồng. Số tháng và năm trên trang vẫn là mức minh họa, chưa chốt.",
+      ],
+    },
+    {
+      id: "ban-kinh",
+      title: "Ba bán kính đã chốt",
+      excerpt: "500 m cho tiện ích đi bộ, 2 km cho bệnh viện và metro, 3 km là ngưỡng còn gán trạm không khí.",
+      date: "12/10/2026",
+      iso: "2026-10-12",
+      image: "images/ho-tay.webp",
+      imageAlt: "Hồ Tây lúc hoàng hôn, ảnh khu vực minh họa.",
+      paragraphs: [
+        "Đây là thước đo của sản phẩm, không phải số người dùng. Đổi bán kính trên bản đồ tra cứu chỉ để thấy vòng đó quanh điểm đã chọn.",
+        "Ga metro chỉ tính ga đang chạy. Ngoài 2 km thì ghi ngoài bán kính, không viết thành “xa metro” như một lời khuyên.",
+        "Trạm không khí xa hơn 3 km thì không gán chỉ số cho ô đất. Khoảng cách tới sân bay hoặc đường lớn là khoảng cách, không phải đo tiếng ồn.",
+      ],
+    },
+    {
+      id: "khong-ket-luan-ngap",
+      title: "Không kết luận dễ ngập từ một con số",
+      excerpt: "Có cao độ tương đối và độ sâu ngập sông theo mô hình. Không có bản đồ ngập đường sau mưa của Hà Nội.",
+      date: "10/10/2026",
+      iso: "2026-10-10",
+      image: "images/ngo-ha-noi.webp",
+      imageAlt: "Ngõ nhỏ ở Hà Nội, nhà và mái hiên hai bên, ảnh khu vực minh họa.",
+      paragraphs: [
+        "Cao độ thấp hơn trung vị xung quanh chỉ là một so sánh. Nó không đủ để ghi “khu này dễ ngập”.",
+        "Mô hình sông JRC cho một độ sâu theo chu kỳ 10 năm và 100 năm. Đó không phải bản đồ ngập úng sau mưa của thành phố.",
+        "Chưa nối dữ liệu thoát nước nên mục ngập đường khi mưa ghi chưa đủ chuỗi. Báo cáo để trống phần đó.",
+      ],
+    },
+  ];
+
+  function getPost(id) {
+    return posts.find((post) => post.id === id) || null;
+  }
+
   window.LIData = {
     places,
+    posts,
+    getPost,
     getPlace,
     searchPlaces,
     nearest,

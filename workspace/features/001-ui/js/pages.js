@@ -239,10 +239,31 @@
       location.href = "dang-tai.html?id=" + encodeURIComponent(id);
     });
 
+    function applyQuery() {
+      const preset = params().get("q");
+      if (!preset) return;
+      input.value = preset;
+      if (foldQueryIsError(preset)) {
+        list.replaceChildren();
+        status.textContent = "Ô tìm địa chỉ mẫu không trả được điểm này.";
+        go.disabled = true;
+        return;
+      }
+      const matches = data().searchPlaces(preset);
+      if (!matches.length) {
+        renderSuggestions(data().places);
+        status.textContent = "Chưa khớp địa chỉ mẫu cho «" + preset + "». Chọn một điểm bên dưới hoặc kéo ghim.";
+        return;
+      }
+      renderSuggestions(matches);
+      choose(matches[0]);
+    }
+
     paintQuota();
     renderSuggestions(data().places);
     if (!window.L) {
       status.textContent = "Không tải được bản đồ. Vẫn chọn một địa chỉ mẫu bên dưới.";
+      applyQuery();
       return;
     }
     const start = data().places[0];
@@ -267,6 +288,434 @@
       choose(near.place, point.lat, point.lng);
     });
     window.setTimeout(() => map.invalidateSize(), 150);
+    applyQuery();
+  }
+
+  function landingPage() {
+    const form = document.getElementById("form-dia-chi");
+    if (form) {
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const address = form.q.value.trim();
+        const target = address ? "app/ghim.html?q=" + encodeURIComponent(address) : "app/ghim.html";
+        if (store().session()) {
+          location.href = target;
+          return;
+        }
+        location.href = "dang-nhap.html?next=" + encodeURIComponent(target);
+      });
+    }
+
+    bindLookup();
+    bindStories();
+
+    const confirm = document.getElementById("xac-nhan-goi");
+    document.querySelectorAll("[data-plan]").forEach((button) => {
+      button.addEventListener("click", () => {
+        if (!confirm) return;
+        confirm.hidden = false;
+        confirm.textContent =
+          "Bản mock chưa thu tiền. Bạn chọn gói " +
+          button.dataset.plan +
+          ", trả theo " +
+          button.dataset.cycle +
+          ", " +
+          button.dataset.amount +
+          ".";
+        confirm.focus();
+      });
+    });
+
+    const ask = document.getElementById("form-hoi");
+    if (!ask) return;
+    ask.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const field = ask.querySelector("#cau-hoi");
+      const question = field.value.trim();
+      if (!question) {
+        fieldError(field, "Nhập câu hỏi trước khi xem trả lời.");
+        field.focus();
+        return;
+      }
+      fieldError(field, "");
+      const box = document.getElementById("tra-loi");
+      document.getElementById("noi-dung-tra-loi").textContent = answerFor(question);
+      box.hidden = false;
+      box.focus();
+    });
+  }
+
+  function bindLookup() {
+    const panel = document.getElementById("chi-tiet-diem");
+    const status = document.getElementById("tra-trang-thai");
+    const search = document.getElementById("tra-dia-chi");
+    if (!panel || !status) return;
+
+    const radiusCopy = {
+      500: "500 m: tiện ích đi bộ.",
+      2000: "2 km: bệnh viện và ga metro.",
+      3000: "3 km: không khí chỉ được gán khi trạm còn trong bán kính này.",
+    };
+    let radius = 500;
+    let active = null;
+    let map = null;
+    let circle = null;
+    let stray = null;
+    const markers = {};
+
+    function formatMeters(meters) {
+      if (meters < 1000) return Math.round(meters) + " m";
+      const km = meters / 1000;
+      return km.toLocaleString("vi-VN", { maximumFractionDigits: 1 }) + " km";
+    }
+
+    function list(items) {
+      const ul = el("ul", "plain-list");
+      items.forEach((item) => ul.append(el("li", null, item)));
+      return ul;
+    }
+
+    function showPlace(place, note) {
+      active = place;
+      panel.replaceChildren(el("h3", null, place.title), el("p", null, place.address));
+      if (note) panel.append(el("p", "fine", note));
+      panel.append(el("h4", null, "Điểm mạnh"), list(place.strengths));
+      panel.append(el("h4", null, "Điểm yếu hoặc chưa kết luận"), list(place.gaps));
+      const link = el("a", null, "Xem báo cáo đầy đủ");
+      link.href = "app/bao-cao.html?id=" + encodeURIComponent(place.id) + "&mau=1";
+      panel.append(link);
+      document.querySelectorAll("[data-place]").forEach((button) => {
+        button.setAttribute("aria-pressed", button.dataset.place === place.id ? "true" : "false");
+      });
+      status.textContent = place.title + ". " + radiusCopy[radius];
+    }
+
+    function showEmpty(message) {
+      active = null;
+      panel.replaceChildren(el("h3", null, "Chưa có số đo"), el("p", null, message));
+      document.querySelectorAll("[data-place]").forEach((button) => button.setAttribute("aria-pressed", "false"));
+      status.textContent = message;
+    }
+
+    function popupHtml(place, note) {
+      const items = (lines) => lines.map((line) => "<li>" + escapeHtml(line) + "</li>").join("");
+      return (
+        '<div class="map-popup"><strong>' +
+        escapeHtml(place.title) +
+        "</strong><p>" +
+        escapeHtml(place.coverage) +
+        " trong 500 m. " +
+        escapeHtml(place.coverageHint) +
+        ".</p>" +
+        (note ? "<p>" + escapeHtml(note) + "</p>" : "") +
+        "<p><strong>Điểm mạnh</strong></p><ul>" +
+        items(place.strengths) +
+        "</ul><p><strong>Điểm yếu hoặc chưa kết luận</strong></p><ul>" +
+        items(place.gaps) +
+        "</ul></div>"
+      );
+    }
+
+    function drawCircle(place) {
+      if (!map) return;
+      if (circle) circle.remove();
+      circle = L.circle([place.lat, place.lng], {
+        radius: radius,
+        color: "#1b4332",
+        weight: 2,
+        fillColor: "#1b4332",
+        fillOpacity: 0.08,
+      }).addTo(map);
+      circle.bindTooltip(radiusCopy[radius], { sticky: true, className: "lookup-tip" });
+    }
+
+    function moveTo(place) {
+      if (!map) return;
+      const zoom = radius >= 3000 ? 12 : radius >= 2000 ? 13 : 15;
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (reduce) map.setView([place.lat, place.lng], zoom);
+      else map.flyTo([place.lat, place.lng], zoom);
+    }
+
+    function closePopups() {
+      if (map) map.closePopup();
+      Object.keys(markers).forEach((id) => markers[id].closePopup());
+    }
+
+    function select(place, meters) {
+      closePopups();
+      if (stray) {
+        stray.remove();
+        stray = null;
+      }
+      const note =
+        meters > 80
+          ? "Bạn chấm cách điểm đã đo khoảng " + formatMeters(meters) + ". Số bên dưới là của " + place.title + "."
+          : "";
+      showPlace(place, note);
+      if (!map || !markers[place.id]) return;
+      drawCircle(place);
+      markers[place.id].bindPopup(popupHtml(place, note), { maxWidth: 320, minWidth: 240, maxHeight: 280, autoPan: true, keepInView: true }).openPopup();
+      moveTo(place);
+    }
+
+    function miss(latlng) {
+      closePopups();
+      active = null;
+      if (circle) {
+        circle.remove();
+        circle = null;
+      }
+      document.querySelectorAll("[data-place]").forEach((button) => button.setAttribute("aria-pressed", "false"));
+      const message = "Điểm vừa chấm chưa có số đo. Chọn Ngõ Văn Miếu, Hồ Gươm hoặc Nội Bài. Trang không điền điểm mạnh hay điểm yếu khi chưa có số.";
+      showEmpty(message);
+      if (!map) return;
+      if (stray) stray.remove();
+      stray = L.marker(latlng, { icon: markerIcon() }).addTo(map);
+      stray.bindPopup("<div class=\"map-popup\"><strong>Chưa có số đo</strong><p>" + escapeHtml(message) + "</p></div>", { maxWidth: 280, maxHeight: 220, autoPan: true, keepInView: true }).openPopup();
+    }
+
+    function markerIcon() {
+      return L.icon({
+        iconUrl: store().asset("js/vendor/images/marker-icon.png"),
+        iconRetinaUrl: store().asset("js/vendor/images/marker-icon-2x.png"),
+        shadowUrl: store().asset("js/vendor/images/marker-shadow.png"),
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -32],
+        tooltipAnchor: [0, -32],
+        shadowSize: [41, 41],
+      });
+    }
+
+    document.querySelectorAll("[data-place]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const place = data().getPlace(button.dataset.place);
+        if (place) select(place, 0);
+      });
+    });
+
+    document.querySelectorAll("[data-radius]").forEach((button) => {
+      button.addEventListener("click", () => {
+        radius = Number(button.dataset.radius);
+        document.querySelectorAll("[data-radius]").forEach((item) => {
+          item.setAttribute("aria-pressed", item === button ? "true" : "false");
+        });
+        if (active) {
+          drawCircle(active);
+          moveTo(active);
+          status.textContent = active.title + ". " + radiusCopy[radius];
+        } else {
+          status.textContent = radiusCopy[radius] + " Vòng tròn hiện khi bạn đã chọn một điểm.";
+        }
+      });
+    });
+
+    function runSearch() {
+      if (!search) return;
+      const query = search.value.trim();
+      if (!query) return;
+      const matches = data().searchPlaces(query);
+      if (!matches.length) {
+        status.textContent = "Chưa có điểm đã đo khớp «" + query + "».";
+        return;
+      }
+      select(matches[0], 0);
+      if (matches.length > 1) {
+        status.textContent = "Khớp " + matches.length + " điểm. Đang mở " + matches[0].title + ". Chọn nút điểm nếu muốn điểm khác.";
+      }
+    }
+
+    if (search) {
+      search.addEventListener("change", runSearch);
+      search.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        runSearch();
+      });
+    }
+
+    const mapNode = document.getElementById("ban-do-tra");
+    if (!mapNode || !window.L) {
+      status.textContent = "Không tải được bản đồ. Vẫn chọn một điểm đã đo ở phía trên để đọc điểm mạnh và điểm yếu.";
+      return;
+    }
+
+    const places = data().places;
+    map = L.map(mapNode, { scrollWheelZoom: true });
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    }).addTo(map);
+    const icon = markerIcon();
+    places.forEach((place) => {
+      const marker = L.marker([place.lat, place.lng], { icon }).addTo(map);
+      marker.bindTooltip(place.title + " · " + place.coverage + " trong 500 m", { direction: "top" });
+      marker.on("click", () => select(place, 0));
+      markers[place.id] = marker;
+    });
+    map.on("click", (event) => {
+      const near = data().nearest(event.latlng.lat, event.latlng.lng);
+      if (near.meters <= 600) select(near.place, near.meters);
+      else miss(event.latlng);
+    });
+    map.fitBounds(
+      L.latLngBounds(places.map((place) => [place.lat, place.lng])),
+      { padding: [28, 28] }
+    );
+    window.setTimeout(() => map.invalidateSize(), 150);
+  }
+
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    }[char]));
+  }
+
+  function bindStories() {
+    const slot = document.getElementById("bai-cap");
+    const lead = document.getElementById("bai-lon");
+    const status = document.getElementById("bai-trang");
+    if (!slot || !lead || !data().posts) return;
+    const featured = data().posts.find((post) => post.featured) || data().posts[0];
+    const rest = data().posts.filter((post) => post !== featured);
+    const pageSize = 2;
+    let page = 0;
+    const pages = Math.max(1, Math.ceil(rest.length / pageSize));
+    const prev = document.getElementById("bai-truoc");
+    const next = document.getElementById("bai-sau");
+
+    function paint() {
+      const slice = rest.slice(page * pageSize, page * pageSize + pageSize);
+      slot.replaceChildren();
+      slice.forEach((post) => slot.append(storyLink(post, false)));
+      if (prev) prev.disabled = page === 0;
+      if (next) next.disabled = page >= pages - 1;
+      if (status) {
+        const from = page * pageSize + 1;
+        const to = page * pageSize + slice.length;
+        status.textContent = "Đang xem bài " + from + "–" + to + " trong " + rest.length + " bài.";
+      }
+    }
+
+    lead.replaceChildren(storyLink(featured, true));
+    paint();
+    if (prev) prev.addEventListener("click", () => { if (page > 0) { page -= 1; paint(); } });
+    if (next) next.addEventListener("click", () => { if (page < pages - 1) { page += 1; paint(); } });
+  }
+
+  function storyLink(post, large) {
+    const link = document.createElement("a");
+    link.className = large ? "story-card story-lead" : "story-card";
+    link.href = "bai-viet.html?id=" + encodeURIComponent(post.id);
+    const image = document.createElement("img");
+    image.src = post.image;
+    image.alt = post.imageAlt;
+    image.width = large ? 1400 : 960;
+    image.height = large ? 900 : 640;
+    const copy = document.createElement("span");
+    copy.className = "story-copy";
+    const time = document.createElement("time");
+    time.dateTime = post.iso;
+    time.textContent = post.date;
+    const title = document.createElement("h3");
+    title.textContent = post.title;
+    const excerpt = document.createElement("p");
+    excerpt.textContent = post.excerpt;
+    copy.append(time, title, excerpt);
+    link.append(image, copy);
+    return link;
+  }
+
+  function postsPage() {
+    const root = document.getElementById("noi-dung-bai");
+    if (!root) return;
+    const id = params().get("id");
+    root.classList.toggle("prose", Boolean(id));
+    if (!id) {
+      renderPostIndex(root, data().posts);
+      return;
+    }
+    const post = data().getPost(id);
+    if (!post) {
+      document.title = "Không thấy bài · Location Insight";
+      root.replaceChildren();
+      root.append(el("h1", null, "Không thấy bài này"));
+      const note = el("p", null, "Đường dẫn không khớp bài nào trong bản này.");
+      const back = el("a", null, "Về danh sách bài viết");
+      back.href = "bai-viet.html";
+      root.append(note, back);
+      return;
+    }
+    document.title = post.title + " · Location Insight";
+    root.replaceChildren();
+    const back = el("a", null, "Tất cả bài viết");
+    back.href = "bai-viet.html";
+    const kicker = el("p", "quiet-line", "Bài viết · " + post.date);
+    root.append(back, kicker, el("h1", null, post.title));
+    const image = document.createElement("img");
+    image.src = post.image;
+    image.alt = post.imageAlt;
+    image.width = 1400;
+    image.height = 900;
+    root.append(image);
+    post.paragraphs.forEach((paragraph) => root.append(el("p", null, paragraph)));
+  }
+
+  function renderPostIndex(root, posts) {
+    document.title = "Bài viết · Location Insight";
+    root.replaceChildren();
+    root.append(el("h1", null, "Bài viết"));
+    root.append(el("p", "lede", "Cách đọc một điểm ở Hà Nội. Đây là bài giải thích trong bản mock, không phải tin tức hay số người dùng."));
+    const list = document.createElement("div");
+    list.className = "story-index";
+    posts.forEach((post) => {
+      const link = document.createElement("a");
+      link.className = "story-row";
+      link.href = "bai-viet.html?id=" + encodeURIComponent(post.id);
+      const image = document.createElement("img");
+      image.src = post.image;
+      image.alt = post.imageAlt;
+      image.width = 960;
+      image.height = 640;
+      const copy = document.createElement("span");
+      copy.className = "story-copy";
+      const time = document.createElement("time");
+      time.dateTime = post.iso;
+      time.textContent = post.date;
+      const title = document.createElement("h2");
+      title.textContent = post.title;
+      const excerpt = document.createElement("p");
+      excerpt.textContent = post.excerpt;
+      copy.append(time, title, excerpt);
+      link.append(image, copy);
+      list.append(link);
+    });
+    root.append(list);
+  }
+
+  function answerFor(question) {
+    const text = question.toLowerCase();
+    if (/ngập|mưa|sông/.test(text)) {
+      return "Không kết luận dễ ngập. Báo cáo có cao độ tương đối và độ sâu ngập sông theo mô hình. Không có bản đồ ngập đường sau mưa của Hà Nội.";
+    }
+    if (/giá bán|khung giá|định giá|10\.?000|10k/.test(text)) {
+      return "Khung giá không phải giá bán. Gói miễn phí và gói không giới hạn lượt chưa mở bước này. Bạn có thể trả 10.000 đồng cho một lần định giá, hoặc dùng gói có định giá. Thiếu pháp lý hoặc mặt tiền thì khung rộng ra, hoặc không kết luận.";
+    }
+    if (/gói|tháng|năm|miễn phí|lượt/.test(text)) {
+      return "Miễn phí có khoảng 10 lượt so sánh mỗi ngày, chỉ xem điểm mạnh và điểm yếu. Gói không giới hạn lượt bỏ trần này. Gói có định giá thêm bước ước lượng giá. Giá tháng và năm trên trang là mức minh họa, chưa chốt.";
+    }
+    if (/ghim|lệch|địa chỉ/.test(text)) {
+      return "Địa chỉ chỉ đưa bạn tới gần. Bộ tìm có thể lệch vài chục đến vài trăm mét, nhất là ngõ. Kéo ghim đúng ô đất. Báo cáo bám ghim, không bám chuỗi chữ.";
+    }
+    if (/thiếu|phủ|quy hoạch/.test(text)) {
+      return "Không thấy dữ liệu trong bán kính thì ghi thiếu, kèm nguồn. Số tiện ích thấp nghĩa là bản đồ mỏng, không phải khu không có cửa hàng. Chưa có API quy hoạch theo tọa độ nên mục đó ghi chưa có dữ liệu.";
+    }
+    return "Câu này chưa khớp mục đã viết sẵn. Xem cột câu hay gặp, hoặc trang pháp lý. Bản mock chỉ trả lời từ những gì đã có trên trang, không gửi câu hỏi đi đâu.";
   }
 
   function foldQueryIsError(query) {
@@ -694,6 +1143,8 @@
   }
 
   window.LIPages = {
+    landing: landingPage,
+    "bai-viet": postsPage,
     login: loginPage,
     register: registerPage,
     forgot: forgotPage,

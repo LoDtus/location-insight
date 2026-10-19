@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Đang tính chỉ số · Location Insight</title>
+    <meta name="description" content="Đang ghép các lớp dữ liệu quanh ghim." />
+    <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../css/site.css" />
+  </head>
+  <body data-page="dang-tai" data-root="../">
+    <a class="skip" href="#noi-dung">Đi tới nội dung</a>
+    <header class="app-header">
+      <a class="logo" href="../index.html">
+        <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#1b4332"/><path fill="#f4efe6" d="M16 5.5c-3.6 0-6.5 2.8-6.5 6.4 0 4.7 6.5 14.6 6.5 14.6s6.5-9.9 6.5-14.6c0-3.6-2.9-6.4-6.5-6.4zm0 8.7a2.3 2.3 0 1 1 0-4.6 2.3 2.3 0 0 1 0 4.6z"/></svg>
+        <span>Location Insight</span>
+      </a>
+      <nav class="app-nav" data-nav aria-label="Trong ứng dụng">
+        <a href="ghim.html">Ghim</a>
+        <a href="lich-su.html">Lịch sử</a>
+        <a href="tai-khoan.html">Tài khoản</a>
+      </nav>
+    </header>
+    <main id="noi-dung" class="app-shell">
+      <p class="quiet-line">Đang ghép lớp dữ liệu</p>
+      <h1>Đang tính chỉ số quanh ghim</h1>
+      <p id="dang-tai-ten" class="lede">Giữ nguyên bố cục trong lúc chờ. Bản mock chuyển sang báo cáo sau khoảng một giây.</p>
+      <div class="skeleton" aria-hidden="true">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+      <p id="dang-tai-het" class="banner warning" hidden><i data-lucide="alert-triangle"></i><span>Hết 10 lượt hôm nay. Báo cáo mẫu vẫn mở từ lịch sử.</span></p>
+      <div class="row-actions">
+        <a class="btn btn-primary" id="mo-bao-cao" href="bao-cao.html?id=van-mieu">Mở báo cáo</a>
+        <a class="btn btn-ghost" href="ghim.html">Quay lại ghim</a>
+      </div>
+    </main>
+    <script src="../js/vendor/lucide.min.js"></script>
+    <script src="../js/data.js"></script>
+    <script src="../js/store.js"></script>
+    <script src="../js/pages.js"></script>
+    <script src="../js/boot.js"></script>
+  </body>
+</html>

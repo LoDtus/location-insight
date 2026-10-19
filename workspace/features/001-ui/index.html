@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Location Insight · Đo một điểm ở Hà Nội</title>
+    <meta name="description" content="Ghim một điểm ở Hà Nội, đọc điểm mạnh và điểm yếu đo được. Không kết luận giá bán từ mỗi địa chỉ." />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/site.css" />
+  </head>
+  <body>
+    <a class="skip" href="#noi-dung">Đi tới nội dung</a>
+    <header class="site-header">
+      <a class="logo" href="index.html">
+        <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#1b4332"/><path fill="#f4efe6" d="M16 5.5c-3.6 0-6.5 2.8-6.5 6.4 0 4.7 6.5 14.6 6.5 14.6s6.5-9.9 6.5-14.6c0-3.6-2.9-6.4-6.5-6.4zm0 8.7a2.3 2.3 0 1 1 0-4.6 2.3 2.3 0 0 1 0 4.6z"/></svg>
+        <span>Location Insight</span>
+      </a>
+      <button class="icon-btn nav-toggle" type="button" data-nav-toggle aria-expanded="false" aria-controls="dieu-huong" aria-label="Mở menu"><i data-lucide="menu"></i></button>
+      <nav class="site-nav" id="dieu-huong" data-nav aria-label="Chính">
+        <a href="tinh-nang.html">Tính năng</a>
+        <a href="phap-ly.html">Pháp lý</a>
+        <a href="app/bao-cao.html?id=van-mieu&mau=1">Báo cáo mẫu</a>
+        <a href="dang-nhap.html" data-auth="login">Đăng nhập</a>
+      </nav>
+      <div class="header-actions">
+        <a class="btn btn-ghost" href="dang-nhap.html" data-auth="login">Đăng nhập</a>
+        <a class="btn btn-primary" href="dang-nhap.html?next=app/ghim.html" data-auth="cta">Phân tích một điểm</a>
+      </div>
+    </header>
+    <main id="noi-dung">
+      <div class="wrap">
+        <section class="hero">
+          <div>
+            <p class="quiet-line">Chỉ Hà Nội, giai đoạn đầu</p>
+            <h1>Đọc một chỗ đất trước khi hỏi giá.</h1>
+            <p class="lede">Ghim đúng ô. Trang này kể những gì đo được, kèm nguồn và mức tin, và nói thẳng phần chưa có dữ liệu. Giá chỉ là khung tham chiếu, và chỉ chạy khi bạn tự khai thêm thuộc tính ô đất.</p>
+            <div class="hero-actions">
+              <a class="btn btn-primary" href="dang-nhap.html?next=app/ghim.html" data-auth="cta">Phân tích một điểm</a>
+              <a class="btn btn-secondary" href="app/bao-cao.html?id=van-mieu&mau=1">Xem báo cáo mẫu</a>
+            </div>
+            <p class="fine">Báo cáo mẫu dùng số minh họa. Địa chỉ qua bộ tìm có thể lệch vài chục đến vài trăm mét, nên phân tích bám ghim, không bám chuỗi chữ.</p>
+          </div>
+          <figure class="figure-frame">
+            <img src="images/ngo-ha-noi-ngang.webp" width="960" height="720" alt="Ngõ nhỏ ở Hà Nội, cửa hàng và cờ hai bên." />
+            <figcaption>Ảnh ngõ Hà Nội để hình dung khu vực. Không phải ảnh một thửa đất. Ảnh: GVZ 42, Unsplash.</figcaption>
+          </figure>
+        </section>
+      </div>
+
+      <section class="section">
+        <div class="wrap split">
+          <article>
+            <h2>Vị trí là tính chất của chỗ đất.</h2>
+            <p>Đầu vào là một ghim. Đầu ra là khoảng cách, mật độ, địa hình, tiện ích, và nhận xét bám những số đó. Làm được với dữ liệu mở: đường và điểm trên OpenStreetMap, dân số WorldPop, không khí OpenAQ, cao độ FABDEM, mảng xanh, manh mối ngập sông.</p>
+            <p><a href="tinh-nang.html">Xem từng chỉ số và bán kính</a></p>
+          </article>
+          <article>
+            <h2>Giá là tính chất của từng ô, từng căn.</h2>
+            <p>Không suy ra từ mỗi địa chỉ. Giá giao dịch thật gần như không công khai. Giá rao là giá chào. Bảng giá đất của UBND là mốc tính thuế, không phải giá bán. Muốn một khung tham chiếu, bạn khai diện tích, mặt tiền, pháp lý. Thiếu thì khung rộng ra, hoặc hệ thống từ chối kết luận.</p>
+            <p><a href="dang-nhap.html?next=app/dinh-gia.html%3Fid%3Dvan-mieu">Thử khung giá trên báo cáo mẫu</a></p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" style="padding-top: 0">
+        <div class="wrap">
+          <h2>Ba bước, đúng thứ tự</h2>
+          <ol class="steps">
+            <li>
+              <h3>Nhập địa chỉ, rồi kéo ghim</h3>
+              <p>Ô tìm chỉ để tới gần. Ngõ nhỏ hay lệch. Bạn kéo ghim vào đúng ô đất trước khi đọc báo cáo.</p>
+            </li>
+            <li>
+              <h3>Đọc báo cáo vị trí</h3>
+              <p>Mỗi ý có bán kính, nguồn và mức tin. Không thấy dữ liệu thì ghi thiếu, không kết luận “khu này không có”.</p>
+            </li>
+            <li>
+              <h3>Khai thêm nếu muốn khung giá</h3>
+              <p>Loại hình, pháp lý, diện tích, mặt tiền. Đầu ra là một khoảng, kèm giả định, không phải một con số giá bán.</p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="section" style="padding-top: 0">
+        <div class="wrap">
+          <h2>Ba điểm mẫu để xem cách báo cáo nói</h2>
+          <p class="lede">Cùng một kiểu báo cáo, ba mức phủ khác nhau: ngõ nội thành, sát hồ, và khu thưa dữ liệu gần sân bay.</p>
+          <div class="place-grid" style="margin-top: 24px">
+            <a class="place-card" href="app/bao-cao.html?id=van-mieu&mau=1">
+              <img src="images/ngo-ha-noi.webp" width="1200" height="1500" alt="Ngõ Hà Nội nhìn dọc, nhà và mái hiên hai bên." />
+              <div>
+                <h3>Ngõ Văn Miếu</h3>
+                <p>47 chỗ trong 500 m. Không rõ vỉa hè ngay tại ghim.</p>
+              </div>
+            </a>
+            <a class="place-card" href="app/bao-cao.html?id=hoan-kiem&mau=1">
+              <img src="images/ho-hoan-kiem.webp" width="1100" height="707" alt="Hồ Hoàn Kiếm và tháp Rùa giữa tán cây." />
+              <div>
+                <h3>Cạnh Hồ Gươm</h3>
+                <p>86 chỗ trong 500 m. Công viên hồ cách khoảng 40 m.</p>
+              </div>
+            </a>
+            <a class="place-card" href="app/bao-cao.html?id=dong-anh&mau=1">
+              <img src="images/noi-bai.webp" width="1280" height="886" alt="Sân bay Nội Bài nhìn từ xa, đường băng và nhà ga." />
+              <div>
+                <h3>Gần Nội Bài</h3>
+                <p>6 chỗ trong 500 m. Báo cáo mỏng, không phải khu trống.</p>
+              </div>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" style="padding-top: 0">
+        <div class="wrap split">
+          <div>
+            <h2>Những gì giai đoạn này không làm</h2>
+            <ul class="plain-list">
+              <li>Không chốt một mức giá từ mỗi địa chỉ.</li>
+              <li>Không có lớp quy hoạch chính thức theo thửa.</li>
+              <li>Không chấm “trường tốt”, “dân trí”, an ninh hay hàng xóm.</li>
+              <li>Không dùng Google Maps. Nền bản đồ là OpenStreetMap.</li>
+              <li>Phạm vi dừng ở Hà Nội.</li>
+            </ul>
+            <p><a href="phap-ly.html">Đọc giới hạn dữ liệu và cách hiểu báo cáo</a></p>
+          </div>
+          <figure class="figure-frame">
+            <img src="images/ho-tay.webp" width="1400" height="900" alt="Mặt hồ Tây lúc hoàng hôn, đường chân trời Hà Nội." />
+            <figcaption>Hồ Tây, ảnh khu vực. Filipe Freitas, Unsplash.</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="section" style="padding-top: 0">
+        <div class="wrap faq">
+          <h2>Câu hay gặp</h2>
+          <details>
+            <summary>Vì sao phải kéo ghim, không tin địa chỉ?</summary>
+            <p>Bộ đổi địa chỉ thành tọa độ có thể lệch vài chục đến vài trăm mét, nhất là ngõ. Báo cáo bám điểm bạn đặt, không bám chuỗi chữ.</p>
+          </details>
+          <details>
+            <summary>Thiếu dữ liệu thì trang nói gì?</summary>
+            <p>Ghi thiếu, kèm nguồn đáng lẽ có. Số tiện ích thấp nghĩa là bản đồ mỏng, không phải kết luận khu không có cửa hàng.</p>
+          </details>
+          <details>
+            <summary>Có kết luận dễ ngập không?</summary>
+            <p>Không. Có cao độ tương đối và độ sâu ngập sông theo mô hình. Không có bản đồ ngập đường sau mưa của Hà Nội, nên không ghi “khu này dễ ngập”.</p>
+          </details>
+          <details>
+            <summary>Khung giá có phải giá bán?</summary>
+            <p>Không. Đó là khoảng minh họa sau khi bạn tự khai thuộc tính. Chưa dùng giá giao dịch và chưa khớp bảng giá đất nhà nước theo tên đường.</p>
+          </details>
+          <details>
+            <summary>Tài khoản để làm gì?</summary>
+            <p>Để giữ lịch sử trên máy bạn trong bản mock, và để thấy hạn mức 10 lượt phân tích mỗi ngày. Xem báo cáo mẫu thì không cần đăng nhập.</p>
+          </details>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="dang-nhap.html?next=app/ghim.html" data-auth="cta">Phân tích một điểm</a>
+            <a class="btn btn-secondary" href="dang-ky.html">Tạo tài khoản</a>
+          </div>
+        </div>
+      </section>
+    </main>
+    <footer>
+      <div class="wrap site-footer">
+        <div>
+          <strong>Location Insight</strong>
+          <p class="fine">Bản mock giao diện. Số trên báo cáo là minh họa, chưa phải máy tính không gian.</p>
+        </div>
+        <nav class="footer-links" aria-label="Chân trang">
+          <a href="index.html">Trang chủ</a>
+          <a href="tinh-nang.html">Tính năng</a>
+          <a href="phap-ly.html">Pháp lý</a>
+          <a href="dang-nhap.html">Đăng nhập</a>
+          <a href="dang-ky.html">Tạo tài khoản</a>
+          <a href="quen-mat-khau.html">Quên mật khẩu</a>
+          <a href="dat-lai-mat-khau.html">Đặt lại mật khẩu</a>
+          <a href="app/ghim.html">Ghim một điểm</a>
+          <a href="app/bao-cao.html?id=van-mieu&mau=1">Báo cáo mẫu</a>
+          <a href="app/dinh-gia.html?id=van-mieu">Ước lượng giá</a>
+          <a href="app/khoang-gia.html?id=van-mieu">Khung giá</a>
+          <a href="app/lich-su.html">Lịch sử</a>
+          <a href="app/tai-khoan.html">Tài khoản</a>
+        </nav>
+      </div>
+    </footer>
+    <script src="js/vendor/lucide.min.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/store.js"></script>
+    <script src="js/pages.js"></script>
+    <script src="js/boot.js"></script>
+  </body>
+</html>

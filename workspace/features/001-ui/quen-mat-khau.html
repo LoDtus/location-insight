@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quên mật khẩu · Location Insight</title>
+    <meta name="description" content="Nhận liên kết đặt lại mật khẩu. Bản mock không gửi email thật." />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/site.css" />
+  </head>
+  <body data-page="forgot">
+    <a class="skip" href="#noi-dung">Đi tới nội dung</a>
+    <header class="site-header">
+      <a class="logo" href="index.html">
+        <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#1b4332"/><path fill="#f4efe6" d="M16 5.5c-3.6 0-6.5 2.8-6.5 6.4 0 4.7 6.5 14.6 6.5 14.6s6.5-9.9 6.5-14.6c0-3.6-2.9-6.4-6.5-6.4zm0 8.7a2.3 2.3 0 1 1 0-4.6 2.3 2.3 0 0 1 0 4.6z"/></svg>
+        <span>Location Insight</span>
+      </a>
+      <button class="icon-btn nav-toggle" type="button" data-nav-toggle aria-expanded="false" aria-controls="dieu-huong" aria-label="Mở menu"><i data-lucide="menu"></i></button>
+      <nav class="site-nav" id="dieu-huong" data-nav aria-label="Chính">
+        <a href="index.html">Trang chủ</a>
+        <a href="dang-nhap.html">Đăng nhập</a>
+        <a href="quen-mat-khau.html" aria-current="page">Quên mật khẩu</a>
+      </nav>
+      <div class="header-actions">
+        <a class="btn btn-ghost" href="dang-nhap.html" data-auth="login">Đăng nhập</a>
+        <a class="btn btn-primary" href="dang-ky.html">Tạo tài khoản</a>
+      </div>
+    </header>
+    <main id="noi-dung" class="auth-shell">
+      <figure class="auth-aside">
+        <img src="images/ho-hoan-kiem.webp" width="1100" height="707" alt="Hồ Hoàn Kiếm và tháp Rùa." />
+        <figcaption>Hồ Hoàn Kiếm. Thuỷ Nguyễn, Unsplash.</figcaption>
+      </figure>
+      <div class="auth-main">
+        <div class="auth-card">
+          <h1>Quên mật khẩu</h1>
+          <p class="lede">Nếu email này có tài khoản, bạn sẽ nhận liên kết đặt lại. Trang không nói email có tồn tại hay không.</p>
+          <form id="form-forgot" class="form-stack" novalidate>
+            <div class="field">
+              <label for="email">Email</label>
+              <input id="email" name="email" type="email" autocomplete="email" inputmode="email" required />
+            </div>
+            <button class="btn btn-primary" type="submit">Gửi liên kết</button>
+          </form>
+          <div id="forgot-done" class="banner success" hidden>
+            <i data-lucide="mail"></i>
+            <p>Nếu <strong data-email></strong> có tài khoản, liên kết đã được gửi. Trong bản mock, mở thẳng trang đặt lại.</p>
+          </div>
+          <p><a href="dat-lai-mat-khau.html">Mở trang đặt lại mật khẩu</a></p>
+          <p><a href="dang-nhap.html">Quay lại đăng nhập</a></p>
+        </div>
+      </div>
+    </main>
+    <script src="js/vendor/lucide.min.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/store.js"></script>
+    <script src="js/pages.js"></script>
+    <script src="js/boot.js"></script>
+  </body>
+</html>

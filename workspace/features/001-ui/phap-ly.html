@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pháp lý và giới hạn · Location Insight</title>
+    <meta name="description" content="Cách hiểu báo cáo vị trí: nguồn mở, mức phủ, không phải quy hoạch theo thửa và không phải giá bán." />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/site.css" />
+  </head>
+  <body>
+    <a class="skip" href="#noi-dung">Đi tới nội dung</a>
+    <header class="site-header">
+      <a class="logo" href="index.html">
+        <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#1b4332"/><path fill="#f4efe6" d="M16 5.5c-3.6 0-6.5 2.8-6.5 6.4 0 4.7 6.5 14.6 6.5 14.6s6.5-9.9 6.5-14.6c0-3.6-2.9-6.4-6.5-6.4zm0 8.7a2.3 2.3 0 1 1 0-4.6 2.3 2.3 0 0 1 0 4.6z"/></svg>
+        <span>Location Insight</span>
+      </a>
+      <button class="icon-btn nav-toggle" type="button" data-nav-toggle aria-expanded="false" aria-controls="dieu-huong" aria-label="Mở menu"><i data-lucide="menu"></i></button>
+      <nav class="site-nav" id="dieu-huong" data-nav aria-label="Chính">
+        <a href="tinh-nang.html">Tính năng</a>
+        <a href="phap-ly.html" aria-current="page">Pháp lý</a>
+        <a href="app/bao-cao.html?id=van-mieu&mau=1">Báo cáo mẫu</a>
+        <a href="dang-nhap.html" data-auth="login">Đăng nhập</a>
+      </nav>
+      <div class="header-actions">
+        <a class="btn btn-ghost" href="dang-nhap.html" data-auth="login">Đăng nhập</a>
+        <a class="btn btn-primary" href="dang-nhap.html?next=app/ghim.html" data-auth="cta">Phân tích một điểm</a>
+      </div>
+    </header>
+    <main id="noi-dung">
+      <article class="wrap section-tight prose">
+        <p class="quiet-line">Đọc báo cáo cho đúng việc</p>
+        <h1>Đây không phải hồ sơ thửa và không phải thẩm định giá.</h1>
+        <p>Location Insight mô tả những gì đo được quanh một ghim ở Hà Nội. Văn bản này nói rõ giới hạn, để một con số trên báo cáo không bị đọc thành kết luận pháp lý.</p>
+        <h2>Nguồn và mức phủ</h2>
+        <p>Đường, tiện ích và công trình lấy chủ yếu từ OpenStreetMap, giấy phép ODbL. Hà Nội thiếu và lệch ở ngõ, số nhà, vỉa hè, cửa hàng vật tư và trụ sở phường. Vì vậy mỗi chỉ số kèm số điểm tìm thấy. Mức phủ thấp nghĩa là báo cáo mỏng.</p>
+        <p>Dân số là WorldPop, ô khoảng 100 m. Không khí là trạm OpenAQ. Cao độ là FABDEM. Ngập sông là mô hình JRC, không phải bản đồ ngập của thành phố. Mảng xanh là ESA WorldCover. Xe buýt và metro đối chiếu GTFS với OpenStreetMap.</p>
+        <h2>Những câu báo cáo không được nói</h2>
+        <ul class="plain-list">
+          <li>Không kết luận xe cứu hỏa vào được khi không có bề rộng ngõ.</li>
+          <li>Không ghi “khu này dễ ngập” hoặc “không ngập” từ riêng cao độ hay mô hình sông.</li>
+          <li>Không gắn nhãn trường tốt, dân trí, an ninh, hàng xóm.</li>
+          <li>Không bịa quy hoạch khi chưa có API theo tọa độ.</li>
+          <li>Không biến giá chào hoặc bảng giá thuế thành giá bán.</li>
+        </ul>
+        <h2>Khung giá</h2>
+        <p>Khung giá trong bản mock là số minh họa. Nó chỉ xuất hiện sau khi bạn khai loại hình, pháp lý và diện tích. Thiếu mặt tiền thì khoảng nới rộng. Đang vướng quy hoạch thì không kết luận giá. Hệ thống không kiểm chứng sổ.</p>
+        <h2>Tài khoản trong bản mock</h2>
+        <p>Đăng nhập chỉ lưu trên trình duyệt của bạn, để đi tiếp vào phần ghim, lịch sử và hạn mức. Không có máy chủ tài khoản ở bước giao diện này. Mật khẩu không được gửi đi đâu.</p>
+        <p><a href="tinh-nang.html">Quay lại danh sách chỉ số</a> · <a href="index.html">Về trang chủ</a></p>
+      </article>
+    </main>
+    <footer>
+      <div class="wrap site-footer">
+        <div>
+          <strong>Location Insight</strong>
+          <p class="fine">Bản mock giao diện. Số trên báo cáo là minh họa.</p>
+        </div>
+        <nav class="footer-links" aria-label="Chân trang">
+          <a href="index.html">Trang chủ</a>
+          <a href="tinh-nang.html">Tính năng</a>
+          <a href="phap-ly.html">Pháp lý</a>
+          <a href="dang-nhap.html">Đăng nhập</a>
+          <a href="dang-ky.html">Tạo tài khoản</a>
+          <a href="app/ghim.html">Ghim một điểm</a>
+          <a href="app/tai-khoan.html">Tài khoản</a>
+        </nav>
+      </div>
+    </footer>
+    <script src="js/vendor/lucide.min.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/store.js"></script>
+    <script src="js/pages.js"></script>
+    <script src="js/boot.js"></script>
+  </body>
+</html>

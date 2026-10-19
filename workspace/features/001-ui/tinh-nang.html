@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tính năng · Location Insight</title>
+    <meta name="description" content="Các chỉ số vị trí giai đoạn đầu: tiện ích đi bộ, đi lại, dân số, không khí, địa hình. Khung giá chỉ khi người dùng tự khai." />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/site.css" />
+  </head>
+  <body>
+    <a class="skip" href="#noi-dung">Đi tới nội dung</a>
+    <header class="site-header">
+      <a class="logo" href="index.html">
+        <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#1b4332"/><path fill="#f4efe6" d="M16 5.5c-3.6 0-6.5 2.8-6.5 6.4 0 4.7 6.5 14.6 6.5 14.6s6.5-9.9 6.5-14.6c0-3.6-2.9-6.4-6.5-6.4zm0 8.7a2.3 2.3 0 1 1 0-4.6 2.3 2.3 0 0 1 0 4.6z"/></svg>
+        <span>Location Insight</span>
+      </a>
+      <button class="icon-btn nav-toggle" type="button" data-nav-toggle aria-expanded="false" aria-controls="dieu-huong" aria-label="Mở menu"><i data-lucide="menu"></i></button>
+      <nav class="site-nav" id="dieu-huong" data-nav aria-label="Chính">
+        <a href="tinh-nang.html" aria-current="page">Tính năng</a>
+        <a href="phap-ly.html">Pháp lý</a>
+        <a href="app/bao-cao.html?id=van-mieu&mau=1">Báo cáo mẫu</a>
+        <a href="dang-nhap.html" data-auth="login">Đăng nhập</a>
+      </nav>
+      <div class="header-actions">
+        <a class="btn btn-ghost" href="dang-nhap.html" data-auth="login">Đăng nhập</a>
+        <a class="btn btn-primary" href="dang-nhap.html?next=app/ghim.html" data-auth="cta">Phân tích một điểm</a>
+      </div>
+    </header>
+    <main id="noi-dung">
+      <div class="wrap section-tight">
+        <p class="quiet-line">Những gì đo được</p>
+        <h1>Mỗi chỉ số có bán kính và một cách tính.</h1>
+        <p class="lede">Không có thước này thì hai lần phân tích cùng một điểm không so được. Thiếu dữ liệu trong bán kính thì ghi thiếu. Không kết luận khu trống.</p>
+      </div>
+      <section class="section" style="padding-top: 0">
+        <div class="wrap split">
+          <article class="panel">
+            <h2>Tiện ích đi bộ, 500 m</h2>
+            <p>Khoảng cách tới điểm gần nhất và số điểm trong bán kính. Nguồn chính là OpenStreetMap.</p>
+            <ul class="plain-list">
+              <li>Chợ, hiệu thuốc, siêu thị. Cửa hàng tiện lợi không gộp vào siêu thị.</li>
+              <li>UBND, cửa hàng vật tư. Lớp vật tư rất thưa, luôn kèm câu phủ yếu.</li>
+              <li>Quán ăn và cà phê: đếm số điểm, không tách quán ăn sáng.</li>
+              <li>Công viên có tên, trường học theo khoảng cách. Không có nhãn “trường tốt”.</li>
+              <li>Bệnh viện và phòng khám nhìn trong 2 km, không cộng chung một số.</li>
+            </ul>
+          </article>
+          <article class="panel">
+            <h2>Đi lại và đường</h2>
+            <p>Một ghim không biết mặt nào là mặt tiền. Có tag thì hiện số. Không có thì ghi không rõ.</p>
+            <ul class="plain-list">
+              <li>Đường lớn gần nhất: motorway, trunk, primary, secondary.</li>
+              <li>Cấp đường ngay tại ghim, kèm width hoặc lanes nếu có.</li>
+              <li>Vỉa hè chỉ khi có tag sidewalk.</li>
+              <li>Khoảng cách tới Hồ Gươm, mốc nội đô cố định.</li>
+              <li>Ga metro trong 2 km, điểm xe buýt trong 500 m.</li>
+              <li>Ồn chỉ là khoảng cách tới đường cao tốc hoặc sân bay, không phải decibel.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+      <section class="section" id="gioi-han" style="padding-top: 0">
+        <div class="wrap">
+          <h2>Dân số, không khí, địa hình</h2>
+          <div class="metric-group">
+            <article class="metric">
+              <header><h3>Dân số ước tính</h3><span class="chip trung-binh">So tương đối</span></header>
+              <p>Tổng dân số ước tính trong vòng 500 m, nguồn WorldPop 100 m. Đủ để nói khu này đông hơn khu kia, không đủ để so từng ngõ.</p>
+            </article>
+            <article class="metric">
+              <header><h3>Không khí</h3><span class="chip trung-binh">Kèm khoảng cách</span></header>
+              <p>Trạm OpenAQ gần nhất. Xa hơn 3 km thì không gán chỉ số cho ô đất.</p>
+            </article>
+            <article class="metric">
+              <header><h3>Cao độ và ngập sông</h3><span class="chip thap">Manh mối</span></header>
+              <p>Cao độ FABDEM và độ sâu mô hình sông JRC. Không phải bản đồ ngập úng nội thành sau mưa, nên không ghi “dễ ngập”.</p>
+            </article>
+            <article class="metric">
+              <header><h3>Mảng xanh</h3><span class="chip trung-binh">300 m</span></header>
+              <p>Tỷ lệ ô thực vật ESA WorldCover. Không thay cho công viên có tên.</p>
+            </article>
+            <article class="metric">
+              <header><h3>Quy hoạch theo thửa</h3><span class="chip thieu">Thiếu dữ liệu</span></header>
+              <p>Cổng quyhoach.hanoi.gov.vn chưa có API theo tọa độ. Báo cáo ghi chưa có, không đoán đồ án.</p>
+            </article>
+          </div>
+          <p style="margin-top: 28px"><a href="phap-ly.html">Cách hiểu mức tin và những việc ngoài phạm vi</a></p>
+        </div>
+      </section>
+      <section class="section" style="padding-top: 0">
+        <div class="wrap">
+          <h2>Sau khi đăng nhập bạn đi tiếp tới đâu</h2>
+          <div class="screen-links">
+            <a href="dang-nhap.html?next=app/ghim.html">Ghim một điểm</a>
+            <a href="app/bao-cao.html?id=hoan-kiem&mau=1">Báo cáo cạnh Hồ Gươm</a>
+            <a href="dang-nhap.html?next=app/dinh-gia.html%3Fid%3Dhoan-kiem">Ước lượng giá</a>
+            <a href="dang-nhap.html?next=app/lich-su.html">Lịch sử</a>
+            <a href="dang-nhap.html?next=app/tai-khoan.html">Tài khoản và hạn mức</a>
+            <a href="app/loi.html?q=18%20ng%C3%B5%20V%C4%83n%20Mi%E1%BA%BFu">Khi ô tìm địa chỉ lỗi</a>
+          </div>
+        </div>
+      </section>
+    </main>
+    <footer>
+      <div class="wrap site-footer">
+        <div>
+          <strong>Location Insight</strong>
+          <p class="fine">Bản mock giao diện. Số trên báo cáo là minh họa.</p>
+        </div>
+        <nav class="footer-links" aria-label="Chân trang">
+          <a href="index.html">Trang chủ</a>
+          <a href="tinh-nang.html">Tính năng</a>
+          <a href="phap-ly.html">Pháp lý</a>
+          <a href="dang-nhap.html">Đăng nhập</a>
+          <a href="dang-ky.html">Tạo tài khoản</a>
+          <a href="quen-mat-khau.html">Quên mật khẩu</a>
+          <a href="dat-lai-mat-khau.html">Đặt lại mật khẩu</a>
+          <a href="app/ghim.html">Ghim một điểm</a>
+          <a href="app/bao-cao.html?id=van-mieu&mau=1">Báo cáo mẫu</a>
+          <a href="app/lich-su.html">Lịch sử</a>
+          <a href="app/tai-khoan.html">Tài khoản</a>
+        </nav>
+      </div>
+    </footer>
+    <script src="js/vendor/lucide.min.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/store.js"></script>
+    <script src="js/pages.js"></script>
+    <script src="js/boot.js"></script>
+  </body>
+</html>

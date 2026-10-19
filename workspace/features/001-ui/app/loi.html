@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Không tìm được địa chỉ · Location Insight</title>
+    <meta name="description" content="Ô tìm địa chỉ không trả được điểm. Giữ chữ bạn đã gõ và thử lại." />
+    <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../css/site.css" />
+  </head>
+  <body data-root="../">
+    <a class="skip" href="#noi-dung">Đi tới nội dung</a>
+    <header class="app-header">
+      <a class="logo" href="../index.html">
+        <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#1b4332"/><path fill="#f4efe6" d="M16 5.5c-3.6 0-6.5 2.8-6.5 6.4 0 4.7 6.5 14.6 6.5 14.6s6.5-9.9 6.5-14.6c0-3.6-2.9-6.4-6.5-6.4zm0 8.7a2.3 2.3 0 1 1 0-4.6 2.3 2.3 0 0 1 0 4.6z"/></svg>
+        <span>Location Insight</span>
+      </a>
+      <button class="icon-btn nav-toggle" type="button" data-nav-toggle aria-expanded="false" aria-controls="dieu-huong" aria-label="Mở menu"><i data-lucide="menu"></i></button>
+      <nav class="app-nav" id="dieu-huong" data-nav aria-label="Trong ứng dụng">
+        <a href="ghim.html">Ghim</a>
+        <a href="lich-su.html">Lịch sử</a>
+        <a href="tai-khoan.html">Tài khoản</a>
+        <a href="../index.html">Trang chủ</a>
+      </nav>
+      <div class="header-actions">
+        <a class="btn btn-primary" href="ghim.html">Thử lại trên bản đồ</a>
+      </div>
+    </header>
+    <main id="noi-dung" class="app-shell prose">
+      <div class="banner danger">
+        <i data-lucide="circle-alert"></i>
+        <p>Ô tìm địa chỉ không trả được điểm cho chuỗi này. Chữ bạn đã gõ vẫn còn bên dưới.</p>
+      </div>
+      <h1>Chưa đặt được ghim từ địa chỉ</h1>
+      <p class="lede" id="chu-da-go">Hãy thử tên đường ngắn hơn, hoặc chọn một điểm mẫu rồi kéo ghim.</p>
+      <div class="row-actions">
+        <a class="btn btn-primary" href="ghim.html">Quay lại màn ghim</a>
+        <a class="btn btn-secondary" href="bao-cao.html?id=van-mieu&mau=1">Mở báo cáo mẫu</a>
+        <a class="btn btn-ghost" href="../dang-nhap.html">Đăng nhập</a>
+      </div>
+    </main>
+    <script src="../js/vendor/lucide.min.js"></script>
+    <script src="../js/data.js"></script>
+    <script src="../js/store.js"></script>
+    <script src="../js/pages.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const q = new URLSearchParams(location.search).get("q");
+        const node = document.getElementById("chu-da-go");
+        if (q && node) node.textContent = "Chuỗi vừa gõ: " + q + ". Thử tên ngắn hơn, hoặc chọn điểm mẫu trên bản đồ.";
+        if (window.LIStore) {
+          window.LIStore.bindNav();
+          window.LIStore.icons();
+        }
+      });
+    </script>
+  </body>
+</html>

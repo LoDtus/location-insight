@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tài khoản · Location Insight</title>
+    <meta name="description" content="Tên hiển thị, email và số lượt phân tích còn lại trong ngày." />
+    <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../css/site.css" />
+  </head>
+  <body data-page="tai-khoan" data-root="../">
+    <a class="skip" href="#noi-dung">Đi tới nội dung</a>
+    <header class="app-header">
+      <a class="logo" href="../index.html">
+        <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#1b4332"/><path fill="#f4efe6" d="M16 5.5c-3.6 0-6.5 2.8-6.5 6.4 0 4.7 6.5 14.6 6.5 14.6s6.5-9.9 6.5-14.6c0-3.6-2.9-6.4-6.5-6.4zm0 8.7a2.3 2.3 0 1 1 0-4.6 2.3 2.3 0 0 1 0 4.6z"/></svg>
+        <span>Location Insight</span>
+      </a>
+      <button class="icon-btn nav-toggle" type="button" data-nav-toggle aria-expanded="false" aria-controls="dieu-huong" aria-label="Mở menu"><i data-lucide="menu"></i></button>
+      <nav class="app-nav" id="dieu-huong" data-nav aria-label="Trong ứng dụng">
+        <a href="ghim.html">Ghim</a>
+        <a href="lich-su.html">Lịch sử</a>
+        <a href="tai-khoan.html" aria-current="page">Tài khoản</a>
+        <a href="../phap-ly.html">Pháp lý</a>
+      </nav>
+      <div class="header-actions">
+        <span class="user-chip" data-user></span>
+        <a class="btn btn-primary" href="ghim.html">Phân tích một điểm</a>
+      </div>
+    </header>
+    <main id="noi-dung" class="app-shell">
+      <div class="prose" style="max-width: 640px">
+        <h1>Tài khoản</h1>
+        <p class="lede">Phiên này chỉ nằm trên trình duyệt. Hạn mức để bản thử không bị gọi lặp.</p>
+        <p>Còn <strong id="con-lai">10</strong> / <span id="tong">10</span> lượt phân tích hôm nay. Báo cáo mẫu không tính.</p>
+        <form id="form-ten" class="form-stack">
+          <div class="field">
+            <label for="ten">Tên hiển thị</label>
+            <input id="ten" name="ten" type="text" autocomplete="name" />
+          </div>
+          <div class="field">
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" readonly />
+            <p class="help">Email không đổi trong bản mock.</p>
+          </div>
+          <button class="btn btn-primary" type="submit">Lưu tên</button>
+        </form>
+        <h2>Đi tiếp</h2>
+        <div class="screen-links">
+          <a href="ghim.html">Ghim một điểm</a>
+          <a href="lich-su.html">Lịch sử</a>
+          <a href="bao-cao.html?id=van-mieu">Báo cáo Ngõ Văn Miếu</a>
+          <a href="dinh-gia.html?id=van-mieu">Ước lượng giá</a>
+          <a href="khoang-gia.html?id=van-mieu">Khung giá</a>
+          <a href="loi.html?q=18%20ng%C3%B5%20V%C4%83n%20Mi%E1%BA%BFu">Màn lỗi ô tìm</a>
+          <a href="../phap-ly.html">Pháp lý</a>
+          <a href="../index.html">Trang chủ</a>
+        </div>
+        <p style="margin-top: 28px"><button class="btn btn-secondary" type="button" id="dang-xuat">Đăng xuất</button></p>
+      </div>
+    </main>
+    <script src="../js/vendor/lucide.min.js"></script>
+    <script src="../js/data.js"></script>
+    <script src="../js/store.js"></script>
+    <script src="../js/pages.js"></script>
+    <script src="../js/boot.js"></script>
+  </body>
+</html>

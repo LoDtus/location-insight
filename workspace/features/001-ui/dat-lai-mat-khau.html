@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Đặt lại mật khẩu · Location Insight</title>
+    <meta name="description" content="Đặt mật khẩu mới cho tài khoản mock." />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/site.css" />
+  </head>
+  <body data-page="reset">
+    <a class="skip" href="#noi-dung">Đi tới nội dung</a>
+    <header class="site-header">
+      <a class="logo" href="index.html">
+        <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#1b4332"/><path fill="#f4efe6" d="M16 5.5c-3.6 0-6.5 2.8-6.5 6.4 0 4.7 6.5 14.6 6.5 14.6s6.5-9.9 6.5-14.6c0-3.6-2.9-6.4-6.5-6.4zm0 8.7a2.3 2.3 0 1 1 0-4.6 2.3 2.3 0 0 1 0 4.6z"/></svg>
+        <span>Location Insight</span>
+      </a>
+      <button class="icon-btn nav-toggle" type="button" data-nav-toggle aria-expanded="false" aria-controls="dieu-huong" aria-label="Mở menu"><i data-lucide="menu"></i></button>
+      <nav class="site-nav" id="dieu-huong" data-nav aria-label="Chính">
+        <a href="index.html">Trang chủ</a>
+        <a href="dang-nhap.html">Đăng nhập</a>
+        <a href="dat-lai-mat-khau.html" aria-current="page">Đặt lại mật khẩu</a>
+      </nav>
+      <div class="header-actions">
+        <a class="btn btn-ghost" href="quen-mat-khau.html">Quên mật khẩu</a>
+        <a class="btn btn-primary" href="dang-nhap.html">Đăng nhập</a>
+      </div>
+    </header>
+    <main id="noi-dung" class="auth-shell">
+      <figure class="auth-aside">
+        <img src="images/noi-bai.webp" width="1280" height="886" alt="Sân bay Nội Bài nhìn từ xa." />
+        <figcaption>Sân bay Nội Bài. Shyamal, Wikimedia Commons, CC BY-SA 4.0.</figcaption>
+      </figure>
+      <div class="auth-main">
+        <div class="auth-card">
+          <h1>Đặt mật khẩu mới</h1>
+          <p class="lede">Liên kết này là mẫu trong bản mock. Mật khẩu mới có hiệu lực khi bạn đăng nhập lại trên trình duyệt này.</p>
+          <form id="form-reset" class="form-stack" novalidate>
+            <div class="field">
+              <label for="password">Mật khẩu mới</label>
+              <div class="password-row">
+                <input id="password" name="password" type="password" autocomplete="new-password" required />
+                <button class="icon-btn" type="button" data-toggle-password="password" aria-label="Hiện mật khẩu"><i data-lucide="eye"></i></button>
+              </div>
+              <p class="help">Ít nhất 8 ký tự.</p>
+            </div>
+            <div class="field">
+              <label for="again">Nhập lại mật khẩu mới</label>
+              <input id="again" name="again" type="password" autocomplete="new-password" required />
+            </div>
+            <button class="btn btn-primary" type="submit">Lưu mật khẩu và về đăng nhập</button>
+          </form>
+          <p><a href="quen-mat-khau.html">Gửi lại liên kết</a></p>
+        </div>
+      </div>
+    </main>
+    <script src="js/vendor/lucide.min.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/store.js"></script>
+    <script src="js/pages.js"></script>
+    <script src="js/boot.js"></script>
+  </body>
+</html>

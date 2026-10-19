@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ghim một điểm · Location Insight</title>
+    <meta name="description" content="Nhập địa chỉ Hà Nội rồi kéo ghim đúng ô đất trước khi xem báo cáo." />
+    <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../css/site.css" />
+    <link rel="stylesheet" href="../js/vendor/leaflet.css" />
+  </head>
+  <body data-page="ghim" data-root="../">
+    <a class="skip" href="#noi-dung">Đi tới nội dung</a>
+    <header class="app-header">
+      <a class="logo" href="../index.html">
+        <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#1b4332"/><path fill="#f4efe6" d="M16 5.5c-3.6 0-6.5 2.8-6.5 6.4 0 4.7 6.5 14.6 6.5 14.6s6.5-9.9 6.5-14.6c0-3.6-2.9-6.4-6.5-6.4zm0 8.7a2.3 2.3 0 1 1 0-4.6 2.3 2.3 0 0 1 0 4.6z"/></svg>
+        <span>Location Insight</span>
+      </a>
+      <button class="icon-btn nav-toggle" type="button" data-nav-toggle aria-expanded="false" aria-controls="dieu-huong" aria-label="Mở menu"><i data-lucide="menu"></i></button>
+      <nav class="app-nav" id="dieu-huong" data-nav aria-label="Trong ứng dụng">
+        <a href="ghim.html" aria-current="page">Ghim</a>
+        <a href="lich-su.html">Lịch sử</a>
+        <a href="tai-khoan.html">Tài khoản</a>
+        <a href="../phap-ly.html">Pháp lý</a>
+      </nav>
+      <div class="header-actions">
+        <span class="user-chip" data-user></span>
+        <a class="btn btn-secondary" href="lich-su.html">Lịch sử</a>
+      </div>
+    </header>
+    <main id="noi-dung" class="app-shell">
+      <div class="pin-layout">
+        <section>
+          <p class="quiet-line">Bước 1 của 2</p>
+          <h1>Ghim đúng ô đất</h1>
+          <p>Địa chỉ chỉ đưa bạn tới gần. Kéo ghim cho khớp ô. Báo cáo bám ghim, không bám chuỗi chữ.</p>
+          <p class="fine" id="han-muc"></p>
+          <div class="field">
+            <label for="dia-chi">Địa chỉ hoặc tên khu</label>
+            <input id="dia-chi" name="dia-chi" type="search" autocomplete="off" placeholder="Văn Miếu, Hồ Gươm, Nội Bài" />
+            <p class="help">Gõ «lỗi» nếu bạn muốn xem màn ô tìm thất bại.</p>
+          </div>
+          <ul class="suggest" id="goi-y" aria-label="Địa chỉ gợi ý"></ul>
+          <p id="trang-thai-ghim">Chọn một địa chỉ mẫu, hoặc kéo ghim trên bản đồ.</p>
+          <div class="row-actions">
+            <button class="btn btn-primary" type="button" id="xem-bao-cao" disabled>Xem báo cáo vị trí</button>
+            <a class="btn btn-ghost" href="loi.html?q=18%20ng%C3%B5%20V%C4%83n%20Mi%E1%BA%BFu" id="thu-loi">Xem khi ô tìm lỗi</a>
+          </div>
+          <p class="fine">Ba điểm mẫu: <a href="bao-cao.html?id=van-mieu&mau=1">Ngõ Văn Miếu</a>, <a href="bao-cao.html?id=hoan-kiem&mau=1">Hồ Gươm</a>, <a href="bao-cao.html?id=dong-anh&mau=1">Nội Bài</a>.</p>
+        </section>
+        <section>
+          <div id="map" class="map-canvas" role="application" aria-label="Bản đồ OpenStreetMap, kéo ghim để đổi điểm"></div>
+          <p class="fine">Nền OpenStreetMap. Phân tích không chạy trên tile. Ảnh bản đồ có thể lệch so với hiện trạng ngõ.</p>
+        </section>
+      </div>
+    </main>
+    <script src="../js/vendor/leaflet.js"></script>
+    <script src="../js/vendor/lucide.min.js"></script>
+    <script src="../js/data.js"></script>
+    <script src="../js/store.js"></script>
+    <script src="../js/pages.js"></script>
+    <script src="../js/boot.js"></script>
+  </body>
+</html>

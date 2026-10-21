@@ -1,0 +1,22 @@
+{
+    "errorView": {
+        "slugs": {
+            "unauthenticated": {
+                "title": "Sign in required",
+                "description": "There is no session yet. Sign in to continue."
+            },
+            "forbidden": {
+                "title": "Not allowed",
+                "description": "This account cannot open the requested page."
+            },
+            "not-found": {
+                "title": "Page not found",
+                "description": "That path is not part of the application."
+            },
+            "internal-error": {
+                "title": "Server error",
+                "description": "The application could not handle this request."
+            }
+        }
+    }
+}

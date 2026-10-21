@@ -1,1 +1,13 @@
-{}
+{
+    "localeSwitcher": {
+        "label": "Language",
+        "vi": "Tiếng Việt",
+        "en": "English"
+    },
+    "api": {
+        "success": "Request completed.",
+        "network": "Could not reach the server.",
+        "timeout": "The request timed out.",
+        "unknown": "The request failed."
+    }
+}

@@ -1,1 +1,13 @@
-{}
+{
+    "localeSwitcher": {
+        "label": "Ngôn ngữ",
+        "vi": "Tiếng Việt",
+        "en": "English"
+    },
+    "api": {
+        "success": "Yêu cầu hoàn tất.",
+        "network": "Không thể kết nối đến máy chủ.",
+        "timeout": "Yêu cầu quá thời gian chờ.",
+        "unknown": "Yêu cầu thất bại."
+    }
+}

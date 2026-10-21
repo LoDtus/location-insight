@@ -1,0 +1,22 @@
+{
+    "errorView": {
+        "slugs": {
+            "unauthenticated": {
+                "title": "Cần đăng nhập",
+                "description": "Phiên làm việc chưa có. Hãy đăng nhập để tiếp tục."
+            },
+            "forbidden": {
+                "title": "Không có quyền",
+                "description": "Tài khoản này không được mở trang vừa yêu cầu."
+            },
+            "not-found": {
+                "title": "Không thấy trang",
+                "description": "Đường dẫn không có trong ứng dụng."
+            },
+            "internal-error": {
+                "title": "Lỗi máy chủ",
+                "description": "Ứng dụng không xử lý được yêu cầu này."
+            }
+        }
+    }
+}

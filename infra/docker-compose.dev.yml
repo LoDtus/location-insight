@@ -1,11 +1,29 @@
 name: location-insight-dev
-services:
 
-    postgresql:
-        container_name: postgresql
-    seeder:
-        container_name: seeder
-    backend:
-        container_name: backend
-    website:
-        container_name: website
+services:
+  website:
+    container_name: location-insight-website
+    restart: unless-stopped
+    build:
+      context: ../website
+      dockerfile: Dockerfile
+      target: development
+    env_file:
+      - ../.env.development
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+      WATCHPACK_POLLING: "true"
+    volumes:
+      - ../website:/app
+      - website_node_modules:/app/node_modules
+      - website_next:/app/.next
+    stdin_open: true
+    tty: true
+
+volumes:
+  website_node_modules:
+  website_next:

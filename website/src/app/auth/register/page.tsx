@@ -35,7 +35,9 @@ export default function Page() {
                 />
             </label>
             <button type="submit">Đăng ký</button>
-            <a href="/auth/login">Đăng nhập</a>
+            <nav>
+                <a href="/auth/login">Đăng nhập</a>
+            </nav>
         </form>
     );
 }

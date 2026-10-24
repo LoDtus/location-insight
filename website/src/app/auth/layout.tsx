@@ -1,3 +1,4 @@
+import "./auth.css";
 import type { Metadata } from "next";
 import { ReactNode } from "react";
 
@@ -12,5 +13,5 @@ export default function Layout({
 }: {
     children: ReactNode;
 }) {
-    return <div>{children}</div>;
+    return <div className="auth-shell">{children}</div>;
 }

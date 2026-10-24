@@ -15,7 +15,9 @@ export default function Page() {
                 <input name="email" type="email" autoComplete="email" />
             </label>
             <button type="submit">Gửi liên kết</button>
-            <a href="/auth/login">Đăng nhập</a>
+            <nav>
+                <a href="/auth/login">Đăng nhập</a>
+            </nav>
         </form>
     );
 }

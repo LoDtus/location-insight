@@ -27,8 +27,10 @@ export default function Page() {
                 />
             </label>
             <button type="submit">Đăng nhập</button>
-            <a href="/auth/register">Đăng ký</a>
-            <a href="/auth/fogot-password">Quên mật khẩu</a>
+            <nav>
+                <a href="/auth/register">Đăng ký</a>
+                <a href="/auth/fogot-password">Quên mật khẩu</a>
+            </nav>
         </form>
     );
 }

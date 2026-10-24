@@ -21,6 +21,11 @@ describe("seo.utils", () => {
             "/error",
             "/error/not-found",
             "/color",
+            "/ban-do",
+            "/bang-gia",
+            "/cach-hoat-dong",
+            "/cau-hoi-thuong-gap",
+            "/phap-ly",
         ].forEach((path) => {
             expect(isIndexablePath(path)).toBe(false);
         });

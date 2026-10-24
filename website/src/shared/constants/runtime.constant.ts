@@ -8,14 +8,14 @@ const SHARED = {
 const RUNTIME = {
     development: {
         ...SHARED,
-        siteUrl: "http://127.0.0.1:3000",
-        websitePort: 3000,
+        siteProtocol: "http",
+        siteHost: "127.0.0.1",
         apiUrl: "http://127.0.0.1:8000",
     },
     production: {
         ...SHARED,
-        siteUrl: "https://locationinsight.vn",
-        websitePort: 3000,
+        siteProtocol: "https",
+        siteHost: "location-insight.longvi.org",
         apiUrl: "https://api.locationinsight.vn",
     },
 } as const;

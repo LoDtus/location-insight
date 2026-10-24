@@ -12,5 +12,9 @@ export default function Layout({
 }: {
     children: ReactNode;
 }) {
-    return <div>{children}</div>;
+    return (
+        <div className="w-full h-full">
+            { children }
+        </div>
+    )
 }

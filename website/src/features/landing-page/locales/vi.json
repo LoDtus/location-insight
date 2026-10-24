@@ -1,0 +1,23 @@
+{
+    "skip": "Đi tới nội dung",
+    "nav": "Chính",
+    "footerNav": "Chân trang",
+    "login": "Đăng nhập",
+    "tabs": {
+        "intro": "Giới thiệu",
+        "map": "Bản đồ",
+        "listings": "Mua bán nhà đất",
+        "pricing": "Bảng giá",
+        "how": "Cách hoạt động",
+        "faq": "Câu hỏi thường gặp"
+    },
+    "sections": {
+        "intro": "Giới thiệu",
+        "map": "Bản đồ",
+        "listings": "Mua bán nhà đất",
+        "pricing": "Bảng giá",
+        "how": "Cách hoạt động",
+        "faq": "Câu hỏi thường gặp",
+        "legal": "Pháp lý"
+    }
+}

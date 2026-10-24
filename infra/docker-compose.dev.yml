@@ -11,10 +11,10 @@ services:
     env_file:
       - ../.env.development
     ports:
-      - "3000:3000"
+      - "${WEBSITE_PORT:?WEBSITE_PORT is required}:${WEBSITE_PORT:?WEBSITE_PORT is required}"
     environment:
       NODE_ENV: development
-      PORT: "3000"
+      PORT: ${WEBSITE_PORT:?WEBSITE_PORT is required}
       HOSTNAME: 0.0.0.0
       WATCHPACK_POLLING: "true"
     volumes:

@@ -1,7 +1,15 @@
-export default function HeroSection() {
+import ENV from "@/shared/constants/env.constant";
+import { getLocaleValue } from "@/shared/utils/locale.utils";
+
+import { getLandingMessages } from "@/features/landing-page/server/get-landing-messages";
+
+export default async function HeroSection() {
+    const messages = await getLandingMessages();
+    const label = getLocaleValue(messages, ["sections", "intro"]);
+
     return (
-        <div>
-            
-        </div>
-    )
+        <section id="gioi-thieu" aria-label={label}>
+            <h1>{ENV.APP_NAME}</h1>
+        </section>
+    );
 }

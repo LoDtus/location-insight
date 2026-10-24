@@ -4,6 +4,6 @@ export type Locale = (typeof LOCALE.LOCALES)[keyof typeof LOCALE.LOCALES];
 
 export type LocaleMessages = Record<string, unknown>;
 
-export const LOCALE_FEATURES = ["shared", "error"] as const;
+export const LOCALE_FEATURES = ["shared", "error", "landing"] as const;
 
 export type LocaleFeature = (typeof LOCALE_FEATURES)[number];

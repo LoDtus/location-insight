@@ -1,5 +1,12 @@
+import { createRequire } from "node:module";
 import path from "path";
 import { defineConfig } from "vitest/config";
+
+const { loadRootEnv } = createRequire(import.meta.url)(
+    "./scripts/load-root-env.cjs",
+) as { loadRootEnv: () => string };
+
+loadRootEnv();
 
 export default defineConfig({
     resolve: {

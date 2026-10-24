@@ -1,5 +1,12 @@
 import fs from "fs";
+import { createRequire } from "node:module";
 import type { NextConfig } from "next";
+
+const { loadRootEnv } = createRequire(import.meta.url)(
+    "./scripts/load-root-env.cjs",
+) as { loadRootEnv: () => string };
+
+loadRootEnv();
 
 const isDocker = fs.existsSync("/.dockerenv");
 const isProduction = process.env.NODE_ENV === "production";

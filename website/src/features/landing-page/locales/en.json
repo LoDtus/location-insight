@@ -1,0 +1,23 @@
+{
+    "skip": "Skip to content",
+    "nav": "Main",
+    "footerNav": "Footer",
+    "login": "Log in",
+    "tabs": {
+        "intro": "Introduction",
+        "map": "Map",
+        "listings": "Buy and sell property",
+        "pricing": "Pricing",
+        "how": "How it works",
+        "faq": "FAQ"
+    },
+    "sections": {
+        "intro": "Introduction",
+        "map": "Map",
+        "listings": "Buy and sell property",
+        "pricing": "Pricing",
+        "how": "How it works",
+        "faq": "FAQ",
+        "legal": "Legal"
+    }
+}

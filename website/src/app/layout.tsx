@@ -21,7 +21,10 @@ export default async function RootLayout({
     children: ReactNode;
 }) {
     const locale = await getLocale();
-    const sharedMessages = await loadFeatureLocale("shared", locale);
+    const [sharedMessages, landingMessages] = await Promise.all([
+        loadFeatureLocale("shared", locale),
+        loadFeatureLocale("landing", locale),
+    ]);
 
     return (
         <html
@@ -42,7 +45,10 @@ export default async function RootLayout({
                 <AppProvider>
                     <LocaleProvider
                         locale={locale}
-                        messages={{ shared: sharedMessages }}
+                        messages={{
+                            shared: sharedMessages,
+                            landing: landingMessages,
+                        }}
                     >
                         {children}
                     </LocaleProvider>

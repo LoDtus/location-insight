@@ -61,7 +61,7 @@ export default function Header() {
     }
 
     return (
-        <div className="mx-auto flex w-full max-w-960 items-center justify-between gap-x-5 gap-y-3 px-4 md:px-6">
+        <div className="mx-auto flex w-full max-w-960 items-center justify-between gap-x-5 gap-y-3 px-50">
             <nav
                 aria-label={getLocaleValue(landing, ["nav"])}
                 className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1"

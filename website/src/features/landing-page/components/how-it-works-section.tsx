@@ -10,7 +10,7 @@ export default async function CachHoatDongSection() {
         <section
             id="cach-hoat-dong"
             aria-labelledby="tieu-de-cach-hoat-dong"
-            className="box-border min-h-[100cqh] border border-current p-4 md:p-6"
+            className="box-border min-h-[100cqh] border border-current px-50 py-4"
         >
             <h2 id="tieu-de-cach-hoat-dong" className="m-0">
                 {title}

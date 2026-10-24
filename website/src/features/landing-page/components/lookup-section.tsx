@@ -10,7 +10,7 @@ export default async function BanDoSection() {
         <section
             id="ban-do"
             aria-labelledby="tieu-de-ban-do"
-            className="box-border min-h-[100cqh] border border-current p-4 md:p-6"
+            className="box-border min-h-[100cqh] border border-current px-50 py-4"
         >
             <h2 id="tieu-de-ban-do" className="m-0">
                 {title}

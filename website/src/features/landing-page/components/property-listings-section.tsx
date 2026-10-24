@@ -10,7 +10,7 @@ export default async function MuaBanNhaDatSection() {
         <section
             id="mua-ban-nha-dat"
             aria-labelledby="tieu-de-mua-ban-nha-dat"
-            className="box-border min-h-[100cqh] border border-current p-4 md:p-6"
+            className="box-border min-h-[100cqh] border border-current px-50 py-4"
         >
             <h2 id="tieu-de-mua-ban-nha-dat" className="m-0">
                 {title}

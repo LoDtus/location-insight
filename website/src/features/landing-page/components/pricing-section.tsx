@@ -10,7 +10,7 @@ export default async function BangGiaSection() {
         <section
             id="bang-gia"
             aria-labelledby="tieu-de-bang-gia"
-            className="box-border min-h-[100cqh] border border-current p-4 md:p-6"
+            className="box-border min-h-[100cqh] border border-current px-50 py-4"
         >
             <h2 id="tieu-de-bang-gia" className="m-0">
                 {title}

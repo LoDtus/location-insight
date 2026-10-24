@@ -31,7 +31,7 @@ export default async function Layout({
     return (
         <div className="relative flex h-full min-h-0 w-full flex-col">
             <a
-                className="absolute top-2 left-4 z-10 -translate-y-[150%] focus:translate-y-0 md:left-6"
+                className="absolute top-2 left-50 z-10 -translate-y-[150%] focus:translate-y-0"
                 href="#noi-dung"
             >
                 {getLocaleValue(messages, ["skip"])}

@@ -7,8 +7,14 @@ export default async function BanDoSection() {
     const title = getLocaleValue(messages, ["sections", "map"]);
 
     return (
-        <section id="ban-do" aria-labelledby="tieu-de-ban-do">
-            <h2 id="tieu-de-ban-do">{title}</h2>
+        <section
+            id="ban-do"
+            aria-labelledby="tieu-de-ban-do"
+            className="box-border min-h-[100cqh] border border-current p-4 md:p-6"
+        >
+            <h2 id="tieu-de-ban-do" className="m-0">
+                {title}
+            </h2>
         </section>
     );
 }

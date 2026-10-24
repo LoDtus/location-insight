@@ -7,8 +7,14 @@ export default async function PhapLySection() {
     const title = getLocaleValue(messages, ["sections", "legal"]);
 
     return (
-        <section id="phap-ly" aria-labelledby="tieu-de-phap-ly">
-            <h2 id="tieu-de-phap-ly">{title}</h2>
+        <section
+            id="phap-ly"
+            aria-labelledby="tieu-de-phap-ly"
+            className="box-border min-h-[100cqh] border border-current p-4 md:p-6"
+        >
+            <h2 id="tieu-de-phap-ly" className="m-0">
+                {title}
+            </h2>
         </section>
     );
 }

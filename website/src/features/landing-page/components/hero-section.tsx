@@ -8,8 +8,12 @@ export default async function HeroSection() {
     const label = getLocaleValue(messages, ["sections", "intro"]);
 
     return (
-        <section id="gioi-thieu" aria-label={label}>
-            <h1>{ENV.APP_NAME}</h1>
+        <section
+            id="gioi-thieu"
+            aria-label={label}
+            className="box-border min-h-[100cqh] border border-current p-4 md:p-6"
+        >
+            <h1 className="m-0">{ENV.APP_NAME}</h1>
         </section>
     );
 }

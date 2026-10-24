@@ -1,4 +1,3 @@
-import "./landing.css";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import type { ReactNode } from "react";
@@ -30,19 +29,25 @@ export default async function Layout({
     const messages = await getLandingMessages();
 
     return (
-        <div className="landing-shell relative flex h-full min-h-0 w-full flex-col">
-            <a className="landing-skip" href="#noi-dung">
+        <div className="relative flex h-full min-h-0 w-full flex-col">
+            <a
+                className="absolute top-2 left-4 z-10 -translate-y-[150%] focus:translate-y-0 md:left-6"
+                href="#noi-dung"
+            >
                 {getLocaleValue(messages, ["skip"])}
             </a>
             <LandingHashScroll />
-            <header>
+            <header className="border-b border-current">
                 <Header />
             </header>
-            <div className="landing-scroll">
-                <main id="noi-dung" className="mx-auto w-full max-w-960">
+            <div className="flex min-h-0 flex-1 flex-col gap-[150px] overflow-auto scroll-smooth [container-type:size] motion-reduce:scroll-auto">
+                <main
+                    id="noi-dung"
+                    className="mx-auto flex w-full max-w-960 flex-col gap-[150px] border"
+                >
                     {children}
                 </main>
-                <footer>
+                <footer className="border-t border-current">
                     <Footer />
                 </footer>
             </div>

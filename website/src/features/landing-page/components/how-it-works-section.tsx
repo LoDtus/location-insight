@@ -7,8 +7,14 @@ export default async function CachHoatDongSection() {
     const title = getLocaleValue(messages, ["sections", "how"]);
 
     return (
-        <section id="cach-hoat-dong" aria-labelledby="tieu-de-cach-hoat-dong">
-            <h2 id="tieu-de-cach-hoat-dong">{title}</h2>
+        <section
+            id="cach-hoat-dong"
+            aria-labelledby="tieu-de-cach-hoat-dong"
+            className="box-border min-h-[100cqh] border border-current p-4 md:p-6"
+        >
+            <h2 id="tieu-de-cach-hoat-dong" className="m-0">
+                {title}
+            </h2>
         </section>
     );
 }

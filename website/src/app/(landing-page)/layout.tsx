@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 
 import Footer from "@/features/landing-page/components/footer";
 import Header from "@/features/landing-page/components/header";
+import { isLegalSectionPath } from "@/features/legal/legal-documents";
 import { getLandingMessages } from "@/features/landing-page/server/get-landing-messages";
 import LandingHashScroll from "./landing-hash-scroll";
 import ENV from "@/shared/constants/env.constant";
@@ -32,6 +33,8 @@ export default async function Layout({
         (await headers()).get("x-pathname") ?? "/",
     );
     const isCatalog = pathname === "/nha-dat";
+    const isDocument = isLegalSectionPath(pathname);
+    const flush = isCatalog || isDocument;
 
     return (
         <div className="relative flex h-full min-h-0 w-full flex-col">
@@ -46,12 +49,12 @@ export default async function Layout({
                 <Header />
             </header>
             <div
-                className={`flex min-h-0 flex-1 flex-col overflow-auto scroll-smooth [container-type:size] motion-reduce:scroll-auto ${isCatalog ? "" : "gap-[150px]"}`}
+                className={`flex min-h-0 flex-1 flex-col overflow-auto scroll-smooth [container-type:size] motion-reduce:scroll-auto ${flush ? "" : "gap-[150px]"}`}
             >
                 <main
                     id="noi-dung"
                     className={
-                        isCatalog
+                        flush
                             ? "w-full"
                             : "mx-auto flex w-full max-w-960 flex-col gap-[150px] border"
                     }

@@ -20,6 +20,10 @@ const LOADERS: Record<LocaleFeature, Record<Locale, LocaleModuleLoader>> = {
         vi: () => import("@/features/landing-page/locales/vi.json"),
         en: () => import("@/features/landing-page/locales/en.json"),
     },
+    legal: {
+        vi: () => import("@/features/legal/locales/vi.json"),
+        en: () => import("@/features/legal/locales/en.json"),
+    },
 };
 
 function unwrapLocaleModule(

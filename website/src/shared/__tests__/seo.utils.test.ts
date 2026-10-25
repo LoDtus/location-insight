@@ -10,6 +10,15 @@ describe("seo.utils", () => {
         });
     });
 
+    it("indexes public legal documents and keeps internal ones out", () => {
+        expect(isIndexablePath("/phap-ly")).toBe(true);
+        expect(isIndexablePath("/phap-ly/dieu-khoan")).toBe(true);
+        expect(isIndexablePath("/phap-ly/chinh-sach-bao-mat")).toBe(true);
+        expect(isIndexablePath("/phap-ly/thue")).toBe(false);
+        expect(isIndexablePath("/phap-ly/thoa-thuan-api")).toBe(false);
+        expect(isIndexablePath("/dieu-khoan")).toBe(false);
+    });
+
     it("keeps application routes out of the index", () => {
         [
             "/auth/login",
@@ -25,7 +34,6 @@ describe("seo.utils", () => {
             "/bang-gia",
             "/cach-hoat-dong",
             "/cau-hoi-thuong-gap",
-            "/phap-ly",
         ].forEach((path) => {
             expect(isIndexablePath(path)).toBe(false);
         });

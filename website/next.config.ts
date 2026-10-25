@@ -1,6 +1,13 @@
 import fs from "fs";
 import { createRequire } from "node:module";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
+
+const markdownLoader = path.join(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "loaders/md-raw-loader.cjs",
+);
 
 const { loadRootEnv } = createRequire(import.meta.url)(
     "./scripts/load-root-env.cjs",
@@ -17,13 +24,25 @@ const nextConfig: NextConfig = {
     poweredByHeader: false,
     trailingSlash: false,
     agentRules: false,
-    turbopack: {},
+    turbopack: {
+        rules: {
+            "*.md": {
+                loaders: [markdownLoader],
+                as: "*.js",
+            },
+        },
+    },
     ...(isProduction
         ? {}
         : {
               allowedDevOrigins: ["localhost", "127.0.0.1"],
           }),
     webpack: (config, { dev }) => {
+        config.module.rules.push({
+            test: /\.md$/,
+            use: [markdownLoader],
+        });
+
         if (dev && isDocker) {
             config.watchOptions = {
                 poll: 1000,

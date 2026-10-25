@@ -1,1 +1,74 @@
-{}
+{
+    "index": {
+        "title": "Legal",
+        "lede": "Terms, policies and records for Dia The. A few letters are enough, with or without accents.",
+        "loading": "Loading the list",
+        "searchLabel": "Find a document",
+        "searchPlaceholder": "Title or summary",
+        "sortLabel": "Sort",
+        "sort": {
+            "relevance": "Best match",
+            "title-asc": "Name A–Z",
+            "title-desc": "Name Z–A"
+        },
+        "resultUnit": "documents",
+        "empty": "No document matches that search.",
+        "clear": "Clear search",
+        "public": "Public",
+        "internal": "Internal"
+    },
+    "documents": {
+        "dieu-khoan": {
+            "title": "Terms of use",
+            "description": "Rights and duties when using Dia The."
+        },
+        "chinh-sach-bao-mat": {
+            "title": "Privacy policy",
+            "description": "Personal data Dia The collects, why it is used, and your rights."
+        },
+        "chinh-sach-cookie": {
+            "title": "Cookie policy",
+            "description": "Cookies Dia The uses and how to choose which groups are allowed."
+        },
+        "chinh-sach-dang-tin": {
+            "title": "Listing policy",
+            "description": "Who can post, required details, and how listings are removed."
+        },
+        "chinh-sach-thanh-toan": {
+            "title": "Pricing, payment and refunds",
+            "description": "Plans, how payment works, cancellation and refunds."
+        },
+        "tuyen-bo-du-lieu": {
+            "title": "Analysis data statement",
+            "description": "Sources, method and limits of a location analysis."
+        },
+        "ban-quyen": {
+            "title": "Copyright",
+            "description": "Rights in Dia The content, uploads and third-party data."
+        },
+        "thuong-mai-dien-tu": {
+            "title": "E-commerce notice",
+            "description": "The notice or registration required for this website."
+        },
+        "thue": {
+            "title": "Tax duties",
+            "description": "Tax duties of an individual once the service takes payment."
+        },
+        "ho-so-du-lieu": {
+            "title": "Data protection records",
+            "description": "Internal records of consent, data requests and breach handling."
+        },
+        "quy-trinh-van-hanh": {
+            "title": "Operations procedure",
+            "description": "How listings are reviewed and how reports and complaints are handled."
+        },
+        "nguon-du-lieu": {
+            "title": "Data sources",
+            "description": "Licence and allowed use of each data source."
+        },
+        "thoa-thuan-api": {
+            "title": "API agreement",
+            "description": "Terms for using the API if it is opened to others."
+        }
+    }
+}

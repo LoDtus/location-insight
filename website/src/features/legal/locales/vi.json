@@ -1,1 +1,74 @@
-{}
+{
+    "index": {
+        "title": "Pháp lý",
+        "lede": "Điều khoản, chính sách và hồ sơ của Địa Thế. Gõ vài chữ, kể cả không dấu.",
+        "loading": "Đang tải danh sách",
+        "searchLabel": "Tìm tài liệu",
+        "searchPlaceholder": "Tên hoặc nội dung",
+        "sortLabel": "Sắp xếp",
+        "sort": {
+            "relevance": "Phù hợp nhất",
+            "title-asc": "Tên A–Z",
+            "title-desc": "Tên Z–A"
+        },
+        "resultUnit": "tài liệu",
+        "empty": "Không có tài liệu khớp từ khóa.",
+        "clear": "Xóa tìm kiếm",
+        "public": "Công khai",
+        "internal": "Nội bộ"
+    },
+    "documents": {
+        "dieu-khoan": {
+            "title": "Điều khoản sử dụng",
+            "description": "Quyền và nghĩa vụ khi dùng Địa Thế."
+        },
+        "chinh-sach-bao-mat": {
+            "title": "Chính sách quyền riêng tư",
+            "description": "Dữ liệu cá nhân Địa Thế thu thập, mục đích xử lý và quyền của bạn."
+        },
+        "chinh-sach-cookie": {
+            "title": "Chính sách cookie",
+            "description": "Cookie Địa Thế dùng và cách chọn nhóm cookie."
+        },
+        "chinh-sach-dang-tin": {
+            "title": "Chính sách đăng tin",
+            "description": "Điều kiện, nội dung bắt buộc và cách xử lý tin rao bán, cho thuê."
+        },
+        "chinh-sach-thanh-toan": {
+            "title": "Giá, thanh toán và hoàn tiền",
+            "description": "Gói dịch vụ, cách thanh toán, hủy gói và hoàn tiền."
+        },
+        "tuyen-bo-du-lieu": {
+            "title": "Tuyên bố về dữ liệu phân tích",
+            "description": "Nguồn, cách tính và giới hạn của kết quả phân tích địa điểm."
+        },
+        "ban-quyen": {
+            "title": "Bản quyền",
+            "description": "Quyền với nội dung Địa Thế, nội dung người dùng tải lên và nguồn dữ liệu."
+        },
+        "thuong-mai-dien-tu": {
+            "title": "Thông báo thương mại điện tử",
+            "description": "Thủ tục thông báo hoặc đăng ký website theo luật thương mại điện tử."
+        },
+        "thue": {
+            "title": "Nghĩa vụ thuế",
+            "description": "Thuế của cá nhân kinh doanh khi có doanh thu từ dịch vụ trực tuyến."
+        },
+        "ho-so-du-lieu": {
+            "title": "Hồ sơ bảo vệ dữ liệu",
+            "description": "Hồ sơ nội bộ về đồng ý, yêu cầu của chủ thể dữ liệu và sự cố rò rỉ."
+        },
+        "quy-trinh-van-hanh": {
+            "title": "Quy trình vận hành",
+            "description": "Cách kiểm duyệt tin, xử lý báo cáo và khiếu nại."
+        },
+        "nguon-du-lieu": {
+            "title": "Nguồn dữ liệu",
+            "description": "Giấy phép và phạm vi được phép dùng của từng nguồn dữ liệu."
+        },
+        "thoa-thuan-api": {
+            "title": "Thỏa thuận API",
+            "description": "Điều kiện dùng API khi Địa Thế mở cho bên khác."
+        }
+    }
+}

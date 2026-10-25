@@ -19,5 +19,18 @@
         "how": "How it works",
         "faq": "FAQ",
         "legal": "Legal"
+    },
+    "hero": {
+        "title": "From one address to a price range",
+        "subtitle": "See the location, nearby amenities, and the asking-price range before you decide.",
+        "placeholder": "Enter an address",
+        "submit": "Look up",
+        "previous": "Previous image",
+        "next": "Next image",
+        "slides": {
+            "apartment": "Apartment living room",
+            "garden": "Park inside a residential area",
+            "tower": "Riverside apartment complex"
+        }
     }
 }

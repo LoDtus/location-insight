@@ -19,5 +19,18 @@
         "how": "Cách hoạt động",
         "faq": "Câu hỏi thường gặp",
         "legal": "Pháp lý"
+    },
+    "hero": {
+        "title": "Từ một địa chỉ tới một khoảng giá",
+        "subtitle": "Xem vị trí, tiện ích quanh nhà và khung giá chào trước khi quyết định.",
+        "placeholder": "Nhập địa chỉ cần tra cứu",
+        "submit": "Tra cứu",
+        "previous": "Ảnh trước",
+        "next": "Ảnh sau",
+        "slides": {
+            "apartment": "Phòng khách căn hộ",
+            "garden": "Công viên trong khu đô thị",
+            "tower": "Khu chung cư ven sông"
+        }
     }
 }

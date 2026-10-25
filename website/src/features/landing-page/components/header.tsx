@@ -9,7 +9,6 @@ import type { Locale } from "@/shared/types/locale.types";
 import { getLocaleValue } from "@/shared/utils/locale.utils";
 
 const TABS = [
-    { href: "/#gioi-thieu", key: "intro" },
     { href: "/#ban-do", key: "map" },
     { href: "/#mua-ban-nha-dat", key: "listings" },
     { href: "/#bang-gia", key: "pricing" },
@@ -37,6 +36,21 @@ export default function Header() {
     const shared = useLocaleMessages("shared");
     const { locale, setLocale, isPending } = useLocale();
 
+    function handleHome(event: MouseEvent<HTMLAnchorElement>): void {
+        event.preventDefault();
+
+        if (pathname !== "/") {
+            router.push("/");
+            return;
+        }
+
+        document.getElementById("gioi-thieu")?.scrollIntoView({
+            behavior: scrollBehavior(),
+            block: "start",
+        });
+        window.history.pushState(null, "", "/");
+    }
+
     function handleClick(
         event: MouseEvent<HTMLAnchorElement>,
         href: string,
@@ -61,23 +75,40 @@ export default function Header() {
     }
 
     return (
-        <div className="mx-auto flex w-full max-w-960 items-center justify-between gap-x-5 gap-y-3 px-50">
+        <div className="relative mx-auto flex w-full max-w-960 items-center justify-between px-50">
+            <a
+                href="/"
+                className="relative z-10 inline-flex min-h-11 items-center py-3 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-current"
+                onClick={handleHome}
+            >
+                <img
+                    src="/logos/diathe-text.svg"
+                    alt={getLocaleValue(landing, ["tabs", "intro"])}
+                    className="h-7 w-auto"
+                />
+            </a>
             <nav
                 aria-label={getLocaleValue(landing, ["nav"])}
-                className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1"
+                className="absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-x-2 text-cream"
             >
                 {TABS.map((tab) => (
                     <a
                         key={tab.href}
                         href={tab.href}
-                        className="inline-flex min-h-11 items-center px-2 py-1 text-inherit underline-offset-[0.2em] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-current"
+                        className="inline-flex min-h-11 items-center px-2 py-1 text-cream underline-offset-[0.2em] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-current"
                         onClick={(event) => handleClick(event, tab.href)}
                     >
                         {getLocaleValue(landing, ["tabs", tab.key])}
                     </a>
                 ))}
             </nav>
-            <div className="flex shrink-0 items-center gap-x-3 gap-y-1">
+            <div className="relative z-10 flex shrink-0 items-center gap-x-3 py-2">
+                <a
+                    href="/auth/login"
+                    className="inline-flex min-h-11 items-center px-2 py-1 text-cream underline-offset-[0.2em] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-current"
+                >
+                    {getLocaleValue(landing, ["login"])}
+                </a>
                 <div
                     className="relative inline-grid min-w-[6.75rem] grid-cols-2 items-center rounded-full border border-current bg-transparent p-[3px]"
                     role="radiogroup"
@@ -98,19 +129,13 @@ export default function Header() {
                                 option.id,
                             ])}
                             disabled={isPending}
-                            className={`relative z-[1] m-0 min-h-9 cursor-pointer rounded-full border-0 bg-transparent px-[0.7rem] text-xs font-semibold tracking-wide text-inherit focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-current disabled:cursor-wait ${locale === option.id ? "text-[Canvas]" : ""}`}
+                            className={`relative z-[1] m-0 min-h-9 cursor-pointer rounded-full border-0 bg-transparent px-[0.7rem] text-xs font-semibold tracking-wide text-cream focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-current disabled:cursor-wait ${locale === option.id ? "text-green" : ""}`}
                             onClick={() => handleLocale(option.id)}
                         >
                             {option.code}
                         </button>
                     ))}
                 </div>
-                <a
-                    href="/auth/login"
-                    className="inline-flex min-h-11 items-center px-2 py-1 text-inherit underline-offset-[0.2em] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-current"
-                >
-                    {getLocaleValue(landing, ["login"])}
-                </a>
             </div>
         </div>
     );

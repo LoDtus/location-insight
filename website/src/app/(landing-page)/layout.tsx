@@ -37,7 +37,7 @@ export default async function Layout({
                 {getLocaleValue(messages, ["skip"])}
             </a>
             <LandingHashScroll />
-            <header className="border-b border-current">
+            <header className="border-b border-cream/30 bg-header text-cream">
                 <Header />
             </header>
             <div className="flex min-h-0 flex-1 flex-col gap-[150px] overflow-auto scroll-smooth [container-type:size] motion-reduce:scroll-auto">

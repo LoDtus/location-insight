@@ -1,6 +1,7 @@
 const LANDING_PAGE_SEO = {
     ROUTES: {
         home: "/",
+        properties: "/nha-dat",
     },
 } as const;
 

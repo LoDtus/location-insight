@@ -10,7 +10,7 @@ import { getLocaleValue } from "@/shared/utils/locale.utils";
 
 const TABS = [
     { href: "/#ban-do", key: "map" },
-    { href: "/#mua-ban-nha-dat", key: "listings" },
+    { href: "/#nha-dat", key: "listings" },
     { href: "/#bang-gia", key: "pricing" },
     { href: "/#cach-hoat-dong", key: "how" },
     { href: "/#cau-hoi-thuong-gap", key: "faq" },
@@ -95,7 +95,7 @@ export default function Header() {
                     <a
                         key={tab.href}
                         href={tab.href}
-                        className="inline-flex min-h-11 items-center px-2 py-1 text-cream underline-offset-[0.2em] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-current"
+                        className="inline-flex min-h-11 items-center px-2 py-1 whitespace-nowrap text-cream underline-offset-[0.2em] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-current"
                         onClick={(event) => handleClick(event, tab.href)}
                     >
                         {getLocaleValue(landing, ["tabs", tab.key])}

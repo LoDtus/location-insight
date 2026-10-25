@@ -6,7 +6,7 @@
     "tabs": {
         "intro": "Giới thiệu",
         "map": "Bản đồ",
-        "listings": "Mua bán nhà đất",
+        "listings": "Mua bán & Cho thuê",
         "pricing": "Bảng giá",
         "how": "Cách hoạt động",
         "faq": "Câu hỏi thường gặp"
@@ -14,7 +14,7 @@
     "sections": {
         "intro": "Giới thiệu",
         "map": "Bản đồ",
-        "listings": "Mua bán nhà đất",
+        "listings": "Mua bán & Cho thuê",
         "pricing": "Bảng giá",
         "how": "Cách hoạt động",
         "faq": "Câu hỏi thường gặp",
@@ -31,6 +31,74 @@
             "apartment": "Phòng khách căn hộ",
             "garden": "Công viên trong khu đô thị",
             "tower": "Khu chung cư ven sông"
+        },
+        "statsLabel": "Số liệu minh họa",
+        "stats": {
+            "sources": { "value": "8+", "label": "Nguồn dữ liệu" },
+            "users": { "value": "12k+", "label": "Người dùng" },
+            "listings": { "value": "1,8k+", "label": "Đang rao bán" },
+            "analyses": { "value": "28k+", "label": "Phân tích đã tạo" }
         }
+    },
+    "listingsSection": {
+        "subtitle": "Tin bán và cho thuê đang đăng. Mở danh sách để lọc theo khu vực, giá và loại nhà.",
+        "cta": "Khám phá nhà đất"
+    },
+    "catalog": {
+        "title": "Mua bán & Cho thuê",
+        "lede": "Tin mẫu để xem danh sách. Ảnh dùng chung ba bức minh họa.",
+        "loading": "Đang tải danh sách",
+        "searchLabel": "Tìm nhà đất",
+        "searchPlaceholder": "Tên hoặc khu vực",
+        "filters": "Bộ lọc",
+        "showFilters": "Hiện bộ lọc",
+        "hideFilters": "Ẩn bộ lọc",
+        "reset": "Xóa bộ lọc",
+        "purpose": "Mục đích",
+        "purposeAll": "Tất cả",
+        "purposeBan": "Bán",
+        "purposeThue": "Cho thuê",
+        "kind": "Phân loại",
+        "kinds": {
+            "can-ho": "Căn hộ",
+            "nha-pho": "Nhà phố",
+            "biet-thu": "Biệt thự",
+            "dat": "Đất"
+        },
+        "district": "Khu vực",
+        "price": "Khoảng giá",
+        "priceAny": "Mọi mức giá",
+        "priceHint": "Đang xem cả bán và thuê: khoảng giá áp dụng cho tin bán.",
+        "salePrices": {
+            "under-3": "Dưới 3 tỷ",
+            "3-7": "3–7 tỷ",
+            "7-15": "7–15 tỷ",
+            "over-15": "Trên 15 tỷ"
+        },
+        "rentPrices": {
+            "under-10": "Dưới 10 triệu",
+            "10-20": "10–20 triệu",
+            "20-40": "20–40 triệu",
+            "over-40": "Trên 40 triệu"
+        },
+        "sortLabel": "Sắp xếp",
+        "sort": {
+            "updated": "Mới cập nhật",
+            "price-asc": "Giá tăng dần",
+            "price-desc": "Giá giảm dần",
+            "area": "Diện tích lớn nhất"
+        },
+        "viewLabel": "Kiểu xem",
+        "viewGrid": "Lưới",
+        "viewList": "Danh sách",
+        "resultUnit": "nhà đất",
+        "empty": "Không có nhà đất khớp bộ lọc.",
+        "updated": "Cập nhật",
+        "specBeds": "ngủ",
+        "specLiving": "khách",
+        "specBaths": "vệ sinh",
+        "previous": "Ảnh trước",
+        "next": "Ảnh sau",
+        "remove": "Bỏ"
     }
 }

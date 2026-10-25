@@ -9,6 +9,7 @@ import LandingHashScroll from "./landing-hash-scroll";
 import ENV from "@/shared/constants/env.constant";
 import { INDEXABLE_ROBOTS } from "@/shared/constants/seo.constant";
 import { getLocaleValue } from "@/shared/utils/locale.utils";
+import { normalizePathname } from "@/shared/utils/seo.utils";
 
 export async function generateMetadata(): Promise<Metadata> {
     const pathname = (await headers()).get("x-pathname") ?? "/";
@@ -27,6 +28,10 @@ export default async function Layout({
     children: ReactNode;
 }) {
     const messages = await getLandingMessages();
+    const pathname = normalizePathname(
+        (await headers()).get("x-pathname") ?? "/",
+    );
+    const isCatalog = pathname === "/nha-dat";
 
     return (
         <div className="relative flex h-full min-h-0 w-full flex-col">
@@ -40,10 +45,16 @@ export default async function Layout({
             <header className="border-b border-cream/30 bg-header text-cream">
                 <Header />
             </header>
-            <div className="flex min-h-0 flex-1 flex-col gap-[150px] overflow-auto scroll-smooth [container-type:size] motion-reduce:scroll-auto">
+            <div
+                className={`flex min-h-0 flex-1 flex-col overflow-auto scroll-smooth [container-type:size] motion-reduce:scroll-auto ${isCatalog ? "" : "gap-[150px]"}`}
+            >
                 <main
                     id="noi-dung"
-                    className="mx-auto flex w-full max-w-960 flex-col gap-[150px] border"
+                    className={
+                        isCatalog
+                            ? "w-full"
+                            : "mx-auto flex w-full max-w-960 flex-col gap-[150px] border"
+                    }
                 >
                     {children}
                 </main>

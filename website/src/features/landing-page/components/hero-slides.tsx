@@ -47,7 +47,7 @@ export default function HeroSlides({
 
     return (
         <div
-            className="relative min-h-[28rem] overflow-hidden bg-charcoal"
+            className="relative h-full min-h-[28rem] overflow-hidden bg-charcoal"
             onMouseEnter={() => setPaused(true)}
             onMouseLeave={() => setPaused(false)}
         >

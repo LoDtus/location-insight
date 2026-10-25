@@ -6,7 +6,7 @@
     "tabs": {
         "intro": "Introduction",
         "map": "Map",
-        "listings": "Buy and sell property",
+        "listings": "Buy & rent",
         "pricing": "Pricing",
         "how": "How it works",
         "faq": "FAQ"
@@ -14,7 +14,7 @@
     "sections": {
         "intro": "Introduction",
         "map": "Map",
-        "listings": "Buy and sell property",
+        "listings": "Buy & rent",
         "pricing": "Pricing",
         "how": "How it works",
         "faq": "FAQ",
@@ -31,6 +31,74 @@
             "apartment": "Apartment living room",
             "garden": "Park inside a residential area",
             "tower": "Riverside apartment complex"
+        },
+        "statsLabel": "Sample figures",
+        "stats": {
+            "sources": { "value": "8+", "label": "Data sources" },
+            "users": { "value": "12k+", "label": "Users" },
+            "listings": { "value": "1.8k+", "label": "For sale" },
+            "analyses": { "value": "28k+", "label": "Analyses created" }
         }
+    },
+    "listingsSection": {
+        "subtitle": "Homes for sale and for rent. Open the list to filter by area, price and type.",
+        "cta": "Explore properties"
+    },
+    "catalog": {
+        "title": "Buy & rent",
+        "lede": "Sample listings for the layout. All cards share three illustrative photos.",
+        "loading": "Loading listings",
+        "searchLabel": "Search properties",
+        "searchPlaceholder": "Name or area",
+        "filters": "Filters",
+        "showFilters": "Show filters",
+        "hideFilters": "Hide filters",
+        "reset": "Clear filters",
+        "purpose": "Purpose",
+        "purposeAll": "All",
+        "purposeBan": "For sale",
+        "purposeThue": "For rent",
+        "kind": "Type",
+        "kinds": {
+            "can-ho": "Apartment",
+            "nha-pho": "Townhouse",
+            "biet-thu": "Villa",
+            "dat": "Land"
+        },
+        "district": "Area",
+        "price": "Price",
+        "priceAny": "Any price",
+        "priceHint": "Sale and rent are both visible: this range applies to homes for sale.",
+        "salePrices": {
+            "under-3": "Under 3 billion VND",
+            "3-7": "3–7 billion VND",
+            "7-15": "7–15 billion VND",
+            "over-15": "Over 15 billion VND"
+        },
+        "rentPrices": {
+            "under-10": "Under 10 million VND",
+            "10-20": "10–20 million VND",
+            "20-40": "20–40 million VND",
+            "over-40": "Over 40 million VND"
+        },
+        "sortLabel": "Sort",
+        "sort": {
+            "updated": "Recently updated",
+            "price-asc": "Price: low to high",
+            "price-desc": "Price: high to low",
+            "area": "Largest area"
+        },
+        "viewLabel": "View",
+        "viewGrid": "Grid",
+        "viewList": "List",
+        "resultUnit": "properties",
+        "empty": "No properties match these filters.",
+        "updated": "Updated",
+        "specBeds": "beds",
+        "specLiving": "living",
+        "specBaths": "baths",
+        "previous": "Previous image",
+        "next": "Next image",
+        "remove": "Remove"
     }
 }

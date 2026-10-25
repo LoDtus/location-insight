@@ -15,6 +15,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import ListingGallery from "@/features/landing-page/components/listing-gallery";
+import Pagination from "@/shared/components/ui/pagination";
 import {
     DISTRICTS,
     LISTING_KINDS,
@@ -33,6 +34,8 @@ import { useLocale, useLocaleMessages } from "@/shared/hooks/useLocale";
 import type { LocaleMessages } from "@/shared/types/locale.types";
 import { getLocaleValue } from "@/shared/utils/locale.utils";
 
+const PAGE_SIZE = 6;
+
 const FIELD_CLASS =
     "box-border min-h-11 w-full rounded-full border border-charcoal/20 bg-white px-4 text-sm text-charcoal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green";
 
@@ -46,6 +49,16 @@ function readPurpose(value: string | null): "" | ListingPurpose {
     }
 
     return "";
+}
+
+function readPage(value: string | null): number {
+    const page = Number(value);
+
+    if (!Number.isInteger(page) || page < 1) {
+        return 1;
+    }
+
+    return page;
 }
 
 function readSort(value: string | null): SortKey {
@@ -241,7 +254,7 @@ export default function ListingBrowser() {
         return getLocaleValue(messages, path);
     }
 
-    function commit(patch: Record<string, string | null>): void {
+    function commit(patch: Record<string, string | null>, resetPage = true): void {
         const next = new URLSearchParams(params.toString());
 
         for (const [key, value] of Object.entries(patch)) {
@@ -250,6 +263,10 @@ export default function ListingBrowser() {
             } else {
                 next.set(key, value);
             }
+        }
+
+        if (resetPage) {
+            next.delete("page");
         }
 
         const queryString = next.toString();
@@ -321,6 +338,15 @@ export default function ListingBrowser() {
             needle,
         );
     }).sort((left, right) => compareListings(left, right, sort));
+
+    const totalPages = Math.ceil(results.length / PAGE_SIZE);
+    const currentPage = totalPages === 0 ? 1 : Math.min(readPage(params.get("page")), totalPages);
+    const pageItems = results.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+    function onPageChange(page: number): void {
+        commit({ page: page <= 1 ? null : String(page) }, false);
+        document.getElementById("ket-qua")?.scrollIntoView({ block: "start" });
+    }
 
     const priceRanges = purpose === "thue" ? RENT_PRICE_RANGES : SALE_PRICE_RANGES;
     const priceGroup = purpose === "thue" ? "rentPrices" : "salePrices";
@@ -575,7 +601,7 @@ export default function ListingBrowser() {
                         ) : null}
                     </fieldset>
                 </aside>
-                <div className="min-w-0">
+                <div id="ket-qua" className="min-w-0 scroll-mt-4">
                     {chips.length > 0 ? (
                         <ul className="m-0 mb-4 flex list-none flex-wrap gap-2 p-0">
                             {chips.map((chip) => (
@@ -621,7 +647,7 @@ export default function ListingBrowser() {
                                     : "grid grid-cols-1 gap-4 sm:grid-cols-2"
                             }
                         >
-                            {results.map((listing, index) => (
+                            {pageItems.map((listing, index) => (
                                 <ListingCard
                                     key={listing.id}
                                     listing={listing}
@@ -633,6 +659,23 @@ export default function ListingBrowser() {
                             ))}
                         </div>
                     )}
+                    {totalPages > 1 ? (
+                        <div className="mt-8">
+                            <Pagination
+                                currentPage={currentPage}
+                                totalPages={totalPages}
+                                onPageChange={onPageChange}
+                                labels={{
+                                    nav: text(["catalog", "pagination"]),
+                                    previous: text(["catalog", "pagePrevious"]),
+                                    next: text(["catalog", "pageNext"]),
+                                    first: text(["catalog", "pageFirst"]),
+                                    last: text(["catalog", "pageLast"]),
+                                    page: text(["catalog", "page"]),
+                                }}
+                            />
+                        </div>
+                    ) : null}
                 </div>
             </div>
         </div>

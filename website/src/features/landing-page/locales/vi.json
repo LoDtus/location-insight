@@ -99,6 +99,125 @@
         "specBaths": "vệ sinh",
         "previous": "Ảnh trước",
         "next": "Ảnh sau",
-        "remove": "Bỏ"
+        "remove": "Bỏ",
+        "pagination": "Phân trang",
+        "page": "Trang {page}",
+        "pagePrevious": "Trang trước",
+        "pageNext": "Trang sau",
+        "pageFirst": "Trang đầu",
+        "pageLast": "Trang cuối"
+    },
+    "how": {
+        "title": "Từ địa chỉ tới một khoảng giá",
+        "lede": "Bốn bước. Ba bước đầu đọc được điểm mạnh và điểm yếu. Bước giá chỉ mở khi bạn cần.",
+        "steps": {
+            "0": {
+                "title": "Tới gần ô đất",
+                "hint": "Nhập địa chỉ ở Hà Nội",
+                "0": "Gõ địa chỉ để bản đồ mở đúng khu. Đây là bước vào việc, chưa phải kết luận về thửa.",
+                "1": "Ngõ nhỏ hay lệch vài chục đến vài trăm mét. Ô tìm chỉ đưa bạn tới gần."
+            },
+            "1": {
+                "title": "Ghim đúng ô",
+                "hint": "Kéo điểm vào chỗ bạn hỏi",
+                "0": "Báo cáo bám ghim bạn đặt, không bám chuỗi chữ. Kéo xong mới đọc số.",
+                "1": "Lệch ghim là lệch mọi khoảng cách phía sau, từ hiệu thuốc tới đường lớn."
+            },
+            "2": {
+                "title": "Đọc mạnh và yếu",
+                "hint": "Kèm nguồn và mức tin",
+                "0": "Tiện ích đi bộ trong 500 m. Bệnh viện và metro trong 2 km. Mỗi ý nói rõ bán kính.",
+                "1": "Không thấy dữ liệu thì ghi thiếu. Số thấp là bản đồ mỏng, không phải khu trống. Phần này mở cho mọi người."
+            },
+            "3": {
+                "title": "Mở khung giá",
+                "hint": "Khi bạn khai thuộc tính ô",
+                "0": "Loại hình, pháp lý, diện tích, mặt tiền. Đầu ra là một khoảng, không phải một mức giá bán.",
+                "1": "Thiếu mặt tiền thì khoảng rộng ra. Đang vướng quy hoạch thì không kết luận. Gói miễn phí chưa mở bước này."
+            }
+        }
+    },
+    "pricing": {
+        "title": "Trả tiền khi bạn cần nhiều hơn",
+        "lede": "Gói miễn phí đủ để đọc điểm mạnh và điểm yếu. Trả thêm khi hết 10 lượt một ngày, hoặc khi bạn muốn mở bước định giá.",
+        "perMonth": "mỗi tháng",
+        "perYear": "mỗi năm",
+        "yearNote": "Năm bằng 10 tháng.",
+        "monthCta": "Trả theo tháng",
+        "yearCta": "Trả theo năm",
+        "cycleMonth": "tháng",
+        "cycleYear": "năm",
+        "note": "Chỉ cần một lần định giá, không mua gói: 10.000 đồng cho một ô đất. Giá tháng và năm ở trên là mức minh họa để so các gói, chưa phải bảng giá đã chốt. Trang này không thu tiền.",
+        "confirm": "Bản minh họa chưa thu tiền. Bạn chọn gói {plan}, trả theo {cycle}, {amount}.",
+        "free": {
+            "name": "Miễn phí",
+            "price": "0 đồng",
+            "cta": "Dùng miễn phí",
+            "items": {
+                "0": "Khoảng 10 lượt so sánh mỗi ngày.",
+                "1": "Chỉ xem điểm mạnh và điểm yếu của ô đất.",
+                "2": "Chưa mở bước định giá."
+            }
+        },
+        "unlimited": {
+            "name": "Không giới hạn lượt",
+            "hint": "Nên dùng nếu bạn so nhiều điểm trong ngày.",
+            "month": "30.000 đồng",
+            "year": "300.000 đồng",
+            "items": {
+                "0": "Không giới hạn lượt so sánh.",
+                "1": "Vẫn chỉ xem điểm mạnh và điểm yếu.",
+                "2": "Định giá tính riêng, 10.000 đồng một lần."
+            }
+        },
+        "valued": {
+            "name": "Có định giá",
+            "month": "60.000 đồng",
+            "year": "600.000 đồng",
+            "items": {
+                "0": "Không giới hạn lượt so sánh.",
+                "1": "Thêm bước định giá khi bạn khai thuộc tính ô đất.",
+                "2": "Khung giá vẫn là tham chiếu, không phải giá bán."
+            }
+        }
+    },
+    "faq": {
+        "title": "Câu hỏi thường gặp",
+        "askTitle": "Hỏi thêm",
+        "askLede": "Gửi một câu. Trang trả lời ngay từ những gì đã viết ở bên trái. Câu này không được gửi cho người thật.",
+        "questionLabel": "Câu hỏi",
+        "submit": "Xem câu trả lời",
+        "answerTitle": "Trả lời",
+        "empty": "Nhập câu hỏi trước khi xem trả lời.",
+        "items": {
+            "pin": {
+                "q": "Vì sao phải kéo ghim, không tin địa chỉ?",
+                "a": "Bộ đổi địa chỉ thành tọa độ có thể lệch vài chục đến vài trăm mét, nhất là ngõ. Báo cáo bám điểm bạn đặt, không bám chuỗi chữ."
+            },
+            "missing": {
+                "q": "Thiếu dữ liệu thì trang nói gì?",
+                "a": "Ghi thiếu, kèm nguồn đáng lẽ có. Số tiện ích thấp nghĩa là bản đồ mỏng, không phải kết luận khu không có cửa hàng."
+            },
+            "flood": {
+                "q": "Có kết luận dễ ngập không?",
+                "a": "Không. Có cao độ tương đối và độ sâu ngập sông theo mô hình. Không có bản đồ ngập đường sau mưa của Hà Nội, nên không ghi “khu này dễ ngập”."
+            },
+            "price": {
+                "q": "Khung giá có phải giá bán?",
+                "a": "Không. Đó là khoảng minh họa sau khi bạn tự khai thuộc tính. Chưa dùng giá giao dịch và chưa khớp bảng giá đất nhà nước theo tên đường."
+            },
+            "plan": {
+                "q": "Gói miễn phí khác gì gói trả tiền?",
+                "a": "Miễn phí có khoảng 10 lượt so sánh mỗi ngày và chỉ xem điểm mạnh, điểm yếu. Gói không giới hạn lượt bỏ trần này. Chỉ gói có định giá, hoặc 10.000 đồng một lần, mới mở bước ước lượng giá."
+            }
+        },
+        "match": {
+            "flood": "Không kết luận dễ ngập. Báo cáo có cao độ tương đối và độ sâu ngập sông theo mô hình. Không có bản đồ ngập đường sau mưa của Hà Nội.",
+            "price": "Khung giá không phải giá bán. Gói miễn phí và gói không giới hạn lượt chưa mở bước này. Bạn có thể trả 10.000 đồng cho một lần định giá, hoặc dùng gói có định giá. Thiếu pháp lý hoặc mặt tiền thì khung rộng ra, hoặc không kết luận.",
+            "plan": "Miễn phí có khoảng 10 lượt so sánh mỗi ngày, chỉ xem điểm mạnh và điểm yếu. Gói không giới hạn lượt bỏ trần này. Gói có định giá thêm bước ước lượng giá. Giá tháng và năm trên trang là mức minh họa, chưa chốt.",
+            "pin": "Địa chỉ chỉ đưa bạn tới gần. Bộ tìm có thể lệch vài chục đến vài trăm mét, nhất là ngõ. Kéo ghim đúng ô đất. Báo cáo bám ghim, không bám chuỗi chữ.",
+            "missing": "Không thấy dữ liệu trong bán kính thì ghi thiếu, kèm nguồn. Số tiện ích thấp nghĩa là bản đồ mỏng, không phải khu không có cửa hàng. Chưa có API quy hoạch theo tọa độ nên mục đó ghi chưa có dữ liệu.",
+            "fallback": "Câu này chưa khớp mục đã viết sẵn. Xem cột câu hay gặp. Trang chỉ trả lời từ những gì đã có, không gửi câu hỏi đi đâu."
+        }
     }
 }

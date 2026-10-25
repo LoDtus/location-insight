@@ -99,6 +99,125 @@
         "specBaths": "baths",
         "previous": "Previous image",
         "next": "Next image",
-        "remove": "Remove"
+        "remove": "Remove",
+        "pagination": "Pagination",
+        "page": "Page {page}",
+        "pagePrevious": "Previous page",
+        "pageNext": "Next page",
+        "pageFirst": "First page",
+        "pageLast": "Last page"
+    },
+    "how": {
+        "title": "From an address to a price range",
+        "lede": "Four steps. The first three show strengths and weaknesses. The price step opens only when you need it.",
+        "steps": {
+            "0": {
+                "title": "Get close to the plot",
+                "hint": "Enter a Hanoi address",
+                "0": "Type an address so the map opens the right area. This starts the job. It is not a conclusion about the plot.",
+                "1": "Alleys often miss by tens to a few hundred metres. The search box only gets you close."
+            },
+            "1": {
+                "title": "Pin the right plot",
+                "hint": "Drag the point to the place you mean",
+                "0": "The report follows the pin you place, not the text. Read the numbers after you finish dragging.",
+                "1": "A misplaced pin shifts every distance after it, from the pharmacy to the main road."
+            },
+            "2": {
+                "title": "Read strengths and weaknesses",
+                "hint": "With the source and confidence",
+                "0": "Walking amenities within 500 m. Hospitals and metro within 2 km. Each point states its radius.",
+                "1": "Missing data is written as missing. A low count means a thin map, not an empty area. This part is open to everyone."
+            },
+            "3": {
+                "title": "Open the price range",
+                "hint": "After you enter the plot details",
+                "0": "Type, legal status, area, frontage. The result is a range, not a sale price.",
+                "1": "Missing frontage widens the range. An active planning constraint means no conclusion. The free plan does not open this step."
+            }
+        }
+    },
+    "pricing": {
+        "title": "Pay when you need more",
+        "lede": "The free plan is enough to read strengths and weaknesses. Pay more after 10 comparisons a day, or when you want the valuation step.",
+        "perMonth": "per month",
+        "perYear": "per year",
+        "yearNote": "A year costs the same as 10 months.",
+        "monthCta": "Pay monthly",
+        "yearCta": "Pay yearly",
+        "cycleMonth": "month",
+        "cycleYear": "year",
+        "note": "One valuation without a plan: 10,000 VND for one plot. The monthly and yearly prices above are sample figures for comparing plans, not a final price list. This page does not take payment.",
+        "confirm": "This preview does not take payment. You chose {plan}, billed by the {cycle}, {amount}.",
+        "free": {
+            "name": "Free",
+            "price": "0 VND",
+            "cta": "Use for free",
+            "items": {
+                "0": "About 10 comparisons a day.",
+                "1": "Strengths and weaknesses of the plot only.",
+                "2": "The valuation step stays closed."
+            }
+        },
+        "unlimited": {
+            "name": "Unlimited comparisons",
+            "hint": "Use this if you compare many points in a day.",
+            "month": "30,000 VND",
+            "year": "300,000 VND",
+            "items": {
+                "0": "Unlimited comparisons.",
+                "1": "Still strengths and weaknesses only.",
+                "2": "Valuation is separate, 10,000 VND each time."
+            }
+        },
+        "valued": {
+            "name": "With valuation",
+            "month": "60,000 VND",
+            "year": "600,000 VND",
+            "items": {
+                "0": "Unlimited comparisons.",
+                "1": "Adds a valuation step after you enter the plot's attributes.",
+                "2": "The range is a reference, not a sale price."
+            }
+        }
+    },
+    "faq": {
+        "title": "FAQ",
+        "askTitle": "Ask more",
+        "askLede": "Send a question. The page answers at once from what is written on the left. The question is not sent to a person.",
+        "questionLabel": "Question",
+        "submit": "See the answer",
+        "answerTitle": "Answer",
+        "empty": "Enter a question before asking for an answer.",
+        "items": {
+            "pin": {
+                "q": "Why drag the pin instead of trusting the address?",
+                "a": "Turning an address into coordinates can miss by tens to hundreds of metres, especially in an alley. The report follows the point you place, not the text."
+            },
+            "missing": {
+                "q": "What does the page say when data is missing?",
+                "a": "It records the gap and the source that should have been there. A low amenity count means a thin map, not a conclusion that the area has no shops."
+            },
+            "flood": {
+                "q": "Does it conclude that a place floods easily?",
+                "a": "No. It has relative elevation and modelled river-flood depth. There is no map of street flooding after rain in Hanoi, so it does not say the area floods easily."
+            },
+            "price": {
+                "q": "Is the price range a sale price?",
+                "a": "No. It is a sample range after you enter the attributes yourself. It does not use transaction prices and it is not matched to the official land-price table by street name."
+            },
+            "plan": {
+                "q": "How is the free plan different from a paid plan?",
+                "a": "Free includes about 10 comparisons a day and only strengths and weaknesses. The unlimited plan removes that cap. Only the valuation plan, or 10,000 VND once, opens the price estimate."
+            }
+        },
+        "match": {
+            "flood": "It does not conclude that a place floods easily. The report has relative elevation and modelled river-flood depth. There is no map of street flooding after rain in Hanoi.",
+            "price": "The price range is not a sale price. The free plan and the unlimited plan do not open this step. You can pay 10,000 VND for one valuation, or use the valuation plan. Missing legal status or frontage widens the range, or stops the conclusion.",
+            "plan": "Free includes about 10 comparisons a day, strengths and weaknesses only. The unlimited plan removes that cap. The valuation plan adds a price estimate. Monthly and yearly prices on the page are sample figures, not final.",
+            "pin": "An address only gets you close. Search can miss by tens to hundreds of metres, especially in an alley. Drag the pin onto the plot. The report follows the pin, not the text.",
+            "missing": "If nothing is found inside the radius, the page records the gap and the source. A low amenity count means a thin map, not an area without shops. There is no planning API by coordinate, so that item stays without data.",
+            "fallback": "This question does not match a written answer. Read the questions on the left. The page only answers from what is already here, and it does not send the question anywhere."
+        }
     }
 }

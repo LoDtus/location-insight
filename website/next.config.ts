@@ -37,6 +37,19 @@ const nextConfig: NextConfig = {
         : {
               allowedDevOrigins: ["localhost", "127.0.0.1"],
           }),
+    async rewrites() {
+        const prefix = process.env.GLOBAL_PREFIX || "api/v1";
+        const port = process.env.BACKEND_PORT || "22370";
+        const target =
+            process.env.API_PROXY_TARGET || `http://127.0.0.1:${port}`;
+
+        return [
+            {
+                source: `/${prefix}/:path*`,
+                destination: `${target}/${prefix}/:path*`,
+            },
+        ];
+    },
     webpack: (config, { dev }) => {
         config.module.rules.push({
             test: /\.md$/,

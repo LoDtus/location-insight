@@ -1,10 +1,11 @@
-process.env.TZ = 'UTC';
-
+import './load-env.js';
 import 'reflect-metadata';
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { IoAdapter } from '@nestjs/platform-socket.io';
+import cookieParser from 'cookie-parser';
 import { setupGracefulShutdown } from 'nestjs-graceful-shutdown';
 import { AppModule } from './app.module.js';
 import { configureCors } from './shared/config/cors.config.js';
@@ -23,7 +24,10 @@ async function bootstrap(): Promise<void> {
   const globalPrefix = config.get<string>('GLOBAL_PREFIX') ?? 'api/v1';
   const env = config.get<string>('NODE_ENV') ?? 'development';
 
-  app.set('trust proxy', 1);
+  const hops = Number(config.get('TRUST_PROXY_HOPS') ?? 1);
+  app.set('trust proxy', Number.isNaN(hops) ? 1 : hops);
+  app.use(cookieParser());
+  app.useWebSocketAdapter(new IoAdapter(app));
   configureHelmet(app, env);
   configureCors(app, config.get<string>('CORS_ORIGINS'));
   configurePermissionsPolicy(app);

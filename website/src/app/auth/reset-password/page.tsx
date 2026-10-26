@@ -1,6 +1,7 @@
 "use client";
 
-import type { FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { useState, type FormEvent } from "react";
 
 import {
     AUTH_BUTTON_CLASS,
@@ -10,10 +11,42 @@ import {
     AUTH_LINKS_CLASS,
     AUTH_TITLE_CLASS,
 } from "@/app/auth/form-class";
+import { AuthApiError, resetPassword } from "@/features/auth/auth.api";
 
 export default function Page() {
-    function handleSubmit(event: FormEvent<HTMLFormElement>): void {
+    const router = useRouter();
+    const [message, setMessage] = useState("");
+    const [pending, setPending] = useState(false);
+
+    async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
         event.preventDefault();
+        const token = new URLSearchParams(window.location.search).get("token") ?? "";
+        const form = new FormData(event.currentTarget);
+        const password = String(form.get("password") || "");
+        const confirmPassword = String(form.get("confirmPassword") || "");
+        if (password !== confirmPassword) {
+            setMessage("Mật khẩu xác nhận chưa khớp.");
+            return;
+        }
+        if (!token) {
+            setMessage("Thiếu token đặt lại mật khẩu.");
+            return;
+        }
+
+        setPending(true);
+        setMessage("");
+        try {
+            await resetPassword(token, password);
+            router.push("/auth/login");
+        } catch (error) {
+            setMessage(
+                error instanceof AuthApiError
+                    ? error.message
+                    : "Không đặt lại được mật khẩu.",
+            );
+        } finally {
+            setPending(false);
+        }
     }
 
     return (
@@ -26,6 +59,8 @@ export default function Page() {
                     name="password"
                     type="password"
                     autoComplete="new-password"
+                    minLength={10}
+                    required
                 />
             </label>
             <label className={AUTH_LABEL_CLASS}>
@@ -35,9 +70,12 @@ export default function Page() {
                     name="confirmPassword"
                     type="password"
                     autoComplete="new-password"
+                    minLength={10}
+                    required
                 />
             </label>
-            <button className={AUTH_BUTTON_CLASS} type="submit">
+            {message ? <p className="m-0 text-sm">{message}</p> : null}
+            <button className={AUTH_BUTTON_CLASS} type="submit" disabled={pending}>
                 Đặt lại mật khẩu
             </button>
             <nav className={AUTH_LINKS_CLASS}>

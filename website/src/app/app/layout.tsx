@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ReactNode } from "react";
 
+import { RequireSession } from "@/features/auth/route-gate";
 import { PRIVATE_ROBOTS } from "@/shared/constants/seo.constant";
 
 export const metadata: Metadata = {
@@ -13,8 +14,10 @@ export default function Layout({
     children: ReactNode;
 }) {
     return (
-        <div className="w-full h-full">
-            { children }
-        </div>
+        <RequireSession>
+            <div className="w-full h-full">
+                { children }
+            </div>
+        </RequireSession>
     )
 }

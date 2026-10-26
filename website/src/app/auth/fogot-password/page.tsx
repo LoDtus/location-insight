@@ -1,6 +1,6 @@
 "use client";
 
-import type { FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 
 import {
     AUTH_BUTTON_CLASS,
@@ -10,10 +10,28 @@ import {
     AUTH_LINKS_CLASS,
     AUTH_TITLE_CLASS,
 } from "@/app/auth/form-class";
+import { AuthApiError, forgotPassword } from "@/features/auth/auth.api";
 
 export default function Page() {
-    function handleSubmit(event: FormEvent<HTMLFormElement>): void {
+    const [message, setMessage] = useState("");
+    const [pending, setPending] = useState(false);
+
+    async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
         event.preventDefault();
+        const form = new FormData(event.currentTarget);
+        setPending(true);
+        try {
+            await forgotPassword(String(form.get("email") || ""));
+            setMessage("Nếu email tồn tại, hướng dẫn đặt lại mật khẩu đã được gửi.");
+        } catch (error) {
+            setMessage(
+                error instanceof AuthApiError
+                    ? error.message
+                    : "Không gửi được yêu cầu.",
+            );
+        } finally {
+            setPending(false);
+        }
     }
 
     return (
@@ -26,9 +44,11 @@ export default function Page() {
                     name="email"
                     type="email"
                     autoComplete="email"
+                    required
                 />
             </label>
-            <button className={AUTH_BUTTON_CLASS} type="submit">
+            {message ? <p className="m-0 text-sm">{message}</p> : null}
+            <button className={AUTH_BUTTON_CLASS} type="submit" disabled={pending}>
                 Gửi liên kết
             </button>
             <nav className={AUTH_LINKS_CLASS}>

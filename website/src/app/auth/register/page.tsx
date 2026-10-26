@@ -1,6 +1,7 @@
 "use client";
 
-import type { FormEvent } from "react";
+import Link from "next/link";
+import { useState, type FormEvent } from "react";
 
 import {
     AUTH_BUTTON_CLASS,
@@ -10,10 +11,42 @@ import {
     AUTH_LINKS_CLASS,
     AUTH_TITLE_CLASS,
 } from "@/app/auth/form-class";
+import { AuthApiError, registerAccount } from "@/features/auth/auth.api";
 
 export default function Page() {
-    function handleSubmit(event: FormEvent<HTMLFormElement>): void {
+    const [message, setMessage] = useState("");
+    const [pending, setPending] = useState(false);
+
+    async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
         event.preventDefault();
+        const form = new FormData(event.currentTarget);
+        const password = String(form.get("password") || "");
+        const confirmPassword = String(form.get("confirmPassword") || "");
+        if (password !== confirmPassword) {
+            setMessage("Mật khẩu xác nhận chưa khớp.");
+            return;
+        }
+
+        setPending(true);
+        setMessage("");
+        try {
+            await registerAccount({
+                email: String(form.get("email") || ""),
+                password,
+                displayName: String(form.get("name") || ""),
+                acceptTerms: form.get("acceptTerms") === "on",
+            });
+            setMessage("Đã nhận đăng ký. Hãy mở liên kết xác minh trong email.");
+            event.currentTarget.reset();
+        } catch (error) {
+            setMessage(
+                error instanceof AuthApiError
+                    ? error.message
+                    : "Không đăng ký được.",
+            );
+        } finally {
+            setPending(false);
+        }
     }
 
     return (
@@ -26,6 +59,7 @@ export default function Page() {
                     name="name"
                     type="text"
                     autoComplete="name"
+                    required
                 />
             </label>
             <label className={AUTH_LABEL_CLASS}>
@@ -35,6 +69,7 @@ export default function Page() {
                     name="email"
                     type="email"
                     autoComplete="email"
+                    required
                 />
             </label>
             <label className={AUTH_LABEL_CLASS}>
@@ -44,6 +79,8 @@ export default function Page() {
                     name="password"
                     type="password"
                     autoComplete="new-password"
+                    minLength={10}
+                    required
                 />
             </label>
             <label className={AUTH_LABEL_CLASS}>
@@ -53,9 +90,19 @@ export default function Page() {
                     name="confirmPassword"
                     type="password"
                     autoComplete="new-password"
+                    minLength={10}
+                    required
                 />
             </label>
-            <button className={AUTH_BUTTON_CLASS} type="submit">
+            <label className="flex items-start gap-2 text-sm">
+                <input name="acceptTerms" type="checkbox" required />
+                <span>
+                    Tôi đủ 18 tuổi và đồng ý với{" "}
+                    <Link href="/phap-ly">điều khoản</Link>.
+                </span>
+            </label>
+            {message ? <p className="m-0 text-sm">{message}</p> : null}
+            <button className={AUTH_BUTTON_CLASS} type="submit" disabled={pending}>
                 Đăng ký
             </button>
             <nav className={AUTH_LINKS_CLASS}>

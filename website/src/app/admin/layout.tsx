@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ReactNode } from "react";
 
+import { RequireAdmin } from "@/features/auth/route-gate";
 import { PRIVATE_ROBOTS } from "@/shared/constants/seo.constant";
 
 export const metadata: Metadata = {
@@ -12,5 +13,9 @@ export default function Layout({
 }: {
     children: ReactNode;
 }) {
-    return <div>{children}</div>;
+    return (
+        <RequireAdmin>
+            <div>{children}</div>
+        </RequireAdmin>
+    );
 }

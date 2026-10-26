@@ -18,6 +18,7 @@ services:
       HOSTNAME: 0.0.0.0
       WATCHPACK_POLLING: "true"
       TZ: UTC
+      API_PROXY_TARGET: http://backend:${BACKEND_PORT:?BACKEND_PORT is required}
     volumes:
       - ../website:/app
       - website_node_modules:/app/node_modules

@@ -20,6 +20,7 @@ import storage from "redux-persist/lib/storage";
 import preferenceReducer, {
     PREFERENCE,
 } from "@/features/preference/preference.slice";
+import authReducer from "@/features/auth/auth.slice";
 
 const noopStorage: Storage = {
     getItem: async () => null,
@@ -38,6 +39,7 @@ const preferencePersistConfig = {
 
 const reducers = combineReducers({
     preference: persistReducer(preferencePersistConfig, preferenceReducer),
+    auth: authReducer,
 });
 
 export type RootReducerState = ReturnType<typeof reducers>;

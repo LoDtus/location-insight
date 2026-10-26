@@ -63,7 +63,7 @@ export type SortKey = (typeof SORT_KEYS)[number];
 
 const RAW = [
     {
-        id: "mat-pho-hoan-kiem",
+        id: "019a2b10-0001-7000-8000-000000000001",
         title: "Nhà mặt phố Hàng Bạc",
         location: "Hàng Bạc, phường Hoàn Kiếm",
         district: "Hoàn Kiếm",
@@ -77,7 +77,7 @@ const RAW = [
         updatedAt: "2026-10-24",
     },
     {
-        id: "nha-van-mieu",
+        id: "019a2b10-0002-7000-8000-000000000002",
         title: "Nhà phố 4 tầng ngõ Văn Miếu",
         location: "Ngõ Văn Miếu, phường Văn Miếu - Quốc Tử Giám",
         district: "Đống Đa",
@@ -91,7 +91,7 @@ const RAW = [
         updatedAt: "2026-10-23",
     },
     {
-        id: "can-ho-bach-mai",
+        id: "019a2b10-0003-7000-8000-000000000003",
         title: "Căn hộ 2 ngủ gần Bệnh viện Bạch Mai",
         location: "Phố Bạch Mai, phường Bạch Mai",
         district: "Hai Bà Trưng",
@@ -105,7 +105,7 @@ const RAW = [
         updatedAt: "2026-10-22",
     },
     {
-        id: "studio-cau-giay",
+        id: "019a2b10-0004-7000-8000-000000000004",
         title: "Studio cho thuê gần Đại học Quốc gia",
         location: "Xuân Thủy, phường Cầu Giấy",
         district: "Cầu Giấy",
@@ -119,7 +119,7 @@ const RAW = [
         updatedAt: "2026-10-21",
     },
     {
-        id: "nha-tay-ho",
+        id: "019a2b10-0005-7000-8000-000000000005",
         title: "Nhà phố view hồ Tây",
         location: "Quảng An, phường Tây Hồ",
         district: "Tây Hồ",
@@ -133,7 +133,7 @@ const RAW = [
         updatedAt: "2026-10-20",
     },
     {
-        id: "masteri-long-bien",
+        id: "019a2b10-0006-7000-8000-000000000006",
         title: "Căn hộ 2 ngủ Masteri Waterfront",
         location: "Masteri Waterfront, phường Long Biên",
         district: "Long Biên",
@@ -147,7 +147,7 @@ const RAW = [
         updatedAt: "2026-10-19",
     },
     {
-        id: "can-ho-hoang-mai",
+        id: "019a2b10-0007-7000-8000-000000000007",
         title: "Căn hộ 3 ngủ Linh Đàm",
         location: "Khu đô thị Linh Đàm, phường Hoàng Liệt",
         district: "Hoàng Mai",
@@ -161,7 +161,7 @@ const RAW = [
         updatedAt: "2026-10-18",
     },
     {
-        id: "smart-city",
+        id: "019a2b10-0008-7000-8000-000000000008",
         title: "Căn hộ 1 ngủ Vinhomes Smart City",
         location: "Vinhomes Smart City, phường Tây Mỗ",
         district: "Nam Từ Liêm",
@@ -175,7 +175,7 @@ const RAW = [
         updatedAt: "2026-10-17",
     },
     {
-        id: "ciputra-thue",
+        id: "019a2b10-0009-7000-8000-000000000009",
         title: "Biệt thự cho thuê Ciputra",
         location: "Khu Ciputra, phường Phú Thượng",
         district: "Bắc Từ Liêm",
@@ -189,7 +189,7 @@ const RAW = [
         updatedAt: "2026-10-16",
     },
     {
-        id: "dat-dong-anh",
+        id: "019a2b10-000a-7000-8000-00000000000a",
         title: "Đất nền gần Nội Bài",
         location: "Xã Nguyên Khê, huyện Đông Anh",
         district: "Đông Anh",
@@ -203,7 +203,7 @@ const RAW = [
         updatedAt: "2026-10-15",
     },
     {
-        id: "dat-hoai-duc",
+        id: "019a2b10-000b-7000-8000-00000000000b",
         title: "Đất thổ cư Lai Xá",
         location: "Lai Xá, huyện Hoài Đức",
         district: "Hoài Đức",
@@ -217,7 +217,7 @@ const RAW = [
         updatedAt: "2026-10-14",
     },
     {
-        id: "biet-thu-riverside",
+        id: "019a2b10-000c-7000-8000-00000000000c",
         title: "Biệt thự Vinhomes Riverside",
         location: "Vinhomes Riverside, phường Phúc Lợi",
         district: "Long Biên",
@@ -231,7 +231,7 @@ const RAW = [
         updatedAt: "2026-10-13",
     },
     {
-        id: "times-city-thue",
+        id: "019a2b10-000d-7000-8000-00000000000d",
         title: "Căn hộ 2 ngủ cho thuê Times City",
         location: "Times City, phường Vĩnh Tuy",
         district: "Hai Bà Trưng",
@@ -245,7 +245,7 @@ const RAW = [
         updatedAt: "2026-10-12",
     },
     {
-        id: "nha-pho-thue-doi-can",
+        id: "019a2b10-000e-7000-8000-00000000000e",
         title: "Nhà phố cho thuê Đội Cấn",
         location: "Đội Cấn, phường Ngọc Hà",
         district: "Ba Đình",
@@ -259,7 +259,7 @@ const RAW = [
         updatedAt: "2026-10-11",
     },
     {
-        id: "matrix-one",
+        id: "019a2b10-000f-7000-8000-00000000000f",
         title: "Căn hộ 3 ngủ The Matrix One",
         location: "The Matrix One, phường Mễ Trì",
         district: "Nam Từ Liêm",
@@ -281,6 +281,10 @@ export const LISTINGS: Listing[] = RAW.map((item, index) => ({
     ),
 }));
 
+export function getListingById(id: string): Listing | undefined {
+    return LISTINGS.find((listing) => listing.id === id);
+}
+
 export function formatListingPrice(listing: Listing, locale: string): string {
     const vi = locale.startsWith("vi");
     const numberLocale = vi ? "vi-VN" : "en-US";
@@ -298,6 +302,21 @@ export function formatListingPrice(listing: Listing, locale: string): string {
     }).format(listing.priceVnd / 1_000_000_000);
 
     return vi ? `${number} tỷ` : `${number} billion VND`;
+}
+
+export function formatPricePerArea(listing: Listing, locale: string): string {
+    const vi = locale.startsWith("vi");
+    const numberLocale = vi ? "vi-VN" : "en-US";
+    const perSquare = listing.priceVnd / listing.areaM2;
+    const number = new Intl.NumberFormat(numberLocale, {
+        maximumFractionDigits: 1,
+    }).format(perSquare / 1_000_000);
+
+    if (listing.purpose === "thue") {
+        return vi ? `≈ ${number} triệu/m²/tháng` : `≈ ${number} million VND/m²/month`;
+    }
+
+    return vi ? `≈ ${number} triệu/m²` : `≈ ${number} million VND/m²`;
 }
 
 export function formatListingDate(isoDate: string, locale: string): string {

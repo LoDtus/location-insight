@@ -1,4 +1,5 @@
 import LANDING_PAGE_SEO from "@/features/landing-page/constants/landing-page-seo.constant";
+import { getListingById } from "@/features/landing-page/data/listings";
 import {
     LEGAL_DOCUMENTS,
     LEGAL_PATH_PREFIX,
@@ -22,5 +23,15 @@ export function normalizePathname(pathname: string): string {
 }
 
 export function isIndexablePath(pathname: string): boolean {
-    return INDEXABLE_PATHS.has(normalizePathname(pathname));
+    const path = normalizePathname(pathname);
+
+    if (INDEXABLE_PATHS.has(path)) {
+        return true;
+    }
+
+    if (path.startsWith("/nha-dat/")) {
+        return getListingById(path.slice("/nha-dat/".length)) !== undefined;
+    }
+
+    return false;
 }

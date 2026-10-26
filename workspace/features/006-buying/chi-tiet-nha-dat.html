@@ -200,21 +200,25 @@
   .toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }
   .toggle input { width: 20px; height: 20px; accent-color: var(--green); }
 
-  /* Phân tích */
-  .analysis-card { border-color: var(--line-strong); }
-  .a-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
-  .a-list { display: grid; gap: 8px 24px; grid-template-columns: 1fr; margin-top: 16px; }
-  @media (min-width: 560px) { .a-list { grid-template-columns: 1fr 1fr; } }
-  .a-list li { display: flex; align-items: center; gap: 10px; }
-  .a-list .i { color: var(--green); }
+  /* ===== Khung phân tích dùng lại (.ap) =====
+     Co giãn theo bề rộng của KHUNG CHỨA (container query), không theo viewport,
+     nên cùng một component chạy trong cột chính (~760px) và panel /map (~480px). */
+  .ap { container: ap / inline-size; border-color: var(--line-strong); }
+  .ap--flush { border: 0; border-radius: 0; padding: 0; background: transparent; }
+  .ap-head h2 { font-size: 22px; line-height: 1.3; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+  .ap-subject { color: var(--muted); font-size: 14px; margin-top: 2px; }
+  .ap-meta { display: none; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .ap[data-a="done"] .ap-meta { display: flex; }
+  .a-state { display: none; margin-top: 16px; }
+  .ap[data-a="idle"] .s-idle, .ap[data-a="loading"] .s-loading, .ap[data-a="done"] .s-done,
+  .ap[data-a="error"] .s-error, .ap[data-a="quota"] .s-quota { display: block; }
+
+  /* Trạng thái: chưa chạy / đang chạy / lỗi */
+  .ap-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .ap-chips li { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 14px; border-radius: 999px; background: var(--cream); font-size: 14px; }
+  .ap-chips .i { color: var(--green); width: 16px; height: 16px; }
   .a-cta { margin-top: 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
-  .a-cta .fine { flex: 1 1 220px; }
-  .a-state { display: none; }
-  .analysis-card[data-a="idle"] .s-idle,
-  .analysis-card[data-a="loading"] .s-loading,
-  .analysis-card[data-a="done"] .s-done,
-  .analysis-card[data-a="error"] .s-error,
-  .analysis-card[data-a="quota"] .s-quota { display: block; }
+  .a-cta .fine { flex: 1 1 200px; }
   .spin { width: 18px; height: 18px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .steps { display: grid; gap: 8px; margin-top: 16px; }
@@ -223,34 +227,122 @@
   .steps li.ok { color: var(--green); }
   .progress { height: 6px; border-radius: 999px; background: var(--line); overflow: hidden; margin-top: 16px; }
   .progress i { display: block; height: 100%; width: 0; background: var(--green); transition: width .5s; }
-  .result-summary { max-width: 68ch; }
-  .kpis { display: grid; gap: 12px; grid-template-columns: 1fr; margin-top: 20px; }
-  @media (min-width: 640px) { .kpis { grid-template-columns: repeat(3, 1fr); } }
-  .kpi { padding: 16px; border-radius: 12px; background: var(--cream); }
-  .kpi b { display: block; font-size: 24px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+  .error-box { display: flex; gap: 12px; padding: 16px; border-radius: 12px; border: 1px solid var(--charcoal); background: var(--gold-tint); }
+  .error-box .i { margin-top: 4px; }
+
+  /* Lớp 1: mức phủ + KPI (luôn nằm trên cùng của kết quả) */
+  .ap-cover { display: grid; gap: 12px; }
+  .ap-coverage { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border-radius: 12px; background: var(--cream); }
+  .ap-coverage b { display: block; font-weight: 600; }
+  .ap-coverage span { font-size: 14px; color: var(--muted); }
+  .ap-seg { display: flex; gap: 4px; flex: none; }
+  .ap-seg i { width: 20px; height: 8px; border-radius: 999px; background: var(--line-strong); }
+  .ap-seg i.on { background: var(--green); }
+  .ap-kpis { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); }
+  .kpi { padding: 14px 16px; border-radius: 12px; background: var(--cream); }
+  .kpi b { display: block; font-size: 22px; line-height: 1.2; font-weight: 600; font-variant-numeric: tabular-nums; }
   .kpi span { display: block; font-size: 14px; color: var(--muted); }
-  .two-col { display: grid; gap: 16px; margin-top: 20px; }
-  @media (min-width: 640px) { .two-col { grid-template-columns: 1fr 1fr; } }
-  .two-col h3 { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
-  .two-col li { display: flex; gap: 8px; padding: 6px 0; font-size: 15px; }
-  .two-col .i { margin-top: 4px; }
-  .groups { margin-top: 20px; border-top: 1px solid var(--line); }
+
+  /* Lớp 2: tab — thêm tab mới không đổi bố cục (tối đa 5) */
+  .ap-tabs { display: flex; gap: 4px; margin-top: 20px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; position: sticky; top: 0; z-index: 3; background: var(--surface); }
+  .ap--flush .ap-tabs { background: var(--surface); }
+  .ap-tab { background: none; border: 0; border-bottom: 3px solid transparent; min-height: 44px; padding: 0 14px; color: var(--muted); white-space: nowrap; display: inline-flex; align-items: center; gap: 8px; }
+  .ap-tab:hover { color: var(--charcoal); }
+  .ap-tab[aria-selected="true"] { color: var(--charcoal); border-bottom-color: var(--green); }
+  .ap-tab .n { font-size: 12px; background: var(--gold-tint); border-radius: 999px; padding: 0 8px; }
+  .ap-pane { margin-top: 20px; }
+  .ap-pane[hidden] { display: none; }
+  .result-summary { max-width: 68ch; }
+  .ap-two { display: grid; gap: 20px; margin-top: 20px; grid-template-columns: 1fr; }
+  .ap-two h3 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+  .ap-two li { display: flex; gap: 8px; padding: 6px 0; font-size: 15px; }
+  .ap-two .i { margin-top: 4px; }
+  @container ap (min-width: 620px) { .ap-two { grid-template-columns: 1fr 1fr; } }
+
+  /* Tab Chỉ số */
+  .ap-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+  .ap-tools select { font: inherit; min-height: 44px; border-radius: 999px; border: 1px solid var(--line-strong); padding: 0 14px; background: var(--surface); }
+  .groups { margin-top: 12px; border-top: 1px solid var(--line); }
   .group { border-bottom: 1px solid var(--line); }
-  .group summary { padding: 4px 0; }
-  .group .intro { font-size: 14px; color: var(--muted); margin-bottom: 8px; }
-  .metric { display: grid; gap: 4px 16px; padding: 12px 0; border-top: 1px solid var(--line); }
-  @media (min-width: 640px) { .metric { grid-template-columns: 160px 1fr auto; align-items: start; } }
-  .metric dt { font-weight: 600; }
-  .metric dd small { display: block; color: var(--soft); font-size: 13px; }
-  .conf { font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 999px; white-space: nowrap; justify-self: start; }
+  .group summary { padding: 4px 0; gap: 12px; }
+  .group summary .t { display: inline-flex; align-items: center; gap: 10px; }
+  .group .intro { font-size: 14px; color: var(--muted); margin-bottom: 4px; }
+  .ap-row { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 12px 0; border-top: 1px solid var(--line); }
+  .ap-row dt { font-weight: 600; grid-column: 1; }
+  .ap-row .v { grid-column: 1 / -1; grid-row: 2; }
+  .ap-row .c { grid-column: 2; grid-row: 1; justify-self: end; }
+  .ap-val { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .ap-val.na { font-weight: 400; color: var(--muted); }
+  .ap-bar { display: block; height: 6px; max-width: 240px; margin: 6px 0 4px; border-radius: 999px; background: var(--line); overflow: hidden; }
+  .ap-bar i { display: block; height: 100%; background: var(--green); border-radius: 999px; }
+  .ap-row small { display: block; color: var(--soft); font-size: 13px; }
+  .ap.only-check .ap-row:not([data-check="1"]) { display: none; }
+  @container ap (min-width: 620px) {
+    .ap-row { grid-template-columns: 170px 1fr auto; align-items: start; }
+    .ap-row .v { grid-column: 2; grid-row: 1; }
+    .ap-row .c { grid-column: 3; }
+  }
+  .conf { font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 999px; white-space: nowrap; }
   .conf-cao { background: var(--green); color: var(--cream); }
   .conf-tb { background: var(--green-tint); color: var(--green); }
   .conf-thap { background: var(--gold-tint); color: var(--charcoal); }
-  .result-foot { margin-top: 20px; display: grid; gap: 12px; }
-  .result-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-  .sample-tag { font-size: 12px; font-weight: 600; background: var(--gold-tint); border-radius: 999px; padding: 2px 10px; }
-  .error-box { display: flex; gap: 12px; padding: 16px; border-radius: 12px; border: 1px solid var(--charcoal); background: var(--gold-tint); margin-top: 16px; }
-  .error-box .i { margin-top: 4px; }
+
+  /* Tab So sánh: bảng thuộc tính, thêm hàng/cột không phá bố cục (cuộn ngang, cột đầu dính) */
+  .cmp-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 16px; }
+  .cmp-bar .toggle { min-height: 44px; font-size: 14px; }
+  .cmp-add { position: relative; }
+  .cmp-add > summary { display: inline-flex; width: auto; min-height: 44px; padding: 0 16px; gap: 8px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--surface); font-size: 14px; }
+  .cmp-add[open] > summary { border-color: var(--charcoal); }
+  .cmp-menu { position: absolute; z-index: 5; left: 0; top: calc(100% + 6px); width: min(300px, 80vw); background: var(--surface); border: 1px solid var(--charcoal); border-radius: 12px; padding: 6px; box-shadow: 0 8px 24px rgba(16,17,17,.2); }
+  .cmp-menu p { padding: 6px 10px; font-size: 13px; color: var(--soft); }
+  .cmp-menu button { display: block; width: 100%; min-height: 44px; text-align: left; background: none; border: 0; border-radius: 8px; padding: 6px 10px; font-weight: 400; }
+  .cmp-menu button:hover { background: var(--cream); }
+  .cmp-menu b { font-weight: 600; display: block; }
+  .cmp-menu span { font-size: 13px; color: var(--muted); }
+  .cmp-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; margin-top: 12px; }
+  .cmp { border-collapse: separate; border-spacing: 0; width: 100%; min-width: calc(140px + var(--cols, 3) * 128px); font-size: 14px; }
+  .cmp th, .cmp td { padding: 10px 12px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); background-color: var(--surface); font-weight: 400; }
+  .cmp thead th { vertical-align: bottom; font-weight: 600; }
+  .cmp th:first-child, .cmp td:first-child { position: sticky; left: 0; z-index: 1; min-width: 140px; box-shadow: 1px 0 0 var(--line); font-weight: 600; }
+  .cmp .col-this { background-image: linear-gradient(var(--green-tint), var(--green-tint)); }
+  .cmp .col-ref { background-color: var(--cream); border-left: 1px dashed var(--line-strong); }
+  .cmp tr.band th { background: var(--cream); font-size: 13px; padding: 8px 12px; }
+  .cmp tbody tr:last-child td, .cmp tbody tr:last-child th { border-bottom: 0; }
+  .cmp-name { display: flex; align-items: flex-start; justify-content: space-between; gap: 4px; }
+  .cmp-name small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+  .cmp-rm { flex: none; width: 28px; height: 28px; margin: -4px -6px 0 0; border: 0; border-radius: 50%; background: none; display: inline-grid; place-items: center; }
+  .cmp-rm:hover { background: var(--cream); }
+  .cmp td small { display: block; font-size: 12px; color: var(--soft); }
+  .cmp td.best { font-weight: 600; }
+  .cmp td em { display: block; font-style: normal; font-size: 12px; font-weight: 600; color: var(--green); }
+  .cmp .na { color: var(--soft); font-weight: 400; }
+  .cmp-note { margin-top: 8px; }
+
+  .ap-foot { margin-top: 24px; display: grid; gap: 12px; }
+  .ap-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip-sample { background: var(--gold-tint); border-color: transparent; }
+
+  /* Khung xem /map (mô phỏng map-place-detail.tsx: panel w-120, p-2, rounded-lg) */
+  .mapview { position: fixed; inset: 0; z-index: 55; background: var(--charcoal); }
+  .mapview[hidden] { display: none; }
+  .mv-map { position: absolute; inset: 0; overflow: hidden; }
+  .mv-top { position: absolute; left: 16px; top: 16px; z-index: 3; display: flex; gap: 8px; }
+  .mv-search { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line-strong); box-shadow: 0 1px 3px rgba(16,17,17,.25); }
+  .mv-panel { position: absolute; top: 0; right: 0; bottom: 0; width: min(480px, 100vw); padding: 8px; z-index: 4; }
+  .mv-card { height: 100%; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 12px; padding: 12px; outline: none; }
+  .mv-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .mv-bar h2 { font-size: 16px; font-weight: 600; }
+  .mv-body { flex: 1; overflow: auto; margin-top: 12px; display: grid; gap: 16px; align-content: start; padding-bottom: 8px; }
+  .mv-place { display: grid; grid-template-columns: 88px 1fr; gap: 12px; align-items: start; }
+  .mv-place img { width: 88px; height: 88px; object-fit: cover; object-position: 50% 62%; border-radius: 12px; }
+  .mv-place .p { font-size: 20px; font-weight: 600; color: var(--green); line-height: 1.2; }
+  .mv-place .t { font-weight: 600; line-height: 1.35; margin-top: 2px; }
+  .mv-place .a { font-size: 14px; color: var(--muted); }
+  .mv-place .chips { margin-top: 8px; }
+  .mapview[data-done="1"] .ring-500 { display: block; }
+  .mapview[data-poi="on"] .poi { display: block; }
+  .map[data-done="1"] .ring-500 { display: block; }
+  .ring-500 { display: none; }
 
   /* Bài viết / link / tin tương tự */
   .posts { display: grid; gap: 16px; grid-template-columns: 1fr; }
@@ -553,7 +645,7 @@
               <div class="map-stage" id="map-stage">
                 <img src="../../../website/public/images/temp-001.png" alt="" width="1622" height="708" />
                 <div class="map-obj ring ring-approx only-approx" id="ring-approx" style="left:52.4%;top:37%;width:5%;" aria-hidden="true"></div>
-                <div class="map-obj ring ring-500" id="ring-500" style="left:52.4%;top:37%;width:14.2%;display:none" aria-hidden="true"></div>
+                <div class="map-obj ring ring-500" id="ring-500" style="left:52.4%;top:37%;width:14.2%" aria-hidden="true"></div>
                 <div class="map-obj poi" style="left:55.5%;top:42.1%"><span class="dot"><svg class="i"><use href="#i-store"/></svg></span><span class="tag">Chợ Phùng Khoang · 270 m</span></div>
                 <div class="map-obj poi" style="left:54.6%;top:51.6%"><span class="dot"><svg class="i"><use href="#i-train"/></svg></span><span class="tag">Ga Phùng Khoang · 470 m</span></div>
                 <div class="map-obj poi" style="left:58.3%;top:31.4%"><span class="dot"><svg class="i"><use href="#i-school"/></svg></span><span class="tag">ĐH Hà Nội · 450 m</span></div>
@@ -587,20 +679,27 @@
           </div>
         </section>
 
-        <!-- Phân tích: không chạy cho tới khi bấm -->
-        <section class="card analysis-card" id="phan-tich" data-a="idle" aria-labelledby="pt-title">
-          <div class="a-head">
-            <h2 id="pt-title" style="margin:0">Phân tích khu vực quanh căn này</h2>
-            <span class="sample-tag" id="sample-tag" hidden>Số liệu minh họa</span>
+        <!-- Khung phân tích dùng lại (AnalysisPanel): chỉ chạy khi bấm. Cùng một component dùng ở trang tin và panel /map -->
+        <div id="ap-home"></div>
+        <section class="card ap" id="phan-tich" data-a="idle" aria-labelledby="pt-title">
+          <header class="ap-head">
+            <h2 id="pt-title">Phân tích vị trí</h2>
+            <p class="ap-subject" id="ap-subject">Quanh ghim của tin, bán kính 500 m</p>
+          </header>
+          <div class="ap-meta" id="ap-meta">
+            <span class="chip chip-plain">Bán kính 500 m</span>
+            <span class="chip chip-plain">Cập nhật dữ liệu 18/10/2026</span>
+            <span class="chip chip-sample">Số liệu minh họa</span>
           </div>
 
           <div class="a-state s-idle">
-            <p class="lede" style="margin-top:12px;max-width:68ch">Tính từ ghim của tin: tiện ích trong 500 m, đường và giao thông, cao độ và mô hình ngập sông, không khí, mật độ dân cư. Mỗi số kèm nguồn và mức phủ dữ liệu.</p>
-            <ul class="a-list" aria-label="Các nhóm sẽ có trong phân tích">
+            <p class="lede" style="max-width:68ch">Tính từ ghim: tiện ích đi bộ, đường và giao thông, môi trường, dân cư. Mỗi chỉ số kèm nguồn và mức phủ dữ liệu. Bạn có thể đặt cạnh các địa điểm khác để so sánh.</p>
+            <ul class="ap-chips" aria-label="Các nhóm sẽ có trong phân tích">
               <li><svg class="i"><use href="#i-store"/></svg>Tiện ích đi bộ</li>
               <li><svg class="i"><use href="#i-train"/></svg>Đi lại và đường</li>
+              <li><svg class="i"><use href="#i-leaf"/></svg>Môi trường</li>
               <li><svg class="i"><use href="#i-users"/></svg>Dân cư</li>
-              <li><svg class="i"><use href="#i-leaf"/></svg>Môi trường: không khí, cao độ, ngập sông</li>
+              <li><svg class="i"><use href="#i-chart"/></svg>So sánh</li>
             </ul>
             <div class="a-cta">
               <button class="btn btn-primary" type="button" id="run-analysis"><svg class="i"><use href="#i-chart"/></svg><span id="run-label">Phân tích địa điểm này</span></button>
@@ -610,7 +709,7 @@
           </div>
 
           <div class="a-state s-loading" aria-live="polite">
-            <button class="btn" type="button" disabled style="margin-top:16px" aria-busy="true"><span class="spin"></span>Đang phân tích…</button>
+            <button class="btn" type="button" disabled aria-busy="true"><span class="spin"></span>Đang phân tích…</button>
             <div class="progress" aria-hidden="true"><i id="prog"></i></div>
             <ul class="steps" id="steps">
               <li data-s="0"><svg class="i i-sm"><use href="#i-check"/></svg>Tìm tiện ích trong 500 m</li>
@@ -806,6 +905,33 @@
   </form>
 </dialog>
 
+<!-- Khung xem /map: cùng component phân tích đặt trong panel w-120 -->
+<div class="mapview" id="mapview" hidden data-done="0" data-poi="off">
+  <div class="mv-map" id="mv-map"></div>
+  <div class="mv-top"><span class="mv-search"><svg class="i"><use href="#i-pin"/></svg>Tìm địa chỉ trên bản đồ</span></div>
+  <div class="mv-panel">
+    <div class="mv-card" id="mv-card" role="dialog" aria-labelledby="mv-title" tabindex="-1">
+      <div class="mv-bar">
+        <h2 id="mv-title">Chi tiết</h2>
+        <button class="icon-btn" type="button" id="mv-close" aria-label="Đóng"><svg class="i"><use href="#i-x"/></svg></button>
+      </div>
+      <div class="mv-body">
+        <div class="mv-place">
+          <img src="../../../website/public/images/temp-002.jpg" alt="Phòng khách căn hộ" />
+          <div>
+            <p class="p">4,2 tỷ</p>
+            <p class="t">Căn hộ 2 ngủ gần ga Phùng Khoang</p>
+            <p class="a">Phố Phùng Khoang, phường Trung Văn</p>
+            <div class="chips"><span class="chip chip-green">Bán</span><span class="chip">72 m²</span><span class="chip">2 ngủ</span></div>
+          </div>
+        </div>
+        <a class="btn btn-sm" href="#">Xem trang tin đầy đủ</a>
+        <div id="mv-slot"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast" role="status"></div>
 
 <!-- Bảng chuyển trạng thái để xem mock (không thuộc giao diện thật) -->
@@ -827,6 +953,12 @@
         <option value="none">Thiếu tọa độ</option>
       </select>
     </label>
+    <label>Khung hiển thị khung phân tích
+      <select id="m-view">
+        <option value="page">Trang chi tiết tin</option>
+        <option value="map">Panel /map (w-120)</option>
+      </select>
+    </label>
     <label>Trạng thái tin
       <select id="m-status">
         <option value="active">Đang rao</option>
@@ -835,6 +967,7 @@
     </label>
     <label class="row"><input type="checkbox" id="m-login" checked /> Đã đăng nhập</label>
     <label class="row"><input type="checkbox" id="m-articles" checked /> Có bài viết liên quan</label>
+    <label class="row"><input type="checkbox" id="m-place" /> Điểm bản đồ không phải tin (không có nhóm tin đăng)</label>
     <button class="btn btn-sm" type="button" id="m-reset">Đặt lại phân tích</button>
   </div>
 </details>
@@ -935,17 +1068,19 @@
   var PIN = { x: 0.524, y: 0.37 }, IMG = { w: 1622, h: 708 };
   var map = $("#map"), stage = $("#map-stage");
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
-  function layoutMap() {
-    var cw = map.clientWidth, ch = map.clientHeight;
+  function cover(cont, st, o, reserve) {
+    var cw = cont.clientWidth, ch = cont.clientHeight;
     if (!cw || !ch) return;
-    var s = Math.max(cw / IMG.w, ch / IMG.h) * state.zoom;
+    var s = Math.max(cw / IMG.w, ch / IMG.h) * o.zoom;
     var w = IMG.w * s, h = IMG.h * s;
-    var left = clamp(cw / 2 - PIN.x * w + state.dx, cw - w, 0);
-    var top = clamp(ch / 2 - PIN.y * h + state.dy, ch - h, 0);
-    state.dx = left - (cw / 2 - PIN.x * w); state.dy = top - (ch / 2 - PIN.y * h);
-    stage.style.width = w + "px"; stage.style.height = h + "px";
-    stage.style.transform = "translate(" + left + "px," + top + "px)";
+    var cx = (cw - (reserve || 0)) / 2, cy = ch / 2;
+    var left = clamp(cx - PIN.x * w + o.dx, cw - w, 0);
+    var top = clamp(cy - PIN.y * h + o.dy, ch - h, 0);
+    o.dx = left - (cx - PIN.x * w); o.dy = top - (cy - PIN.y * h);
+    st.style.width = w + "px"; st.style.height = h + "px";
+    st.style.transform = "translate(" + left + "px," + top + "px)";
   }
+  function layoutMap() { cover(map, stage, state, 0); }
   window.addEventListener("resize", layoutMap);
   $("#zoom-in").addEventListener("click", function () { state.zoom = Math.min(3, state.zoom + 0.5); layoutMap(); });
   $("#zoom-out").addEventListener("click", function () { state.zoom = Math.max(1, state.zoom - 0.5); layoutMap(); });
@@ -976,133 +1111,279 @@
   });
   $("#poi-toggle").addEventListener("change", function () { map.dataset.poi = this.checked ? "on" : "off"; });
 
-  /* ---------- Phân tích (chỉ chạy khi bấm) ---------- */
   var card = $("#phan-tich");
+  /* ---------- Khung phân tích dùng lại (AnalysisPanel) ----------
+     Mọi hàng/cột/nhóm sinh ra từ DỮ LIỆU bên dưới. Thêm một chỉ số = thêm một dòng vào METRICS;
+     thêm một nhóm = thêm vào GROUPS; thêm địa điểm so sánh = thêm vào SUBJECTS. Bố cục không đổi. */
+  var CONF = { cao: ["conf-cao", "Tin cậy cao"], tb: ["conf-tb", "Tin cậy trung bình"], thap: ["conf-thap", "Tin cậy thấp"] };
+  var SUBJECTS = {
+    "this": { name: "Căn này", sub: "4,2 tỷ · 72 m²" },
+    b1: { name: "Căn 2 ngủ tòa B1", sub: "3,9 tỷ · 68 m²" },
+    b2: { name: "Căn 3 ngủ view công viên", sub: "4,6 tỷ · 80 m²" },
+    b3: { name: "Căn 2 ngủ gần chợ Phùng Khoang", sub: "3,6 tỷ · 65 m²" },
+    med: { name: "Trung vị trong 1 km", sub: "Tham chiếu (mẫu)", ref: true }
+  };
+  var GROUPS = [
+    { id: "walk", title: "Tiện ích đi bộ, 500 m", icon: "i-store", intro: "Khoảng cách tới điểm gần nhất và số điểm trong bán kính. Nguồn chính là OpenStreetMap." },
+    { id: "move", title: "Đi lại và đường", icon: "i-train", intro: "Một ghim không biết mặt nào là mặt tiền. Cấp đường không phải kết luận về xe cứu hỏa." },
+    { id: "env", title: "Môi trường", icon: "i-leaf", intro: "Chỉ số đo được, gọi đúng tên. Không kết luận “dễ ngập” hay “không ngập”." },
+    { id: "pop", title: "Dân cư", icon: "i-users", intro: "Ước tính theo ô lưới, đủ để so sánh khu vực, không đủ để nói về từng ngõ." },
+    { id: "listing", title: "Thông tin tin đăng", icon: "i-building", compareOnly: true, listingOnly: true, intro: "Do người đăng khai, không phải số đo." }
+  ];
+  // better: "lower" | "higher" | null (chỉ đánh dấu khi là số đo trung tính, không chấm điểm)
+  var METRICS = [
+    { id: "cho", g: "walk", label: "Chợ", kind: "dist", better: "lower", radius: 500, conf: "tb", naShort: "Không thấy trong 500 m", src: "OpenStreetMap, amenity=marketplace", note: "Chợ Phùng Khoang.", v: { "this": 270, b1: 380, b2: 150, b3: 120, med: 420 } },
+    { id: "thuoc", g: "walk", label: "Hiệu thuốc", kind: "dist", better: "lower", radius: 500, conf: "cao", naShort: "Không thấy trong 500 m", src: "OpenStreetMap, amenity=pharmacy", note: "4 hiệu thuốc trong 500 m.", v: { "this": 160, b1: 240, b2: 90, b3: 200, med: 300 } },
+    { id: "sieu", g: "walk", label: "Siêu thị", kind: "dist", better: "lower", radius: 500, conf: "tb", naShort: "Không thấy trong 500 m", src: "OpenStreetMap, shop=supermarket", note: "Không gộp cửa hàng tiện lợi.", v: { "this": 390, b1: null, b2: 280, b3: 450, med: 420 } },
+    { id: "an", g: "walk", label: "Quán ăn, cà phê", kind: "count", better: "higher", radius: 500, conf: "tb", naShort: "Không thấy", src: "OpenStreetMap", note: "Không tách được quán ăn sáng.", v: { "this": 12, b1: 8, b2: 15, b3: 21, med: 10 } },
+    { id: "truong", g: "walk", label: "Trường học", kind: "dist", better: "lower", radius: 500, conf: "tb", naShort: "Không thấy trong 500 m", src: "OpenStreetMap, amenity=school", note: "Không có nhãn trường tốt.", v: { "this": 450, b1: 380, b2: null, b3: 300, med: 400 } },
+    { id: "vattu", g: "walk", label: "Cửa hàng vật tư", kind: "count", better: "higher", radius: 500, conf: "thap", naShort: "Không thấy", src: "OpenStreetMap, shop=hardware", note: "Phủ yếu. Không kết luận là khu vực không có.", v: { "this": 0, b1: 1, b2: 0, b3: 2, med: 1 } },
+    { id: "ga", g: "move", label: "Ga metro", kind: "dist", better: "lower", radius: 2000, conf: "cao", naShort: "Ngoài 2 km", src: "OpenStreetMap, đối chiếu GTFS", note: "Ga Phùng Khoang.", v: { "this": 470, b1: 650, b2: 380, b3: 820, med: 900 } },
+    { id: "bus", g: "move", label: "Điểm xe buýt", kind: "dist", better: "lower", radius: 500, conf: "tb", naShort: "Không thấy trong 500 m", src: "GTFS Hà Nội, đối chiếu OpenStreetMap", note: "Điểm dừng gần nhất.", v: { "this": 120, b1: 90, b2: 150, b3: 200, med: 180 } },
+    { id: "road", g: "move", label: "Đường lớn (secondary)", kind: "dist", better: "lower", radius: 500, conf: "tb", naShort: "Không thấy trong 500 m", src: "OpenStreetMap", note: "Chưa có thẻ bề rộng.", v: { "this": 90, b1: 140, b2: 60, b3: 110, med: 200 } },
+    { id: "caodo", g: "env", label: "Cao độ", kind: "num", unit: "m", dec: 1, better: null, conf: "tb", naShort: "Chưa có dữ liệu", src: "FABDEM · ô 30 m", note: "Thấp hơn trung vị xung quanh 0,4 m.", v: { "this": 7.8, b1: 8.1, b2: 7.5, b3: 7.9, med: 8.2 } },
+    { id: "ngap", g: "env", label: "Ngập sông (mô hình)", kind: "text", better: null, conf: "tb", naShort: "Chưa có dữ liệu", src: "JRC Global River Flood Hazard", note: "Không phải bản đồ ngập đường sau mưa.", v: { "this": "Ngoài vệt ngập", b1: "Ngoài vệt ngập", b2: "Ngoài vệt ngập", b3: "Trong vệt, sâu 0,3 m (100 năm)", med: "Ngoài vệt ngập" } },
+    { id: "khi", g: "env", label: "Không khí (PM2.5)", kind: "text", better: null, conf: "thap", naShort: "Chưa có dữ liệu", src: "OpenAQ · trạm gần nhất", note: "Trạm xa hơn 3 km thì không gán cho địa điểm.", v: { "this": "Trung bình · trạm 2,6 km", b1: "Trung bình · trạm 2,9 km", b2: null, b3: "Trung bình · trạm 2,4 km", med: null } },
+    { id: "xanh", g: "env", label: "Mảng xanh", kind: "num", unit: "%", dec: 0, better: "higher", radius: 300, conf: "tb", naShort: "Chưa có dữ liệu", src: "ESA WorldCover", note: "Tỷ lệ thực vật trong 300 m.", v: { "this": 22, b1: 18, b2: 31, b3: 15, med: 20 } },
+    { id: "dan", g: "pop", label: "Mật độ dân cư", kind: "num", unit: "người/ô 500 m", dec: 0, better: null, conf: "tb", naShort: "Chưa có dữ liệu", src: "WorldPop 100 m", note: "Thuộc nhóm đông trong khu vực.", v: { "this": 9800, b1: 11200, b2: 8600, b3: 10400, med: 9500 } },
+    { id: "gia", g: "listing", label: "Giá chào", kind: "text", better: null, conf: "tb", naShort: "—", src: "Người đăng khai", v: { "this": "4,2 tỷ", b1: "3,9 tỷ", b2: "4,6 tỷ", b3: "3,6 tỷ", med: null } },
+    { id: "gia2", g: "listing", label: "Giá/m²", kind: "text", better: null, conf: "tb", naShort: "—", src: "Tính từ giá chào", v: { "this": "58,3 tr", b1: "57,4 tr", b2: "57,5 tr", b3: "55,4 tr", med: null } },
+    { id: "dt", g: "listing", label: "Diện tích", kind: "text", better: null, conf: "tb", naShort: "—", src: "Người đăng khai", v: { "this": "72 m²", b1: "68 m²", b2: "80 m²", b3: "65 m²", med: null } },
+    { id: "ngu", g: "listing", label: "Phòng ngủ", kind: "text", better: null, conf: "tb", naShort: "—", src: "Người đăng khai", v: { "this": "2", b1: "2", b2: "3", b3: "2", med: null } },
+    { id: "phaply", g: "listing", label: "Pháp lý (người đăng khai)", kind: "text", better: null, conf: "tb", naShort: "—", src: "Người đăng khai", v: { "this": "Sổ hồng", b1: "Sổ hồng", b2: "Hợp đồng", b3: "Sổ hồng", med: null } }
+  ];
+  var cmp = { cols: ["this", "b1", "b2"], ref: true, diff: false };
+  var ap = { tab: "sum", mode: "listing", partial: false };
+
+  function fnum(n, d) { return n.toLocaleString("vi-VN", { maximumFractionDigits: d == null ? 1 : d, minimumFractionDigits: 0 }); }
+  function fval(m, v) {
+    if (v == null) return null;
+    if (m.kind === "dist") return v >= 1000 ? fnum(v / 1000, 1) + " km" : v + " m";
+    if (m.kind === "count") return v + " điểm";
+    if (m.kind === "num") return fnum(v, m.dec || 0) + (m.unit ? " " + m.unit : "");
+    return String(v);
+  }
+  function metricValue(m, sid) {
+    if (m.id === "khi" && sid === "this" && ap.partial) return null;
+    var v = m.v[sid]; return v === undefined ? null : v;
+  }
+  function visibleGroups(forCompare) {
+    return GROUPS.filter(function (g) {
+      if (g.compareOnly && !forCompare) return false;
+      if (g.listingOnly && ap.mode === "place") return false;
+      return true;
+    });
+  }
+  function needsCheck(m) { return m.conf === "thap" || metricValue(m, "this") == null; }
+
+  /* --- Tab: Chỉ số --- */
+  function metricRow(m) {
+    var v = metricValue(m, "this"), val = fval(m, v), cl = CONF[m.conf], bar = "", main;
+    if (val == null) {
+      main = '<span class="ap-val na">' + m.naShort + (m.id === "khi" && ap.partial ? " (trạm gần nhất cách 4,2 km)" : "") + '</span>';
+    } else {
+      main = '<span class="ap-val">' + val + '</span>';
+      if (m.kind === "dist" && m.radius) bar = '<span class="ap-bar" role="img" aria-label="' + val + ' trong bán kính ' + fval({ kind: "dist" }, m.radius) + '"><i style="width:' + Math.max(4, Math.min(100, v / m.radius * 100)) + '%"></i></span>';
+    }
+    var conf = val == null ? CONF.thap : cl;
+    return '<div class="ap-row" data-check="' + (needsCheck(m) ? 1 : 0) + '"><dt>' + m.label + '</dt><dd class="v">' + main + bar +
+      '<small>' + (m.note ? m.note + " · " : "") + m.src + (m.radius ? " · " + fval({ kind: "dist" }, m.radius) : "") + '</small></dd>' +
+      '<dd class="c"><span class="conf ' + conf[0] + '">' + conf[1] + '</span></dd></div>';
+  }
+  function buildMetrics() {
+    var html = '<div class="ap-tools"><span class="fine">' + visibleGroups(false).length + ' nhóm chỉ số</span>' +
+      '<label class="sr" for="ap-filter">Lọc chỉ số</label><select id="ap-filter"><option value="all">Hiện tất cả chỉ số</option><option value="check">Chỉ chỗ cần kiểm tra</option></select></div><div class="groups">';
+    visibleGroups(false).forEach(function (g, i) {
+      var ms = METRICS.filter(function (m) { return m.g === g.id; });
+      var n = ms.filter(needsCheck).length;
+      html += '<details class="group"' + (i === 0 ? " open" : "") + '><summary><span class="t"><svg class="i"><use href="#' + g.icon + '"/></svg>' + g.title + '</span><span style="display:inline-flex;align-items:center;gap:8px">' +
+        (n ? '<span class="chip chip-gold">' + n + ' cần kiểm tra</span>' : '') + '<svg class="i chev"><use href="#i-chev"/></svg></span></summary><p class="intro">' + g.intro + '</p><dl>' +
+        ms.map(metricRow).join("") + '</dl></details>';
+    });
+    return html + '</div>';
+  }
+
+  /* --- Tab: So sánh --- */
+  function bestOf(m, cols) {
+    if (!m.better || m.kind === "text") return null;
+    var vals = cols.map(function (c) { return metricValue(m, c); }).filter(function (x) { return x != null; });
+    if (vals.length < 2) return null;
+    var b = m.better === "lower" ? Math.min.apply(null, vals) : Math.max.apply(null, vals);
+    var hits = cols.filter(function (c) { return metricValue(m, c) === b; });
+    return hits.length === 1 ? hits[0] : null;
+  }
+  function bestLabel(m) {
+    if (m.better === "lower") return m.kind === "dist" ? "gần nhất" : "thấp nhất";
+    return m.kind === "count" ? "nhiều nhất" : "cao nhất";
+  }
+  function buildCompare() {
+    var cols = cmp.cols.slice(), all = cols.concat(cmp.ref ? ["med"] : []);
+    var head = '<tr><th scope="col">Thuộc tính</th>' + all.map(function (c) {
+      var s = SUBJECTS[c], cls = c === "this" ? "col-this" : (s.ref ? "col-ref" : "");
+      var name = c === "this" && ap.mode === "place" ? "Điểm đã chọn" : s.name;
+      var sub = c === "this" && ap.mode === "place" ? "Ghim trên bản đồ" : s.sub;
+      return '<th scope="col" class="' + cls + '"><div class="cmp-name"><span>' + name + '<small>' + sub + '</small></span>' +
+        (c !== "this" && !s.ref ? '<button class="cmp-rm" type="button" data-rm="' + c + '" aria-label="Bỏ ' + s.name + ' khỏi so sánh"><svg class="i i-sm"><use href="#i-x"/></svg></button>' : '') + '</div></th>';
+    }).join("") + '</tr>';
+    var body = "", rows = 0;
+    visibleGroups(true).forEach(function (g) {
+      var ms = METRICS.filter(function (m) { return m.g === g.id; }), part = "";
+      ms.forEach(function (m) {
+        var shown = cols.map(function (c) { return metricValue(m, c); });
+        if (cmp.diff && shown.every(function (x) { return String(x) === String(shown[0]); })) return;
+        var best = bestOf(m, cols);
+        part += '<tr><th scope="row">' + m.label + (m.radius ? '<small style="font-weight:400;color:var(--soft);font-size:12px;display:block">trong ' + fval({ kind: "dist" }, m.radius) + '</small>' : '') + '</th>' +
+          all.map(function (c) {
+            var v = metricValue(m, c), txt = fval(m, v), cls = c === "this" ? "col-this" : (SUBJECTS[c].ref ? "col-ref" : "");
+            if (best === c) cls += " best";
+            if (c === "this" && ap.partial && m.id === "khi") txt = null;
+            return '<td class="' + cls + '">' + (txt == null ? '<span class="na">' + (SUBJECTS[c].ref && m.g === "listing" ? "—" : m.naShort) + '</span>' : txt + (best === c ? '<em>' + bestLabel(m) + '</em>' : '')) + '</td>';
+          }).join("") + '</tr>';
+        rows++;
+      });
+      if (part) body += '<tr class="band"><th scope="colgroup" colspan="' + (all.length + 1) + '">' + g.title + '</th></tr>' + part;
+    });
+    if (!rows) body = '<tr><td colspan="' + (all.length + 1) + '">Các địa điểm đang chọn giống nhau ở mọi chỉ số.</td></tr>';
+    var cand = Object.keys(SUBJECTS).filter(function (k) { return !SUBJECTS[k].ref && cmp.cols.indexOf(k) < 0; });
+    var menu = cmp.cols.length >= 4 ? '' : '<details class="cmp-add"><summary><svg class="i i-sm"><use href="#i-plus"/></svg>Thêm địa điểm</summary><div class="cmp-menu"><p>Từ danh sách đã lưu và tin tương tự</p>' +
+      (cand.length ? cand.map(function (k) { return '<button type="button" data-add="' + k + '"><b>' + SUBJECTS[k].name + '</b><span>' + SUBJECTS[k].sub + '</span></button>'; }).join("") : '<p>Không còn địa điểm để thêm.</p>') + '</div></details>';
+    return '<div class="cmp-bar"><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">' + menu + '<span class="fine">' + cmp.cols.length + '/4 địa điểm</span></div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:0 16px"><label class="toggle"><input type="checkbox" id="cmp-diff"' + (cmp.diff ? " checked" : "") + ' /> Chỉ hiện chỗ khác nhau</label>' +
+      '<label class="toggle"><input type="checkbox" id="cmp-ref"' + (cmp.ref ? " checked" : "") + ' /> Cột trung vị khu vực</label></div></div>' +
+      '<div class="cmp-scroll" role="region" aria-label="Bảng so sánh, cuộn ngang nếu cần" tabindex="0"><table class="cmp" style="--cols:' + all.length + '"><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>' +
+      '<p class="fine cmp-note">Nhãn xanh chỉ nói địa điểm nào có số đo gần hơn hoặc nhiều hơn, không phải điểm số hay xếp hạng. Tin cậy và nguồn của từng chỉ số xem ở tab Chỉ số.</p>';
+  }
+
+  /* --- Tab: Tóm tắt + khung chung --- */
+  function buildSummary() {
+    var air = ap.partial ? '<li><svg class="i i-sm"><use href="#i-info"/></svg>Chưa có dữ liệu không khí cho vị trí này.</li>' : '';
+    return '<p class="result-summary">Trong vòng 500 m quanh ghim, bản đồ mở ghi nhận 38 điểm. Chợ Phùng Khoang cách khoảng 270 m, ga metro Phùng Khoang khoảng 470 m, trường đại học gần nhất khoảng 450 m. Không thấy cửa hàng vật tư trong 500 m; mục này phủ yếu, không có nghĩa là khu vực không có. Chưa có dữ liệu quy hoạch theo thửa.</p>' +
+      '<div class="ap-two"><div><h3>Điểm mạnh</h3><ul>' +
+      '<li><svg class="i i-sm" style="color:var(--green)"><use href="#i-check"/></svg>Ga metro trong bán kính đi bộ, khoảng 470 m.</li>' +
+      '<li><svg class="i i-sm" style="color:var(--green)"><use href="#i-check"/></svg>Có chợ, 4 hiệu thuốc và 12 quán ăn, cà phê trong 500 m.</li>' +
+      '<li><svg class="i i-sm" style="color:var(--green)"><use href="#i-check"/></svg>Mảng xanh khoảng 22% trong 300 m.</li></ul></div>' +
+      '<div><h3>Chỗ thiếu dữ liệu hoặc cần kiểm tra</h3><ul>' +
+      '<li><svg class="i i-sm"><use href="#i-info"/></svg>Không rõ vỉa hè và bề rộng ngõ tại ghim.</li>' +
+      '<li><svg class="i i-sm"><use href="#i-info"/></svg>Không thấy cửa hàng vật tư trong 500 m. Phủ yếu.</li>' + air +
+      '<li><svg class="i i-sm"><use href="#i-info"/></svg>Chưa có mô hình ngập đường sau mưa.</li>' +
+      '<li><svg class="i i-sm"><use href="#i-info"/></svg>Chưa có dữ liệu quy hoạch theo thửa.</li></ul></div></div>';
+  }
+  var TABS = [["sum", "Tóm tắt"], ["met", "Chỉ số"], ["cmp", "So sánh"]];
+  function buildResult() {
+    var n = METRICS.filter(function (m) { return visibleGroups(false).some(function (g) { return g.id === m.g; }) && needsCheck(m); }).length;
+    return '<div class="ap-cover"><div class="ap-coverage"><div><b>Mức phủ dữ liệu: khá</b><span>38 điểm trong 500 m · 4 trên 5 nhóm có số liệu</span></div>' +
+      '<span class="ap-seg" role="img" aria-label="Mức phủ 4 trên 5"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>' +
+      '<div class="ap-kpis"><div class="kpi"><b>270 m</b><span>Chợ gần nhất</span></div><div class="kpi"><b>470 m</b><span>Ga metro gần nhất</span></div><div class="kpi"><b>12 điểm</b><span>Quán ăn, cà phê</span></div></div></div>' +
+      '<div class="ap-tabs" role="tablist" aria-label="Nội dung phân tích">' + TABS.map(function (t) {
+        return '<button class="ap-tab" type="button" role="tab" id="tab-' + t[0] + '" data-tab="' + t[0] + '" aria-controls="pane-' + t[0] + '" aria-selected="' + (ap.tab === t[0]) + '" tabindex="' + (ap.tab === t[0] ? 0 : -1) + '">' + t[1] + (t[0] === "met" && n ? '<span class="n">' + n + ' cần kiểm tra</span>' : '') + '</button>';
+      }).join("") + '</div>' +
+      '<div class="ap-pane" role="tabpanel" id="pane-sum" aria-labelledby="tab-sum"' + (ap.tab === "sum" ? "" : " hidden") + '>' + buildSummary() + '</div>' +
+      '<div class="ap-pane" role="tabpanel" id="pane-met" aria-labelledby="tab-met"' + (ap.tab === "met" ? "" : " hidden") + '>' + buildMetrics() + '</div>' +
+      '<div class="ap-pane" role="tabpanel" id="pane-cmp" aria-labelledby="tab-cmp"' + (ap.tab === "cmp" ? "" : " hidden") + '>' + buildCompare() + '</div>' +
+      '<div class="ap-foot"><p class="fine">Nguồn: OpenStreetMap, WorldPop, FABDEM, JRC, ESA WorldCover, OpenAQ, GTFS Hà Nội. <a href="#">Xem nguồn dữ liệu</a></p>' +
+      '<div class="notice"><svg class="i"><use href="#i-info"/></svg><p>Đây là tham chiếu từ dữ liệu mở, không phải kết luận pháp lý hay tư vấn đầu tư. Không có số liệu không có nghĩa là khu vực không có.</p></div>' +
+      '<div class="ap-actions"><a class="btn btn-primary btn-sm" href="#">Mở báo cáo đầy đủ</a><button class="btn btn-sm" type="button" id="save-history">Lưu vào lịch sử</button><button class="btn btn-sm rerun" type="button">Phân tích lại</button></div></div>';
+  }
+  function selectTab(id, focus) {
+    ap.tab = id;
+    $$(".ap-tab", card).forEach(function (t) { var on = t.dataset.tab === id; t.setAttribute("aria-selected", String(on)); t.tabIndex = on ? 0 : -1; if (on && focus) t.focus(); });
+    $$(".ap-pane", card).forEach(function (p) { p.hidden = p.id !== "pane-" + id; });
+  }
+  function rerenderCompare() { $("#pane-cmp", card).innerHTML = buildCompare(); }
+
+  card.addEventListener("click", function (e) {
+    var t = e.target.closest(".ap-tab"); if (t) { selectTab(t.dataset.tab); return; }
+    var rm = e.target.closest("[data-rm]"); if (rm) { cmp.cols = cmp.cols.filter(function (c) { return c !== rm.dataset.rm; }); rerenderCompare(); toast("Đã bỏ khỏi so sánh."); return; }
+    var add = e.target.closest("[data-add]"); if (add) { if (cmp.cols.length < 4) cmp.cols.push(add.dataset.add); rerenderCompare(); toast("Đã thêm vào so sánh."); return; }
+    if (e.target.closest("#save-history")) { toast("Đã lưu vào lịch sử phân tích."); return; }
+    if (e.target.closest(".rerun")) { run(); }
+  });
+  card.addEventListener("change", function (e) {
+    if (e.target.id === "ap-filter") card.classList.toggle("only-check", e.target.value === "check");
+    if (e.target.id === "cmp-diff") { cmp.diff = e.target.checked; rerenderCompare(); $("#cmp-diff", card).focus(); }
+    if (e.target.id === "cmp-ref") { cmp.ref = e.target.checked; rerenderCompare(); $("#cmp-ref", card).focus(); }
+  });
+  card.addEventListener("keydown", function (e) {
+    var tab = e.target.closest && e.target.closest(".ap-tab"); if (!tab) return;
+    var ids = TABS.map(function (x) { return x[0]; }), i = ids.indexOf(tab.dataset.tab), n = null;
+    if (e.key === "ArrowRight") n = ids[(i + 1) % ids.length]; else if (e.key === "ArrowLeft") n = ids[(i + ids.length - 1) % ids.length];
+    else if (e.key === "Home") n = ids[0]; else if (e.key === "End") n = ids[ids.length - 1];
+    if (n) { e.preventDefault(); selectTab(n, true); }
+  });
+
+  /* --- Trạng thái và chạy --- */
   function setA(v) { card.dataset.a = v; }
   function clearTimers() { state.timers.forEach(clearTimeout); state.timers = []; }
-
-  function eligibility() {
-    if (state.acc === "none") return "Chưa có tọa độ cho tin này nên chưa phân tích được.";
-    if (document.body.dataset.status === "ended") return null;
-    return null;
+  function setDone(on) { [map, $("#mapview")].forEach(function (el) { if (el) el.dataset.done = on ? "1" : "0"; }); $("#legend").classList.toggle("show", on); }
+  function eligibility() { return state.acc === "none" ? "Chưa có tọa độ cho tin này nên chưa phân tích được." : null; }
+  function renderSubject() {
+    $("#ap-subject").textContent = ap.mode === "place" ? "Quanh điểm đã chọn trên bản đồ, bán kính 500 m" : "Quanh ghim của tin, bán kính 500 m";
   }
   function renderIdle() {
-    var btn = $("#run-analysis"), hint = $("#run-hint"), block = $("#run-block"), lbl = $("#run-label");
-    var why = eligibility();
-    btn.disabled = false; btn.removeAttribute("aria-disabled"); block.hidden = true;
-    if (why) {
-      btn.disabled = true; btn.setAttribute("aria-disabled", "true");
-      block.textContent = why; block.hidden = false; hint.hidden = true; lbl.textContent = "Phân tích địa điểm này";
-    } else if (!state.login) {
-      lbl.textContent = "Đăng nhập để phân tích"; hint.hidden = false;
-      hint.textContent = "Sau khi đăng nhập bạn quay lại đúng tin này, rồi bấm phân tích.";
-    } else {
-      lbl.textContent = "Phân tích địa điểm này"; hint.hidden = false;
-      hint.textContent = "Khoảng vài giây · Dùng 1 lượt phân tích, bạn còn " + state.quota + " lượt hôm nay.";
-    }
-    $("#sample-tag").hidden = true;
+    var btn = $("#run-analysis"), hint = $("#run-hint"), block = $("#run-block"), lbl = $("#run-label"), why = eligibility();
+    btn.disabled = false; btn.removeAttribute("aria-disabled"); block.hidden = true; renderSubject();
+    if (why) { btn.disabled = true; btn.setAttribute("aria-disabled", "true"); block.textContent = why; block.hidden = false; hint.hidden = true; lbl.textContent = "Phân tích địa điểm này"; }
+    else if (!state.login) { lbl.textContent = "Đăng nhập để phân tích"; hint.hidden = false; hint.textContent = "Sau khi đăng nhập bạn quay lại đúng nơi này, rồi bấm phân tích."; }
+    else { lbl.textContent = "Phân tích địa điểm này"; hint.hidden = false; hint.textContent = "Khoảng vài giây · Dùng 1 lượt phân tích, bạn còn " + state.quota + " lượt hôm nay."; }
   }
-  function resetAnalysis() {
-    clearTimers(); setA("idle"); renderIdle();
-    $("#ring-500").style.display = "none"; $("#legend").classList.remove("show"); map.dataset.poi = "off";
-    $("#result-body").innerHTML = "";
-  }
-
-  function metric(label, res, src, conf, extra) {
-    var cl = { "cao": ["conf-cao", "Tin cậy cao"], "tb": ["conf-tb", "Tin cậy trung bình"], "thap": ["conf-thap", "Tin cậy thấp"] }[conf];
-    return '<div class="metric"><dt>' + label + '</dt><dd>' + res + '<small>' + src + (extra ? ' · ' + extra : '') + '</small></dd><span class="conf ' + cl[0] + '">' + cl[1] + '</span></div>';
-  }
-  function group(title, icon, intro, rows, open) {
-    return '<details class="group"' + (open ? " open" : "") + '><summary><span style="display:inline-flex;align-items:center;gap:10px"><svg class="i"><use href="#' + icon + '"/></svg>' + title + '</span><svg class="i chev"><use href="#i-chev"/></svg></summary><p class="intro">' + intro + '</p><dl>' + rows.join("") + '</dl></details>';
-  }
-  function buildResult(partial) {
-    var envRows = [
-      metric("Cao độ", "Khoảng 7,8 m, thấp hơn trung vị xung quanh 0,4 m.", "FABDEM", "tb", "ô 30 m"),
-      metric("Ngập sông (mô hình)", "Ô này không nằm trong vệt ngập sông chu kỳ 10 và 100 năm. Đây không phải bản đồ ngập đường sau mưa.", "JRC Global River Flood Hazard", "tb", "ô mô hình"),
-      metric("Mảng xanh", "Khoảng 22% diện tích trong 300 m là thực vật.", "ESA WorldCover", "tb", "300 m")
-    ];
-    if (partial) {
-      envRows.push(metric("Không khí", "Chưa có dữ liệu. Trạm gần nhất cách khoảng 4,2 km, xa hơn 3 km nên không gán cho căn này.", "OpenAQ", "thap", "trạm gần nhất"));
-    } else {
-      envRows.push(metric("Không khí", "PM2.5 tại trạm gần nhất ở mức trung bình. Trạm cách khoảng 2,6 km.", "OpenAQ", "thap", "trạm gần nhất"));
-    }
-    return '' +
-      '<p class="result-summary" style="margin-top:12px">Trong vòng 500 m quanh ghim, bản đồ mở ghi nhận 38 điểm. Chợ Phùng Khoang cách khoảng 270 m, ga metro Phùng Khoang khoảng 470 m, trường đại học gần nhất khoảng 450 m. Không thấy cửa hàng vật tư trong 500 m; mục này phủ yếu, không có nghĩa là khu vực không có. Chưa có dữ liệu quy hoạch theo thửa.</p>' +
-      '<div class="kpis"><div class="kpi"><b>38 chỗ</b><span>Mức phủ trong 500 m</span></div><div class="kpi"><b>270 m</b><span>Chợ gần nhất</span></div><div class="kpi"><b>470 m</b><span>Ga metro gần nhất</span></div></div>' +
-      '<div class="two-col"><div><h3>Điểm mạnh</h3><ul>' +
-        '<li><svg class="i i-sm" style="color:var(--green)"><use href="#i-check"/></svg>Ga metro trong bán kính đi bộ, khoảng 470 m.</li>' +
-        '<li><svg class="i i-sm" style="color:var(--green)"><use href="#i-check"/></svg>Có chợ, 4 hiệu thuốc và 12 quán ăn, cà phê trong 500 m.</li>' +
-        '<li><svg class="i i-sm" style="color:var(--green)"><use href="#i-check"/></svg>Công viên có tên cách khoảng 400 m.</li></ul></div>' +
-      '<div><h3>Chỗ thiếu dữ liệu hoặc cần kiểm tra</h3><ul>' +
-        '<li><svg class="i i-sm"><use href="#i-info"/></svg>Không rõ vỉa hè và bề rộng ngõ tại ghim.</li>' +
-        '<li><svg class="i i-sm"><use href="#i-info"/></svg>Không thấy cửa hàng vật tư trong 500 m. Phủ yếu.</li>' +
-        (partial ? '<li><svg class="i i-sm"><use href="#i-info"/></svg>Chưa có dữ liệu không khí cho vị trí này.</li>' : '') +
-        '<li><svg class="i i-sm"><use href="#i-info"/></svg>Chưa có mô hình ngập đường sau mưa.</li>' +
-        '<li><svg class="i i-sm"><use href="#i-info"/></svg>Chưa có dữ liệu quy hoạch theo thửa.</li></ul></div></div>' +
-      '<div class="groups">' +
-        group("Tiện ích đi bộ, 500 m", "i-store", "Khoảng cách tới điểm gần nhất và số điểm trong bán kính. Nguồn chính là OpenStreetMap.", [
-          metric("Chợ", "1 chợ. Gần nhất khoảng 270 m.", "OpenStreetMap, amenity=marketplace", "tb", "500 m"),
-          metric("Hiệu thuốc", "4 hiệu thuốc. Gần nhất khoảng 160 m.", "OpenStreetMap, amenity=pharmacy", "cao", "500 m"),
-          metric("Siêu thị", "1 siêu thị khoảng 390 m. Không gộp cửa hàng tiện lợi.", "OpenStreetMap, shop=supermarket", "tb", "500 m"),
-          metric("Quán ăn, cà phê", "12 điểm. Không tách được quán ăn sáng.", "OpenStreetMap", "tb", "500 m"),
-          metric("Trường học", "Trường gần nhất khoảng 450 m. Không có nhãn trường tốt.", "OpenStreetMap, amenity=school", "tb", "500 m"),
-          metric("Cửa hàng vật tư", "0 điểm trong 500 m. Phủ yếu. Không kết luận là khu vực không có.", "OpenStreetMap, shop=hardware", "thap", "500 m")
-        ], true) +
-        group("Đi lại và đường", "i-train", "Một ghim không biết mặt nào là mặt tiền. Cấp đường không phải kết luận về xe cứu hỏa.", [
-          metric("Ga metro", "Ga Phùng Khoang khoảng 470 m. Ga Văn Quán khoảng 1,4 km.", "OpenStreetMap, đối chiếu GTFS", "cao", "2 km"),
-          metric("Điểm xe buýt", "Điểm dừng gần nhất khoảng 120 m.", "GTFS Hà Nội, đối chiếu OpenStreetMap", "tb", "500 m"),
-          metric("Đường lớn", "Đường loại secondary cách khoảng 90 m. Chưa có thẻ bề rộng.", "OpenStreetMap", "tb", "—")
-        ]) +
-        group("Môi trường", "i-leaf", "Chỉ số đo được, gọi đúng tên. Không kết luận “dễ ngập” hay “không ngập”.", envRows) +
-        group("Dân cư", "i-users", "Ước tính theo ô lưới, đủ để so sánh khu vực, không đủ để nói về từng ngõ.", [
-          metric("Mật độ dân cư", "Khoảng 9.800 người trong ô 500 m quanh ghim, thuộc nhóm đông trong khu vực.", "WorldPop 100 m", "tb", "500 m")
-        ]) +
-      '</div>' +
-      '<div class="result-foot">' +
-        '<p class="fine">Cập nhật dữ liệu 18/10/2026 · Nguồn: OpenStreetMap, WorldPop, FABDEM, JRC, ESA WorldCover, OpenAQ, GTFS Hà Nội. <a href="#">Xem nguồn dữ liệu</a></p>' +
-        '<div class="notice"><svg class="i"><use href="#i-info"/></svg><p>Đây là tham chiếu từ dữ liệu mở, không phải kết luận pháp lý hay tư vấn đầu tư. Không có số liệu không có nghĩa là khu vực không có.</p></div>' +
-        '<div class="result-actions"><a class="btn btn-primary btn-sm" href="#">Mở báo cáo đầy đủ</a><button class="btn btn-sm" type="button" id="save-history">Lưu vào lịch sử</button><button class="btn btn-sm rerun" type="button">Phân tích lại</button></div>' +
-      '</div>';
-  }
-  function showResult(partial) {
-    $("#result-body").innerHTML = buildResult(partial);
-    $("#sample-tag").hidden = false;
-    setA("done");
-    $("#ring-500").style.display = "block";
-    $("#legend").classList.add("show");
-    map.dataset.poi = $("#poi-toggle").checked ? "on" : "off";
-    $("#result-body").addEventListener("click", function (e) {
-      if (e.target.closest("#save-history")) toast("Đã lưu vào lịch sử phân tích.");
-      if (e.target.closest(".rerun")) { run(); }
-    });
-    var r = $("#result"); r.focus({ preventScroll: true }); r.scrollIntoView({ behavior: "smooth", block: "start" });
+  function resetAnalysis() { clearTimers(); setA("idle"); renderIdle(); setDone(false); $("#result-body").innerHTML = ""; }
+  function showResult(quiet) {
+    $("#result-body").innerHTML = buildResult();
+    setA("done"); setDone(true);
+    [map, $("#mapview")].forEach(function (el) { if (el) el.dataset.poi = $("#poi-toggle").checked ? "on" : "off"; });
+    if (!quiet) { var r = $("#result"); r.focus({ preventScroll: true }); r.scrollIntoView({ behavior: "smooth", block: "start" }); }
   }
   function run() {
-    if (!state.login) { toast("Chuyển tới trang đăng nhập, rồi quay lại tin này."); return; }
+    if (!state.login) { toast("Chuyển tới trang đăng nhập, rồi quay lại."); return; }
     if (eligibility()) return;
     clearTimers(); setA("loading");
     var prog = $("#prog"), steps = $$("#steps li");
-    steps.forEach(function (li) { li.className = ""; });
-    prog.style.width = "5%";
+    steps.forEach(function (li) { li.className = ""; }); prog.style.width = "5%";
     [0, 1, 2].forEach(function (i) {
       state.timers.push(setTimeout(function () {
         steps.forEach(function (li, j) { li.className = j < i ? "ok" : (j === i ? "now" : ""); });
         prog.style.width = (20 + i * 30) + "%";
       }, i * 700));
     });
-    state.timers.push(setTimeout(function () {
-      steps.forEach(function (li) { li.className = "ok"; }); prog.style.width = "100%";
-    }, 2100));
+    state.timers.push(setTimeout(function () { steps.forEach(function (li) { li.className = "ok"; }); prog.style.width = "100%"; }, 2100));
     state.timers.push(setTimeout(function () {
       if (state.result === "error") { setA("error"); return; }
       if (state.result === "quota") { setA("quota"); return; }
       state.quota = Math.max(0, state.quota - 1);
-      showResult(state.result === "partial");
+      ap.partial = state.result === "partial";
+      showResult(false);
     }, 2500));
   }
   $("#run-analysis").addEventListener("click", run);
   $("#cancel-analysis").addEventListener("click", function () { clearTimers(); setA("idle"); renderIdle(); $("#run-analysis").focus(); });
   $$(".retry").forEach(function (b) { b.addEventListener("click", run); });
+
+  /* --- Cùng component đặt trong panel /map --- */
+  var mv = $("#mapview"), mvOpener = null;
+  var home = $("#ap-home");
+  function openMapView() {
+    mv.hidden = false; document.body.style.overflow = "hidden";
+    var holder = $("#mv-map"); holder.innerHTML = "";
+    var c = stage.cloneNode(true); c.removeAttribute("id");
+    $$("[id]", c).forEach(function (n) { n.removeAttribute("id"); });
+    holder.appendChild(c); mvState.stage = c;
+    $("#mv-slot").appendChild(card); card.classList.add("ap--flush");
+    mv.dataset.done = card.dataset.a === "done" ? "1" : "0"; mv.dataset.poi = $("#poi-toggle").checked ? "on" : "off";
+    renderSubject(); if (card.dataset.a === "done") showResult(true);
+    layoutMV(); $("#mv-card").focus();
+  }
+  function closeMapView() {
+    mv.hidden = true; document.body.style.overflow = "";
+    home.parentNode.insertBefore(card, home.nextSibling); card.classList.remove("ap--flush");
+    renderSubject(); if (card.dataset.a === "done") showResult(true);
+    $("#m-view").value = "page";
+  }
+  var mvState = { zoom: 1.5, dx: 0, dy: 0, stage: null };
+  function layoutMV() { if (mvState.stage) cover($("#mv-map"), mvState.stage, mvState, window.innerWidth > 600 ? 480 : 0); }
+  window.addEventListener("resize", layoutMV);
+  $("#mv-close").addEventListener("click", closeMapView);
+  mv.addEventListener("keydown", function (e) { if (e.key === "Escape") closeMapView(); });
+  $("#m-view").addEventListener("change", function () { if (this.value === "map") openMapView(); else if (!mv.hidden) closeMapView(); });
 
   /* ---------- Bảng mock ---------- */
   $("#m-result").addEventListener("change", function () { state.result = this.value; });
@@ -1115,6 +1396,10 @@
   });
   $("#m-articles").addEventListener("change", function () { document.body.dataset.articles = this.checked ? "yes" : "none"; });
   $("#m-reset").addEventListener("click", resetAnalysis);
+  $("#m-place").addEventListener("change", function () {
+    ap.mode = this.checked ? "place" : "listing"; renderSubject();
+    if (card.dataset.a === "done") showResult(true);
+  });
 
   /* ---------- Đặc điểm: mở hết trên màn rộng, gập trên mobile ---------- */
   var wide = window.matchMedia("(min-width: 640px)");
@@ -1124,6 +1409,7 @@
 
   /* ---------- Khởi tạo ---------- */
   $("#login-link").textContent = "Tài khoản";
+  if (/[?&]view=map/.test(location.search)) { $("#m-view").value = "map"; openMapView(); }
   renderSaved(); renderIdle(); layoutMap();
   if (document.readyState !== "complete") window.addEventListener("load", layoutMap);
 })();

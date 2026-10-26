@@ -330,7 +330,7 @@ Khối Scan ngay dưới bản đồ, **không** hiện số liệu nào. Nội 
 
 ### 8.3. Trạng thái kết quả
 
-**Có kết quả**
+**Có kết quả** (khung hiển thị: mục 8A)
 
 - Dòng tóm tắt (2–3 câu) viết từ dữ liệu đo được, đúng ngôn ngữ của `tieu-chi.md`: chỉ nói thứ đo được, kèm mức phủ.
 - Hàng 3 KPI (như prototype `kpis`): ví dụ "Mức phủ trong 500 m", "Hiệu thuốc gần nhất", "Tới Hồ Gươm".
@@ -364,6 +364,97 @@ Tuân theo `tieu-chi.md`:
 - Kết quả cache theo ô địa lý để giảm chi phí; chỉ cache số đo, không cache nhận xét đã cá nhân hóa.
 - Phân tích **không sửa** tin và không hiện công khai cho người khác; chỉ người bấm nhìn thấy và lưu trong lịch sử của họ.
 - Analytics: ghi sự kiện `analysis_click`, `analysis_success`, `analysis_error` (không ghi số điện thoại hay nội dung riêng tư).
+
+---
+
+## 8A. Khung kết quả phân tích dùng lại (`AnalysisPanel`)
+
+Mock: [`chi-tiet-nha-dat.html`](chi-tiet-nha-dat.html). Mở thêm `?view=map` hoặc chọn "Panel /map" trong bảng mock để xem cùng component đặt trong panel `/map`.
+
+**Mục tiêu:** một component duy nhất hiển thị kết quả phân tích ở hai nơi: cột chính của trang chi tiết (rộng khoảng 760 px) và panel chi tiết trên `/map` (`map-place-detail.tsx`, rộng 480 px). Thêm chỉ số, nhóm hoặc địa điểm so sánh mới không được làm vỡ bố cục. Mục 8.3 mô tả nội dung kết quả; mục này mô tả khung chứa nó.
+
+### 8A.1. Nguyên tắc
+
+1. **Co giãn theo khung chứa, không theo viewport.** Component dùng container query (`container-type: inline-size`), nên cùng một mã chạy ở 480 px và 760 px mà không cần biến thể riêng.
+2. **Dựng từ dữ liệu.** Hàng, cột, nhóm đều sinh từ ba danh sách (mục 8A.5). Thêm một phần tử là thêm một dòng dữ liệu, không sửa bố cục.
+3. **Lớp tiết lộ cố định:** Glance (mức phủ, KPI) → Scan (tab Tóm tắt) → Dig (tab Chỉ số, So sánh). Tab thứ tư, thứ năm có thể thêm sau; tối đa 5.
+4. **Không chấm điểm, không xếp hạng.** Nhãn "gần nhất", "nhiều nhất" chỉ nói số đo nào hơn số đo nào, tuân theo `000-ideas/tieu-chi.md`. Không có tổng điểm, không có màu "tốt" hoặc "xấu".
+5. **Thiếu dữ liệu khác với bằng 0.** "Không thấy trong 500 m" và "Chưa có dữ liệu" là hai ô khác nhau và không bao giờ hiện thành `0`, trừ khi số đếm thực sự bằng 0.
+6. **Nút phân tích vẫn chỉ chạy khi bấm** (mục 8.1–8.2). Component sở hữu cả trạng thái chưa chạy, đang chạy, lỗi, hết lượt, kết quả.
+
+### 8A.2. Cấu trúc (trên xuống)
+
+| Vùng | Nội dung | Ghi chú |
+| --- | --- | --- |
+| Đầu | Tiêu đề "Phân tích vị trí", dòng chủ thể ("Quanh ghim của tin" hoặc "Quanh điểm đã chọn"), chip meta: bán kính, ngày cập nhật dữ liệu, "Số liệu minh họa" khi là mẫu | Chip meta chỉ hiện sau khi có kết quả |
+| Mức phủ | Một dòng chữ "Mức phủ dữ liệu: khá" + số điểm trong bán kính + thanh 5 đoạn | Có chữ và `aria-label`, không chỉ dựa vào màu |
+| KPI | 2–4 ô, tự xuống hàng (`auto-fit`, tối thiểu 128 px) | Chọn theo ngữ cảnh: tin mua → chợ, ga metro, quán ăn; sau này có thể đổi theo vai trò người dùng |
+| Tab | Tóm tắt, Chỉ số, So sánh. Dính đầu vùng cuộn | Bàn phím: ← → Home End; `role="tablist"` |
+| Chân | Nguồn, câu miễn trừ, hành động: Mở báo cáo đầy đủ, Lưu vào lịch sử, Phân tích lại | Một nút chính |
+
+### 8A.3. Nội dung từng tab
+
+**Tóm tắt (mặc định).** Đoạn tóm tắt 2–4 câu viết từ số đo; hai danh sách **Điểm mạnh** (tối đa 3 dòng) và **Chỗ thiếu dữ liệu hoặc cần kiểm tra** (tối đa 5 dòng). Từ 620 px chiều rộng khung chứa, hai danh sách đứng cạnh nhau; dưới đó xếp dọc. Dùng cụm "cần kiểm tra", không dùng "điểm yếu" khi nguyên nhân là thiếu dữ liệu.
+
+**Chỉ số.** Các nhóm gập mở (`details`), nhóm đầu mở sẵn. Mỗi nhóm có biểu tượng, tên, số chỉ số cần kiểm tra (chip vàng) và đoạn giới thiệu một dòng. Mỗi hàng: nhãn, giá trị, thanh khoảng cách (chỉ với số đo khoảng cách, so với bán kính của chính chỉ số đó; có `aria-label` bằng chữ), ghi chú, nguồn, bán kính, và chip độ tin cậy (cao, trung bình, thấp). Công cụ lọc "Chỉ chỗ cần kiểm tra" ẩn các hàng đã ổn. Từ 620 px, hàng có ba cột (nhãn, giá trị, độ tin cậy); dưới đó nhãn và độ tin cậy cùng hàng, giá trị xuống dưới.
+
+**So sánh.** Bảng thuộc tính đặt nhiều địa điểm cạnh nhau (xem 8A.4).
+
+### 8A.4. Bảng so sánh
+
+- **Cột:** "Căn này" (nền xanh nhạt) + tối đa 3 địa điểm thêm vào (tổng 4, đúng giới hạn compare ở `real-estate.md`) + một cột tham chiếu tùy chọn "Trung vị trong 1 km" (nền kem, viền đứt, ghi "Tham chiếu"). Nút **Thêm địa điểm** mở menu từ danh sách Đã lưu và tin tương tự; mỗi cột thêm vào có nút bỏ có nhãn.
+- **Hàng:** sinh từ cùng danh sách chỉ số của tab Chỉ số, nên chỉ số mới tự có hàng so sánh. Hàng gom theo nhóm bằng dòng tiêu đề nhóm. Nhóm **Thông tin tin đăng** (giá chào, giá/m², diện tích, phòng ngủ, pháp lý do khai) chỉ nằm trong bảng so sánh, và chỉ có khi chủ thể là một tin; ở `/map` với điểm không phải tin thì bỏ nhóm này.
+- **Cuộn:** bảng có `min-width` theo số cột, cuộn ngang trong khung bo góc, cột đầu dính trái, có `role="region"` và `tabindex="0"` để cuộn bằng bàn phím. Không bao giờ bóp cột đến mức chữ bị cắt.
+- **Đánh dấu:** với số đo có chiều "thấp hơn là gần hơn" hoặc "cao hơn là nhiều hơn", ô nào độc nhất đạt giá trị tốt nhất giữa các địa điểm (không tính cột tham chiếu) có chữ nhỏ màu xanh "gần nhất", "nhiều nhất", "cao nhất". Hòa thì không đánh dấu. Số đo trung tính (cao độ, mật độ dân cư, ngập sông, giá) không đánh dấu.
+- **Điều khiển:** "Chỉ hiện chỗ khác nhau" (ẩn hàng mà mọi địa điểm giống nhau), "Cột trung vị khu vực".
+- **Ô thiếu dữ liệu:** hiện chữ xám theo loại ("Không thấy trong 500 m", "Chưa có dữ liệu", "—" với thuộc tính tin đăng ở cột tham chiếu), không để trống và không đưa số 0.
+- **So sánh công bằng:** chỉ so các chỉ số cùng bán kính; hàng nào có bán kính riêng ghi dòng "trong 500 m" dưới nhãn.
+
+### 8A.5. Hợp đồng dữ liệu
+
+```
+subjects: { id: { name, sub, ref? } }            // cột
+groups:   [ { id, title, icon, intro, compareOnly?, listingOnly? } ]   // nhóm
+metrics:  [ {
+  id, g,                      // thuộc nhóm nào
+  label, kind,                // "dist" | "count" | "num" | "text"
+  unit?, dec?, radius?,       // đơn vị, số lẻ, bán kính áp dụng
+  better,                     // "lower" | "higher" | null
+  conf,                       // "cao" | "tb" | "thap"
+  naShort,                    // chữ khi thiếu dữ liệu
+  src, note?,                 // nguồn, ghi chú
+  v: { [subjectId]: number | string | null }
+} ]
+```
+
+**Thêm một thứ mới:**
+
+| Muốn thêm | Làm gì | Bố cục |
+| --- | --- | --- |
+| Chỉ số mới (ví dụ ồn giao thông) | Thêm một phần tử vào `metrics`, gán `g` | Tự có hàng ở tab Chỉ số và So sánh |
+| Nhóm mới (ví dụ Quy hoạch) | Thêm vào `groups` và gán `g` cho các chỉ số | Tự có một khối gập mở và một dòng tiêu đề nhóm |
+| Địa điểm so sánh mới | Thêm vào `subjects` và điền `v` | Tự có cột, tối đa 4 địa điểm |
+| Tab mới (ví dụ Lịch sử giá) | Thêm vào danh sách tab | Thanh tab cuộn ngang, tối đa 5 |
+| KPI mới | Thêm một ô | Lưới tự xuống hàng |
+
+Quy tắc mật độ: một nhóm tối đa 8 chỉ số nhìn thấy khi mở (quá thì tách nhóm hoặc gập "Xem thêm"); tối đa 6 nhóm; tab So sánh tối đa 4 địa điểm.
+
+### 8A.6. Tích hợp ở `/map`
+
+- Component nằm trong thân cuộn của panel chi tiết (`map-place-detail.tsx`), dưới thẻ tóm tắt địa điểm (ảnh nhỏ, giá, tiêu đề, địa chỉ, 2–3 chip) và nút "Xem trang tin đầy đủ". Chế độ này bỏ khung ngoài (viền, nền, đệm của thẻ) để không có hai lớp thẻ lồng nhau.
+- Thanh tab dính đầu vùng cuộn của panel nên người dùng đổi tab được khi đã cuộn sâu.
+- Khi có kết quả, bản đồ phía sau vẽ vòng 500 m và điểm tiện ích, cùng quy tắc với trang chi tiết.
+- Với một điểm không phải tin (chọn từ tìm địa chỉ hoặc ghim tự do): dòng chủ thể đổi thành "Quanh điểm đã chọn", cột đầu của bảng so sánh là "Điểm đã chọn", và nhóm Thông tin tin đăng ẩn.
+- Phím `Esc` đóng panel và trả focus về điểm đã chọn; kết quả giữ trong lịch sử.
+- Cùng một trạng thái phân tích, cùng hạn mức, cùng kết quả cache theo tọa độ: mở lại ở `/map` hay ở trang tin không tính thêm lượt.
+
+### 8A.7. Trạng thái
+
+Chưa chạy, đang chạy (có Hủy), thành công, một phần (ví dụ thiếu không khí: ô ghi "Chưa có dữ liệu", chip độ tin cậy thấp, dòng trong danh sách "cần kiểm tra"), lỗi (không trừ lượt), hết lượt, không đủ điều kiện (vô hiệu kèm lý do). Mọi trạng thái dùng cùng khung đầu; chỉ phần thân đổi.
+
+### 8A.8. Truy cập
+
+Tab theo mẫu WAI-ARIA (`tablist`, `tab`, `tabpanel`, `aria-selected`, roving `tabindex`); bảng so sánh dùng `th scope`; thanh khoảng cách và thanh mức phủ có mô tả bằng chữ; kết quả xuất hiện trong vùng `aria-live`; mọi nút ≥ 44 px; không chỉ dùng màu để truyền "gần nhất" hay độ tin cậy.
 
 ---
 

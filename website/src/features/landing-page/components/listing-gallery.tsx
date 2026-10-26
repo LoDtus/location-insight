@@ -35,7 +35,7 @@ export default function ListingGallery({
                     className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 motion-reduce:transition-none ${imageIndex === index ? "opacity-100" : "opacity-0"}`}
                 />
             ))}
-            <div className="absolute right-3 bottom-3 flex gap-2">
+            <div className="pointer-events-auto absolute right-3 bottom-3 flex gap-2">
                 <button
                     type="button"
                     aria-label={previousLabel}

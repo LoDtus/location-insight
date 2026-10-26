@@ -11,6 +11,7 @@ import {
     X,
     type LucideIcon,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -175,14 +176,27 @@ function ListingCard({
                         : undefined
                 }
             >
-                <ListingGallery
-                    images={listing.images}
-                    label={listing.title}
-                    previousLabel={getLocaleValue(messages, ["catalog", "previous"])}
-                    nextLabel={getLocaleValue(messages, ["catalog", "next"])}
-                    eager={eager}
-                />
-                <div className="flex min-w-0 flex-col gap-2 p-4">
+                <div className="relative">
+                    <Link
+                        href={`/nha-dat/${listing.id}`}
+                        tabIndex={-1}
+                        aria-hidden="true"
+                        className="absolute inset-0 z-0"
+                    />
+                    <div className="pointer-events-none relative z-10">
+                        <ListingGallery
+                            images={listing.images}
+                            label={listing.title}
+                            previousLabel={getLocaleValue(messages, ["catalog", "previous"])}
+                            nextLabel={getLocaleValue(messages, ["catalog", "next"])}
+                            eager={eager}
+                        />
+                    </div>
+                </div>
+                <Link
+                    href={`/nha-dat/${listing.id}`}
+                    className="flex min-w-0 flex-col gap-2 p-4 text-inherit no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
+                >
                     <div className="flex items-baseline justify-between gap-3">
                         <p className="m-0 text-xl font-semibold text-green tabular-nums">
                             {formatListingPrice(listing, locale)}
@@ -214,7 +228,7 @@ function ListingCard({
                         {getLocaleValue(messages, ["catalog", "updated"])}{" "}
                         {formatListingDate(listing.updatedAt, locale)}
                     </p>
-                </div>
+                </Link>
             </div>
         </article>
     );

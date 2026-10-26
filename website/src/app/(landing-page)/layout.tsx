@@ -32,7 +32,8 @@ export default async function Layout({
     const pathname = normalizePathname(
         (await headers()).get("x-pathname") ?? "/",
     );
-    const isCatalog = pathname === "/nha-dat";
+    const isCatalog =
+        pathname === "/nha-dat" || pathname.startsWith("/nha-dat/");
     const isDocument = isLegalSectionPath(pathname);
     const flush = isCatalog || isDocument;
 

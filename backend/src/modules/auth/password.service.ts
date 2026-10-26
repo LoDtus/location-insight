@@ -48,6 +48,14 @@ export class PasswordService implements OnModuleInit {
     this.dummyHash = await this.hash('dummy-password-not-used');
   }
 
+  hashPlain(password: string): Promise<string> {
+    return this.hash(password);
+  }
+
+  matches(hash: string, password: string): Promise<boolean> {
+    return this.verify(hash, password);
+  }
+
   assertEnabled(): void {
     if (!this.authConfig.passwordEnabled) {
       throw new BusinessException(

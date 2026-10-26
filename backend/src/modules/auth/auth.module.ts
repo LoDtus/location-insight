@@ -18,6 +18,7 @@ import { RealtimeController } from './realtime.controller.js';
 import { RealtimeGateway } from './realtime.gateway.js';
 import { SessionMaintenanceService } from './session-maintenance.service.js';
 import { SessionService } from './session.service.js';
+import { SeedAccountService } from './seed-account.service.js';
 import { SessionVerifierService } from './session-verifier.service.js';
 import { TokenService } from './token.service.js';
 
@@ -39,6 +40,7 @@ import { TokenService } from './token.service.js';
     AuthRateLimitService,
     SessionService,
     PasswordService,
+    SeedAccountService,
     GoogleOAuthService,
     SessionVerifierService,
     SessionMaintenanceService,

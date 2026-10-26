@@ -1,5 +1,7 @@
 "use client";
 
+import { Expand } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
 import MapLayer from "@/features/map/components/map-layer";
@@ -29,6 +31,13 @@ export default function MapPreview() {
                 <MapLayer onSelect={() => setDetailOpen(true)} />
                 <div className="pointer-events-none absolute inset-0">
                     <MapSearch />
+                    <Link
+                        href="/app/map"
+                        aria-label="Mở rộng bản đồ"
+                        className="pointer-events-auto absolute top-2 right-2 z-10 inline-flex rounded-lg border bg-white p-2"
+                    >
+                        <Expand size={18} aria-hidden="true" />
+                    </Link>
                     <MapScaleBar zoom={zoom} />
                     <MapZoomControls onZoomIn={zoomIn} onZoomOut={zoomOut} />
                 </div>

@@ -1,5 +1,5 @@
 import LANDING_PAGE_SEO from "@/features/landing-page/constants/landing-page-seo.constant";
-import { getListingById } from "@/features/landing-page/data/listings";
+import { getListingByParam } from "@/features/landing-page/data/listings";
 import {
     LEGAL_DOCUMENTS,
     LEGAL_PATH_PREFIX,
@@ -30,7 +30,7 @@ export function isIndexablePath(pathname: string): boolean {
     }
 
     if (path.startsWith("/nha-dat/")) {
-        return getListingById(path.slice("/nha-dat/".length)) !== undefined;
+        return getListingByParam(decodeURIComponent(path.slice("/nha-dat/".length))) !== undefined;
     }
 
     return false;

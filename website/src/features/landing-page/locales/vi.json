@@ -191,7 +191,8 @@
             "reportSend": "Gửi báo cáo",
             "reportSent": "Đã ghi nhận báo cáo trên trình duyệt này. Chưa gửi lên máy chủ.",
             "disclaimer": "Địa Thế là công cụ đăng tin, không phải sàn giao dịch hay đơn vị môi giới. Bạn và người đăng tự liên hệ và tự chịu trách nhiệm về giao dịch.",
-            "callBar": "Gọi người đăng"
+            "callBar": "Gọi người đăng",
+            "fullPage": "Xem trang tin đầy đủ"
         }
     },
     "how": {

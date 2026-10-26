@@ -27,6 +27,7 @@ import {
     formatArea,
     formatListingDate,
     formatListingPrice,
+    listingPath,
     type Listing,
     type ListingPurpose,
     type SortKey,
@@ -178,7 +179,7 @@ function ListingCard({
             >
                 <div className="relative">
                     <Link
-                        href={`/nha-dat/${listing.id}`}
+                        href={listingPath(listing)}
                         tabIndex={-1}
                         aria-hidden="true"
                         className="absolute inset-0 z-0"
@@ -194,7 +195,7 @@ function ListingCard({
                     </div>
                 </div>
                 <Link
-                    href={`/nha-dat/${listing.id}`}
+                    href={listingPath(listing)}
                     className="flex min-w-0 flex-col gap-2 p-4 text-inherit no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
                 >
                     <div className="flex items-baseline justify-between gap-3">

@@ -1,5 +1,5 @@
 import LANDING_PAGE_SEO from "@/features/landing-page/constants/landing-page-seo.constant";
-import { LISTINGS } from "@/features/landing-page/data/listings";
+import { LISTINGS, listingPath } from "@/features/landing-page/data/listings";
 import {
     LEGAL_DOCUMENTS,
     LEGAL_PATH_PREFIX,
@@ -18,7 +18,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
         ...LEGAL_DOCUMENTS.filter((document) => document.indexable).map(
             (document) => legalDocumentPath(document.slug),
         ),
-        ...LISTINGS.map((listing) => `/nha-dat/${listing.id}`),
+        ...LISTINGS.map((listing) => listingPath(listing)),
     ];
 
     return paths.map((path) => ({

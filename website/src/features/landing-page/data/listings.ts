@@ -29,6 +29,7 @@ export type District = (typeof DISTRICTS)[number];
 
 export type Listing = {
     id: string;
+    slug: string;
     title: string;
     location: string;
     district: District;
@@ -64,6 +65,7 @@ export type SortKey = (typeof SORT_KEYS)[number];
 const RAW = [
     {
         id: "019a2b10-0001-7000-8000-000000000001",
+        slug: "nha-mat-pho-hang-bac",
         title: "Nhà mặt phố Hàng Bạc",
         location: "Hàng Bạc, phường Hoàn Kiếm",
         district: "Hoàn Kiếm",
@@ -78,6 +80,7 @@ const RAW = [
     },
     {
         id: "019a2b10-0002-7000-8000-000000000002",
+        slug: "nha-pho-van-mieu",
         title: "Nhà phố 4 tầng ngõ Văn Miếu",
         location: "Ngõ Văn Miếu, phường Văn Miếu - Quốc Tử Giám",
         district: "Đống Đa",
@@ -92,6 +95,7 @@ const RAW = [
     },
     {
         id: "019a2b10-0003-7000-8000-000000000003",
+        slug: "can-ho-bach-mai",
         title: "Căn hộ 2 ngủ gần Bệnh viện Bạch Mai",
         location: "Phố Bạch Mai, phường Bạch Mai",
         district: "Hai Bà Trưng",
@@ -106,6 +110,7 @@ const RAW = [
     },
     {
         id: "019a2b10-0004-7000-8000-000000000004",
+        slug: "studio-cau-giay",
         title: "Studio cho thuê gần Đại học Quốc gia",
         location: "Xuân Thủy, phường Cầu Giấy",
         district: "Cầu Giấy",
@@ -120,6 +125,7 @@ const RAW = [
     },
     {
         id: "019a2b10-0005-7000-8000-000000000005",
+        slug: "nha-pho-ho-tay",
         title: "Nhà phố view hồ Tây",
         location: "Quảng An, phường Tây Hồ",
         district: "Tây Hồ",
@@ -134,6 +140,7 @@ const RAW = [
     },
     {
         id: "019a2b10-0006-7000-8000-000000000006",
+        slug: "can-ho-masteri-waterfront",
         title: "Căn hộ 2 ngủ Masteri Waterfront",
         location: "Masteri Waterfront, phường Long Biên",
         district: "Long Biên",
@@ -148,6 +155,7 @@ const RAW = [
     },
     {
         id: "019a2b10-0007-7000-8000-000000000007",
+        slug: "can-ho-linh-dam",
         title: "Căn hộ 3 ngủ Linh Đàm",
         location: "Khu đô thị Linh Đàm, phường Hoàng Liệt",
         district: "Hoàng Mai",
@@ -162,6 +170,7 @@ const RAW = [
     },
     {
         id: "019a2b10-0008-7000-8000-000000000008",
+        slug: "can-ho-smart-city",
         title: "Căn hộ 1 ngủ Vinhomes Smart City",
         location: "Vinhomes Smart City, phường Tây Mỗ",
         district: "Nam Từ Liêm",
@@ -176,6 +185,7 @@ const RAW = [
     },
     {
         id: "019a2b10-0009-7000-8000-000000000009",
+        slug: "biet-thu-ciputra",
         title: "Biệt thự cho thuê Ciputra",
         location: "Khu Ciputra, phường Phú Thượng",
         district: "Bắc Từ Liêm",
@@ -190,6 +200,7 @@ const RAW = [
     },
     {
         id: "019a2b10-000a-7000-8000-00000000000a",
+        slug: "dat-dong-anh",
         title: "Đất nền gần Nội Bài",
         location: "Xã Nguyên Khê, huyện Đông Anh",
         district: "Đông Anh",
@@ -204,6 +215,7 @@ const RAW = [
     },
     {
         id: "019a2b10-000b-7000-8000-00000000000b",
+        slug: "dat-lai-xa",
         title: "Đất thổ cư Lai Xá",
         location: "Lai Xá, huyện Hoài Đức",
         district: "Hoài Đức",
@@ -218,6 +230,7 @@ const RAW = [
     },
     {
         id: "019a2b10-000c-7000-8000-00000000000c",
+        slug: "biet-thu-riverside",
         title: "Biệt thự Vinhomes Riverside",
         location: "Vinhomes Riverside, phường Phúc Lợi",
         district: "Long Biên",
@@ -232,6 +245,7 @@ const RAW = [
     },
     {
         id: "019a2b10-000d-7000-8000-00000000000d",
+        slug: "can-ho-times-city",
         title: "Căn hộ 2 ngủ cho thuê Times City",
         location: "Times City, phường Vĩnh Tuy",
         district: "Hai Bà Trưng",
@@ -246,6 +260,7 @@ const RAW = [
     },
     {
         id: "019a2b10-000e-7000-8000-00000000000e",
+        slug: "nha-pho-doi-can",
         title: "Nhà phố cho thuê Đội Cấn",
         location: "Đội Cấn, phường Ngọc Hà",
         district: "Ba Đình",
@@ -260,6 +275,7 @@ const RAW = [
     },
     {
         id: "019a2b10-000f-7000-8000-00000000000f",
+        slug: "can-ho-matrix-one",
         title: "Căn hộ 3 ngủ The Matrix One",
         location: "The Matrix One, phường Mễ Trì",
         district: "Nam Từ Liêm",
@@ -284,6 +300,18 @@ export const LISTINGS: Listing[] = RAW.map((item, index) => ({
 export function getListingById(id: string): Listing | undefined {
     return LISTINGS.find((listing) => listing.id === id);
 }
+
+export function getListingByParam(param: string): Listing | undefined {
+    return (
+        LISTINGS.find((listing) => listing.slug === param) ?? getListingById(param)
+    );
+}
+
+export function listingPath(listing: Pick<Listing, "slug">): string {
+    return `/nha-dat/${listing.slug}`;
+}
+
+export const MAP_PLACE_SLUG = "can-ho-matrix-one";
 
 export function formatListingPrice(listing: Listing, locale: string): string {
     const vi = locale.startsWith("vi");

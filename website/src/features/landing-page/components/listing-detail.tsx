@@ -28,7 +28,8 @@ import {
     formatListingDate,
     formatListingPrice,
     formatPricePerArea,
-    getListingById,
+    getListingByParam,
+    listingPath,
     type Listing,
 } from "@/features/landing-page/data/listings";
 import { useLocale, useLocaleMessages } from "@/shared/hooks/useLocale";
@@ -48,7 +49,7 @@ function text(messages: Record<string, unknown>, key: string): string {
 export default function ListingDetail({ id }: { id: string }) {
     const { locale } = useLocale();
     const messages = useLocaleMessages("landing");
-    const listing = getListingById(id);
+    const listing = getListingByParam(id);
     const [saved, setSaved] = useState(false);
     const [revealed, setRevealed] = useState(false);
     const [descriptionOpen, setDescriptionOpen] = useState(false);
@@ -835,7 +836,7 @@ function SimilarListings({
                 {listings.map((item) => (
                     <Link
                         key={item.id}
-                        href={`/nha-dat/${item.id}`}
+                        href={listingPath(item)}
                         className="grid gap-2 no-underline"
                     >
                         <img

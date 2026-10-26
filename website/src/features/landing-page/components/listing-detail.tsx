@@ -139,7 +139,7 @@ export default function ListingDetail({ id }: { id: string }) {
     }
 
     return (
-        <div className="mx-auto w-full max-w-[1200px] px-4 py-4 pb-28 sm:px-8 lg:pb-16 xl:px-50">
+        <div className="box-border w-full px-4 py-8 pb-28 sm:px-8 lg:pb-16 xl:px-50">
             <Link
                 href="/nha-dat"
                 className="inline-flex min-h-11 items-center text-sm font-semibold no-underline hover:underline"

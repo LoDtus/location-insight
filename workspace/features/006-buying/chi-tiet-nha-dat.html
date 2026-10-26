@@ -1,0 +1,1132 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Căn hộ 2 ngủ gần ga Phùng Khoang · Chi tiết nhà đất · Địa Thế</title>
+<meta name="description" content="Mock giao diện trang chi tiết nhà đất theo workspace/features/006-buying/ui.md. Dữ liệu và số liệu là minh họa." />
+<link rel="icon" href="../../../website/public/logos/diathe.svg" type="image/svg+xml" />
+<style>
+  :root {
+    color-scheme: light;
+    --green: #026a4e;
+    --gold: #d4af37;
+    --cream: #e6e2da;
+    --charcoal: #101111;
+    --surface: #ffffff;
+    --line: rgba(16, 17, 17, 0.15);
+    --line-strong: rgba(16, 17, 17, 0.3);
+    --muted: rgba(16, 17, 17, 0.7);
+    --soft: rgba(16, 17, 17, 0.6);
+    --green-tint: rgba(2, 106, 78, 0.12);
+    --gold-tint: rgba(212, 175, 55, 0.22);
+    --radius: 16px;
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; animation: none !important; } }
+  body { margin: 0; background: var(--cream); color: var(--charcoal); font: 16px/1.6 var(--font); }
+  h1, h2, h3, p, ul, ol, dl, dd, figure { margin: 0; padding: 0; }
+  ul, ol { list-style: none; }
+  a { color: inherit; }
+  button { font: inherit; font-weight: 600; cursor: pointer; color: inherit; }
+  img { display: block; max-width: 100%; }
+  .i { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .i-sm { width: 16px; height: 16px; }
+  :focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+  .on-green :focus-visible, .btn-primary:focus-visible { outline-color: var(--gold); }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .skip { position: absolute; left: 8px; top: -60px; background: var(--surface); padding: 10px 16px; border-radius: 999px; z-index: 100; }
+  .skip:focus { top: 8px; }
+  .wrap { width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 16px; }
+  @media (min-width: 768px) { .wrap { padding: 0 32px; } }
+
+  /* Header (theo header landing: nền xanh, chữ kem, logo vàng) */
+  .site-header { background: var(--green); color: var(--cream); }
+  .site-header .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 64px; }
+  .logo { display: inline-flex; align-items: center; min-height: 44px; }
+  .logo img { height: 28px; width: auto; }
+  .main-nav { display: none; gap: 4px; }
+  .main-nav a, .login { display: inline-flex; align-items: center; min-height: 44px; padding: 4px 8px; text-decoration: none; text-underline-offset: 0.2em; }
+  .main-nav a:hover, .login:hover { text-decoration: underline; }
+  @media (min-width: 960px) { .main-nav { display: flex; } }
+  .header-right { display: flex; align-items: center; gap: 12px; }
+  .locale { display: inline-grid; grid-template-columns: 1fr 1fr; border: 1px solid currentColor; border-radius: 999px; padding: 3px; gap: 0; }
+  .locale button { background: transparent; border: 0; border-radius: 999px; min-height: 36px; min-width: 44px; padding: 0 10px; font-size: 12px; letter-spacing: .04em; color: var(--cream); }
+  .locale button[aria-checked="true"] { background: var(--cream); color: var(--green); }
+
+  /* Khung trang */
+  main { padding-bottom: 72px; }
+  .crumbs { padding: 16px 0 12px; font-size: 14px; color: var(--muted); }
+  .crumbs ol { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+  .crumbs li + li::before { content: "›"; margin-right: 8px; color: var(--soft); }
+  .crumbs a { display: inline-flex; min-height: 32px; align-items: center; text-underline-offset: 3px; }
+  .back { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: 14px; font-weight: 600; text-decoration: none; margin-bottom: 4px; }
+  .back:hover { text-decoration: underline; }
+
+  .layout { display: grid; gap: 32px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+  @media (min-width: 1024px) { .layout { grid-template-columns: minmax(0, 1fr) 340px; } }
+  .stack { display: grid; gap: 24px; min-width: 0; }
+  @media (max-width: 1023px) {
+    .layout { display: flex; flex-direction: column; gap: 24px; }
+    .stack { display: contents; }
+    .stack > section { order: 3; }
+    .stack > section:nth-child(1) { order: 1; }
+    .stack > section:nth-child(2) { order: 2; }
+    .aside { order: 2; }
+    .stack > section:nth-child(2) { margin-bottom: 0; }
+  }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; }
+  @media (max-width: 599px) { .card { padding: 20px 16px; } }
+  .card > h2, .section-title { font-size: 22px; line-height: 1.3; font-weight: 600; letter-spacing: -0.01em; }
+  .card > h2 + *, .section-title + * { margin-top: 16px; }
+  .lede { color: var(--muted); font-size: 15px; }
+  .fine { font-size: 14px; color: var(--soft); }
+
+  /* Nút */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 24px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--surface); text-decoration: none; }
+  .btn:hover { border-color: var(--charcoal); }
+  .btn-primary { background: var(--green); color: var(--cream); border-color: var(--green); }
+  .btn-primary:hover { border-color: var(--charcoal); background: #01573f; }
+  .btn-block { width: 100%; }
+  .btn-sm { min-height: 44px; padding: 0 16px; font-size: 14px; }
+  .btn[disabled], .btn[aria-disabled="true"] { opacity: .55; cursor: not-allowed; }
+  .btn-text { background: none; border: 0; padding: 0 4px; min-height: 44px; display: inline-flex; align-items: center; gap: 6px; text-decoration: underline; text-underline-offset: 3px; font-size: 14px; }
+  .icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--surface); }
+  .icon-btn:hover { border-color: var(--charcoal); }
+
+  .chip { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 12px; border-radius: 999px; font-size: 13px; font-weight: 600; border: 1px solid var(--line-strong); background: var(--surface); }
+  .chip-green { background: var(--green); border-color: var(--green); color: var(--cream); }
+  .chip-tint { background: var(--green-tint); border-color: transparent; color: var(--green); }
+  .chip-gold { background: var(--gold-tint); border-color: transparent; }
+  .chip-plain { background: transparent; border-color: var(--line-strong); font-weight: 500; }
+
+  /* Banner trạng thái tin */
+  .banner { display: none; align-items: flex-start; gap: 12px; padding: 16px; border-radius: var(--radius); border: 1px solid var(--charcoal); background: var(--gold-tint); margin-bottom: 16px; }
+  body[data-status="ended"] .banner-ended { display: flex; }
+
+  /* Gallery */
+  .gallery { position: relative; }
+  .gallery-grid { display: grid; gap: 8px; grid-template-columns: 2fr 1fr; grid-template-rows: 1fr 1fr; aspect-ratio: 16 / 9; border-radius: var(--radius); overflow: hidden; }
+  .gallery-item { position: relative; border: 0; padding: 0; background: var(--charcoal); overflow: hidden; display: block; }
+  .gallery-item img { width: 100%; height: 100%; object-fit: cover; transition: transform .3s; }
+  .gallery-item:hover img { transform: scale(1.02); }
+  .gallery-item:first-child { grid-row: 1 / 3; }
+  .gallery-item img.pos-interior { object-position: 50% 62%; }
+  .gallery-count { position: absolute; right: 16px; bottom: 16px; z-index: 2; background: var(--surface); }
+  .illus { position: absolute; left: 12px; top: 12px; z-index: 2; background: rgba(16,17,17,.78); color: var(--cream); font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; }
+  .dots { display: none; }
+  @media (max-width: 767px) {
+    .gallery-grid { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; aspect-ratio: auto; border-radius: var(--radius); gap: 0; scrollbar-width: none; }
+    .gallery-grid::-webkit-scrollbar { display: none; }
+    .gallery-item { flex: 0 0 100%; aspect-ratio: 4 / 3; scroll-snap-align: start; }
+    .gallery-count { right: 12px; bottom: 12px; }
+    .dots { display: block; position: absolute; left: 12px; bottom: 12px; z-index: 2; background: rgba(16,17,17,.78); color: var(--cream); font-size: 13px; padding: 2px 12px; border-radius: 999px; }
+  }
+
+  /* Đầu tin */
+  .head-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .head-actions { display: flex; gap: 8px; }
+  h1 { font-size: 28px; line-height: 1.25; font-weight: 600; letter-spacing: -0.015em; margin-top: 12px; }
+  @media (min-width: 768px) { h1 { font-size: 32px; } }
+  .addr { display: inline-flex; align-items: flex-start; gap: 8px; margin-top: 8px; color: var(--muted); background: none; border: 0; padding: 4px 0; min-height: 44px; text-align: left; font-weight: 400; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line-strong); }
+  .addr:hover { color: var(--charcoal); }
+  .price-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; margin-top: 12px; }
+  .price { font-size: 32px; line-height: 1.1; font-weight: 600; color: var(--green); font-variant-numeric: tabular-nums; }
+  .price-sub { color: var(--muted); font-size: 15px; }
+  .specs { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+  .specs li { display: inline-flex; align-items: center; gap: 8px; }
+  .specs b { font-weight: 600; }
+  .specs span { color: var(--muted); font-size: 14px; }
+
+  /* Mô tả */
+  .desc { display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; max-width: 68ch; }
+  .desc.open { -webkit-line-clamp: unset; display: block; }
+  .desc p + p { margin-top: 12px; }
+  .meta-line { margin-top: 12px; font-size: 14px; color: var(--soft); }
+
+  /* Đặc điểm */
+  .facts { display: grid; gap: 24px; }
+  .facts h3 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+  .facts dl { display: grid; grid-template-columns: 1fr; }
+  @media (min-width: 640px) { .facts dl { grid-template-columns: 1fr 1fr; column-gap: 32px; } }
+  .facts dl > div { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .facts dt { color: var(--muted); }
+  .facts dd { font-weight: 600; text-align: right; }
+  .facts details { border-top: 1px solid var(--line); padding-top: 16px; }
+  @media (min-width: 640px) { .facts details { border-top: 0; padding-top: 0; } .facts details > summary { pointer-events: none; } .facts details > summary .i { display: none; } }
+  summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; min-height: 44px; font-weight: 600; }
+  summary::-webkit-details-marker { display: none; }
+  details[open] > summary .chev { transform: rotate(180deg); }
+
+  .notice { display: flex; gap: 12px; padding: 14px 16px; border-radius: 12px; background: var(--cream); font-size: 14px; }
+  .notice .i { margin-top: 3px; }
+  .legal-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+
+  /* Bản đồ */
+  .map-wrap { position: relative; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: #f3f2ef; }
+  .map { position: relative; height: 240px; overflow: hidden; touch-action: pan-y; cursor: grab; user-select: none; }
+  .map.dragging { cursor: grabbing; }
+  @media (min-width: 768px) { .map { height: 380px; } }
+  .map-stage { position: absolute; left: 0; top: 0; will-change: transform; }
+  .map-stage img { width: 100%; height: 100%; pointer-events: none; -webkit-user-drag: none; }
+  .map-obj { position: absolute; transform: translate(-50%, -50%); }
+  .pin { transform: translate(-50%, -100%); filter: drop-shadow(0 2px 3px rgba(16,17,17,.4)); }
+  .pin svg { width: 40px; height: 40px; display: block; }
+  .ring { border-radius: 50%; aspect-ratio: 1; pointer-events: none; }
+  .ring-500 { border: 2px dashed var(--green); background: rgba(2,106,78,.1); }
+  .ring-approx { border: 2px solid var(--green); background: rgba(2,106,78,.18); }
+  .poi { display: none; }
+  .map[data-poi="on"] .poi { display: block; }
+  .poi .dot { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; background: var(--surface); border: 2px solid var(--green); color: var(--green); }
+  .poi .dot .i { width: 15px; height: 15px; }
+  .poi .tag { position: absolute; left: 50%; top: 34px; transform: translateX(-50%); white-space: nowrap; font-size: 12px; font-weight: 600; background: var(--surface); border-radius: 999px; padding: 1px 8px; border: 1px solid var(--line); }
+  .map-ctl { position: absolute; right: 12px; top: 12px; display: grid; gap: 8px; z-index: 3; }
+  .map-ctl .icon-btn { box-shadow: 0 1px 3px rgba(16,17,17,.25); }
+  .map-attr { position: absolute; left: 0; bottom: 0; z-index: 3; font-size: 11px; padding: 2px 8px; background: rgba(255,255,255,.85); }
+  .map-badge { position: absolute; left: 12px; top: 12px; z-index: 3; }
+  .map-empty { display: none; height: 240px; place-items: center; text-align: center; padding: 24px; background: var(--cream); }
+  @media (min-width: 768px) { .map-empty { height: 380px; } }
+  .map-wrap[data-acc="none"] .map, .map-wrap[data-acc="none"] .map-ctl, .map-wrap[data-acc="none"] .map-attr, .map-wrap[data-acc="none"] .map-badge { display: none; }
+  .map-wrap[data-acc="none"] .map-empty { display: grid; }
+  body[data-acc="exact"] .only-approx, body[data-acc="approx"] .only-exact, body[data-acc="none"] .only-exact, body[data-acc="none"] .only-approx { display: none !important; }
+  .post .thumb, .sim .thumb { position: relative; overflow: hidden; }
+  .post .thumb img, .sim .thumb img { position: absolute; inset: 0; }
+  .map-actions { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 8px; }
+  .legend { display: none; flex-wrap: wrap; gap: 8px 16px; margin-top: 12px; font-size: 14px; }
+  .legend.show { display: flex; }
+  .toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }
+  .toggle input { width: 20px; height: 20px; accent-color: var(--green); }
+
+  /* Phân tích */
+  .analysis-card { border-color: var(--line-strong); }
+  .a-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .a-list { display: grid; gap: 8px 24px; grid-template-columns: 1fr; margin-top: 16px; }
+  @media (min-width: 560px) { .a-list { grid-template-columns: 1fr 1fr; } }
+  .a-list li { display: flex; align-items: center; gap: 10px; }
+  .a-list .i { color: var(--green); }
+  .a-cta { margin-top: 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+  .a-cta .fine { flex: 1 1 220px; }
+  .a-state { display: none; }
+  .analysis-card[data-a="idle"] .s-idle,
+  .analysis-card[data-a="loading"] .s-loading,
+  .analysis-card[data-a="done"] .s-done,
+  .analysis-card[data-a="error"] .s-error,
+  .analysis-card[data-a="quota"] .s-quota { display: block; }
+  .spin { width: 18px; height: 18px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .steps { display: grid; gap: 8px; margin-top: 16px; }
+  .steps li { display: flex; align-items: center; gap: 10px; color: var(--soft); }
+  .steps li.now { color: var(--charcoal); font-weight: 600; }
+  .steps li.ok { color: var(--green); }
+  .progress { height: 6px; border-radius: 999px; background: var(--line); overflow: hidden; margin-top: 16px; }
+  .progress i { display: block; height: 100%; width: 0; background: var(--green); transition: width .5s; }
+  .result-summary { max-width: 68ch; }
+  .kpis { display: grid; gap: 12px; grid-template-columns: 1fr; margin-top: 20px; }
+  @media (min-width: 640px) { .kpis { grid-template-columns: repeat(3, 1fr); } }
+  .kpi { padding: 16px; border-radius: 12px; background: var(--cream); }
+  .kpi b { display: block; font-size: 24px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+  .kpi span { display: block; font-size: 14px; color: var(--muted); }
+  .two-col { display: grid; gap: 16px; margin-top: 20px; }
+  @media (min-width: 640px) { .two-col { grid-template-columns: 1fr 1fr; } }
+  .two-col h3 { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+  .two-col li { display: flex; gap: 8px; padding: 6px 0; font-size: 15px; }
+  .two-col .i { margin-top: 4px; }
+  .groups { margin-top: 20px; border-top: 1px solid var(--line); }
+  .group { border-bottom: 1px solid var(--line); }
+  .group summary { padding: 4px 0; }
+  .group .intro { font-size: 14px; color: var(--muted); margin-bottom: 8px; }
+  .metric { display: grid; gap: 4px 16px; padding: 12px 0; border-top: 1px solid var(--line); }
+  @media (min-width: 640px) { .metric { grid-template-columns: 160px 1fr auto; align-items: start; } }
+  .metric dt { font-weight: 600; }
+  .metric dd small { display: block; color: var(--soft); font-size: 13px; }
+  .conf { font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 999px; white-space: nowrap; justify-self: start; }
+  .conf-cao { background: var(--green); color: var(--cream); }
+  .conf-tb { background: var(--green-tint); color: var(--green); }
+  .conf-thap { background: var(--gold-tint); color: var(--charcoal); }
+  .result-foot { margin-top: 20px; display: grid; gap: 12px; }
+  .result-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sample-tag { font-size: 12px; font-weight: 600; background: var(--gold-tint); border-radius: 999px; padding: 2px 10px; }
+  .error-box { display: flex; gap: 12px; padding: 16px; border-radius: 12px; border: 1px solid var(--charcoal); background: var(--gold-tint); margin-top: 16px; }
+  .error-box .i { margin-top: 4px; }
+
+  /* Bài viết / link / tin tương tự */
+  .posts { display: grid; gap: 16px; grid-template-columns: 1fr; }
+  @media (min-width: 640px) { .posts { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 639px) { .posts { grid-auto-flow: column; grid-auto-columns: 80%; grid-template-columns: none; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 8px; } .post { scroll-snap-align: start; } }
+  .post { display: flex; flex-direction: column; text-decoration: none; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
+  .post:hover { border-color: var(--charcoal); }
+  .post:hover h3 { text-decoration: underline; text-underline-offset: 3px; }
+  .post .thumb { aspect-ratio: 16 / 9; background: var(--charcoal); }
+  .post .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .post .body { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px 16px; }
+  .post h3 { font-size: 16px; line-height: 1.35; font-weight: 600; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .post p { font-size: 14px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .post .meta { font-size: 13px; color: var(--soft); }
+  .section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
+  body[data-articles="none"] #bai-viet { display: none; }
+
+  .links li { border-top: 1px solid var(--line); }
+  .links li:first-child { border-top: 0; }
+  .links a { display: grid; grid-template-columns: 24px 1fr; gap: 4px 12px; align-items: start; padding: 12px 0; text-decoration: none; min-height: 44px; }
+  .links a:hover .l-label { text-decoration: underline; text-underline-offset: 3px; }
+  .links .i { margin-top: 3px; color: var(--green); }
+  .l-label { font-weight: 600; }
+  .l-note { grid-column: 2; font-size: 14px; color: var(--soft); }
+  .links .extra { display: none; }
+  .links.expanded .extra { display: list-item; }
+
+  .similar { display: grid; gap: 16px; grid-template-columns: 1fr; }
+  @media (min-width: 560px) { .similar { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 559px) { .similar { grid-auto-flow: column; grid-auto-columns: 72%; grid-template-columns: none; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 8px; } .sim { scroll-snap-align: start; } }
+  .sim { text-decoration: none; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--surface); display: block; }
+  .sim:hover { border-color: var(--charcoal); }
+  .sim .thumb { aspect-ratio: 4 / 3; background: var(--charcoal); }
+  .sim .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .sim .body { padding: 12px 16px 16px; display: grid; gap: 4px; }
+  .sim .p { font-size: 18px; font-weight: 600; color: var(--green); font-variant-numeric: tabular-nums; }
+  .sim .t { font-size: 15px; font-weight: 600; line-height: 1.35; }
+  .sim .a { font-size: 14px; color: var(--muted); }
+
+  /* Thẻ liên hệ */
+  .aside { display: grid; gap: 16px; }
+  @media (min-width: 1024px) { .aside { position: sticky; top: 16px; } }
+  .contact-price { font-size: 28px; font-weight: 600; color: var(--green); line-height: 1.15; font-variant-numeric: tabular-nums; }
+  .contact-actions { display: grid; gap: 8px; margin-top: 16px; }
+  .poster { display: flex; gap: 12px; align-items: center; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+  .avatar { width: 48px; height: 48px; border-radius: 50%; background: var(--green); color: var(--cream); display: grid; place-items: center; font-weight: 600; }
+  .poster b { display: block; }
+  .poster span { font-size: 14px; color: var(--muted); }
+  .contact-meta { margin-top: 12px; display: grid; gap: 2px; font-size: 14px; color: var(--soft); }
+  .contact-links { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 0 12px; }
+  .disclaimer { font-size: 13px; color: var(--muted); line-height: 1.5; }
+  .ended-only { display: none; }
+  body[data-status="ended"] .ended-only { display: block; }
+  body[data-status="ended"] .active-only { display: none !important; }
+
+  /* Thanh dính đáy (mobile) */
+  .bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; background: var(--surface); border-top: 1px solid var(--line-strong); padding: 8px 16px calc(8px + env(safe-area-inset-bottom)); display: flex; gap: 8px; }
+  .bar .btn-primary { flex: 1; }
+  @media (min-width: 1024px) { .bar { display: none; } main { padding-bottom: 48px; } }
+
+  /* Footer */
+  .site-footer { padding: 16px 0 24px; }
+  .site-footer nav { display: flex; flex-wrap: wrap; gap: 0 8px; }
+  .site-footer a { display: inline-flex; align-items: center; min-height: 44px; padding: 4px 8px; font-size: 14px; text-underline-offset: 4px; }
+  .site-footer a:hover { text-decoration: underline; }
+  .site-footer a:first-child { font-weight: 600; }
+  @media (max-width: 1023px) { .site-footer { padding-bottom: 80px; } }
+
+  /* Hộp thoại */
+  dialog { border: 0; padding: 0; border-radius: var(--radius); max-width: min(92vw, 520px); width: 100%; background: var(--surface); color: var(--charcoal); }
+  dialog::backdrop { background: rgba(16, 17, 17, 0.65); }
+  .dlg { padding: 24px; display: grid; gap: 16px; }
+  .dlg h2 { font-size: 20px; }
+  .dlg-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .radio { display: flex; align-items: center; gap: 12px; min-height: 44px; }
+  .radio input { width: 20px; height: 20px; accent-color: var(--green); }
+  textarea { width: 100%; min-height: 88px; font: inherit; padding: 12px; border-radius: 12px; border: 1px solid var(--line-strong); background: var(--surface); }
+  #lightbox { max-width: min(96vw, 1100px); background: var(--charcoal); color: var(--cream); }
+  .lb { display: grid; gap: 12px; padding: 16px; }
+  .lb-stage { position: relative; height: min(72vh, 760px); display: grid; place-items: center; }
+  .lb-stage img { max-height: 100%; width: auto; max-width: 100%; object-fit: contain; border-radius: 8px; }
+  .lb-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .lb .icon-btn { background: var(--cream); color: var(--charcoal); border-color: var(--cream); }
+
+  /* Bảng mock trạng thái (không thuộc giao diện thật) */
+  .mock { position: fixed; left: 12px; bottom: 76px; z-index: 60; max-width: calc(100vw - 24px); }
+  @media (min-width: 1024px) { .mock { bottom: 12px; } }
+  .mock > summary { display: inline-flex; background: var(--charcoal); color: var(--cream); border-radius: 999px; padding: 0 16px; min-height: 44px; font-size: 14px; }
+  .mock-panel { margin-top: 8px; width: 300px; max-width: 100%; background: var(--surface); border: 1px solid var(--charcoal); border-radius: var(--radius); padding: 16px; display: grid; gap: 12px; font-size: 14px; box-shadow: 0 8px 24px rgba(16,17,17,.25); max-height: 70vh; overflow: auto; }
+  .mock-panel label { display: grid; gap: 4px; font-weight: 600; }
+  .mock-panel select { font: inherit; min-height: 40px; border-radius: 8px; border: 1px solid var(--line-strong); padding: 0 8px; background: var(--surface); }
+  .mock-panel .row { display: flex; align-items: center; gap: 8px; font-weight: 600; min-height: 32px; }
+  .mock-panel .row input { width: 18px; height: 18px; accent-color: var(--green); }
+  .toast { position: fixed; left: 50%; bottom: 88px; transform: translateX(-50%); background: var(--charcoal); color: var(--cream); padding: 10px 18px; border-radius: 999px; font-size: 14px; z-index: 80; opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body data-status="active" data-articles="yes" data-acc="exact">
+
+<!-- Bộ biểu tượng (kiểu Lucide, đúng bộ icon website đang dùng) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-ruler" viewBox="0 0 24 24"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.4 2.4 0 0 1 0-3.4l2.6-2.6a2.4 2.4 0 0 1 3.4 0z"/><path d="m14.5 12.5 2-2"/><path d="m11.5 9.5 2-2"/><path d="m8.5 6.5 2-2"/><path d="m17.5 15.5 2-2"/></symbol>
+    <symbol id="i-bed" viewBox="0 0 24 24"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></symbol>
+    <symbol id="i-bath" viewBox="0 0 24 24"><path d="M10 4 8 6"/><path d="M17 19v2"/><path d="M2 12h20"/><path d="M7 19v2"/><path d="M9 5 7.6 3.6A2.1 2.1 0 0 0 4 5v12"/><path d="M4 12v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/></symbol>
+    <symbol id="i-building" viewBox="0 0 24 24"><rect width="16" height="20" x="4" y="2" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01"/></symbol>
+    <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></symbol>
+    <symbol id="i-message" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></symbol>
+    <symbol id="i-ext" viewBox="0 0 24 24"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></symbol>
+    <symbol id="i-prev" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="i-next" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+    <symbol id="i-locate" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="22" x2="18" y1="12" y2="12"/><line x1="6" x2="2" y1="12" y2="12"/><line x1="12" x2="12" y1="6" y2="2"/><line x1="12" x2="12" y1="22" y2="18"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+    <symbol id="i-nav" viewBox="0 0 24 24"><polygon points="3 11 22 2 13 21 11 13 3 11"/></symbol>
+    <symbol id="i-expand" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><line x1="12" x2="12" y1="20" y2="10"/><line x1="18" x2="18" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="16"/></symbol>
+    <symbol id="i-train" viewBox="0 0 24 24"><rect width="16" height="16" x="4" y="3" rx="2"/><path d="M4 11h16"/><path d="M12 3v8"/><path d="m8 19-2 3"/><path d="m18 22-2-3"/><path d="M8 15h.01"/><path d="M16 15h.01"/></symbol>
+    <symbol id="i-store" viewBox="0 0 24 24"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/></symbol>
+    <symbol id="i-school" viewBox="0 0 24 24"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></symbol>
+    <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.09-3.09a2 2 0 0 0-2.82 0L6 21"/></symbol>
+  </defs>
+</svg>
+
+<a class="skip" href="#noi-dung">Đi tới nội dung</a>
+
+<header class="site-header on-green">
+  <div class="wrap">
+    <a class="logo" href="#" aria-label="Địa Thế, về trang chủ"><img src="../../../website/public/logos/diathe-text.svg" alt="Địa Thế" height="28" /></a>
+    <nav class="main-nav" aria-label="Chính">
+      <a href="#">Bản đồ</a>
+      <a href="#" aria-current="page" style="text-decoration:underline">Mua bán &amp; Cho thuê</a>
+      <a href="#">Bảng giá</a>
+      <a href="#">Cách hoạt động</a>
+      <a href="#">Câu hỏi thường gặp</a>
+    </nav>
+    <div class="header-right">
+      <a class="login" href="#" id="login-link">Đăng nhập</a>
+      <div class="locale" role="radiogroup" aria-label="Ngôn ngữ">
+        <button type="button" role="radio" aria-checked="true">VI</button>
+        <button type="button" role="radio" aria-checked="false">EN</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main id="noi-dung">
+  <div class="wrap">
+    <a class="back" href="#"><svg class="i i-sm"><use href="#i-left"/></svg>Quay lại danh sách</a>
+    <nav class="crumbs" aria-label="Đường dẫn">
+      <ol>
+        <li><a href="#">Trang chủ</a></li>
+        <li><a href="#">Nhà đất</a></li>
+        <li><a href="#">Nam Từ Liêm</a></li>
+        <li aria-current="page">Căn hộ 2 ngủ gần ga Phùng Khoang</li>
+      </ol>
+    </nav>
+
+    <div class="banner banner-ended banner" role="status">
+      <svg class="i" style="margin-top:3px"><use href="#i-info"/></svg>
+      <div><strong>Tin này đã ngừng rao.</strong><br /><span class="fine" style="color:var(--charcoal)">Người đăng đã đánh dấu đã giao dịch. Thông tin bên dưới chỉ để tham khảo, không còn liên hệ qua tin này.</span></div>
+    </div>
+
+    <div class="layout">
+      <div class="stack">
+
+        <!-- Gallery -->
+        <section aria-label="Hình ảnh" class="gallery">
+          <div class="gallery-grid" id="gallery-grid" tabindex="-1">
+            <button class="gallery-item" type="button" data-lb="0" aria-label="Mở ảnh 1 trong 3: phòng khách căn hộ">
+              <img class="pos-interior" src="../../../website/public/images/temp-002.jpg" alt="Phòng khách căn hộ có sofa xám, bàn gỗ và góc làm việc" width="1200" height="1800" fetchpriority="high" />
+            </button>
+            <button class="gallery-item" type="button" data-lb="1" aria-label="Mở ảnh 2 trong 3: không gian xanh trong khu đô thị">
+              <img src="../../../website/public/images/temp-003.jpg" alt="Lối đi và ghế gỗ trong khu cây xanh của khu đô thị" width="960" height="1200" loading="lazy" />
+            </button>
+            <button class="gallery-item" type="button" data-lb="2" aria-label="Mở ảnh 3 trong 3: phối cảnh tòa nhà">
+              <span class="illus">Ảnh minh họa</span>
+              <img src="../../../website/public/images/temp-004.jpg" alt="Phối cảnh các tòa chung cư cao tầng bên mặt nước" width="736" height="981" loading="lazy" />
+            </button>
+          </div>
+          <span class="dots" id="gallery-dots" aria-live="polite">1/3</span>
+          <button class="btn btn-sm gallery-count" type="button" data-lb="0"><svg class="i i-sm"><use href="#i-image"/></svg>Xem 3 ảnh</button>
+        </section>
+
+        <!-- Đầu tin (Glance) -->
+        <section class="card" aria-labelledby="tieu-de">
+          <div class="head-row">
+            <div class="chips">
+              <span class="chip chip-green">Bán</span>
+              <span class="chip">Căn hộ</span>
+              <span class="chip chip-tint"><svg class="i i-sm"><use href="#i-shield"/></svg>Sổ hồng · người đăng khai</span>
+            </div>
+            <div class="head-actions">
+              <button class="btn btn-sm" type="button" id="save-top" aria-pressed="false"><svg class="i i-sm"><use href="#i-heart"/></svg><span>Lưu</span></button>
+              <button class="btn btn-sm" type="button" id="share"><svg class="i i-sm"><use href="#i-share"/></svg>Chia sẻ</button>
+            </div>
+          </div>
+          <h1 id="tieu-de">Căn hộ 2 ngủ gần ga Phùng Khoang, khu đô thị Trung Văn</h1>
+          <button class="addr" type="button" id="goto-map"><svg class="i" style="margin-top:3px"><use href="#i-pin"/></svg>Phố Phùng Khoang, phường Trung Văn, Nam Từ Liêm, Hà Nội</button>
+          <div class="price-line">
+            <p class="price">4,2 tỷ</p>
+            <p class="price-sub">≈ 58,3 triệu/m² · tính từ giá chào</p>
+            <span class="chip chip-plain">Thương lượng</span>
+          </div>
+          <ul class="specs" aria-label="Thông số chính">
+            <li><svg class="i"><use href="#i-ruler"/></svg><b>72 m²</b><span>diện tích</span></li>
+            <li><svg class="i"><use href="#i-bed"/></svg><b>2</b><span>ngủ</span></li>
+            <li><svg class="i"><use href="#i-bath"/></svg><b>2</b><span>vệ sinh</span></li>
+            <li><svg class="i"><use href="#i-building"/></svg><b>Tầng 12</b></li>
+            <li><svg class="i"><use href="#i-compass"/></svg><b>Đông Nam</b><span>hướng</span></li>
+          </ul>
+        </section>
+
+        <!-- Mô tả -->
+        <section class="card" aria-labelledby="mo-ta">
+          <h2 id="mo-ta">Mô tả</h2>
+          <div class="desc" id="desc">
+            <p>Căn hộ tầng 12, hướng Đông Nam, thoáng và nhiều sáng vào buổi sáng. Hai phòng ngủ, hai vệ sinh, phòng khách liền bếp, ban công nhìn về phía công viên nội khu.</p>
+            <p>Nội thất cơ bản gồm sofa, bàn trà, tủ giày, tủ bếp, máy lạnh phòng khách và hai phòng ngủ. Chủ nhà để lại góc làm việc và kệ sách nếu người mua cần.</p>
+            <p>Tòa nhà có thang máy, hầm để xe ô tô và xe máy, bảo vệ 24/7. Đi bộ khoảng 10 phút tới ga metro và chợ Phùng Khoang. Phí quản lý đóng theo quy định của ban quản lý tòa nhà.</p>
+            <p>Hồ sơ gồm sổ hồng và hợp đồng mua bán gốc. Chủ nhà chỉ làm việc trực tiếp, không qua trung gian. Xin gọi điện để hẹn xem nhà.</p>
+          </div>
+          <button class="btn-text" type="button" id="desc-toggle" aria-expanded="false" aria-controls="desc">Xem thêm</button>
+          <p class="meta-line">Mã tin 20261024-0012 · Cập nhật 24/10/2026 · Hết hạn 23/11/2026</p>
+        </section>
+
+        <!-- Đặc điểm -->
+        <section class="card" aria-labelledby="dac-diem">
+          <h2 id="dac-diem">Đặc điểm</h2>
+          <div class="facts">
+            <details open>
+              <summary><h3>Cấu trúc</h3><svg class="i chev"><use href="#i-chev"/></svg></summary>
+              <dl>
+                <div><dt>Loại hình</dt><dd>Căn hộ chung cư</dd></div>
+                <div><dt>Diện tích</dt><dd>72 m²</dd></div>
+                <div><dt>Phòng ngủ</dt><dd>2</dd></div>
+                <div><dt>Phòng khách</dt><dd>1</dd></div>
+                <div><dt>Vệ sinh</dt><dd>2</dd></div>
+                <div><dt>Tầng</dt><dd>12</dd></div>
+                <div><dt>Dự án / tòa nhà</dt><dd>Khu đô thị Trung Văn, tòa B2</dd></div>
+              </dl>
+            </details>
+            <details>
+              <summary><h3>Tiện nghi</h3><svg class="i chev"><use href="#i-chev"/></svg></summary>
+              <dl>
+                <div><dt>Hướng cửa chính</dt><dd>Đông Nam</dd></div>
+                <div><dt>Hướng ban công</dt><dd>Đông Nam</dd></div>
+                <div><dt>Nội thất</dt><dd>Cơ bản</dd></div>
+                <div><dt>Thang máy</dt><dd>Có</dd></div>
+                <div><dt>Chỗ để xe</dt><dd>Hầm xe ô tô, xe máy</dd></div>
+                <div><dt>Năm bàn giao</dt><dd>2019</dd></div>
+              </dl>
+            </details>
+          </div>
+        </section>
+
+        <!-- Pháp lý -->
+        <section class="card" aria-labelledby="phap-ly">
+          <h2 id="phap-ly">Pháp lý</h2>
+          <div class="legal-row">
+            <span class="chip chip-tint"><svg class="i i-sm"><use href="#i-shield"/></svg>Sổ hồng</span>
+            <span class="chip chip-plain">Sở hữu lâu dài</span>
+            <span class="fine">Do người đăng khai</span>
+          </div>
+          <p class="fine" style="margin-top:12px">Ghi chú của người đăng: sổ hồng chính chủ, chưa thế chấp.</p>
+          <div class="notice" style="margin-top:16px">
+            <svg class="i"><use href="#i-info"/></svg>
+            <p>Thông tin pháp lý do người đăng khai. Địa Thế không kiểm tra giấy tờ. Hãy yêu cầu xem sổ và kiểm tra tại cơ quan có thẩm quyền trước khi đặt cọc. <a href="#bai-viet">Đọc cách kiểm tra pháp lý</a>.</p>
+          </div>
+        </section>
+
+        <!-- Vị trí + bản đồ -->
+        <section class="card" aria-labelledby="vi-tri" id="vi-tri-card">
+          <div class="section-head">
+            <h2 id="vi-tri" style="margin:0">Vị trí</h2>
+            <span class="chip chip-tint only-exact"><svg class="i i-sm"><use href="#i-check"/></svg>Vị trí do người đăng xác nhận</span>
+            <span class="chip chip-gold only-approx"><svg class="i i-sm"><use href="#i-info"/></svg>Vị trí xấp xỉ</span>
+          </div>
+          <p class="lede" style="margin-top:8px">Phố Phùng Khoang, phường Trung Văn, Nam Từ Liêm, Hà Nội. Đối diện khu công viên nội khu, cách chợ Phùng Khoang khoảng 5 phút đi bộ.</p>
+
+          <div class="map-wrap" id="map-wrap" data-acc="exact" style="margin-top:16px">
+            <div class="map" id="map" data-poi="off" role="application" aria-label="Bản đồ vị trí căn hộ. Kéo để di chuyển, dùng nút cộng trừ để phóng to thu nhỏ." tabindex="0">
+              <div class="map-stage" id="map-stage">
+                <img src="../../../website/public/images/temp-001.png" alt="" width="1622" height="708" />
+                <div class="map-obj ring ring-approx only-approx" id="ring-approx" style="left:52.4%;top:37%;width:5%;" aria-hidden="true"></div>
+                <div class="map-obj ring ring-500" id="ring-500" style="left:52.4%;top:37%;width:14.2%;display:none" aria-hidden="true"></div>
+                <div class="map-obj poi" style="left:55.5%;top:42.1%"><span class="dot"><svg class="i"><use href="#i-store"/></svg></span><span class="tag">Chợ Phùng Khoang · 270 m</span></div>
+                <div class="map-obj poi" style="left:54.6%;top:51.6%"><span class="dot"><svg class="i"><use href="#i-train"/></svg></span><span class="tag">Ga Phùng Khoang · 470 m</span></div>
+                <div class="map-obj poi" style="left:58.3%;top:31.4%"><span class="dot"><svg class="i"><use href="#i-school"/></svg></span><span class="tag">ĐH Hà Nội · 450 m</span></div>
+                <div class="map-obj pin only-exact" style="left:52.4%;top:37%"><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 38s13-10.5 13-21A13 13 0 0 0 7 17c0 10.5 13 21 13 21Z" fill="#026a4e" stroke="#e6e2da" stroke-width="2"/><circle cx="20" cy="17" r="5" fill="#e6e2da"/></svg></div>
+              </div>
+              <span class="map-badge chip chip-plain" style="background:var(--surface)">Bản đồ minh họa</span>
+              <div class="map-ctl">
+                <button class="icon-btn" type="button" id="zoom-in" aria-label="Phóng to"><svg class="i"><use href="#i-plus"/></svg></button>
+                <button class="icon-btn" type="button" id="zoom-out" aria-label="Thu nhỏ"><svg class="i"><use href="#i-minus"/></svg></button>
+                <button class="icon-btn" type="button" id="recenter" aria-label="Về vị trí căn hộ"><svg class="i"><use href="#i-locate"/></svg></button>
+              </div>
+              <span class="map-attr">© OpenStreetMap contributors</span>
+            </div>
+            <div class="map-empty">
+              <div>
+                <svg class="i" style="width:32px;height:32px"><use href="#i-pin"/></svg>
+                <p style="font-weight:600;margin-top:8px">Chưa có vị trí chính xác cho tin này</p>
+                <p class="fine" style="margin-top:4px">Phường Trung Văn, Nam Từ Liêm. Hỏi người đăng địa chỉ cụ thể.</p>
+              </div>
+            </div>
+          </div>
+          <p class="fine only-approx" style="margin-top:8px">Vị trí xấp xỉ. Hỏi người đăng địa chỉ chính xác. Kết quả phân tích tính từ tâm vòng tròn, độ tin cậy thấp hơn.</p>
+          <div class="map-actions">
+            <a class="btn-text" href="#"><svg class="i i-sm"><use href="#i-expand"/></svg>Xem bản đồ lớn</a>
+            <a class="btn-text" href="#" target="_blank" rel="noopener noreferrer"><svg class="i i-sm"><use href="#i-nav"/></svg>Chỉ đường<span class="sr"> (mở tab mới)</span></a>
+            <button class="btn-text" type="button" id="copy-addr"><svg class="i i-sm"><use href="#i-copy"/></svg>Sao chép địa chỉ</button>
+          </div>
+          <div class="legend" id="legend" aria-label="Chú giải lớp tiện ích">
+            <label class="toggle"><input type="checkbox" id="poi-toggle" checked /> Hiện tiện ích trên bản đồ</label>
+            <span class="fine" style="align-self:center">Vòng nét đứt: bán kính 500 m quanh ghim</span>
+          </div>
+        </section>
+
+        <!-- Phân tích: không chạy cho tới khi bấm -->
+        <section class="card analysis-card" id="phan-tich" data-a="idle" aria-labelledby="pt-title">
+          <div class="a-head">
+            <h2 id="pt-title" style="margin:0">Phân tích khu vực quanh căn này</h2>
+            <span class="sample-tag" id="sample-tag" hidden>Số liệu minh họa</span>
+          </div>
+
+          <div class="a-state s-idle">
+            <p class="lede" style="margin-top:12px;max-width:68ch">Tính từ ghim của tin: tiện ích trong 500 m, đường và giao thông, cao độ và mô hình ngập sông, không khí, mật độ dân cư. Mỗi số kèm nguồn và mức phủ dữ liệu.</p>
+            <ul class="a-list" aria-label="Các nhóm sẽ có trong phân tích">
+              <li><svg class="i"><use href="#i-store"/></svg>Tiện ích đi bộ</li>
+              <li><svg class="i"><use href="#i-train"/></svg>Đi lại và đường</li>
+              <li><svg class="i"><use href="#i-users"/></svg>Dân cư</li>
+              <li><svg class="i"><use href="#i-leaf"/></svg>Môi trường: không khí, cao độ, ngập sông</li>
+            </ul>
+            <div class="a-cta">
+              <button class="btn btn-primary" type="button" id="run-analysis"><svg class="i"><use href="#i-chart"/></svg><span id="run-label">Phân tích địa điểm này</span></button>
+              <p class="fine" id="run-hint">Khoảng vài giây · Dùng 1 lượt phân tích, bạn còn 4 lượt hôm nay.</p>
+            </div>
+            <p class="fine" id="run-block" style="margin-top:12px" hidden></p>
+          </div>
+
+          <div class="a-state s-loading" aria-live="polite">
+            <button class="btn" type="button" disabled style="margin-top:16px" aria-busy="true"><span class="spin"></span>Đang phân tích…</button>
+            <div class="progress" aria-hidden="true"><i id="prog"></i></div>
+            <ul class="steps" id="steps">
+              <li data-s="0"><svg class="i i-sm"><use href="#i-check"/></svg>Tìm tiện ích trong 500 m</li>
+              <li data-s="1"><svg class="i i-sm"><use href="#i-check"/></svg>Đường và giao thông</li>
+              <li data-s="2"><svg class="i i-sm"><use href="#i-check"/></svg>Môi trường và dân cư</li>
+            </ul>
+            <button class="btn-text" type="button" id="cancel-analysis" style="margin-top:8px">Hủy</button>
+          </div>
+
+          <div class="a-state s-error" aria-live="polite">
+            <div class="error-box" role="alert">
+              <svg class="i"><use href="#i-alert"/></svg>
+              <div><strong>Chưa phân tích được lúc này.</strong><p style="margin-top:4px">Lượt của bạn chưa bị trừ. Thử lại sau ít phút.</p></div>
+            </div>
+            <div class="a-cta"><button class="btn btn-primary retry" type="button">Thử lại</button></div>
+          </div>
+
+          <div class="a-state s-quota" aria-live="polite">
+            <div class="error-box" role="status">
+              <svg class="i"><use href="#i-info"/></svg>
+              <div><strong>Bạn đã dùng hết lượt phân tích hôm nay.</strong><p style="margin-top:4px">Lượt được làm mới lúc 00:00 ngày mai. Kết quả đã lưu trong lịch sử vẫn xem được.</p></div>
+            </div>
+            <div class="a-cta"><a class="btn" href="#">Xem lịch sử phân tích</a></div>
+          </div>
+
+          <div class="a-state s-done" id="result" tabindex="-1" aria-live="polite">
+            <div id="result-body"></div>
+          </div>
+        </section>
+
+        <!-- Bài viết liên quan (bài trong app) -->
+        <section class="card" id="bai-viet" aria-labelledby="bv-title">
+          <div class="section-head">
+            <h2 id="bv-title" style="margin:0">Bài viết liên quan</h2>
+            <a class="btn-text" href="#">Xem tất cả bài viết</a>
+          </div>
+          <div class="posts" style="margin-top:16px">
+            <a class="post" href="#">
+              <div class="thumb"><img src="../../../website/public/images/temp-003.jpg" alt="" loading="lazy" /></div>
+              <div class="body">
+                <span class="chip chip-tint" style="align-self:flex-start">Hướng dẫn chung</span>
+                <h3>Cách đọc kết quả phân tích vị trí: tiện ích, ngập sông, không khí</h3>
+                <p>Mỗi con số trong báo cáo nói gì, và chỗ nào dữ liệu còn mỏng.</p>
+                <span class="meta">5 phút đọc · 12/10/2026</span>
+              </div>
+            </a>
+            <a class="post" href="#">
+              <div class="thumb"><img src="../../../website/public/images/temp-004.jpg" alt="" loading="lazy" /></div>
+              <div class="body">
+                <span class="chip chip-tint" style="align-self:flex-start">Pháp lý</span>
+                <h3>Kiểm tra pháp lý căn hộ trước khi đặt cọc</h3>
+                <p>Những giấy tờ cần xem và những câu hỏi nên hỏi người bán.</p>
+                <span class="meta">6 phút đọc · 03/10/2026</span>
+              </div>
+            </a>
+            <a class="post" href="#">
+              <div class="thumb"><img src="../../../website/public/images/temp-002.jpg" alt="" loading="lazy" style="object-position:50% 62%" /></div>
+              <div class="body">
+                <span class="chip chip-tint" style="align-self:flex-start">Nam Từ Liêm</span>
+                <h3>Ở gần ga metro Phùng Khoang: dữ liệu cho biết gì, chưa cho biết gì</h3>
+                <p>Khoảng cách đi bộ, điểm xe buýt, chợ và trường quanh khu Trung Văn.</p>
+                <span class="meta">4 phút đọc · 28/09/2026</span>
+              </div>
+            </a>
+          </div>
+        </section>
+
+        <!-- Link liên quan -->
+        <section class="card" aria-labelledby="lk-title">
+          <h2 id="lk-title">Link liên quan</h2>
+          <ul class="links" id="links">
+            <li><a href="#"><svg class="i"><use href="#i-pin"/></svg><span class="l-label">Xem căn này trên bản đồ lớn</span><span class="l-note">Trong Địa Thế</span></a></li>
+            <li><a href="#"><svg class="i"><use href="#i-link"/></svg><span class="l-label">Các tin khác trong khu đô thị Trung Văn</span><span class="l-note">Trong Địa Thế · 6 tin</span></a></li>
+            <li><a href="#"><svg class="i"><use href="#i-link"/></svg><span class="l-label">Nhà đất tại Nam Từ Liêm</span><span class="l-note">Trong Địa Thế</span></a></li>
+            <li><a href="#" target="_blank" rel="noopener noreferrer nofollow ugc"><svg class="i"><use href="#i-ext"/></svg><span class="l-label">Website chủ đầu tư khu đô thị</span><span class="l-note">chudautu.example · do người đăng thêm · mở tab mới</span></a></li>
+            <li><a href="https://quyhoach.hanoi.gov.vn/" target="_blank" rel="noopener noreferrer nofollow"><svg class="i"><use href="#i-ext"/></svg><span class="l-label">Cổng thông tin quy hoạch Hà Nội</span><span class="l-note">quyhoach.hanoi.gov.vn · mở tab mới</span></a></li>
+            <li class="extra"><a href="https://hanoi.gov.vn/du-lieu-mo" target="_blank" rel="noopener noreferrer nofollow"><svg class="i"><use href="#i-ext"/></svg><span class="l-label">Cổng dữ liệu mở của thành phố</span><span class="l-note">hanoi.gov.vn · mở tab mới</span></a></li>
+            <li class="extra"><a href="#" target="_blank" rel="noopener noreferrer nofollow ugc"><svg class="i"><use href="#i-ext"/></svg><span class="l-label">Trang thông tin ban quản lý tòa nhà</span><span class="l-note">quanly-b2.example · do người đăng thêm · mở tab mới</span></a></li>
+          </ul>
+          <button class="btn-text" type="button" id="links-toggle" aria-expanded="false" aria-controls="links">Xem thêm 2</button>
+        </section>
+
+        <!-- Tin tương tự -->
+        <section class="card" aria-labelledby="sim-title">
+          <div class="section-head">
+            <h2 id="sim-title" style="margin:0">Tin tương tự</h2>
+            <span class="fine">Cùng quận, cùng loại, giá gần nhau</span>
+          </div>
+          <div class="similar" style="margin-top:16px">
+            <a class="sim" href="#"><div class="thumb"><img src="../../../website/public/images/temp-002.jpg" alt="" loading="lazy" style="object-position:50% 62%" /></div><div class="body"><span class="p">3,9 tỷ</span><span class="t">Căn hộ 2 ngủ tòa B1 Trung Văn</span><span class="a">68 m² · 2 ngủ · Trung Văn</span></div></a>
+            <a class="sim" href="#"><div class="thumb"><img src="../../../website/public/images/temp-004.jpg" alt="" loading="lazy" /></div><div class="body"><span class="p">4,6 tỷ</span><span class="t">Căn hộ 3 ngủ view công viên</span><span class="a">80 m² · 3 ngủ · Trung Văn</span></div></a>
+            <a class="sim" href="#"><div class="thumb"><img src="../../../website/public/images/temp-003.jpg" alt="" loading="lazy" /></div><div class="body"><span class="p">3,6 tỷ</span><span class="t">Căn hộ 2 ngủ gần chợ Phùng Khoang</span><span class="a">65 m² · 2 ngủ · Mỗ Lao</span></div></a>
+          </div>
+        </section>
+      </div>
+
+      <!-- Thẻ liên hệ -->
+      <aside class="aside" aria-label="Liên hệ người đăng">
+        <div class="card">
+          <p class="contact-price">4,2 tỷ</p>
+          <p class="fine">≈ 58,3 triệu/m² · giá do người đăng chào</p>
+
+          <div class="contact-actions active-only">
+            <a class="btn btn-primary btn-block" id="call-btn" href="#" aria-label="Gọi cho người đăng"><svg class="i"><use href="#i-phone"/></svg><span id="call-text">Gọi 0912 345 ***</span></a>
+            <button class="btn btn-block" type="button" id="reveal"><svg class="i"><use href="#i-phone"/></svg>Hiện số</button>
+            <a class="btn btn-block" href="#" target="_blank" rel="noopener noreferrer"><svg class="i"><use href="#i-message"/></svg>Zalo<span class="sr"> (mở tab mới)</span></a>
+            <button class="btn btn-block" type="button" id="save-card" aria-pressed="false"><svg class="i"><use href="#i-heart"/></svg><span>Lưu tin</span></button>
+          </div>
+          <div class="ended-only" style="margin-top:16px">
+            <button class="btn btn-block" type="button" disabled>Tin đã ngừng rao</button>
+          </div>
+
+          <div class="poster">
+            <span class="avatar" aria-hidden="true">TH</span>
+            <div>
+              <b>Trần Thị H.</b>
+              <span>Chủ nhà · người đăng khai</span>
+            </div>
+          </div>
+          <div class="contact-meta">
+            <span>Tham gia từ 03/2026 · 2 tin đang đăng</span>
+            <span><svg class="i i-sm" style="vertical-align:-3px"><use href="#i-check"/></svg> Đã xác thực email</span>
+            <span>Cập nhật 24/10/2026 · Mã 20261024-0012</span>
+          </div>
+          <div class="contact-links">
+            <button class="btn-text" type="button" id="report-open"><svg class="i i-sm"><use href="#i-flag"/></svg>Báo cáo tin</button>
+          </div>
+        </div>
+        <p class="disclaimer">Địa Thế là công cụ đăng tin, không phải sàn giao dịch hay đơn vị môi giới. Bạn và người đăng tự liên hệ và tự chịu trách nhiệm về giao dịch. Thông tin trong tin do người đăng cung cấp, Địa Thế không kiểm tra giấy tờ.</p>
+      </aside>
+    </div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <nav aria-label="Chân trang">
+      <a href="#">Pháp lý</a>
+      <a href="#">Điều khoản sử dụng</a>
+      <a href="#">Chính sách quyền riêng tư</a>
+      <a href="#">Chính sách cookie</a>
+      <a href="#">Chính sách đăng tin</a>
+      <a href="#">Giá, thanh toán và hoàn tiền</a>
+      <a href="#">Tuyên bố về dữ liệu phân tích</a>
+      <a href="#">Bản quyền</a>
+    </nav>
+  </div>
+</footer>
+
+<!-- Thanh hành động dính đáy (mobile / tablet) -->
+<div class="bar active-only" aria-label="Hành động nhanh">
+  <a class="btn btn-primary" href="#" id="bar-call"><svg class="i"><use href="#i-phone"/></svg>Gọi người đăng</a>
+  <button class="btn" type="button" id="save-bar" aria-pressed="false" aria-label="Lưu tin"><svg class="i"><use href="#i-heart"/></svg></button>
+</div>
+
+<!-- Lightbox -->
+<dialog id="lightbox" aria-label="Thư viện ảnh">
+  <div class="lb">
+    <div class="lb-bar">
+      <span id="lb-count" aria-live="polite">1 / 3</span>
+      <button class="icon-btn" type="button" id="lb-close" aria-label="Đóng"><svg class="i"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="lb-stage"><img id="lb-img" src="" alt="" /></div>
+    <div class="lb-bar">
+      <button class="icon-btn" type="button" id="lb-prev" aria-label="Ảnh trước"><svg class="i"><use href="#i-prev"/></svg></button>
+      <span id="lb-cap" style="text-align:center"></span>
+      <button class="icon-btn" type="button" id="lb-next" aria-label="Ảnh sau"><svg class="i"><use href="#i-next"/></svg></button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Báo cáo tin -->
+<dialog id="report" aria-labelledby="report-title">
+  <form method="dialog" class="dlg" id="report-form">
+    <div class="dlg-head">
+      <h2 id="report-title">Báo cáo tin</h2>
+      <button class="icon-btn" type="button" id="report-close" aria-label="Đóng"><svg class="i"><use href="#i-x"/></svg></button>
+    </div>
+    <fieldset style="border:0;padding:0;margin:0">
+      <legend class="fine" style="padding:0;margin-bottom:4px">Lý do</legend>
+      <label class="radio"><input type="radio" name="r" checked /> Sai giá hoặc diện tích</label>
+      <label class="radio"><input type="radio" name="r" /> Không còn bán</label>
+      <label class="radio"><input type="radio" name="r" /> Ảnh không đúng</label>
+      <label class="radio"><input type="radio" name="r" /> Nghi lừa đảo</label>
+      <label class="radio"><input type="radio" name="r" /> Lý do khác</label>
+    </fieldset>
+    <label for="r-note" class="fine" style="margin-bottom:-8px">Ghi chú (không bắt buộc)</label>
+    <textarea id="r-note"></textarea>
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+      <button class="btn" type="button" id="report-cancel">Hủy</button>
+      <button class="btn btn-primary" type="submit">Gửi báo cáo</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" role="status"></div>
+
+<!-- Bảng chuyển trạng thái để xem mock (không thuộc giao diện thật) -->
+<details class="mock">
+  <summary>Mock: đổi trạng thái</summary>
+  <div class="mock-panel">
+    <label>Kết quả khi bấm Phân tích
+      <select id="m-result">
+        <option value="done">Thành công</option>
+        <option value="partial">Một phần (thiếu dữ liệu)</option>
+        <option value="error">Lỗi</option>
+        <option value="quota">Hết lượt hôm nay</option>
+      </select>
+    </label>
+    <label>Độ chính xác vị trí
+      <select id="m-acc">
+        <option value="exact">Chính xác (ghim)</option>
+        <option value="approx">Xấp xỉ (vòng tròn)</option>
+        <option value="none">Thiếu tọa độ</option>
+      </select>
+    </label>
+    <label>Trạng thái tin
+      <select id="m-status">
+        <option value="active">Đang rao</option>
+        <option value="ended">Đã ngừng rao</option>
+      </select>
+    </label>
+    <label class="row"><input type="checkbox" id="m-login" checked /> Đã đăng nhập</label>
+    <label class="row"><input type="checkbox" id="m-articles" checked /> Có bài viết liên quan</label>
+    <button class="btn btn-sm" type="button" id="m-reset">Đặt lại phân tích</button>
+  </div>
+</details>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+
+  var state = { login: true, acc: "exact", result: "done", zoom: 1.5, dx: 0, dy: 0, timers: [], quota: 4 };
+
+  /* ---------- Toast ---------- */
+  var toastEl = $("#toast"), toastT;
+  function toast(msg) {
+    toastEl.textContent = msg; toastEl.classList.add("show");
+    clearTimeout(toastT); toastT = setTimeout(function () { toastEl.classList.remove("show"); }, 2200);
+  }
+
+  /* ---------- Gallery + lightbox ---------- */
+  var photos = [
+    { src: "../../../website/public/images/temp-002.jpg", alt: "Phòng khách căn hộ có sofa xám, bàn gỗ và góc làm việc", cap: "Phòng khách" },
+    { src: "../../../website/public/images/temp-003.jpg", alt: "Lối đi và ghế gỗ trong khu cây xanh của khu đô thị", cap: "Không gian xanh trong khu đô thị" },
+    { src: "../../../website/public/images/temp-004.jpg", alt: "Phối cảnh các tòa chung cư cao tầng bên mặt nước", cap: "Phối cảnh tòa nhà (ảnh minh họa)" }
+  ];
+  var lb = $("#lightbox"), lbIdx = 0, lbOpener = null;
+  function lbShow(i) {
+    lbIdx = (i + photos.length) % photos.length;
+    var p = photos[lbIdx];
+    $("#lb-img").src = p.src; $("#lb-img").alt = p.alt;
+    $("#lb-cap").textContent = p.cap;
+    $("#lb-count").textContent = (lbIdx + 1) + " / " + photos.length;
+  }
+  $$("[data-lb]").forEach(function (b) {
+    b.addEventListener("click", function () { lbOpener = b; lbShow(+b.dataset.lb); lb.showModal(); $("#lb-close").focus(); });
+  });
+  $("#lb-prev").addEventListener("click", function () { lbShow(lbIdx - 1); });
+  $("#lb-next").addEventListener("click", function () { lbShow(lbIdx + 1); });
+  $("#lb-close").addEventListener("click", function () { lb.close(); });
+  lb.addEventListener("close", function () { if (lbOpener) lbOpener.focus(); });
+  lb.addEventListener("keydown", function (e) {
+    if (e.key === "ArrowLeft") lbShow(lbIdx - 1);
+    if (e.key === "ArrowRight") lbShow(lbIdx + 1);
+  });
+  lb.addEventListener("click", function (e) { if (e.target === lb) lb.close(); });
+
+  var grid = $("#gallery-grid");
+  grid.addEventListener("scroll", function () {
+    var i = Math.round(grid.scrollLeft / grid.clientWidth);
+    $("#gallery-dots").textContent = (i + 1) + "/3";
+  }, { passive: true });
+
+  /* ---------- Mô tả, link ---------- */
+  $("#desc-toggle").addEventListener("click", function () {
+    var open = $("#desc").classList.toggle("open");
+    this.textContent = open ? "Thu gọn" : "Xem thêm";
+    this.setAttribute("aria-expanded", String(open));
+  });
+  $("#links-toggle").addEventListener("click", function () {
+    var open = $("#links").classList.toggle("expanded");
+    this.textContent = open ? "Thu gọn" : "Xem thêm 2";
+    this.setAttribute("aria-expanded", String(open));
+  });
+
+  /* ---------- Lưu / chia sẻ / sao chép ---------- */
+  var saved = false;
+  function renderSaved() {
+    ["#save-top", "#save-card", "#save-bar"].forEach(function (s) {
+      var b = $(s); b.setAttribute("aria-pressed", String(saved));
+      var t = b.querySelector("span"); if (t) t.textContent = saved ? "Đã lưu" : (s === "#save-card" ? "Lưu tin" : "Lưu");
+      b.querySelector("svg use").parentNode.style.fill = saved ? "currentColor" : "none";
+    });
+  }
+  ["#save-top", "#save-card", "#save-bar"].forEach(function (s) {
+    $(s).addEventListener("click", function () {
+      if (!state.login) { toast("Đăng nhập để lưu tin."); return; }
+      saved = !saved; renderSaved(); toast(saved ? "Đã lưu vào danh sách của bạn." : "Đã bỏ lưu.");
+    });
+  });
+  $("#share").addEventListener("click", function () { toast("Đã sao chép liên kết tin."); });
+  $("#copy-addr").addEventListener("click", function () { toast("Đã sao chép địa chỉ."); });
+
+  /* ---------- Số điện thoại ---------- */
+  $("#reveal").addEventListener("click", function () {
+    $("#call-text").textContent = "Gọi 0912 345 678";
+    $("#call-btn").href = "tel:0912345678"; $("#bar-call").href = "tel:0912345678";
+    this.hidden = true;
+  });
+
+  /* ---------- Báo cáo ---------- */
+  var rep = $("#report");
+  $("#report-open").addEventListener("click", function () { rep.showModal(); });
+  $("#report-close").addEventListener("click", function () { rep.close(); });
+  $("#report-cancel").addEventListener("click", function () { rep.close(); });
+  $("#report-form").addEventListener("submit", function () { toast("Đã ghi nhận. Chúng tôi sẽ xem xét."); });
+
+  /* ---------- Bản đồ ---------- */
+  var PIN = { x: 0.524, y: 0.37 }, IMG = { w: 1622, h: 708 };
+  var map = $("#map"), stage = $("#map-stage");
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function layoutMap() {
+    var cw = map.clientWidth, ch = map.clientHeight;
+    if (!cw || !ch) return;
+    var s = Math.max(cw / IMG.w, ch / IMG.h) * state.zoom;
+    var w = IMG.w * s, h = IMG.h * s;
+    var left = clamp(cw / 2 - PIN.x * w + state.dx, cw - w, 0);
+    var top = clamp(ch / 2 - PIN.y * h + state.dy, ch - h, 0);
+    state.dx = left - (cw / 2 - PIN.x * w); state.dy = top - (ch / 2 - PIN.y * h);
+    stage.style.width = w + "px"; stage.style.height = h + "px";
+    stage.style.transform = "translate(" + left + "px," + top + "px)";
+  }
+  window.addEventListener("resize", layoutMap);
+  $("#zoom-in").addEventListener("click", function () { state.zoom = Math.min(3, state.zoom + 0.5); layoutMap(); });
+  $("#zoom-out").addEventListener("click", function () { state.zoom = Math.max(1, state.zoom - 0.5); layoutMap(); });
+  $("#recenter").addEventListener("click", function () { state.dx = 0; state.dy = 0; state.zoom = 1.5; layoutMap(); });
+  var drag = null;
+  map.addEventListener("pointerdown", function (e) {
+    if (e.target.closest(".map-ctl")) return;
+    drag = { x: e.clientX, y: e.clientY, dx: state.dx, dy: state.dy };
+    map.classList.add("dragging"); map.setPointerCapture(e.pointerId);
+  });
+  map.addEventListener("pointermove", function (e) {
+    if (!drag) return;
+    state.dx = drag.dx + (e.clientX - drag.x); state.dy = drag.dy + (e.clientY - drag.y); layoutMap();
+  });
+  function endDrag() { drag = null; map.classList.remove("dragging"); }
+  map.addEventListener("pointerup", endDrag); map.addEventListener("pointercancel", endDrag);
+  map.addEventListener("keydown", function (e) {
+    var step = 40, used = true;
+    if (e.key === "ArrowLeft") state.dx += step; else if (e.key === "ArrowRight") state.dx -= step;
+    else if (e.key === "ArrowUp") state.dy += step; else if (e.key === "ArrowDown") state.dy -= step;
+    else if (e.key === "+" || e.key === "=") state.zoom = Math.min(3, state.zoom + 0.5);
+    else if (e.key === "-") state.zoom = Math.max(1, state.zoom - 0.5);
+    else used = false;
+    if (used) { e.preventDefault(); layoutMap(); }
+  });
+  $("#goto-map").addEventListener("click", function () {
+    $("#vi-tri-card").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+  $("#poi-toggle").addEventListener("change", function () { map.dataset.poi = this.checked ? "on" : "off"; });
+
+  /* ---------- Phân tích (chỉ chạy khi bấm) ---------- */
+  var card = $("#phan-tich");
+  function setA(v) { card.dataset.a = v; }
+  function clearTimers() { state.timers.forEach(clearTimeout); state.timers = []; }
+
+  function eligibility() {
+    if (state.acc === "none") return "Chưa có tọa độ cho tin này nên chưa phân tích được.";
+    if (document.body.dataset.status === "ended") return null;
+    return null;
+  }
+  function renderIdle() {
+    var btn = $("#run-analysis"), hint = $("#run-hint"), block = $("#run-block"), lbl = $("#run-label");
+    var why = eligibility();
+    btn.disabled = false; btn.removeAttribute("aria-disabled"); block.hidden = true;
+    if (why) {
+      btn.disabled = true; btn.setAttribute("aria-disabled", "true");
+      block.textContent = why; block.hidden = false; hint.hidden = true; lbl.textContent = "Phân tích địa điểm này";
+    } else if (!state.login) {
+      lbl.textContent = "Đăng nhập để phân tích"; hint.hidden = false;
+      hint.textContent = "Sau khi đăng nhập bạn quay lại đúng tin này, rồi bấm phân tích.";
+    } else {
+      lbl.textContent = "Phân tích địa điểm này"; hint.hidden = false;
+      hint.textContent = "Khoảng vài giây · Dùng 1 lượt phân tích, bạn còn " + state.quota + " lượt hôm nay.";
+    }
+    $("#sample-tag").hidden = true;
+  }
+  function resetAnalysis() {
+    clearTimers(); setA("idle"); renderIdle();
+    $("#ring-500").style.display = "none"; $("#legend").classList.remove("show"); map.dataset.poi = "off";
+    $("#result-body").innerHTML = "";
+  }
+
+  function metric(label, res, src, conf, extra) {
+    var cl = { "cao": ["conf-cao", "Tin cậy cao"], "tb": ["conf-tb", "Tin cậy trung bình"], "thap": ["conf-thap", "Tin cậy thấp"] }[conf];
+    return '<div class="metric"><dt>' + label + '</dt><dd>' + res + '<small>' + src + (extra ? ' · ' + extra : '') + '</small></dd><span class="conf ' + cl[0] + '">' + cl[1] + '</span></div>';
+  }
+  function group(title, icon, intro, rows, open) {
+    return '<details class="group"' + (open ? " open" : "") + '><summary><span style="display:inline-flex;align-items:center;gap:10px"><svg class="i"><use href="#' + icon + '"/></svg>' + title + '</span><svg class="i chev"><use href="#i-chev"/></svg></summary><p class="intro">' + intro + '</p><dl>' + rows.join("") + '</dl></details>';
+  }
+  function buildResult(partial) {
+    var envRows = [
+      metric("Cao độ", "Khoảng 7,8 m, thấp hơn trung vị xung quanh 0,4 m.", "FABDEM", "tb", "ô 30 m"),
+      metric("Ngập sông (mô hình)", "Ô này không nằm trong vệt ngập sông chu kỳ 10 và 100 năm. Đây không phải bản đồ ngập đường sau mưa.", "JRC Global River Flood Hazard", "tb", "ô mô hình"),
+      metric("Mảng xanh", "Khoảng 22% diện tích trong 300 m là thực vật.", "ESA WorldCover", "tb", "300 m")
+    ];
+    if (partial) {
+      envRows.push(metric("Không khí", "Chưa có dữ liệu. Trạm gần nhất cách khoảng 4,2 km, xa hơn 3 km nên không gán cho căn này.", "OpenAQ", "thap", "trạm gần nhất"));
+    } else {
+      envRows.push(metric("Không khí", "PM2.5 tại trạm gần nhất ở mức trung bình. Trạm cách khoảng 2,6 km.", "OpenAQ", "thap", "trạm gần nhất"));
+    }
+    return '' +
+      '<p class="result-summary" style="margin-top:12px">Trong vòng 500 m quanh ghim, bản đồ mở ghi nhận 38 điểm. Chợ Phùng Khoang cách khoảng 270 m, ga metro Phùng Khoang khoảng 470 m, trường đại học gần nhất khoảng 450 m. Không thấy cửa hàng vật tư trong 500 m; mục này phủ yếu, không có nghĩa là khu vực không có. Chưa có dữ liệu quy hoạch theo thửa.</p>' +
+      '<div class="kpis"><div class="kpi"><b>38 chỗ</b><span>Mức phủ trong 500 m</span></div><div class="kpi"><b>270 m</b><span>Chợ gần nhất</span></div><div class="kpi"><b>470 m</b><span>Ga metro gần nhất</span></div></div>' +
+      '<div class="two-col"><div><h3>Điểm mạnh</h3><ul>' +
+        '<li><svg class="i i-sm" style="color:var(--green)"><use href="#i-check"/></svg>Ga metro trong bán kính đi bộ, khoảng 470 m.</li>' +
+        '<li><svg class="i i-sm" style="color:var(--green)"><use href="#i-check"/></svg>Có chợ, 4 hiệu thuốc và 12 quán ăn, cà phê trong 500 m.</li>' +
+        '<li><svg class="i i-sm" style="color:var(--green)"><use href="#i-check"/></svg>Công viên có tên cách khoảng 400 m.</li></ul></div>' +
+      '<div><h3>Chỗ thiếu dữ liệu hoặc cần kiểm tra</h3><ul>' +
+        '<li><svg class="i i-sm"><use href="#i-info"/></svg>Không rõ vỉa hè và bề rộng ngõ tại ghim.</li>' +
+        '<li><svg class="i i-sm"><use href="#i-info"/></svg>Không thấy cửa hàng vật tư trong 500 m. Phủ yếu.</li>' +
+        (partial ? '<li><svg class="i i-sm"><use href="#i-info"/></svg>Chưa có dữ liệu không khí cho vị trí này.</li>' : '') +
+        '<li><svg class="i i-sm"><use href="#i-info"/></svg>Chưa có mô hình ngập đường sau mưa.</li>' +
+        '<li><svg class="i i-sm"><use href="#i-info"/></svg>Chưa có dữ liệu quy hoạch theo thửa.</li></ul></div></div>' +
+      '<div class="groups">' +
+        group("Tiện ích đi bộ, 500 m", "i-store", "Khoảng cách tới điểm gần nhất và số điểm trong bán kính. Nguồn chính là OpenStreetMap.", [
+          metric("Chợ", "1 chợ. Gần nhất khoảng 270 m.", "OpenStreetMap, amenity=marketplace", "tb", "500 m"),
+          metric("Hiệu thuốc", "4 hiệu thuốc. Gần nhất khoảng 160 m.", "OpenStreetMap, amenity=pharmacy", "cao", "500 m"),
+          metric("Siêu thị", "1 siêu thị khoảng 390 m. Không gộp cửa hàng tiện lợi.", "OpenStreetMap, shop=supermarket", "tb", "500 m"),
+          metric("Quán ăn, cà phê", "12 điểm. Không tách được quán ăn sáng.", "OpenStreetMap", "tb", "500 m"),
+          metric("Trường học", "Trường gần nhất khoảng 450 m. Không có nhãn trường tốt.", "OpenStreetMap, amenity=school", "tb", "500 m"),
+          metric("Cửa hàng vật tư", "0 điểm trong 500 m. Phủ yếu. Không kết luận là khu vực không có.", "OpenStreetMap, shop=hardware", "thap", "500 m")
+        ], true) +
+        group("Đi lại và đường", "i-train", "Một ghim không biết mặt nào là mặt tiền. Cấp đường không phải kết luận về xe cứu hỏa.", [
+          metric("Ga metro", "Ga Phùng Khoang khoảng 470 m. Ga Văn Quán khoảng 1,4 km.", "OpenStreetMap, đối chiếu GTFS", "cao", "2 km"),
+          metric("Điểm xe buýt", "Điểm dừng gần nhất khoảng 120 m.", "GTFS Hà Nội, đối chiếu OpenStreetMap", "tb", "500 m"),
+          metric("Đường lớn", "Đường loại secondary cách khoảng 90 m. Chưa có thẻ bề rộng.", "OpenStreetMap", "tb", "—")
+        ]) +
+        group("Môi trường", "i-leaf", "Chỉ số đo được, gọi đúng tên. Không kết luận “dễ ngập” hay “không ngập”.", envRows) +
+        group("Dân cư", "i-users", "Ước tính theo ô lưới, đủ để so sánh khu vực, không đủ để nói về từng ngõ.", [
+          metric("Mật độ dân cư", "Khoảng 9.800 người trong ô 500 m quanh ghim, thuộc nhóm đông trong khu vực.", "WorldPop 100 m", "tb", "500 m")
+        ]) +
+      '</div>' +
+      '<div class="result-foot">' +
+        '<p class="fine">Cập nhật dữ liệu 18/10/2026 · Nguồn: OpenStreetMap, WorldPop, FABDEM, JRC, ESA WorldCover, OpenAQ, GTFS Hà Nội. <a href="#">Xem nguồn dữ liệu</a></p>' +
+        '<div class="notice"><svg class="i"><use href="#i-info"/></svg><p>Đây là tham chiếu từ dữ liệu mở, không phải kết luận pháp lý hay tư vấn đầu tư. Không có số liệu không có nghĩa là khu vực không có.</p></div>' +
+        '<div class="result-actions"><a class="btn btn-primary btn-sm" href="#">Mở báo cáo đầy đủ</a><button class="btn btn-sm" type="button" id="save-history">Lưu vào lịch sử</button><button class="btn btn-sm rerun" type="button">Phân tích lại</button></div>' +
+      '</div>';
+  }
+  function showResult(partial) {
+    $("#result-body").innerHTML = buildResult(partial);
+    $("#sample-tag").hidden = false;
+    setA("done");
+    $("#ring-500").style.display = "block";
+    $("#legend").classList.add("show");
+    map.dataset.poi = $("#poi-toggle").checked ? "on" : "off";
+    $("#result-body").addEventListener("click", function (e) {
+      if (e.target.closest("#save-history")) toast("Đã lưu vào lịch sử phân tích.");
+      if (e.target.closest(".rerun")) { run(); }
+    });
+    var r = $("#result"); r.focus({ preventScroll: true }); r.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  function run() {
+    if (!state.login) { toast("Chuyển tới trang đăng nhập, rồi quay lại tin này."); return; }
+    if (eligibility()) return;
+    clearTimers(); setA("loading");
+    var prog = $("#prog"), steps = $$("#steps li");
+    steps.forEach(function (li) { li.className = ""; });
+    prog.style.width = "5%";
+    [0, 1, 2].forEach(function (i) {
+      state.timers.push(setTimeout(function () {
+        steps.forEach(function (li, j) { li.className = j < i ? "ok" : (j === i ? "now" : ""); });
+        prog.style.width = (20 + i * 30) + "%";
+      }, i * 700));
+    });
+    state.timers.push(setTimeout(function () {
+      steps.forEach(function (li) { li.className = "ok"; }); prog.style.width = "100%";
+    }, 2100));
+    state.timers.push(setTimeout(function () {
+      if (state.result === "error") { setA("error"); return; }
+      if (state.result === "quota") { setA("quota"); return; }
+      state.quota = Math.max(0, state.quota - 1);
+      showResult(state.result === "partial");
+    }, 2500));
+  }
+  $("#run-analysis").addEventListener("click", run);
+  $("#cancel-analysis").addEventListener("click", function () { clearTimers(); setA("idle"); renderIdle(); $("#run-analysis").focus(); });
+  $$(".retry").forEach(function (b) { b.addEventListener("click", run); });
+
+  /* ---------- Bảng mock ---------- */
+  $("#m-result").addEventListener("change", function () { state.result = this.value; });
+  $("#m-acc").addEventListener("change", function () {
+    state.acc = this.value; $("#map-wrap").dataset.acc = state.acc; document.body.dataset.acc = state.acc; layoutMap(); resetAnalysis();
+  });
+  $("#m-status").addEventListener("change", function () { document.body.dataset.status = this.value; });
+  $("#m-login").addEventListener("change", function () {
+    state.login = this.checked; $("#login-link").textContent = state.login ? "Tài khoản" : "Đăng nhập"; renderIdle();
+  });
+  $("#m-articles").addEventListener("change", function () { document.body.dataset.articles = this.checked ? "yes" : "none"; });
+  $("#m-reset").addEventListener("click", resetAnalysis);
+
+  /* ---------- Đặc điểm: mở hết trên màn rộng, gập trên mobile ---------- */
+  var wide = window.matchMedia("(min-width: 640px)");
+  function syncFacts() { $$(".facts details").forEach(function (d) { d.open = wide.matches ? true : d.dataset.keep === "1"; }); }
+  $$(".facts details").forEach(function (d) { d.dataset.keep = d.open ? "1" : "0"; });
+  wide.addEventListener("change", syncFacts); syncFacts();
+
+  /* ---------- Khởi tạo ---------- */
+  $("#login-link").textContent = "Tài khoản";
+  renderSaved(); renderIdle(); layoutMap();
+  if (document.readyState !== "complete") window.addEventListener("load", layoutMap);
+})();
+</script>
+</body>
+</html>

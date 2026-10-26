@@ -28,14 +28,15 @@ help:
 	@echo "  make check                    Chạy lint và test"
 	@echo ""
 	@echo "Development:"
-	@echo "  make dev-up                   Khởi động website, hot reload trong Docker"
+	@echo "  make dev-up                   Khởi động website, backend và hạ tầng, hot reload trong Docker"
+	@echo "                                Elasticsearch cần vm.max_map_count=262144"
 	@echo "  make dev-down                 Dừng stack và xóa network"
 	@echo "  make dev-stop                 Dừng container"
 	@echo "  make dev-build                Build image development rồi npm ci"
 	@echo "  make dev-rebuild              Build lại và recreate website"
 	@echo "  make dev-logs                 Xem log website"
 	@echo "  make dev-ps                   Xem trạng thái container"
-	@echo "  make dev-reset                Dừng stack và xóa volume node_modules, .next"
+	@echo "  make dev-reset                Dừng stack và xóa volume, gồm database local"
 
 lint:
 	@$(call run_website_npm,eslint,lint)
@@ -67,10 +68,12 @@ dev-stop:
 dev-build:
 	$(COMPOSE_DEV) build
 	$(COMPOSE_DEV) run --rm --no-deps website npm ci
+	$(COMPOSE_DEV) run --rm --no-deps backend npm ci
 
 dev-rebuild:
 	$(COMPOSE_DEV) build
 	$(COMPOSE_DEV) run --rm --no-deps website npm ci
+	$(COMPOSE_DEV) run --rm --no-deps backend npm ci
 	$(COMPOSE_DEV) up -d --force-recreate
 
 dev-logs:

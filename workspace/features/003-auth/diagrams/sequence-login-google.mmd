@@ -1,0 +1,50 @@
+%% Đăng nhập Google: Authorization Code + PKCE + state + nonce
+sequenceDiagram
+    autonumber
+    actor U as Người dùng
+    participant FE as Website (trình duyệt)
+    participant PX as Website proxy /api
+    participant BE as Backend
+    participant R as Redis
+    participant G as Google
+    participant DB as PostgreSQL
+
+    U->>FE: Bấm "Đăng nhập với Google"
+    FE->>PX: GET /api/auth/google/start?redirectTo=/app/map
+    PX->>BE: GET /auth/google/start
+    BE->>BE: Kiểm tra redirectTo thuộc danh sách cho phép
+    BE->>BE: Sinh state, nonce, codeVerifier (3 giá trị độc lập)
+    BE->>R: SET oauth:state:{state} (verifier, nonce, redirectTo) EX 600
+    BE-->>FE: 302 tới accounts.google.com (code_challenge=S256, scope=openid email profile)
+    FE->>G: Người dùng chọn tài khoản, đồng ý
+    G-->>FE: 302 /api/auth/google/callback?code&state
+    FE->>PX: GET callback
+    PX->>BE: GET /auth/google/callback
+    BE->>R: GETDEL oauth:state:{state}
+    alt state thiếu hoặc đã dùng
+        BE-->>FE: 302 /auth/login?error=oauth_state
+    end
+    BE->>G: POST token endpoint (code, codeVerifier, clientSecret)
+    G-->>BE: id_token
+    BE->>G: Lấy JWKS (cache theo Cache-Control)
+    BE->>BE: Kiểm tra chữ ký RS256, iss, aud, exp, nonce, email_verified
+    BE->>DB: Tìm auth_identities (google, sub)
+    alt chưa có identity
+        BE->>DB: Tìm users theo email
+        alt email đã có và đã xác minh
+            BE->>DB: Liên kết identity vào user hiện có
+        else email đã có nhưng chưa xác minh
+            BE-->>FE: 302 /auth/login?error=link_required
+        else chưa có
+            BE->>DB: Tạo users + auth_identities
+        end
+    end
+    BE->>DB: Kiểm tra status = active
+    BE->>DB: Tạo auth_sessions (refresh_hash, thiết bị, IP), thu phiên cũ nhất nếu vượt 10
+    BE->>R: HSET session:active:{sid} EX 1200
+    BE->>DB: Ghi auth_events login_success
+    BE-->>FE: 302 redirectTo + Set-Cookie __Secure-dt_rt (HttpOnly, Strict, Path=/api/auth)
+    FE->>PX: POST /api/auth/refresh (cookie)
+    PX->>BE: POST /auth/refresh
+    BE-->>FE: 200 { accessToken, expiresIn, user } (xem sequence-refresh-rotation)
+    Note over FE: Giữ accessToken trong bộ nhớ, không lưu localStorage

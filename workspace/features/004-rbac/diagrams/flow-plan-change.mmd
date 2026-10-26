@@ -1,0 +1,15 @@
+%% Đổi gói / khóa tài khoản và hiệu lực tức thời
+flowchart TD
+    S1[Thanh toán thành công - webhook xác thực chữ ký] --> T
+    S2[Admin cấp gói thủ công - step-up, có lý do] --> T
+    S3[Admin khóa tài khoản] --> L
+    T[BEGIN: ghi subscriptions hoặc credit_ledger_entries, idempotent theo order/idempotency key] --> C[COMMIT]
+    L[BEGIN: users.status = locked, ghi admin_audit_logs] --> C
+    C --> D[DEL cache:authz:userId]
+    D --> E[PUBLISH events:authz:changed]
+    E --> F[Client đang mở nhận authz.changed và gọi GET /me/entitlements]
+    D --> G[Request kế tiếp: cache thiếu, nạp từ DB, quyền mới có hiệu lực]
+    L --> H[Thu hồi mọi phiên của user - 003-auth]
+    G --> I{Gói còn hạn?}
+    I -- không --> J[Tính lười: plan hiệu lực = free, không cần job]
+    I -- có --> K[Áp quyền và hạn mức của gói]

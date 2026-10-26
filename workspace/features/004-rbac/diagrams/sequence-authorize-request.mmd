@@ -1,0 +1,48 @@
+%% Kiểm tra quyền cho một request (sau AuthGuard của 003-auth)
+sequenceDiagram
+    autonumber
+    participant C as Client
+    participant A as AuthGuard (003)
+    participant P as PermissionsGuard
+    participant Q as QuotaInterceptor
+    participant H as Handler / Service
+    participant R as Redis
+    participant DB as PostgreSQL
+
+    C->>A: Request
+    A->>A: @Public()? có: principal = guest
+    A->>R: Pipeline phiên + cache:authz (không thêm vòng mạng cho phân quyền)
+    A-->>P: principal { userId, role, plan, planUntil, authTime }
+    P->>P: Route có metadata? không có: 403 (và ứng dụng đã không khởi động)
+    P->>P: plan hiệu lực = plan nếu planUntil chưa qua, ngược lại free
+    P->>P: Quyền hiệu lực = ROLE_PERMISSIONS ∪ PLAN_ENTITLEMENTS (hằng số trong bộ nhớ)
+    alt thiếu quyền do vai trò
+        P-->>C: 403 permission_denied
+    else thiếu quyền do gói
+        P-->>C: 403 plan_required (requiredPlan)
+    else quyền cần step-up và authTime quá 10 phút
+        P-->>C: 403 reauth_required
+    else đủ quyền
+        P->>Q: Tiếp tục
+    end
+    opt route có @Quota
+        Q->>R: reserve (Lua) với requestId
+        alt hết lượt
+            Q-->>C: 429 daily_quota_exceeded (resetAt)
+        end
+    end
+    Q->>H: Gọi handler
+    opt quyền có RESOURCE_RULES
+        H->>DB: Nạp tài nguyên theo id
+        H->>H: Kiểm tra chủ sở hữu hoặc quyền thay thế
+        alt không đạt
+            H-->>C: 403 hoặc 404 theo denyAs
+        end
+    end
+    alt handler lỗi hoặc phân tích thất bại
+        H->>Q: lỗi
+        Q->>R: release (hoàn lượt đúng một lần)
+        Q-->>C: lỗi chuẩn (trackId), lượt chưa bị trừ
+    else thành công
+        H-->>C: 200
+    end

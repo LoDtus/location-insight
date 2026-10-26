@@ -1,0 +1,13 @@
+%% Gói hiệu lực của một user (tính từ subscriptions)
+stateDiagram-v2
+    [*] --> Free
+    Free --> Unlimited: có subscription unlimited còn hạn
+    Free --> Valued: có subscription valued còn hạn
+    Unlimited --> Valued: mua hoặc được cấp valued
+    Valued --> Unlimited: valued hết hạn, unlimited còn hạn
+    Unlimited --> Free: hết hạn hoặc ended_at
+    Valued --> Free: hết hạn hoặc ended_at
+    note right of Free
+        Hạ gói không xóa dữ liệu vượt giới hạn,
+        chỉ chặn tạo mới (limit_reached)
+    end note

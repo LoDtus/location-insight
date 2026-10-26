@@ -1,0 +1,35 @@
+%% Xác thực mỗi request API (đường nóng)
+sequenceDiagram
+    autonumber
+    participant C as Client
+    participant G as AuthGuard (toàn cục)
+    participant R as Redis
+    participant DB as PostgreSQL
+    participant P as PermissionsGuard (004-rbac)
+    participant H as Handler
+
+    C->>G: Authorization: Bearer jwt
+    G->>G: Route có @Public()? nếu có thì bỏ qua
+    G->>G: Kiểm tra định dạng, header alg=ES256, typ=at+jwt, kid
+    G->>G: Xác minh chữ ký, iss, aud, exp (lệch giờ 5 giây), có sid và sub
+    alt không hợp lệ hoặc hết hạn
+        G-->>C: 401 token_invalid / token_expired (client gọi refresh)
+    end
+    G->>R: Pipeline: HMGET session:active:{sid} , HMGET cache:authz:{sub}
+    alt cache:authz thiếu
+        G->>DB: Nạp role, status, plan (single-flight)
+        G->>R: HSET cache:authz:{sub} EX 900
+    end
+    alt Redis lỗi hoặc quá 150 ms
+        G-->>C: 503 auth_unavailable (đóng an toàn)
+    else session:active thiếu
+        G->>R: GET session:revoked:{sid}
+        G-->>C: 401 session_revoked (đăng xuất) hoặc session_inactive (thử refresh một lần)
+    else userId khác sub, status khác active, hoặc iat < minIat
+        G-->>C: 401 session_revoked
+    else hợp lệ
+        G->>G: Gắn principal { userId, sid, role, plan, authTime } vào request
+        G->>P: Chuyển tiếp
+        P->>H: Nếu đủ quyền (xem 004-rbac)
+        H-->>C: 200
+    end

@@ -1,0 +1,15 @@
+%% Vòng đời một phiên (auth_sessions)
+stateDiagram-v2
+    [*] --> Active: đăng nhập thành công
+    Active --> Active: refresh hợp lệ (xoay token, trượt idle +14 ngày)
+    Active --> Revoked: logout / logout_other / logout_all
+    Active --> Revoked: reuse_detected
+    Active --> Revoked: password_changed / account_locked / account_deleted / admin_revoked
+    Active --> Revoked: evicted (vượt 10 phiên)
+    Active --> Expired: idle quá 14 ngày hoặc quá 30 ngày kể từ lúc tạo
+    Revoked --> [*]: dọn dẹp sau 30 ngày
+    Expired --> [*]: dọn dẹp sau 30 ngày
+    note right of Active
+        Redis session:active:{sid} tồn tại
+        chỉ khi phiên Active và có access token còn hạn
+    end note

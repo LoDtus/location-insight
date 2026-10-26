@@ -1,0 +1,33 @@
+%% Refresh token xoay vòng, phát hiện dùng lại, cửa sổ nới 10 giây
+sequenceDiagram
+    autonumber
+    participant FE as Client
+    participant BE as Backend
+    participant DB as PostgreSQL
+    participant R as Redis
+
+    FE->>FE: Khóa chéo tab (Web Locks "dt-refresh")
+    FE->>BE: POST /auth/refresh (cookie rt_...) + Origin + X-Requested-With
+    BE->>BE: Rate limit ratelimit:refresh:sid
+    BE->>DB: BEGIN, SELECT phiên theo sha256(rt) hoặc previous_refresh_hash FOR UPDATE
+    alt không tìm thấy hoặc phiên đã thu hồi hoặc hết hạn
+        BE-->>FE: 401 session_revoked + xóa cookie
+    else khớp refresh_hash hiện tại
+        BE->>BE: Sinh refresh mới, previous := hiện tại, rotated_at := now
+        BE->>DB: UPDATE phiên (idle_expires_at +14 ngày, last_seen_at, last_ip)
+    else khớp previous_refresh_hash và now - rotated_at <= 10 giây
+        Note over BE: Thử lại hợp lệ (mất phản hồi, nhiều tab)
+        BE->>BE: Sinh refresh mới, previous := hiện tại
+        BE->>DB: UPDATE phiên
+    else khớp previous ngoài 10 giây
+        Note over BE: Token cũ bị dùng lại: có thể bị đánh cắp
+        BE->>DB: UPDATE revoked_at, revoked_reason=reuse_detected
+        BE->>DB: INSERT auth_events refresh_reuse_detected
+        BE->>R: DEL session:active:{sid}, SET session:revoked:{sid}, PUBLISH events:session:revoked
+        BE-->>FE: 401 session_revoked + xóa cookie
+    end
+    BE->>DB: COMMIT
+    BE->>DB: Kiểm tra users.status = active (cùng truy vấn)
+    BE->>R: HSET session:active:{sid} EX 1200 (nạp lại nếu Redis từng mất)
+    BE->>BE: Ký access JWT (sub, sid, jti, iat, exp = +15 phút)
+    BE-->>FE: 200 { accessToken, expiresIn: 900, user } + Set-Cookie refresh mới

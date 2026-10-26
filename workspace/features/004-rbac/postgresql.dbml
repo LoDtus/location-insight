@@ -1,0 +1,93 @@
+// Phân quyền (004-rbac). Bảng `users` (cột role, status) nằm ở 003-auth/postgresql.dbml.
+// Quy ước: bảng snake_case số nhiều, cột snake_case số ít, khóa chính UUID v7.
+// Không có bảng roles/permissions: quyền hardcode trong authorization.config.ts.
+
+Enum plan_code {
+  free        // không lưu thành subscription; là mặc định khi không có bản ghi hiệu lực
+  unlimited
+  valued
+}
+
+Enum subscription_status {
+  active
+  canceled   // người dùng/admin hủy; còn hiệu lực đến period_end hoặc kết thúc ngay (ended_at)
+  expired
+}
+
+Enum subscription_source {
+  payment      // từ tính năng thanh toán
+  admin_grant  // admin cấp thủ công
+}
+
+Table subscriptions {
+  id uuid [pk]
+  user_id uuid [not null]
+  plan plan_code [not null, note: 'chỉ unlimited | valued; check (plan <> free)']
+  status subscription_status [not null, default: 'active']
+  source subscription_source [not null]
+  period_start timestamptz [not null]
+  period_end timestamptz [not null, note: 'hết hạn: quay về free; tính lười khi đọc']
+  ended_at timestamptz [note: 'kết thúc sớm (hoàn tiền, hủy ngay)']
+  payment_order_id varchar(64) [note: 'mã đơn hàng bên thanh toán; unique để chống ghi hai lần']
+  granted_by uuid [note: 'admin cấp (source = admin_grant)']
+  reason varchar(255) [note: 'bắt buộc với admin_grant']
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id, status, period_end) [name: 'idx_subscriptions_user_id_status_period_end']
+    payment_order_id [unique, name: 'uk_subscriptions_payment_order_id']
+  }
+}
+
+Enum credit_kind {
+  valuation
+}
+
+// Sổ cái tín dụng mua lẻ (định giá 10.000 đồng/lần). Số dư = tổng amount theo (user_id, kind).
+Table credit_ledger_entries {
+  id uuid [pk]
+  user_id uuid [not null]
+  kind credit_kind [not null, default: 'valuation']
+  amount int [not null, note: '+n mua hoặc cấp; -n sử dụng; không bao giờ làm số dư âm (kiểm tra trong cùng giao dịch)']
+  reason varchar(40) [not null, note: 'purchase | use | admin_grant | refund']
+  idempotency_key varchar(80) [not null, note: 'ví dụ order:<id>, valuation:<requestId>']
+  reference_id varchar(64) [note: 'mã đơn hàng hoặc id bản ghi định giá']
+  granted_by uuid
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id, kind) [name: 'idx_credit_ledger_entries_user_id_kind']
+    idempotency_key [unique, name: 'uk_credit_ledger_entries_idempotency_key']
+  }
+}
+
+// Nhật ký kiểm toán hành động quản trị. Chỉ thêm. Lưu 12 tháng.
+Table admin_audit_logs {
+  id uuid [pk]
+  actor_id uuid [not null, note: 'admin thực hiện (hoặc null cho CLI do người vận hành)']
+  actor_type varchar(10) [not null, default: 'admin', note: 'admin | cli']
+  action varchar(40) [not null, note: 'user_lock, user_unlock, session_revoke, subscription_grant, credit_grant, quota_reset, listing_moderate, article_publish, admin_grant (CLI)...']
+  target_type varchar(30) [not null]
+  target_id varchar(64) [not null]
+  before jsonb
+  after jsonb
+  reason varchar(255)
+  ip_address inet
+  session_id uuid
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (actor_id, created_at) [name: 'idx_admin_audit_logs_actor_id_created_at']
+    (target_type, target_id, created_at) [name: 'idx_admin_audit_logs_target']
+    (action, created_at) [name: 'idx_admin_audit_logs_action_created_at']
+  }
+}
+
+Ref fk_subscriptions_users: subscriptions.user_id > users.id [delete: cascade]
+Ref fk_subscriptions_granted_by: subscriptions.granted_by > users.id [delete: set null]
+Ref fk_credit_ledger_entries_users: credit_ledger_entries.user_id > users.id [delete: cascade]
+Ref fk_admin_audit_logs_actor: admin_audit_logs.actor_id > users.id [delete: set null]
+
+// Ghi chú nghiệp vụ
+// - Gói hiệu lực: subscription có status active, now() < period_end, ended_at null hoặc > now(); chọn plan có rank cao nhất.
+// - Giữ bản ghi giao dịch theo nghĩa vụ kế toán khi xóa tài khoản: anonymize user_id thay vì xóa (quyết định cùng 005-legal).

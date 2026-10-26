@@ -1,0 +1,25 @@
+%% Đăng xuất từ xa và thông báo realtime
+sequenceDiagram
+    autonumber
+    actor U as Người dùng (máy A)
+    participant BE1 as Backend instance 1
+    participant DB as PostgreSQL
+    participant R as Redis
+    participant BE2 as Backend instance 2
+    participant B as Máy B (đang mở tab, có WebSocket)
+
+    U->>BE1: DELETE /auth/sessions/{sidB} (Bearer của máy A)
+    BE1->>DB: Kiểm tra sidB thuộc user của máy A
+    BE1->>DB: UPDATE revoked_at, reason=logout_other, ghi auth_events
+    BE1->>R: DEL session:active:{sidB}, SET session:revoked:{sidB} EX 1200
+    BE1->>R: PUBLISH events:session:revoked
+    BE1-->>U: 204
+    R-->>BE2: events:session:revoked
+    BE2->>B: WebSocket: { "type": "session.revoked", "reason": "logout_other" }
+    BE2->>B: Đóng socket mã 4401
+    B->>B: Xóa access token trong bộ nhớ, xóa cache người dùng, chuyển /auth/login
+    Note over B,BE1: Nếu tab nhàn rỗi và socket rớt, request API kế tiếp của máy B nhận 401 session_revoked
+    B->>BE1: (bất kỳ API) Bearer cũ
+    BE1->>R: HMGET session:active:{sidB} -> thiếu
+    BE1-->>B: 401 session_revoked
+    Note over BE1,R: Job đối soát 60 giây: nếu lệnh Redis ở bước 4 từng rớt, xóa lại khóa còn sót

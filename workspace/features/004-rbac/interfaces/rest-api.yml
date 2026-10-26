@@ -1,0 +1,304 @@
+openapi: 3.1.0
+info:
+  title: Địa Thế — Authorization API
+  version: 1.0.0
+  description: |
+    Quyền hiệu lực cho frontend (chỉ để hiển thị) và API quản trị.
+    Backend vẫn kiểm tra quyền ở mọi route; frontend không phải nơi quyết định.
+    `/admin/*` yêu cầu `admin:access`; thao tác đánh dấu "step-up" yêu cầu xác thực lại trong 10 phút.
+    Admin không tác động được lên admin khác hoặc chính mình (trả 403 `permission_denied`).
+servers:
+  - url: /api
+security:
+  - bearerAuth: []
+tags:
+  - name: me
+  - name: admin
+paths:
+  /me/entitlements:
+    get:
+      tags: [me]
+      summary: Vai trò, gói, quyền, hạn mức, tín dụng của chính mình
+      x-permission: authenticated-only
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Entitlements" }
+        "401": { $ref: "#/components/responses/Error" }
+  /admin/users:
+    get:
+      tags: [admin]
+      summary: Tìm người dùng (hồ sơ rút gọn)
+      x-permission: user:read
+      parameters:
+        - { name: query, in: query, schema: { type: string, maxLength: 100 }, description: Email hoặc tên }
+        - { name: status, in: query, schema: { type: string, enum: [active, locked, deleted] } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/AdminUserSummary" }
+                  total: { type: integer }
+        "403": { $ref: "#/components/responses/Error" }
+  /admin/users/{userId}:
+    parameters:
+      - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [admin]
+      summary: Chi tiết rút gọn (không gồm token, băm mật khẩu, nội dung ghi chú, lịch sử phân tích)
+      x-permission: user:read
+      responses:
+        "200":
+          description: OK
+          content: { application/json: { schema: { $ref: "#/components/schemas/AdminUserSummary" } } }
+        "404": { $ref: "#/components/responses/Error" }
+  /admin/users/{userId}/lock:
+    parameters:
+      - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [admin]
+      summary: Khóa tài khoản và thu hồi mọi phiên (step-up)
+      x-permission: user:lock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReasonRequest" }
+      responses:
+        "204": { description: Đã khóa }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+    delete:
+      tags: [admin]
+      summary: Mở khóa (step-up)
+      x-permission: user:lock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReasonRequest" }
+      responses:
+        "204": { description: Đã mở khóa }
+  /admin/users/{userId}/sessions/revoke:
+    parameters:
+      - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [admin]
+      summary: Buộc đăng xuất mọi thiết bị của user (step-up)
+      x-permission: user:session:revoke
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReasonRequest" }
+      responses:
+        "200":
+          description: Số phiên đã thu hồi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: { revoked: { type: integer } }
+  /admin/users/{userId}/subscriptions:
+    parameters:
+      - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [admin]
+      summary: Cấp gói thủ công (step-up)
+      x-permission: subscription:grant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [plan, periodEnd, reason]
+              properties:
+                plan: { type: string, enum: [unlimited, valued] }
+                periodEnd: { type: string, format: date-time, description: Tối đa 400 ngày kể từ hiện tại }
+                reason: { type: string, minLength: 5, maxLength: 255 }
+              additionalProperties: false
+      responses:
+        "201": { description: Đã cấp }
+        "403": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+  /admin/users/{userId}/subscriptions/{subscriptionId}:
+    parameters:
+      - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: subscriptionId, in: path, required: true, schema: { type: string, format: uuid } }
+    delete:
+      tags: [admin]
+      summary: Kết thúc gói sớm (step-up)
+      x-permission: subscription:grant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReasonRequest" }
+      responses:
+        "204": { description: Đã kết thúc }
+  /admin/users/{userId}/credits:
+    parameters:
+      - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [admin]
+      summary: Cộng hoặc trừ tín dụng định giá (step-up)
+      x-permission: credit:grant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount, reason, idempotencyKey]
+              properties:
+                amount: { type: integer, minimum: -10, maximum: 10, not: { const: 0 } }
+                reason: { type: string, minLength: 5, maxLength: 255 }
+                idempotencyKey: { type: string, minLength: 8, maxLength: 80 }
+              additionalProperties: false
+      responses:
+        "201": { description: Đã ghi }
+        "409": { description: Số dư không đủ hoặc khóa idempotency đã dùng }
+  /admin/users/{userId}/quota/reset:
+    parameters:
+      - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [admin]
+      summary: Đặt lại lượt phân tích trong ngày (step-up)
+      x-permission: quota:reset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReasonRequest" }
+      responses:
+        "204": { description: Đã đặt lại }
+  /admin/audit-logs:
+    get:
+      tags: [admin]
+      summary: Nhật ký hành động quản trị
+      x-permission: audit:read
+      parameters:
+        - { name: actorId, in: query, schema: { type: string, format: uuid } }
+        - { name: targetId, in: query, schema: { type: string } }
+        - { name: action, in: query, schema: { type: string } }
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/AuditLogItem" }
+                  total: { type: integer }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  responses:
+    Error:
+      description: |
+        Lỗi chuẩn. Mã `code` dùng: `unauthenticated`, `permission_denied`, `plan_required`,
+        `daily_quota_exceeded`, `limit_reached`, `reauth_required`, `not_found`.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [statusCode, message, code, trackId]
+      properties:
+        statusCode: { type: integer }
+        message: { type: string }
+        code: { type: string }
+        trackId: { type: string }
+        requiredPlan: { type: string, enum: [unlimited, valued], description: Chỉ có khi code = plan_required }
+        resetAt: { type: string, format: date-time, description: Chỉ có khi code = daily_quota_exceeded }
+        limit: { type: integer }
+        current: { type: integer }
+    ReasonRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 5, maxLength: 255 }
+      additionalProperties: false
+    Entitlements:
+      type: object
+      required: [role, plan, permissions, quotas, limits, credits]
+      properties:
+        role: { type: string, enum: [user, admin] }
+        plan: { type: string, enum: [free, unlimited, valued] }
+        planUntil: { type: [string, "null"], format: date-time }
+        permissions:
+          type: array
+          items: { type: string, example: "analysis:run" }
+        quotas:
+          type: object
+          properties:
+            analysisDaily:
+              type: object
+              required: [limit, used, remaining, resetAt]
+              properties:
+                limit: { type: [integer, "null"], description: null = không giới hạn }
+                used: { type: integer }
+                remaining: { type: [integer, "null"] }
+                resetAt: { type: string, format: date-time }
+        limits:
+          type: object
+          properties:
+            savedPlaces: { $ref: "#/components/schemas/LimitUsage" }
+            activeListings: { $ref: "#/components/schemas/LimitUsage" }
+            comparePlaces: { type: integer }
+            historyDays: { type: integer }
+        credits:
+          type: object
+          properties:
+            valuation: { type: integer, minimum: 0 }
+    LimitUsage:
+      type: object
+      required: [limit, current]
+      properties:
+        limit: { type: integer }
+        current: { type: integer }
+    AdminUserSummary:
+      type: object
+      required: [userId, email, displayName, role, status, plan, createdAt]
+      properties:
+        userId: { type: string, format: uuid }
+        email: { type: string, format: email }
+        displayName: { type: string }
+        role: { type: string, enum: [user, admin] }
+        status: { type: string, enum: [active, locked, deleted] }
+        plan: { type: string, enum: [free, unlimited, valued] }
+        planUntil: { type: [string, "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+        lastLoginAt: { type: [string, "null"], format: date-time }
+        activeSessions: { type: integer }
+    AuditLogItem:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        actorId: { type: [string, "null"], format: uuid }
+        actorType: { type: string, enum: [admin, cli] }
+        action: { type: string }
+        targetType: { type: string }
+        targetId: { type: string }
+        reason: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }

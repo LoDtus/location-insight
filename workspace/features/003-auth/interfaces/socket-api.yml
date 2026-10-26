@@ -1,0 +1,71 @@
+asyncapi: 3.0.0
+info:
+  title: Địa Thế — Realtime (phần xác thực)
+  version: 1.0.0
+  description: |
+    Một kết nối WebSocket cho mỗi tab, dùng chung với thông báo (`features/notification`).
+    Kết nối bằng vé một lần từ `POST /realtime/ticket`; không đưa access token lên URL.
+    Kết nối gắn với `sid`, không gắn với hạn của access token. Server kiểm tra lại `session:active:{sid}`
+    mỗi 60 giây và đóng kết nối nếu mất.
+servers:
+  production:
+    host: example.invalid
+    protocol: wss
+    pathname: /api/realtime
+    description: Địa chỉ thật lấy từ cấu hình; qua proxy cùng origin.
+channels:
+  connection:
+    address: /api/realtime?ticket={ticket}
+    parameters:
+      ticket:
+        description: Vé dùng một lần, sống 30 giây
+    messages:
+      sessionRevoked:
+        $ref: "#/components/messages/sessionRevoked"
+      authzChanged:
+        $ref: "#/components/messages/authzChanged"
+      ping:
+        $ref: "#/components/messages/ping"
+operations:
+  receiveSessionRevoked:
+    action: receive
+    channel: { $ref: "#/channels/connection" }
+    messages:
+      - $ref: "#/channels/connection/messages/sessionRevoked"
+  receiveAuthzChanged:
+    action: receive
+    channel: { $ref: "#/channels/connection" }
+    messages:
+      - $ref: "#/channels/connection/messages/authzChanged"
+components:
+  messages:
+    sessionRevoked:
+      summary: Phiên này đã bị thu hồi; server đóng socket với mã 4401 ngay sau đó
+      payload:
+        type: object
+        required: [type, reason]
+        properties:
+          type: { const: session.revoked }
+          reason:
+            type: string
+            enum: [logout_other, logout_all, reuse_detected, password_changed, account_locked, account_deleted, evicted, admin_revoked]
+        additionalProperties: false
+    authzChanged:
+      summary: Quyền hoặc gói của người dùng đã đổi; client gọi lại GET /me/entitlements
+      payload:
+        type: object
+        required: [type]
+        properties:
+          type: { const: authz.changed }
+        additionalProperties: false
+    ping:
+      summary: Client gửi mỗi 25 giây để giữ kết nối qua proxy
+      payload:
+        type: object
+        properties:
+          type: { const: ping }
+  # Mã đóng kết nối
+  # 4401: phiên không hợp lệ (client đăng xuất, không tự nối lại)
+  # 4408: vé hết hạn hoặc đã dùng (client xin vé mới rồi nối lại)
+  # 4429: nối lại quá nhiều (client chờ lùi theo cấp số nhân, tối đa 60 giây)
+  # 1001: server bảo trì (client nối lại)

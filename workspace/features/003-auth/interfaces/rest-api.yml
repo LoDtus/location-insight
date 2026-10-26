@@ -1,0 +1,423 @@
+openapi: 3.1.0
+info:
+  title: Địa Thế — Auth API
+  version: 1.0.0
+  description: |
+    Xác thực và quản lý phiên. Trình duyệt gọi qua proxy cùng origin `/api/*`; backend không publish cổng.
+    Mặc định mọi route cần Bearer (deny-by-default); route công khai đánh dấu `security: []`.
+    Quy ước: đường dẫn kebab-case, JSON camelCase, lỗi theo `ErrorResponse`.
+servers:
+  - url: /api
+tags:
+  - name: auth
+  - name: sessions
+  - name: realtime
+security:
+  - bearerAuth: []
+paths:
+  /auth/google/start:
+    get:
+      tags: [auth]
+      summary: Bắt đầu đăng nhập Google (trả 302 tới Google)
+      security: []
+      parameters:
+        - name: redirectTo
+          in: query
+          schema: { type: string, maxLength: 200, example: /app/map }
+          description: Đường dẫn nội bộ thuộc danh sách cho phép. Giá trị khác bị thay bằng `/app/map`.
+      responses:
+        "302": { description: Chuyển hướng tới Google }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /auth/google/callback:
+    get:
+      tags: [auth]
+      summary: Google gọi lại; tạo phiên rồi 302 về website
+      security: []
+      parameters:
+        - { name: code, in: query, schema: { type: string } }
+        - { name: state, in: query, schema: { type: string } }
+        - { name: error, in: query, schema: { type: string } }
+      responses:
+        "302":
+          description: |
+            Thành công: đặt cookie `__Secure-dt_rt` rồi chuyển tới `redirectTo`.
+            Lỗi: chuyển tới `/auth/login?error=<oauth_state|oauth_denied|link_required|account_locked|email_unverified>`.
+          headers:
+            Set-Cookie: { schema: { type: string } }
+  /auth/register:
+    post:
+      tags: [auth]
+      summary: Đăng ký email + mật khẩu (chỉ khi AUTH_PASSWORD_ENABLED)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RegisterRequest" }
+      responses:
+        "202": { description: Đã nhận. Luôn cùng nội dung dù email đã tồn tại. }
+        "404": { description: Tính năng đang tắt }
+        "422": { $ref: "#/components/responses/Validation" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+  /auth/verify-email:
+    post:
+      tags: [auth]
+      summary: Xác minh email bằng token một lần
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties: { token: { type: string, minLength: 20, maxLength: 200 } }
+              additionalProperties: false
+      responses:
+        "204": { description: Đã xác minh }
+        "400": { $ref: "#/components/responses/BadRequest" }
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Đăng nhập email + mật khẩu
+      security: []
+      parameters:
+        - { $ref: "#/components/parameters/XRequestedWith" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+      responses:
+        "200": { $ref: "#/components/responses/TokenGranted" }
+        "401":
+          description: Sai thông tin, chưa xác minh hoặc bị khóa. Luôn cùng nội dung `invalid_credentials`.
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+  /auth/forgot-password:
+    post:
+      tags: [auth]
+      summary: Yêu cầu đặt lại mật khẩu
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties: { email: { type: string, format: email, maxLength: 254 } }
+              additionalProperties: false
+      responses:
+        "202": { description: Luôn trả 202 dù email có tồn tại hay không }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+  /auth/reset-password:
+    post:
+      tags: [auth]
+      summary: Đặt mật khẩu mới bằng token; thu hồi mọi phiên
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token: { type: string }
+                password: { type: string, minLength: 10, maxLength: 128, format: password }
+              additionalProperties: false
+      responses:
+        "204": { description: Đã đổi }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "422": { $ref: "#/components/responses/Validation" }
+  /auth/refresh:
+    post:
+      tags: [auth]
+      summary: Cấp access token mới; xoay refresh token
+      description: |
+        Web: refresh token nằm trong cookie `__Secure-dt_rt` (Path=/api/auth), không có body.
+        Native: gửi `refreshToken` trong body và header `X-Client: native`.
+        Bắt buộc `Origin` hợp lệ và `X-Requested-With: dt` (chống CSRF).
+        Dùng cho cả "khởi động phiên im lặng" khi tải trang.
+      security: []
+      parameters:
+        - { $ref: "#/components/parameters/XRequestedWith" }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: { refreshToken: { type: string } }
+              additionalProperties: false
+      responses:
+        "200": { $ref: "#/components/responses/TokenGranted" }
+        "401":
+          description: Mã `session_revoked` (đăng xuất hẳn, xóa cookie) hoặc `refresh_invalid`.
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: Đăng xuất phiên hiện tại
+      parameters:
+        - { $ref: "#/components/parameters/XRequestedWith" }
+      responses:
+        "204":
+          description: Đã thu hồi và xóa cookie (idempotent)
+  /auth/me:
+    get:
+      tags: [auth]
+      summary: Người dùng hiện tại, phiên hiện tại, quyền hiệu lực (xem 004-rbac)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MeResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /auth/reauth:
+    post:
+      tags: [auth]
+      summary: Xác thực lại để làm thao tác nhạy cảm (cập nhật auth_time của phiên)
+      description: |
+        Mật khẩu: gửi `password`. Google: gọi `/auth/google/start?reauth=1`, callback cập nhật `auth_time`
+        nếu `sub` trùng. Thao tác nhạy cảm yêu cầu `auth_time` trong vòng 10 phút, nếu không trả `403 reauth_required`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties: { password: { type: string, maxLength: 128, format: password } }
+              additionalProperties: false
+      responses:
+        "204": { description: Đã xác thực lại }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+  /auth/password:
+    put:
+      tags: [auth]
+      summary: Đổi mật khẩu; thu hồi mọi phiên khác
+      description: Yêu cầu `auth_time` trong 10 phút.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword: { type: string, format: password }
+                newPassword: { type: string, minLength: 10, maxLength: 128, format: password }
+              additionalProperties: false
+      responses:
+        "204": { description: Đã đổi }
+        "403": { description: reauth_required }
+        "422": { $ref: "#/components/responses/Validation" }
+  /auth/sessions:
+    get:
+      tags: [sessions]
+      summary: Danh sách thiết bị đang đăng nhập
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/SessionItem" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /auth/sessions/{sessionId}:
+    parameters:
+      - { name: sessionId, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [sessions]
+      summary: Đổi tên thiết bị
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [deviceLabel]
+              properties: { deviceLabel: { type: string, minLength: 1, maxLength: 80 } }
+              additionalProperties: false
+      responses:
+        "200":
+          description: OK
+          content: { application/json: { schema: { $ref: "#/components/schemas/SessionItem" } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [sessions]
+      summary: Đăng xuất một thiết bị (có thể là chính phiên hiện tại)
+      responses:
+        "204": { description: Đã thu hồi }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /auth/sessions/revoke-others:
+    post:
+      tags: [sessions]
+      summary: Đăng xuất mọi thiết bị khác, giữ phiên hiện tại
+      responses:
+        "200":
+          description: Số phiên đã thu hồi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: { revoked: { type: integer, minimum: 0 } }
+  /auth/sessions/revoke-all:
+    post:
+      tags: [sessions]
+      summary: Đăng xuất tất cả thiết bị, kể cả máy này
+      responses:
+        "200":
+          description: Số phiên đã thu hồi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: { revoked: { type: integer, minimum: 0 } }
+  /auth/account:
+    delete:
+      tags: [auth]
+      summary: Yêu cầu xóa tài khoản; thu hồi mọi phiên
+      description: Yêu cầu `auth_time` trong 10 phút. Dữ liệu bị xóa hẳn sau 30 ngày (khớp 005-legal).
+      responses:
+        "202": { description: Đã nhận yêu cầu }
+        "403": { description: reauth_required }
+  /realtime/ticket:
+    post:
+      tags: [realtime]
+      summary: Vé một lần (30 giây) để mở WebSocket
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ticket, expiresIn]
+                properties:
+                  ticket: { type: string }
+                  expiresIn: { type: integer, example: 30 }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    XRequestedWith:
+      name: X-Requested-With
+      in: header
+      required: true
+      schema: { type: string, enum: [dt] }
+      description: Bắt buộc ở endpoint dùng cookie (chống CSRF).
+  responses:
+    TokenGranted:
+      description: |
+        Access token mới. Web: kèm `Set-Cookie: __Secure-dt_rt=...; HttpOnly; Secure; SameSite=Strict; Path=/api/auth`.
+        Native: kèm `refreshToken` trong body.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/TokenResponse" }
+    Unauthorized:
+      description: |
+        Mã lỗi: `token_invalid`, `token_expired` (gọi refresh), `session_inactive` (thử refresh một lần),
+        `session_revoked` (đăng xuất hẳn).
+      headers:
+        WWW-Authenticate: { schema: { type: string, example: 'Bearer error="invalid_token"' } }
+      content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } }
+    NotFound:
+      description: Không tồn tại hoặc không thuộc về bạn (cùng nội dung để chống dò)
+      content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } }
+    BadRequest:
+      description: Token sai, hết hạn hoặc đã dùng
+      content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } }
+    Validation:
+      description: Dữ liệu không hợp lệ
+      content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } }
+    TooManyRequests:
+      description: Vượt hạn mức
+      headers:
+        Retry-After: { schema: { type: integer } }
+      content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } }
+    Unavailable:
+      description: Redis hoặc dịch vụ phụ thuộc không phản hồi (đóng an toàn)
+      content: { application/json: { schema: { $ref: "#/components/schemas/ErrorResponse" } } }
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [statusCode, message, code, trackId]
+      properties:
+        statusCode: { type: integer }
+        message: { type: string }
+        code: { type: string, example: session_revoked }
+        trackId: { type: string, example: err_123456 }
+        details:
+          type: array
+          items: { type: object, properties: { field: { type: string }, rule: { type: string } } }
+    RegisterRequest:
+      type: object
+      required: [email, password, displayName, acceptTerms]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        password: { type: string, minLength: 10, maxLength: 128, format: password }
+        displayName: { type: string, minLength: 1, maxLength: 100 }
+        acceptTerms: { type: boolean, const: true, description: Đồng ý điều khoản và xác nhận đủ 18 tuổi }
+      additionalProperties: false
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        password: { type: string, maxLength: 128, format: password }
+      additionalProperties: false
+    TokenResponse:
+      type: object
+      required: [accessToken, tokenType, expiresIn, user]
+      properties:
+        accessToken: { type: string }
+        tokenType: { type: string, const: Bearer }
+        expiresIn: { type: integer, example: 900 }
+        refreshToken: { type: string, description: Chỉ với client native }
+        user: { $ref: "#/components/schemas/UserSummary" }
+    UserSummary:
+      type: object
+      required: [userId, displayName, role]
+      properties:
+        userId: { type: string, format: uuid }
+        displayName: { type: string }
+        email: { type: string, format: email }
+        avatarUrl: { type: [string, "null"] }
+        role: { type: string, enum: [user, admin] }
+        plan: { type: string, enum: [free, unlimited, valued] }
+    MeResponse:
+      type: object
+      required: [user, session]
+      properties:
+        user: { $ref: "#/components/schemas/UserSummary" }
+        session: { $ref: "#/components/schemas/SessionItem" }
+        entitlements: { type: object, description: "Xem 004-rbac, GET /me/entitlements" }
+    SessionItem:
+      type: object
+      required: [sessionId, deviceLabel, createdAt, lastSeenAt, isCurrent]
+      properties:
+        sessionId: { type: string, format: uuid }
+        deviceLabel: { type: string, example: Chrome trên Windows }
+        clientType: { type: string, enum: [web, native] }
+        authMethod: { type: string, enum: [google, password] }
+        ipAddress: { type: string, description: Che bớt octet cuối, ví dụ 113.190.x.x }
+        city: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+        lastSeenAt: { type: string, format: date-time }
+        isCurrent: { type: boolean }

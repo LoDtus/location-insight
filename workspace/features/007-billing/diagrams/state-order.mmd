@@ -1,0 +1,12 @@
+stateDiagram-v2
+  [*] --> pending: Tạo đơn
+  pending --> paid: Webhook in, đủ tiền, đúng mã, đúng tài khoản, còn hạn
+  pending --> pending: Webhook thiếu tiền
+  pending --> expired: Quá expires_at mà chưa đủ
+  pending --> canceled: Người dùng hủy đơn chưa trả
+  pending --> needs_review: Đủ tiền nhưng sai tài khoản, hoặc webhook đến sau khi hết hạn
+  paid --> paid: Webhook trùng sepay_id
+  expired --> needs_review: Tiền đến muộn
+  canceled --> needs_review: Tiền đến sau khi người dùng hủy
+  needs_review --> paid: Admin đối soát xác nhận đúng đơn
+  needs_review --> expired: Admin bác, không mở quyền

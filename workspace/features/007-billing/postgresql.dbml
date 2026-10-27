@@ -1,0 +1,152 @@
+// Thanh toán (007-billing). Gói và tín dụng dùng bảng của 004-rbac.
+// subscriptions.payment_order_id trỏ tới payment_orders.id (unique sẵn bên 004).
+// Quy ước: bảng snake_case số nhiều, cột snake_case, khóa chính UUID v7.
+// Tiền là integer VND, không có phần thập phân.
+
+Enum payment_order_kind {
+  subscription
+  valuation_credit
+}
+
+Enum billing_cycle {
+  month   // 30 ngày
+  year    // 365 ngày
+  once
+}
+
+Enum payment_order_status {
+  pending
+  paid
+  expired
+  canceled
+  needs_review
+}
+
+Table payment_orders {
+  id uuid [pk]
+  user_id uuid [not null, ref: > users.id]
+  kind payment_order_kind [not null]
+  plan varchar(16) [note: 'unlimited | valued khi kind = subscription; null khi mua lượt']
+  cycle billing_cycle [not null]
+  amount_vnd integer [not null, note: 'giá chốt lúc tạo đơn']
+  received_vnd integer [not null, default: 0]
+  code varchar(16) [not null, unique, note: 'DT + 8 hex, khớp cấu hình mã SePay']
+  status payment_order_status [not null, default: 'pending']
+  expires_at timestamptz [not null, note: 'pending quá hạn này thì job đổi expired']
+  paid_at timestamptz
+  subscription_id uuid [note: 'bản ghi 004-rbac vừa tạo khi trả gói']
+  credit_entry_id uuid [note: 'bút toán purchase khi trả lượt định giá']
+  benefit_used_at timestamptz [note: 'lần đầu dùng quyền sau paid_at; chặn hoàn 24 giờ']
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id, created_at) [name: 'idx_payment_orders_user_created']
+    (status, expires_at) [name: 'idx_payment_orders_status_expires']
+  }
+
+  Note: 'check amount_vnd > 0; check (kind = subscription and plan in (unlimited, valued) and cycle in (month, year)) or (kind = valuation_credit and plan is null and cycle = once)'
+}
+
+Enum sepay_transfer_type {
+  in
+  out
+}
+
+Enum payment_apply_result {
+  ignored
+  underpaid
+  fulfilled
+  duplicate
+  late
+  unmatched
+  needs_review
+}
+
+Table payment_transactions {
+  id uuid [pk]
+  sepay_id bigint [not null, unique, note: 'payload.id, không đổi khi SePay retry']
+  order_id uuid [ref: > payment_orders.id]
+  gateway varchar(64) [not null]
+  account_number varchar(32) [not null]
+  sub_account varchar(64)
+  code varchar(32)
+  content varchar(255) [not null]
+  transfer_type sepay_transfer_type [not null]
+  transfer_amount integer [not null]
+  reference_code varchar(64)
+  transaction_at timestamptz [not null, note: 'đổi từ giờ Việt Nam của SePay sang UTC']
+  apply_result payment_apply_result [not null]
+  raw jsonb [not null, note: 'payload gốc, không log ra stdout']
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (order_id) [name: 'idx_payment_transactions_order']
+  }
+}
+
+Enum refund_reason {
+  within_24h
+  service_outage
+  operator_stop
+  duplicate_or_wrong
+  overpay
+  legal
+}
+
+Enum refund_status {
+  requested
+  approved
+  rejected
+  paid_out
+}
+
+Table refund_requests {
+  id uuid [pk]
+  order_id uuid [not null, ref: > payment_orders.id]
+  user_id uuid [not null, ref: > users.id]
+  reason refund_reason [not null]
+  amount_vnd integer [not null, note: 'không vượt số đã nhận']
+  status refund_status [not null, default: 'requested']
+  user_note varchar(500)
+  payout_account_name varchar(120) [note: 'chủ tài khoản nhận hoàn, do người dùng nhập']
+  payout_account_number varchar(32)
+  payout_bank varchar(64)
+  decision_note varchar(500)
+  decided_by uuid [ref: > users.id]
+  decided_at timestamptz
+  paid_out_at timestamptz
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (status, created_at) [name: 'idx_refund_requests_status_created']
+    (order_id) [name: 'idx_refund_requests_order']
+  }
+}
+
+Enum billing_notice_type {
+  renewal_7d
+  renewal_1d
+  renewal_due
+  payment_paid
+  payment_underpaid
+  payment_review
+  refund_updated
+  subscription_revoked
+}
+
+Table billing_notices {
+  id uuid [pk]
+  user_id uuid [not null, ref: > users.id]
+  type billing_notice_type [not null]
+  subscription_id uuid
+  order_id uuid
+  title varchar(160) [not null]
+  body varchar(500) [not null]
+  read_at timestamptz
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id, created_at) [name: 'idx_billing_notices_user_created']
+    (subscription_id, type) [unique, name: 'uk_billing_notices_renewal', note: 'chỉ các type renewal_*; các type khác không đưa vào unique này, dùng unique một phần']
+  }
+}

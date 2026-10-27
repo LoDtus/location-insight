@@ -1,0 +1,18 @@
+sequenceDiagram
+  actor User as Người dùng
+  participant Web as Website
+  participant API as Backend
+  participant DB as Postgres
+  participant QR as vietqr.app
+
+  User->>Web: Chọn gói và kỳ tại /#bang-gia
+  Web->>API: POST /api/v1/billing/orders
+  API->>DB: Tạo payment_orders pending, mã DT + 8 hex
+  API-->>Web: amount, code, hết hạn sau 30 phút, URL QR
+  Web->>QR: Tải ảnh QR (acc, bank, amount, des)
+  QR-->>User: App ngân hàng điền sẵn
+  User->>Web: Để trang chờ mở
+  loop Mỗi 3 giây, tối đa đến expires_at
+    Web->>API: GET /api/v1/billing/orders/{id}
+    API->>DB: Đọc status
+  end

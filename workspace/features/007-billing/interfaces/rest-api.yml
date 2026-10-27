@@ -1,0 +1,362 @@
+openapi: 3.1.0
+info:
+  title: Địa Thế — Thanh toán SePay
+  version: 1.0.0
+  description: |
+    Đơn gói và lượt định giá, webhook SePay, hủy, thu hồi, hoàn tiền, nhắc gia hạn.
+    Tiền là số nguyên VND. Thời điểm trả cho website là ISO-8601 UTC có hậu tố Z.
+    Webhook không bọc envelope. Các route còn lại dùng envelope sẵn có của backend.
+    Nguồn payload: https://developer.sepay.vn/vi/sepay-webhooks/tich-hop-webhook
+servers:
+  - url: /api/v1
+tags:
+  - name: billing
+  - name: admin
+  - name: sepay
+paths:
+  /billing/catalog:
+    get:
+      tags: [billing]
+      summary: Giá đang niêm yết, không cần đăng nhập
+      security: []
+      responses:
+        "200":
+          description: Ba gói và một mức định giá lẻ
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Catalog" }
+  /billing/orders:
+    post:
+      tags: [billing]
+      summary: Tạo đơn chờ trả
+      x-permission: authenticated-only
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateOrder" }
+      responses:
+        "201":
+          description: Đơn pending và URL ảnh QR
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Order" }
+        "401": { $ref: "#/components/responses/Error" }
+        "429":
+          description: Quá 10 đơn pending trong một giờ
+  /billing/orders/{id}:
+    get:
+      tags: [billing]
+      summary: Trạng thái đơn của chính mình
+      x-permission: authenticated-only
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Order" }
+        "404": { $ref: "#/components/responses/Error" }
+    delete:
+      tags: [billing]
+      summary: Hủy đơn còn pending
+      x-permission: authenticated-only
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      responses:
+        "200":
+          description: status = canceled
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Order" }
+  /billing/orders/{id}/refunds:
+    post:
+      tags: [billing]
+      summary: Xin hoàn
+      x-permission: authenticated-only
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateRefund" }
+      responses:
+        "201":
+          description: requested, hoặc 422 nếu đã dùng quyền trong ca 24 giờ
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Refund" }
+  /me/billing:
+    get:
+      tags: [billing]
+      summary: Gói đang hiệu lực, đơn gần đây, thông báo chưa đọc
+      x-permission: authenticated-only
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MyBilling" }
+  /me/billing/subscriptions/{id}/cancel:
+    post:
+      tags: [billing]
+      summary: Hủy gia hạn, vẫn dùng đến period_end
+      x-permission: authenticated-only
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: status canceled, ended_at null
+  /me/billing/notices/{id}/read:
+    post:
+      tags: [billing]
+      summary: Đánh dấu đã đọc
+      x-permission: authenticated-only
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "204":
+          description: Không body
+  /billing/sepay/webhook:
+    post:
+      tags: [sepay]
+      summary: SePay báo giao dịch
+      security:
+        - sepayApiKey: []
+      x-permission: public
+      description: |
+        Không dùng JWT. Header `Authorization: Apikey <SEPAY_WEBHOOK_API_KEY>`.
+        Nếu có `SEPAY_WEBHOOK_HMAC_SECRET` thì bắt thêm chữ ký HMAC-SHA256 của raw body.
+        Trả đúng `{"success": true}` với HTTP 200. Không bọc envelope.
+        `sepay_id` trùng thì vẫn 200 và không ghi gói lần hai.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SepayPayload" }
+      responses:
+        "200":
+          description: Đã nhận
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success: { type: boolean, const: true }
+        "401":
+          description: Sai khóa hoặc sai HMAC. SePay sẽ gửi lại.
+  /admin/billing/orders:
+    get:
+      tags: [admin]
+      summary: Danh sách đơn, gồm needs_review
+      x-permission: admin:access
+      parameters:
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/OrderStatus" } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+      responses:
+        "200":
+          description: OK
+  /admin/billing/orders/{id}/resolve:
+    post:
+      tags: [admin]
+      summary: Đối soát đơn needs_review
+      x-permission: admin:access
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision, reason]
+              properties:
+                decision: { type: string, enum: [fulfill, reject] }
+                reason: { type: string, minLength: 3, maxLength: 255 }
+      responses:
+        "200":
+          description: fulfill thì ghi gói hoặc tín dụng một lần. reject thì không mở quyền.
+  /admin/billing/subscriptions/{id}/revoke:
+    post:
+      tags: [admin]
+      summary: Thu hồi gói ngay
+      x-permission: admin:access
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 3, maxLength: 255 }
+      responses:
+        "200":
+          description: ended_at = now, xóa cache quyền, ghi admin audit và thông báo
+  /admin/billing/refunds/{id}:
+    post:
+      tags: [admin]
+      summary: Duyệt hoặc từ chối hoàn
+      x-permission: admin:access
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision: { type: string, enum: [approve, reject] }
+                note: { type: string, maxLength: 500 }
+      responses:
+        "200":
+          description: approved thì thu hồi phần tương ứng. Chưa phải đã chuyển khoản.
+  /admin/billing/refunds/{id}/paid-out:
+    post:
+      tags: [admin]
+      summary: Ghi đã chuyển tiền hoàn
+      x-permission: admin:access
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [referenceCode]
+              properties:
+                referenceCode: { type: string, minLength: 3, maxLength: 64 }
+      responses:
+        "200":
+          description: status = paid_out
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+    sepayApiKey:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Giá trị dạng "Apikey <khóa>"
+  parameters:
+    OrderId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    Error:
+      description: Lỗi nghiệp vụ trong envelope
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, const: false }
+              error:
+                type: object
+                properties:
+                  code: { type: string }
+                  message: { type: string }
+  schemas:
+    Catalog:
+      type: object
+      required: [plans, valuationCreditVnd, currency]
+      properties:
+        currency: { type: string, const: VND }
+        valuationCreditVnd: { type: integer, const: 10000 }
+        plans:
+          type: array
+          items:
+            type: object
+            required: [code, monthVnd, yearVnd, periodDays]
+            properties:
+              code: { type: string, enum: [unlimited, valued] }
+              monthVnd: { type: integer }
+              yearVnd: { type: integer }
+              periodDays: { type: object, properties: { month: { type: integer, const: 30 }, year: { type: integer, const: 365 } } }
+    CreateOrder:
+      type: object
+      required: [kind]
+      properties:
+        kind: { type: string, enum: [subscription, valuation_credit] }
+        plan: { type: string, enum: [unlimited, valued] }
+        cycle: { type: string, enum: [month, year] }
+    OrderStatus:
+      type: string
+      enum: [pending, paid, expired, canceled, needs_review]
+    Order:
+      type: object
+      required: [id, kind, amountVnd, receivedVnd, code, status, expiresAt, qrUrl]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [subscription, valuation_credit] }
+        plan: { type: string, enum: [unlimited, valued], nullable: true }
+        cycle: { type: string, enum: [month, year, once] }
+        amountVnd: { type: integer }
+        receivedVnd: { type: integer }
+        code: { type: string, examples: ["DT3F9A12BC"] }
+        status: { $ref: "#/components/schemas/OrderStatus" }
+        expiresAt: { type: string, format: date-time }
+        paidAt: { type: string, format: date-time, nullable: true }
+        qrUrl: { type: string, description: URL vietqr.app, des đã encode }
+        bank: { type: string }
+        accountNumber: { type: string }
+        accountHolder: { type: string }
+        transferContent: { type: string }
+    CreateRefund:
+      type: object
+      required: [reason, payoutAccountName, payoutAccountNumber, payoutBank]
+      properties:
+        reason: { type: string, enum: [within_24h, service_outage, operator_stop, duplicate_or_wrong, overpay, legal] }
+        userNote: { type: string, maxLength: 500 }
+        payoutAccountName: { type: string, maxLength: 120 }
+        payoutAccountNumber: { type: string, maxLength: 32 }
+        payoutBank: { type: string, maxLength: 64 }
+    Refund:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [requested, approved, rejected, paid_out] }
+        amountVnd: { type: integer }
+        reason: { type: string }
+    MyBilling:
+      type: object
+      properties:
+        effectivePlan: { type: string, enum: [free, unlimited, valued] }
+        periodEnd: { type: string, format: date-time, nullable: true }
+        cancelAtPeriodEnd: { type: boolean }
+        valuationCredits: { type: integer }
+        notices:
+          type: array
+          items: { type: object }
+        orders:
+          type: array
+          items: { $ref: "#/components/schemas/Order" }
+    SepayPayload:
+      type: object
+      required: [id, gateway, transactionDate, accountNumber, content, transferType, transferAmount]
+      properties:
+        id: { type: integer }
+        gateway: { type: string }
+        transactionDate: { type: string, description: "YYYY-MM-DD HH:mm:ss, giờ Việt Nam" }
+        accountNumber: { type: string }
+        subAccount: { type: string }
+        code: { type: string, nullable: true }
+        content: { type: string }
+        transferType: { type: string, enum: [in, out] }
+        description: { type: string }
+        transferAmount: { type: integer }
+        accumulated: { type: integer }
+        referenceCode: { type: string }
+security:
+  - bearerAuth: []

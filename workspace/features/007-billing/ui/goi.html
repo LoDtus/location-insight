@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gói của tôi · Địa Thế</title>
+    <link rel="icon" href="../../001-ui/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../../001-ui/css/site.css" />
+    <link rel="stylesheet" href="billing.css" />
+  </head>
+  <body>
+    <a class="skip" href="#noi-dung">Đi tới nội dung</a>
+    <header class="app-header">
+      <a class="logo" href="thanh-toan.html">
+        <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#1b4332"/><path fill="#f4efe6" d="M16 5.5c-3.6 0-6.5 2.8-6.5 6.4 0 4.7 6.5 14.6 6.5 14.6s6.5-9.9 6.5-14.6c0-3.6-2.9-6.4-6.5-6.4zm0 8.7a2.3 2.3 0 1 1 0-4.6 2.3 2.3 0 0 1 0 4.6z"/></svg>
+        <span>Địa Thế</span>
+      </a>
+      <button class="icon-btn nav-toggle" type="button" data-nav-toggle aria-expanded="false" aria-controls="dieu-huong" aria-label="Mở menu"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <nav class="app-nav" id="dieu-huong" data-nav aria-label="Thanh toán">
+        <a href="thanh-toan.html">Trả gói</a>
+        <a href="goi.html" aria-current="page">Gói của tôi</a>
+      </nav>
+    </header>
+    <main id="noi-dung" class="app-shell">
+      <section id="dang-dung">
+        <h1>Gói có định giá</h1>
+        <p class="lede">Còn dùng đến hết ngày <time datetime="2026-11-26">26/11/2026</time>. Không tự gia hạn.</p>
+        <dl class="kv">
+          <dt>Hạng hiệu lực</dt>
+          <dd>Có định giá</dd>
+          <dt>Lượt định giá lẻ</dt>
+          <dd class="money">1</dd>
+          <dt>So sánh trong ngày</dt>
+          <dd>Không trần theo gói này</dd>
+        </dl>
+        <p class="row-actions">
+          <a class="btn btn-primary" href="thanh-toan.html?plan=valued&amp;cycle=month">Gia hạn</a>
+          <button class="btn btn-danger" type="button" id="mo-huy">Hủy gói</button>
+          <a class="btn btn-secondary" href="hoan-tien.html">Xin hoàn</a>
+        </p>
+      </section>
+
+      <section aria-labelledby="tieu-de-bao" style="margin-top: 36px">
+        <h2 id="tieu-de-bao">Thông báo</h2>
+        <article class="note warn">
+          <p><strong>Còn 7 ngày.</strong> Gói có định giá hết hạn ngày 26/11/2026. Bấm Gia hạn nếu bạn muốn giữ bước khung giá. Địa Thế không tự trừ tiền.</p>
+        </article>
+        <p class="fine">Các mốc còn lại, khi tới lịch: còn 1 ngày, và sáng đúng ngày hết hạn. Mỗi mốc một lần.</p>
+      </section>
+
+      <section aria-labelledby="tieu-de-su" style="margin-top: 36px">
+        <h2 id="tieu-de-su">Đơn đã tạo</h2>
+        <table class="ledger">
+          <thead>
+            <tr>
+              <th>Ngày</th>
+              <th>Nội dung</th>
+              <th>Số tiền</th>
+              <th>Trạng thái</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>27/10/2026</td>
+              <td>Có định giá · 30 ngày · DT3F9A12BC</td>
+              <td class="num">60.000 đồng</td>
+              <td>Đã trả</td>
+            </tr>
+            <tr>
+              <td>27/10/2026</td>
+              <td>Một lần định giá · DT91C0AA22</td>
+              <td class="num">10.000 đồng</td>
+              <td>Đã trả</td>
+            </tr>
+            <tr>
+              <td>20/10/2026</td>
+              <td>Không giới hạn lượt · 30 ngày · DT0044AB10</td>
+              <td class="num">30.000 đồng</td>
+              <td>Đã hủy trước khi trả</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="da-huy" hidden style="margin-top: 36px">
+        <h2>Đã ghi nhận hủy</h2>
+        <p class="note ok" role="status">Bạn vẫn dùng gói đến hết 26/11/2026. Sau ngày đó tài khoản về miễn phí. Phần ngày còn lại không được hoàn, trừ các trường hợp trên trang xin hoàn.</p>
+      </section>
+
+      <dialog id="hop-huy" aria-labelledby="tieu-de-hop">
+        <h2 id="tieu-de-hop">Hủy gói có định giá?</h2>
+        <p>Bạn dùng tiếp đến hết 26/11/2026. Ngày chưa dùng không được hoàn. Không có kỳ trừ tiền nào để tắt, vì gói không tự gia hạn.</p>
+        <p class="row-actions">
+          <button class="btn btn-danger" type="button" id="xac-nhan-huy">Hủy từ kỳ sau</button>
+          <button class="btn btn-secondary" type="button" id="dong-huy">Giữ gói</button>
+        </p>
+      </dialog>
+    </main>
+    <script src="billing.js"></script>
+    <script>
+      const hop = document.querySelector("#hop-huy");
+      document.querySelector("#mo-huy").addEventListener("click", () => hop.showModal());
+      document.querySelector("#dong-huy").addEventListener("click", () => hop.close());
+      document.querySelector("#xac-nhan-huy").addEventListener("click", () => {
+        hop.close();
+        document.querySelector("#da-huy").hidden = false;
+        document.querySelector("#mo-huy").hidden = true;
+      });
+    </script>
+  </body>
+</html>

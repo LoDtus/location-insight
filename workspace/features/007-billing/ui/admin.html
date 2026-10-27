@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Đối soát thanh toán · Địa Thế</title>
+    <link rel="icon" href="../../001-ui/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../../001-ui/css/site.css" />
+    <link rel="stylesheet" href="billing.css" />
+  </head>
+  <body>
+    <a class="skip" href="#noi-dung">Đi tới nội dung</a>
+    <header class="app-header">
+      <a class="logo" href="thanh-toan.html">
+        <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#1b4332"/><path fill="#f4efe6" d="M16 5.5c-3.6 0-6.5 2.8-6.5 6.4 0 4.7 6.5 14.6 6.5 14.6s6.5-9.9 6.5-14.6c0-3.6-2.9-6.4-6.5-6.4zm0 8.7a2.3 2.3 0 1 1 0-4.6 2.3 2.3 0 0 1 0 4.6z"/></svg>
+        <span>Địa Thế</span>
+      </a>
+      <button class="icon-btn nav-toggle" type="button" data-nav-toggle aria-expanded="false" aria-controls="dieu-huong" aria-label="Mở menu"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <nav class="app-nav" id="dieu-huong" data-nav aria-label="Quản trị thanh toán">
+        <a href="admin.html" aria-current="page">Đối soát</a>
+        <a href="goi.html">Như người dùng</a>
+      </nav>
+    </header>
+    <main id="noi-dung" class="app-shell">
+      <h1>Đối soát</h1>
+      <p class="lede">Việc mở quyền chỉ xảy ra khi đơn đủ điều kiện, hoặc khi bạn bấm ghi nhận sau khi đã xem ủy nhiệm chi. Thu hồi và hoàn đều bắt buộc có lý do và được ghi nhật ký.</p>
+      <p class="note" id="thong-bao" hidden role="status"></p>
+      <table class="ledger">
+        <thead>
+          <tr>
+            <th>Mã</th>
+            <th>Việc</th>
+            <th>Tiền vào</th>
+            <th>Trạng thái</th>
+            <th>Việc làm</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-row="muon">
+            <td>DT77E01A90</td>
+            <td>Có định giá · tiền đến sau khi mã hết hạn · user@location-insight.local</td>
+            <td class="num">60.000 / 60.000</td>
+            <td data-status>Chờ đối soát</td>
+            <td class="row-actions">
+              <button class="btn btn-primary" type="button" data-act="fulfill">Ghi nhận và mở gói</button>
+              <button class="btn btn-secondary" type="button" data-act="reject">Không mở</button>
+            </td>
+          </tr>
+          <tr data-row="thieu">
+            <td>DT10BB3344</td>
+            <td>Không giới hạn lượt · còn thiếu · mã còn hạn</td>
+            <td class="num">10.000 / 30.000</td>
+            <td>Đang chờ phần còn lại</td>
+            <td>Không mở. Người dùng chuyển tiếp cùng mã.</td>
+          </tr>
+          <tr data-row="ra">
+            <td>—</td>
+            <td>SePay báo tiền ra, không có mã DT</td>
+            <td class="num">5.000</td>
+            <td>Bỏ qua</td>
+            <td>Không gắn vào đơn nào.</td>
+          </tr>
+          <tr data-row="hoan">
+            <td>DT3F9A12BC</td>
+            <td>Xin hoàn 24 giờ · chưa dùng quyền</td>
+            <td class="num">60.000</td>
+            <td data-status>Chờ duyệt</td>
+            <td class="row-actions">
+              <button class="btn btn-primary" type="button" data-act="approve">Duyệt và thu hồi gói</button>
+              <button class="btn btn-secondary" type="button" data-act="paid">Ghi đã chuyển trả</button>
+            </td>
+          </tr>
+          <tr data-row="goi">
+            <td>DT3F9A12BC</td>
+            <td>Gói có định giá còn đến 26/11/2026</td>
+            <td class="num">60.000</td>
+            <td data-status>Đang hiệu lực</td>
+            <td>
+              <button class="btn btn-danger" type="button" data-act="revoke">Thu hồi ngay</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <dialog id="hop" aria-labelledby="hop-tieu-de">
+        <h2 id="hop-tieu-de">Lý do</h2>
+        <form method="dialog" class="form-stack" id="form-ly-do">
+          <div class="field">
+            <label for="ly-do">Ghi vào nhật ký</label>
+            <input id="ly-do" name="ly-do" required minlength="3" />
+          </div>
+          <p class="row-actions">
+            <button class="btn btn-primary" value="ok">Xác nhận</button>
+            <button class="btn btn-secondary" value="cancel">Đóng</button>
+          </p>
+        </form>
+      </dialog>
+    </main>
+    <script src="billing.js"></script>
+    <script>
+      const hop = document.querySelector("#hop");
+      const thongBao = document.querySelector("#thong-bao");
+      const form = document.querySelector("#form-ly-do");
+      let pending = null;
+      const loi = {
+        fulfill: "Đã mở gói cho đơn đến muộn.",
+        reject: "Đã bác. Quyền không mở.",
+        approve: "Đã duyệt hoàn và thu hồi phần còn lại. Chưa chuyển khoản.",
+        paid: "Đã ghi mã tham chiếu chi hoàn.",
+        revoke: "Đã thu hồi ngay. Cache quyền của người đó bị xóa.",
+      };
+
+      document.querySelector("tbody").addEventListener("click", (event) => {
+        const nut = event.target.closest("button[data-act]");
+        if (!nut) return;
+        pending = { act: nut.dataset.act, row: nut.closest("tr") };
+        document.querySelector("#ly-do").value = "";
+        hop.showModal();
+      });
+
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        if (event.submitter?.value !== "ok") {
+          hop.close();
+          return;
+        }
+        if (!form.reportValidity() || !pending) return;
+        const status = pending.row.querySelector("[data-status]");
+        if (status) {
+          status.textContent = pending.act === "fulfill" ? "Đã trả" : pending.act === "reject" ? "Không mở quyền" : pending.act === "revoke" ? "Đã thu hồi" : pending.act === "approve" ? "Đã duyệt, chờ chi" : "Đã chi hoàn";
+        }
+        thongBao.hidden = false;
+        thongBao.textContent = `${loi[pending.act]} Lý do: ${document.querySelector("#ly-do").value}.`;
+        hop.close();
+      });
+    </script>
+  </body>
+</html>

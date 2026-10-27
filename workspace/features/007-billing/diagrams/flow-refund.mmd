@@ -1,0 +1,14 @@
+flowchart TD
+  A[Đơn paid] --> B{Lý do hoàn}
+  B -->|Trong 24 giờ| C{Đã dùng quyền lợi?}
+  C -->|Chưa| D[Tạo refund_requests requested, số đã trả]
+  C -->|Rồi| E[Từ chối ngay, giải thích]
+  B -->|Thừa tiền| F[requested, số thừa]
+  B -->|Trùng, lỗi dịch vụ, ngừng dịch vụ| G[requested, admin xét]
+  D --> H{Admin}
+  F --> H
+  G --> H
+  H -->|Duyệt| I[approved, nếu hoàn cả đơn thì ended_at = now và trừ tín dụng nếu còn]
+  H -->|Từ chối| J[rejected]
+  I --> K[Người vận hành chuyển khoản]
+  K --> L[paid_out, ghi ngày và số tham chiếu]

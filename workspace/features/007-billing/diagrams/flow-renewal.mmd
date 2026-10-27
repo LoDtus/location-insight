@@ -1,0 +1,12 @@
+flowchart TD
+  A[Mỗi ngày 08:00 Asia/Ho_Chi_Minh] --> B[Gói active hoặc canceled nhưng chưa tới period_end]
+  B --> C{Còn bao lâu}
+  C -->|Đúng 7 ngày| D[billing_notices renewal_7d]
+  C -->|Đúng 1 ngày| E[renewal_1d]
+  C -->|Đúng ngày hết hạn| F[renewal_due]
+  D --> G[Một dòng cho mỗi cặp subscription và type]
+  E --> G
+  F --> G
+  G --> H[Người dùng thấy trong Gói của tôi]
+  H --> I[Bấm Gia hạn tạo đơn mới]
+  I --> J[Không có lệnh trừ tiền]

@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Xin hoàn tiền · Địa Thế</title>
+    <link rel="icon" href="../../001-ui/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../../001-ui/css/site.css" />
+    <link rel="stylesheet" href="billing.css" />
+  </head>
+  <body>
+    <a class="skip" href="#noi-dung">Đi tới nội dung</a>
+    <header class="app-header">
+      <a class="logo" href="goi.html">
+        <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#1b4332"/><path fill="#f4efe6" d="M16 5.5c-3.6 0-6.5 2.8-6.5 6.4 0 4.7 6.5 14.6 6.5 14.6s6.5-9.9 6.5-14.6c0-3.6-2.9-6.4-6.5-6.4zm0 8.7a2.3 2.3 0 1 1 0-4.6 2.3 2.3 0 0 1 0 4.6z"/></svg>
+        <span>Địa Thế</span>
+      </a>
+      <button class="icon-btn nav-toggle" type="button" data-nav-toggle aria-expanded="false" aria-controls="dieu-huong" aria-label="Mở menu"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <nav class="app-nav" id="dieu-huong" data-nav aria-label="Thanh toán">
+        <a href="thanh-toan.html">Trả gói</a>
+        <a href="goi.html">Gói của tôi</a>
+        <a href="hoan-tien.html" aria-current="page">Xin hoàn</a>
+      </nav>
+    </header>
+    <main id="noi-dung" class="app-shell" style="max-width: 40rem">
+      <h1>Xin hoàn</h1>
+      <p class="lede">Trong 24 giờ đầu, nếu bạn chưa dùng quyền của lần trả đó. Ngoài ra: thu trùng, chuyển thừa, gián đoạn do Địa Thế, hoặc Địa Thế ngừng dịch vụ.</p>
+
+      <div id="loi-da-dung" class="note bad" hidden role="alert">
+        <p>Đơn 60.000 đồng đã có một lượt so sánh sau khi thanh toán. Trường hợp 24 giờ không áp dụng. Bạn vẫn gửi được nếu lý do là thu trùng hoặc gián đoạn.</p>
+      </div>
+
+      <form id="form-hoan" class="form-stack">
+        <div class="field">
+          <label for="don">Đơn</label>
+          <select id="don" name="don">
+            <option value="DT3F9A12BC">27/10/2026 · Có định giá · 60.000 đồng · DT3F9A12BC</option>
+            <option value="DT91C0AA22">27/10/2026 · Một lần định giá · 10.000 đồng · DT91C0AA22</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="ly-do">Lý do</label>
+          <select id="ly-do" name="ly-do">
+            <option value="within_24h">Trong 24 giờ, chưa dùng quyền</option>
+            <option value="overpay">Chuyển thừa</option>
+            <option value="duplicate_or_wrong">Thu trùng hoặc thu nhầm</option>
+            <option value="service_outage">Dịch vụ gián đoạn hơn 48 giờ</option>
+            <option value="operator_stop">Địa Thế ngừng phần tôi đã trả</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="so-tien">Số tiền muốn nhận lại</label>
+          <input id="so-tien" name="so-tien" inputmode="numeric" value="60000" />
+          <p class="help">Không vượt số đã vào tài khoản của đơn. Với chuyển thừa, điền phần thừa.</p>
+        </div>
+        <div class="field">
+          <label for="chu-tk">Chủ tài khoản nhận</label>
+          <input id="chu-tk" name="chu-tk" autocomplete="name" required />
+        </div>
+        <div class="field">
+          <label for="so-tk">Số tài khoản</label>
+          <input id="so-tk" name="so-tk" inputmode="numeric" autocomplete="off" required />
+        </div>
+        <div class="field">
+          <label for="ngan-hang">Ngân hàng</label>
+          <input id="ngan-hang" name="ngan-hang" required />
+        </div>
+        <div class="field">
+          <label for="ghi-chu">Ghi chú</label>
+          <textarea id="ghi-chu" name="ghi-chu" rows="3"></textarea>
+        </div>
+        <button class="btn btn-primary" type="submit">Gửi yêu cầu</button>
+      </form>
+
+      <p id="xong" class="note ok" hidden role="status">Đã nhận yêu cầu. Địa Thế trả lời trong khoảng 7 ngày làm việc. Khi chấp thuận, tiền được chuyển trong 15 ngày làm việc. Gói chỉ bị cắt sớm nếu yêu cầu hoàn cả đơn được duyệt.</p>
+      <p class="fine"><a href="?tinh=da-dung">Xem trạng thái đã dùng quyền</a> · <a href="hoan-tien.html">Xem biểu mẫu trống</a></p>
+    </main>
+    <script src="billing.js"></script>
+    <script>
+      const form = document.querySelector("#form-hoan");
+      if (new URLSearchParams(location.search).get("tinh") === "da-dung") {
+        document.querySelector("#loi-da-dung").hidden = false;
+      }
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        if (!form.reportValidity()) return;
+        const lyDo = document.querySelector("#ly-do").value;
+        const daDung = !document.querySelector("#loi-da-dung").hidden;
+        if (daDung && lyDo === "within_24h") {
+          document.querySelector("#loi-da-dung").focus?.();
+          return;
+        }
+        document.querySelector("#xong").hidden = false;
+        form.hidden = true;
+      });
+    </script>
+  </body>
+</html>

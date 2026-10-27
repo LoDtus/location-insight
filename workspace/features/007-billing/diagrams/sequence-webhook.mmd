@@ -1,0 +1,26 @@
+sequenceDiagram
+  participant Sepay as SePay
+  participant API as Backend
+  participant DB as Postgres
+  participant Redis as Redis
+
+  Sepay->>API: POST /api/v1/billing/sepay/webhook
+  API->>API: Khớp Apikey, và HMAC nếu đã cấu hình
+  API->>Redis: SET billing:lock:{id} NX
+  API->>DB: INSERT payment_transactions, unique sepay_id
+  alt Đã có sepay_id
+    API-->>Sepay: 200 {"success": true}
+  else transferType out hoặc không có code
+    API->>DB: apply_result ignored hoặc unmatched
+    API-->>Sepay: 200 {"success": true}
+  else Đúng mã, đủ tiền, còn pending, đúng tài khoản
+    API->>DB: Đơn paid, ghi subscription hoặc tín dụng
+    API->>Redis: Xóa cache:authz, PUBLISH authz.changed
+    API-->>Sepay: 200 {"success": true}
+  else Thiếu tiền
+    API->>DB: received_vnd, đơn vẫn pending
+    API-->>Sepay: 200 {"success": true}
+  else Hết hạn hoặc sai tài khoản
+    API->>DB: needs_review, không mở quyền
+    API-->>Sepay: 200 {"success": true}
+  end

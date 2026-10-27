@@ -21,6 +21,12 @@ export default async function Footer() {
             className="mx-auto flex w-full max-w-960 flex-wrap items-center gap-x-2 gap-y-1 px-4 py-4 sm:px-8 xl:px-50"
         >
             <Link
+                href="/bai-viet"
+                className="inline-flex min-h-11 items-center px-2 py-1 text-sm font-semibold underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
+            >
+                {getLocaleValue(landing, ["articles", "title"])}
+            </Link>
+            <Link
                 href={LEGAL_PATH_PREFIX}
                 className="inline-flex min-h-11 items-center px-2 py-1 text-sm font-semibold underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
             >

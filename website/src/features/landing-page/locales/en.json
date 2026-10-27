@@ -9,7 +9,8 @@
         "listings": "Buy & rent",
         "pricing": "Pricing",
         "how": "How it works",
-        "faq": "FAQ"
+        "faq": "FAQ",
+        "articles": "Articles"
     },
     "sections": {
         "intro": "Introduction",
@@ -307,6 +308,91 @@
             "pin": "An address only gets you close. Search can miss by tens to hundreds of metres, especially in an alley. Drag the pin onto the plot. The report follows the pin, not the text.",
             "missing": "If nothing is found inside the radius, the page records the gap and the source. A low amenity count means a thin map, not an area without shops. There is no planning API by coordinate, so that item stays without data.",
             "fallback": "This question does not match a written answer. Read the questions on the left. The page only answers from what is already here, and it does not send the question anywhere."
+        }
+    },
+    "articles": {
+        "title": "Articles",
+        "lede": "Notes written by Địa Thế on how to read the map and a price range. These are not listings posted by sellers. The full text of each note will be attached here when it is published.",
+        "loading": "Opening the article list.",
+        "searchLabel": "Find an article",
+        "searchPlaceholder": "Radius, pin, price range…",
+        "sortLabel": "Sort",
+        "topicLabel": "Topic",
+        "topicAll": "All",
+        "count": "{count} articles",
+        "reset": "Clear filters",
+        "clearSearch": "Clear the search",
+        "clearTopic": "Clear the topic",
+        "empty": "No article matches. Clear the words or choose All.",
+        "imageAlt": "Illustration of housing in Hanoi, not a photo made for this article.",
+        "sort": {
+            "moi": "Newest first",
+            "cu": "Oldest first",
+            "ten": "By title"
+        },
+        "topics": {
+            "cach-doc": "How to read",
+            "khu-vuc": "Area",
+            "gia": "Price range",
+            "du-lieu": "Data"
+        },
+        "items": {
+            "ban-kinh-500-met": {
+                "title": "What a 500-metre radius actually measures",
+                "lede": "The circle around the pin is a straight line, not a walk through the alleys."
+            },
+            "ghim-lech": {
+                "title": "A misplaced pin shifts every distance",
+                "lede": "An address only gets you close. The report follows the plot you drag the pin onto."
+            },
+            "thieu-du-lieu": {
+                "title": "Missing data is not an empty neighbourhood",
+                "lede": "Few amenities inside the radius means a thin map, with a source, not a claim that there are no shops."
+            },
+            "khong-ket-luan-ngap": {
+                "title": "Why the page does not say a place floods easily",
+                "lede": "It has relative elevation and a modelled river flood. It has no map of street flooding after rain."
+            },
+            "khung-gia": {
+                "title": "A price range is not a sale price",
+                "lede": "It is an estimate when the data is enough, not the number a seller is asking."
+            },
+            "thieu-mat-tien": {
+                "title": "Missing frontage widens the range",
+                "lede": "Missing legal status or frontage widens the band, or the page stops short of a conclusion."
+            },
+            "ho-tay": {
+                "title": "West Lake: walking to the lake is not walking every alley",
+                "lede": "The radius to the shore is not the walk into a dead-end lane behind it."
+            },
+            "pho-co": {
+                "title": "The Old Quarter: an address only gets you close",
+                "lede": "A house number on Hang Bac can miss the plot. Drag the pin before reading distances."
+            },
+            "cau-giay": {
+                "title": "Cau Giay and the radius to a station",
+                "lede": "A station inside 500 metres does not say whether a main road blocks the walk."
+            },
+            "dong-anh": {
+                "title": "Dong Anh: no planning layer means a recorded gap",
+                "lede": "There is no planning API by coordinate, so that item stays empty instead of a guess."
+            },
+            "so-sanh-hai-diem": {
+                "title": "What to read first when comparing two points",
+                "lede": "Read the pin, the radius and the source first. The price range appears only when that step is open."
+            },
+            "nguon-con-so": {
+                "title": "Every number sits next to a source",
+                "lede": "The page names the source beside each item. Without a source it records a gap, and it does not fill a number in."
+            },
+            "buoc-dinh-gia": {
+                "title": "When the valuation step opens",
+                "lede": "The free plan and the unlimited plan do not open it. The valuation plan, or one turn at 10,000 VND, does."
+            },
+            "linh-dam": {
+                "title": "Linh Dam: a hospital within 2 km is which distance",
+                "lede": "Two kilometres on the map is a straight line from the pin, not minutes in a car."
+            }
         }
     }
 }

@@ -9,7 +9,8 @@
         "listings": "Mua bán & Cho thuê",
         "pricing": "Bảng giá",
         "how": "Cách hoạt động",
-        "faq": "Câu hỏi thường gặp"
+        "faq": "Câu hỏi thường gặp",
+        "articles": "Bài viết"
     },
     "sections": {
         "intro": "Giới thiệu",
@@ -307,6 +308,91 @@
             "pin": "Địa chỉ chỉ đưa bạn tới gần. Bộ tìm có thể lệch vài chục đến vài trăm mét, nhất là ngõ. Kéo ghim đúng ô đất. Báo cáo bám ghim, không bám chuỗi chữ.",
             "missing": "Không thấy dữ liệu trong bán kính thì ghi thiếu, kèm nguồn. Số tiện ích thấp nghĩa là bản đồ mỏng, không phải khu không có cửa hàng. Chưa có API quy hoạch theo tọa độ nên mục đó ghi chưa có dữ liệu.",
             "fallback": "Câu này chưa khớp mục đã viết sẵn. Xem cột câu hay gặp. Trang chỉ trả lời từ những gì đã có, không gửi câu hỏi đi đâu."
+        }
+    },
+    "articles": {
+        "title": "Bài viết",
+        "lede": "Ghi chú Địa Thế tự viết để giải thích cách đọc bản đồ và khung giá. Đây không phải tin rao của người đăng bán. Bản đủ của từng bài sẽ gắn vào đây khi đăng.",
+        "loading": "Đang mở danh sách bài viết.",
+        "searchLabel": "Tìm bài",
+        "searchPlaceholder": "Bán kính, ghim, khung giá…",
+        "sortLabel": "Sắp xếp",
+        "topicLabel": "Chủ đề",
+        "topicAll": "Tất cả",
+        "count": "{count} bài",
+        "reset": "Xóa bộ lọc",
+        "clearSearch": "Bỏ từ khóa",
+        "clearTopic": "Bỏ chủ đề",
+        "empty": "Không có bài khớp. Xóa từ khóa hoặc chọn Tất cả.",
+        "imageAlt": "Ảnh minh họa nhà ở Hà Nội, chưa phải ảnh riêng của bài.",
+        "sort": {
+            "moi": "Mới đăng trước",
+            "cu": "Cũ trước",
+            "ten": "Theo tên"
+        },
+        "topics": {
+            "cach-doc": "Cách đọc",
+            "khu-vuc": "Khu vực",
+            "gia": "Khung giá",
+            "du-lieu": "Dữ liệu"
+        },
+        "items": {
+            "ban-kinh-500-met": {
+                "title": "Bán kính 500 mét đang đo cái gì",
+                "lede": "Vòng tròn quanh ghim là đường chim bay, không phải quãng đi bộ qua ngõ."
+            },
+            "ghim-lech": {
+                "title": "Ghim lệch thì mọi khoảng cách lệch theo",
+                "lede": "Địa chỉ chỉ đưa tới gần. Báo cáo bám ô đất bạn kéo ghim tới."
+            },
+            "thieu-du-lieu": {
+                "title": "Thiếu dữ liệu không phải khu trống",
+                "lede": "Ít tiện ích trong bán kính nghĩa là bản đồ mỏng, kèm nguồn, không phải kết luận không có cửa hàng."
+            },
+            "khong-ket-luan-ngap": {
+                "title": "Vì sao trang không ghi dễ ngập",
+                "lede": "Có cao độ tương đối và ngập sông theo mô hình. Không có bản đồ ngập đường sau mưa."
+            },
+            "khung-gia": {
+                "title": "Khung giá không phải giá bán",
+                "lede": "Đó là khoảng ước lượng khi đủ dữ liệu, không phải số chủ nhà đang chào."
+            },
+            "thieu-mat-tien": {
+                "title": "Thiếu mặt tiền thì khung giá rộng ra",
+                "lede": "Thiếu pháp lý hoặc mặt tiền làm khoảng rộng hơn, hoặc trang không kết luận."
+            },
+            "ho-tay": {
+                "title": "Hồ Tây: đi bộ tới hồ không phải tới mọi ngõ",
+                "lede": "Bán kính tới mép hồ khác quãng đi vào ngõ cụt phía trong."
+            },
+            "pho-co": {
+                "title": "Phố cổ: địa chỉ chỉ đưa tới gần",
+                "lede": "Số nhà trên Hàng Bạc có thể lệch ô đất. Kéo ghim trước khi đọc khoảng cách."
+            },
+            "cau-giay": {
+                "title": "Cầu Giấy và bán kính tới ga",
+                "lede": "Ga trong vòng 500 mét chưa nói được lối đi bộ có bị đường lớn chắn hay không."
+            },
+            "dong-anh": {
+                "title": "Đông Anh: chưa có quy hoạch thì trang ghi thiếu",
+                "lede": "Không có API quy hoạch theo tọa độ nên mục đó để trống, không đoán."
+            },
+            "so-sanh-hai-diem": {
+                "title": "So hai điểm trong một ngày thì đọc gì trước",
+                "lede": "Đọc ghim, bán kính và nguồn trước. Khung giá chỉ có khi gói đang mở bước đó."
+            },
+            "nguon-con-so": {
+                "title": "Mỗi con số đi cùng một nguồn",
+                "lede": "Trang ghi nguồn cạnh từng mục. Thiếu nguồn thì ghi thiếu, không điền số cho đủ."
+            },
+            "buoc-dinh-gia": {
+                "title": "Bước định giá mở khi nào",
+                "lede": "Gói miễn phí và gói không giới hạn lượt chưa mở bước này. Gói có định giá, hoặc một lượt 10.000 đồng, mới mở."
+            },
+            "linh-dam": {
+                "title": "Linh Đàm: bệnh viện trong 2 km là khoảng cách nào",
+                "lede": "2 km trên bản đồ là đường chim bay từ ghim, không phải phút đi xe."
+            }
         }
     }
 }

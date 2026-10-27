@@ -14,6 +14,7 @@ const TABS = [
     { href: "/#bang-gia", key: "pricing" },
     { href: "/#cach-hoat-dong", key: "how" },
     { href: "/#cau-hoi-thuong-gap", key: "faq" },
+    { href: "/bai-viet", key: "articles" },
 ] as const;
 
 const SWITCH_OPTIONS = [
@@ -75,10 +76,10 @@ export default function Header() {
     }
 
     return (
-        <div className="relative mx-auto flex w-full max-w-960 items-center justify-between px-50">
+        <div className="relative mx-auto flex w-full max-w-960 flex-wrap items-center gap-x-3 px-4 sm:px-8 xl:px-50">
             <a
                 href="/"
-                className="relative z-10 inline-flex min-h-11 items-center py-3 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-current"
+                className="inline-flex min-h-11 shrink-0 items-center py-3 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-current"
                 onClick={handleHome}
             >
                 <img
@@ -89,20 +90,29 @@ export default function Header() {
             </a>
             <nav
                 aria-label={getLocaleValue(landing, ["nav"])}
-                className="absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-x-2 text-cream"
+                className="order-last flex w-full min-w-0 items-center gap-x-2 overflow-x-auto pb-2 text-cream [scrollbar-width:none] min-[88rem]:order-none min-[88rem]:w-auto min-[88rem]:flex-1 min-[88rem]:justify-center min-[88rem]:pb-0"
             >
                 {TABS.map((tab) => (
                     <a
                         key={tab.href}
                         href={tab.href}
-                        className="inline-flex min-h-11 items-center px-2 py-1 whitespace-nowrap text-cream underline-offset-[0.2em] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-current"
-                        onClick={(event) => handleClick(event, tab.href)}
+                        aria-current={
+                            tab.href === "/bai-viet" && pathname.startsWith("/bai-viet")
+                                ? "page"
+                                : undefined
+                        }
+                        className="inline-flex min-h-11 items-center px-2 py-1 whitespace-nowrap text-cream underline-offset-[0.2em] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-current aria-[current=page]:underline"
+                        onClick={
+                            tab.href.startsWith("/#")
+                                ? (event) => handleClick(event, tab.href)
+                                : undefined
+                        }
                     >
                         {getLocaleValue(landing, ["tabs", tab.key])}
                     </a>
                 ))}
             </nav>
-            <div className="relative z-10 flex shrink-0 items-center gap-x-3 py-2">
+            <div className="ml-auto flex shrink-0 items-center gap-x-3 py-2 min-[88rem]:ml-0">
                 <a
                     href="/auth/login"
                     className="inline-flex min-h-11 items-center px-2 py-1 text-cream underline-offset-[0.2em] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-current"

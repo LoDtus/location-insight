@@ -86,21 +86,32 @@ export class AuthzCacheService {
 
     const now = new Date();
     const rows = await this.subscriptions.find({
-      where: {
-        userId,
-        status: SubscriptionStatus.ACTIVE,
-        periodEnd: MoreThan(now),
-        endedAt: IsNull(),
-      },
+      where: [
+        {
+          userId,
+          status: SubscriptionStatus.ACTIVE,
+          periodEnd: MoreThan(now),
+          endedAt: IsNull(),
+        },
+        {
+          userId,
+          status: SubscriptionStatus.CANCELED,
+          periodEnd: MoreThan(now),
+          endedAt: IsNull(),
+        },
+      ],
     });
 
     let plan = Plan.FREE;
     let planUntil = 0;
     for (const row of rows) {
-      if (PLAN_RANK[row.plan] > PLAN_RANK[plan]) {
-        plan = row.plan;
-        planUntil = row.periodEnd.getTime();
-      }
+      const laterSameRank =
+      PLAN_RANK[row.plan] === PLAN_RANK[plan] &&
+      row.periodEnd.getTime() > planUntil;
+    if (PLAN_RANK[row.plan] > PLAN_RANK[plan] || laterSameRank) {
+      plan = row.plan;
+      planUntil = row.periodEnd.getTime();
+    }
     }
 
     const snapshot: AuthzSnapshot = {

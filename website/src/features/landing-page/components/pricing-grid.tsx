@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
 
 import { useLocaleMessages } from "@/shared/hooks/useLocale";
 import { getLocaleValue } from "@/shared/utils/locale.utils";
@@ -13,14 +12,6 @@ const BUTTON_CLASS =
 
 export default function PricingGrid() {
     const messages = useLocaleMessages("landing");
-    const confirmRef = useRef<HTMLParagraphElement>(null);
-    const [confirm, setConfirm] = useState("");
-
-    useEffect(() => {
-        if (confirm) {
-            confirmRef.current?.focus();
-        }
-    }, [confirm]);
 
     function text(path: string[]): string {
         return getLocaleValue(messages, path);
@@ -29,15 +20,6 @@ export default function PricingGrid() {
     function items(plan: string): string[] {
         return ITEM_KEYS.map((key) => text(["pricing", plan, "items", key])).filter(
             (item) => item !== "",
-        );
-    }
-
-    function choose(plan: string, cycle: string, amount: string): void {
-        setConfirm(
-            text(["pricing", "confirm"])
-                .replace("{plan}", plan)
-                .replace("{cycle}", cycle)
-                .replace("{amount}", amount),
         );
     }
 
@@ -110,49 +92,26 @@ export default function PricingGrid() {
                             ))}
                         </ul>
                         <div className="mt-auto flex flex-wrap gap-2 pt-2">
-                            <button
-                                type="button"
-                                className={`${BUTTON_CLASS} ${plan.recommended ? "bg-green text-cream" : "border border-charcoal/20 bg-white text-charcoal"}`}
-                                onClick={() =>
-                                    choose(
-                                        text(["pricing", plan.id, "name"]),
-                                        text(["pricing", "cycleMonth"]),
-                                        text(["pricing", plan.id, "month"]),
-                                    )
-                                }
+                            <Link
+                                href={`/app/thanh-toan?plan=${plan.id}&cycle=month`}
+                                className={`${BUTTON_CLASS} font-semibold ${plan.recommended ? "bg-green text-cream" : "border border-charcoal/20 bg-white text-charcoal"}`}
                             >
                                 {text(["pricing", "monthCta"])}
-                            </button>
-                            <button
-                                type="button"
-                                className={`${BUTTON_CLASS} border border-charcoal/20 bg-white text-charcoal`}
-                                onClick={() =>
-                                    choose(
-                                        text(["pricing", plan.id, "name"]),
-                                        text(["pricing", "cycleYear"]),
-                                        text(["pricing", plan.id, "year"]),
-                                    )
-                                }
+                            </Link>
+                            <Link
+                                href={`/app/thanh-toan?plan=${plan.id}&cycle=year`}
+                                className={`${BUTTON_CLASS} border border-charcoal/20 bg-white font-semibold text-charcoal`}
                             >
                                 {text(["pricing", "yearCta"])}
-                            </button>
+                            </Link>
                         </div>
                     </article>
                 ))}
             </div>
             <p className="mt-6 mb-0 max-w-3xl text-sm leading-relaxed text-charcoal/75">
-                {text(["pricing", "note"])}
+                {text(["pricing", "note"])}{" "}
+                <Link href="/app/thanh-toan?plan=credit">{text(["pricing", "creditCta"])}</Link>
             </p>
-            {confirm ? (
-                <p
-                    ref={confirmRef}
-                    tabIndex={-1}
-                    role="status"
-                    className="mt-4 max-w-3xl rounded-2xl border border-green bg-white px-4 py-3 text-sm leading-relaxed outline-none"
-                >
-                    {confirm}
-                </p>
-            ) : null}
         </div>
     );
 }

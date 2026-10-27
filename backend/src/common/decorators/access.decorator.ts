@@ -12,7 +12,12 @@ export const RATE_LIMIT_KEY = 'access:rate-limit';
 export const RECENT_AUTH_KEY = 'access:recent-auth';
 
 export type AuthRateLimitAction =
-  'google' | 'register' | 'login' | 'reset' | 'refresh';
+  | 'google'
+  | 'register'
+  | 'login'
+  | 'reset'
+  | 'refresh'
+  | 'sepay';
 
 export const Public = () => SetMetadata(PUBLIC_KEY, true);
 export const AuthenticatedOnly = () => SetMetadata(AUTHENTICATED_KEY, true);

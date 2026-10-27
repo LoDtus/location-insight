@@ -235,7 +235,8 @@
         "yearCta": "Pay yearly",
         "cycleMonth": "month",
         "cycleYear": "year",
-        "note": "One valuation without a plan: 10,000 VND for one plot. The monthly and yearly prices above are sample figures for comparing plans, not a final price list. This page does not take payment.",
+        "note": "One valuation without a plan: 10,000 VND for one plot. Choose monthly or yearly to create a transfer code. You need to sign in. Plans do not renew by themselves.",
+        "creditCta": "Buy one valuation",
         "confirm": "This preview does not take payment. You chose {plan}, billed by the {cycle}, {amount}.",
         "free": {
             "name": "Free",
@@ -302,7 +303,7 @@
         "match": {
             "flood": "It does not conclude that a place floods easily. The report has relative elevation and modelled river-flood depth. There is no map of street flooding after rain in Hanoi.",
             "price": "The price range is not a sale price. The free plan and the unlimited plan do not open this step. You can pay 10,000 VND for one valuation, or use the valuation plan. Missing legal status or frontage widens the range, or stops the conclusion.",
-            "plan": "Free includes about 10 comparisons a day, strengths and weaknesses only. The unlimited plan removes that cap. The valuation plan adds a price estimate. Monthly and yearly prices on the page are sample figures, not final.",
+            "plan": "Free includes about 10 comparisons a day, strengths and weaknesses only. The unlimited plan removes that cap. The valuation plan adds a price estimate. The prices on the page are the amounts you pay.",
             "pin": "An address only gets you close. Search can miss by tens to hundreds of metres, especially in an alley. Drag the pin onto the plot. The report follows the pin, not the text.",
             "missing": "If nothing is found inside the radius, the page records the gap and the source. A low amenity count means a thin map, not an area without shops. There is no planning API by coordinate, so that item stays without data.",
             "fallback": "This question does not match a written answer. Read the questions on the left. The page only answers from what is already here, and it does not send the question anywhere."

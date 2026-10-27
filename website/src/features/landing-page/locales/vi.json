@@ -235,7 +235,8 @@
         "yearCta": "Trả theo năm",
         "cycleMonth": "tháng",
         "cycleYear": "năm",
-        "note": "Chỉ cần một lần định giá, không mua gói: 10.000 đồng cho một ô đất. Giá tháng và năm ở trên là mức minh họa để so các gói, chưa phải bảng giá đã chốt. Trang này không thu tiền.",
+        "note": "Chỉ cần một lần định giá, không mua gói: 10.000 đồng cho một ô đất. Bấm trả theo tháng hoặc năm để tạo mã chuyển khoản. Cần đăng nhập. Gói không tự gia hạn.",
+        "creditCta": "Mua một lượt định giá",
         "confirm": "Bản minh họa chưa thu tiền. Bạn chọn gói {plan}, trả theo {cycle}, {amount}.",
         "free": {
             "name": "Miễn phí",
@@ -296,13 +297,13 @@
             },
             "plan": {
                 "q": "Gói miễn phí khác gì gói trả tiền?",
-                "a": "Miễn phí có khoảng 10 lượt so sánh mỗi ngày và chỉ xem điểm mạnh, điểm yếu. Gói không giới hạn lượt bỏ trần này. Chỉ gói có định giá, hoặc 10.000 đồng một lần, mới mở bước ước lượng giá."
+                "a": "Miễn phí có khoảng 10 lượt so sánh mỗi ngày và chỉ xem điểm mạnh, điểm yếu. Gói không giới hạn lượt bỏ trần này. Chỉ gói có định giá, hoặc 10.000 đồng một lần, mới mở bước ước lượng giá. Giá trên bảng là số tiền phải trả."
             }
         },
         "match": {
             "flood": "Không kết luận dễ ngập. Báo cáo có cao độ tương đối và độ sâu ngập sông theo mô hình. Không có bản đồ ngập đường sau mưa của Hà Nội.",
             "price": "Khung giá không phải giá bán. Gói miễn phí và gói không giới hạn lượt chưa mở bước này. Bạn có thể trả 10.000 đồng cho một lần định giá, hoặc dùng gói có định giá. Thiếu pháp lý hoặc mặt tiền thì khung rộng ra, hoặc không kết luận.",
-            "plan": "Miễn phí có khoảng 10 lượt so sánh mỗi ngày, chỉ xem điểm mạnh và điểm yếu. Gói không giới hạn lượt bỏ trần này. Gói có định giá thêm bước ước lượng giá. Giá tháng và năm trên trang là mức minh họa, chưa chốt.",
+            "plan": "Miễn phí có khoảng 10 lượt so sánh mỗi ngày, chỉ xem điểm mạnh và điểm yếu. Gói không giới hạn lượt bỏ trần này. Gói có định giá thêm bước ước lượng giá. Giá trên bảng là số tiền phải trả.",
             "pin": "Địa chỉ chỉ đưa bạn tới gần. Bộ tìm có thể lệch vài chục đến vài trăm mét, nhất là ngõ. Kéo ghim đúng ô đất. Báo cáo bám ghim, không bám chuỗi chữ.",
             "missing": "Không thấy dữ liệu trong bán kính thì ghi thiếu, kèm nguồn. Số tiện ích thấp nghĩa là bản đồ mỏng, không phải khu không có cửa hàng. Chưa có API quy hoạch theo tọa độ nên mục đó ghi chưa có dữ liệu.",
             "fallback": "Câu này chưa khớp mục đã viết sẵn. Xem cột câu hay gặp. Trang chỉ trả lời từ những gì đã có, không gửi câu hỏi đi đâu."

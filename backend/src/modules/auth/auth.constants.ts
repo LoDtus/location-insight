@@ -27,6 +27,7 @@ export const AUTH_RATE_LIMITS = {
   resetIp: { limit: 10, windowSeconds: 60 * 60 },
   refreshSession: { limit: 30, windowSeconds: 60 },
   googleIp: { limit: 30, windowSeconds: 10 * 60 },
+  sepayIp: { limit: 300, windowSeconds: 60 },
   apiUser: { limit: 300, windowSeconds: 60 },
 } as const;
 
@@ -46,6 +47,7 @@ export const REDIS_KEYS = {
   resetAccount: (emailHash: string) => `ratelimit:reset:acct_${emailHash}`,
   refreshSession: (sid: string) => `ratelimit:refresh:sid_${sid}`,
   googleIp: (ip: string) => `ratelimit:google:ip_${ip}`,
+  sepayIp: (ip: string) => `ratelimit:sepay:ip_${ip}`,
 };
 
 export const REDIS_CHANNELS = {

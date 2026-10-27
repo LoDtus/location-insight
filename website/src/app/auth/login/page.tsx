@@ -25,7 +25,12 @@ export default function Page() {
         setMessage("");
         try {
             await login(String(form.get("email") || ""), String(form.get("password") || ""));
-            router.push("/app/map");
+            const next = new URLSearchParams(window.location.search).get("next") || "";
+            const safe =
+                (next.startsWith("/app/") || next.startsWith("/admin/")) &&
+                !next.startsWith("//") &&
+                !next.includes("\\");
+            router.push(safe ? next : "/app/map");
         } catch (error) {
             setMessage(
                 error instanceof AuthApiError

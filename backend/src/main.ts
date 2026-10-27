@@ -15,7 +15,9 @@ import { configureSwagger } from './shared/config/swagger.config.js';
 import { configureValidationPipe } from './shared/config/validation-pipe.config.js';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    rawBody: true,
+  });
   const config = app.get(ConfigService);
   const logger = new Logger('Bootstrap');
   const port = Number(

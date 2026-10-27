@@ -32,7 +32,8 @@ export class WrapResponseInterceptor<T> implements NestInterceptor<
     next: CallHandler,
   ): Observable<ApiResponseDto<T> | T> {
     const request = context.switchToHttp().getRequest<Request>();
-    if (isHealthUrl(request.originalUrl || request.url || '')) {
+    const url = request.originalUrl || request.url || '';
+    if (isHealthUrl(url) || url.split('?')[0]?.includes('/billing/sepay/webhook')) {
       return next.handle();
     }
 

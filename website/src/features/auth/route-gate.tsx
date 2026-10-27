@@ -10,7 +10,10 @@ export function RequireSession({ children }: { children: ReactNode }) {
     const router = useRouter();
 
     useEffect(() => {
-        if (auth.status === "anonymous") router.replace("/auth/login");
+        if (auth.status === "anonymous") {
+            const next = `${window.location.pathname}${window.location.search}`;
+            router.replace(`/auth/login?next=${encodeURIComponent(next)}`);
+        }
     }, [auth.status, router]);
 
     if (auth.status !== "authenticated") return null;

@@ -1,0 +1,45 @@
+import { describe, expect, it } from 'vitest';
+import {
+  articleIssues,
+  foldText,
+  likePattern,
+  slugifyTitle,
+  type ArticleDraft,
+} from './article-rules.js';
+
+function draft(overrides: Partial<ArticleDraft> = {}): ArticleDraft {
+  return {
+    title: 'Bán kính 500 mét đang đo cái gì',
+    slug: 'ban-kinh-500-met',
+    lede: 'Vòng tròn quanh ghim là đường chim bay, không phải quãng đi bộ qua ngõ.',
+    body: 'Đọc bán kính trước khi kết luận về một ô đất. Vòng tròn là đường chim bay, nên một cửa hàng trong vòng vẫn có thể khuất sau ngõ. Xem thêm trên [danh sách nhà](/nha-dat) khi cần một điểm cụ thể để đối chiếu.',
+    topic: 'cach-doc',
+    status: 'published',
+    publishedAt: new Date('2026-10-12T00:00:00.000Z'),
+    coverImage: '/images/temp-002.jpg',
+    seoTitle: null,
+    seoDescription: null,
+    ...overrides,
+  };
+}
+
+describe('article rules', () => {
+  it('bỏ dấu khi tạo slug và chuỗi tìm', () => {
+    expect(slugifyTitle('Hồ Tây: đi bộ')).toBe('ho-tay-di-bo');
+    expect(foldText('Khung giá')).toBe('khung gia');
+    expect(likePattern('100%')).toBe('%100\\%%');
+  });
+
+  it('cho đăng khi đủ đoạn dẫn, nội dung và liên kết nội bộ', () => {
+    expect(articleIssues(draft())).toEqual([]);
+  });
+
+  it('giữ lỗi khi bài đăng thiếu liên kết nội bộ', () => {
+    const issues = articleIssues(draft({ body: 'Chỉ một đoạn đủ dài để qua ngưỡng ký tự nhưng không trỏ tới trang nào trong site nên chưa được đăng.' }));
+    expect(issues.some((issue) => issue.includes('liên kết nội bộ'))).toBe(true);
+  });
+
+  it('cho nháp ngắn', () => {
+    expect(articleIssues(draft({ status: 'draft', body: 'Nháp', lede: '' }))).toEqual([]);
+  });
+});

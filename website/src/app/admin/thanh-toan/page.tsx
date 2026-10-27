@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { AUTH_BUTTON_CLASS, AUTH_FIELD_CLASS } from "@/app/auth/form-class";
@@ -69,7 +70,14 @@ export default function Page() {
 
     return (
         <main className="box-border flex flex-col gap-8 px-4 py-8 sm:px-8">
-            <h1 className="m-0 text-2xl font-semibold">Đối soát thanh toán</h1>
+            <div>
+                <h1 className="m-0 text-2xl font-semibold">Đối soát thanh toán</h1>
+                <p className="mt-1 mb-0 text-sm">
+                    <Link href="/admin/blogs" className="underline underline-offset-4">
+                        Bài viết
+                    </Link>
+                </p>
+            </div>
             <label className="flex max-w-md flex-col gap-1 text-sm">
                 Lý do ghi nhật ký
                 <input

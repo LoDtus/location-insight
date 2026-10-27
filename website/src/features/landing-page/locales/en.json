@@ -312,7 +312,7 @@
     },
     "articles": {
         "title": "Articles",
-        "lede": "Notes written by Địa Thế on how to read the map and a price range. These are not listings posted by sellers. The full text of each note will be attached here when it is published.",
+        "lede": "Notes written by Địa Thế on how to read the map and a price range. These are not listings posted by sellers.",
         "loading": "Opening the article list.",
         "searchLabel": "Find an article",
         "searchPlaceholder": "Radius, pin, price range…",

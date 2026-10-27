@@ -312,7 +312,7 @@
     },
     "articles": {
         "title": "Bài viết",
-        "lede": "Ghi chú Địa Thế tự viết để giải thích cách đọc bản đồ và khung giá. Đây không phải tin rao của người đăng bán. Bản đủ của từng bài sẽ gắn vào đây khi đăng.",
+        "lede": "Ghi chú Địa Thế tự viết để giải thích cách đọc bản đồ và khung giá. Đây không phải tin rao của người đăng bán.",
         "loading": "Đang mở danh sách bài viết.",
         "searchLabel": "Tìm bài",
         "searchPlaceholder": "Bán kính, ghim, khung giá…",

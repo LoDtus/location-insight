@@ -33,5 +33,5 @@ export function isIndexablePath(pathname: string): boolean {
         return getListingByParam(decodeURIComponent(path.slice("/nha-dat/".length))) !== undefined;
     }
 
-    return false;
+    return /^\/bai-viet\/[a-z0-9]+(?:-[a-z0-9]+)*$/.test(path);
 }

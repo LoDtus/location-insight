@@ -17,6 +17,9 @@ describe("seo.utils", () => {
         expect(isIndexablePath("/phap-ly/thue")).toBe(false);
         expect(isIndexablePath("/phap-ly/thoa-thuan-api")).toBe(false);
         expect(isIndexablePath("/dieu-khoan")).toBe(false);
+        expect(isIndexablePath("/bai-viet")).toBe(true);
+        expect(isIndexablePath("/bai-viet/ban-kinh-500-met")).toBe(true);
+        expect(isIndexablePath("/bai-viet/Khong Hop")).toBe(false);
     });
 
     it("keeps application routes out of the index", () => {

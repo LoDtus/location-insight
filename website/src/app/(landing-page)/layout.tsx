@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Cormorant_Garamond, Source_Serif_4 } from "next/font/google";
 import { headers } from "next/headers";
 import type { ReactNode } from "react";
 
@@ -11,6 +12,19 @@ import ENV from "@/shared/constants/env.constant";
 import { INDEXABLE_ROBOTS } from "@/shared/constants/seo.constant";
 import { getLocaleValue } from "@/shared/utils/locale.utils";
 import { normalizePathname } from "@/shared/utils/seo.utils";
+
+const displaySerif = Cormorant_Garamond({
+    subsets: ["latin", "vietnamese"],
+    weight: ["500", "600"],
+    variable: "--font-display-serif",
+    display: "swap",
+});
+
+const textSerif = Source_Serif_4({
+    subsets: ["latin", "vietnamese"],
+    variable: "--font-text-serif",
+    display: "swap",
+});
 
 export async function generateMetadata(): Promise<Metadata> {
     const pathname = (await headers()).get("x-pathname") ?? "/";
@@ -41,31 +55,27 @@ export default async function Layout({
     const flush = isCatalog || isDocument;
 
     return (
-        <div className="relative flex h-full min-h-0 w-full flex-col">
+        <div
+            className={`${displaySerif.variable} ${textSerif.variable} relative flex h-full min-h-0 w-full flex-col bg-cream font-serif text-charcoal [font-variant-numeric:lining-nums]`}
+        >
             <a
-                className="absolute top-2 left-50 z-10 -translate-y-[150%] focus:translate-y-0"
+                className="absolute top-2 left-4 z-10 -translate-y-[150%] bg-cream px-4 py-2 focus:translate-y-0"
                 href="#noi-dung"
             >
                 {getLocaleValue(messages, ["skip"])}
             </a>
             <LandingHashScroll />
-            <header className="border-b border-cream/30 bg-header text-cream">
+            <header className="bg-header text-cream">
                 <Header />
             </header>
-            <div
-                className={`flex min-h-0 flex-1 flex-col overflow-auto scroll-smooth [container-type:size] motion-reduce:scroll-auto ${flush ? "" : "gap-[150px]"}`}
-            >
+            <div className="flex min-h-0 flex-1 flex-col overflow-auto scroll-smooth [container-type:size] motion-reduce:scroll-auto">
                 <main
                     id="noi-dung"
-                    className={
-                        flush
-                            ? "w-full"
-                            : "mx-auto flex w-full max-w-960 flex-col gap-[150px] border"
-                    }
+                    className={flush ? "w-full" : "flex w-full flex-col"}
                 >
                     {children}
                 </main>
-                <footer className="border-t border-current">
+                <footer className="bg-charcoal text-cream">
                     <Footer />
                 </footer>
             </div>

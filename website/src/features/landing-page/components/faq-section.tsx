@@ -11,33 +11,38 @@ export default async function CauHoiSection() {
         <section
             id="cau-hoi-thuong-gap"
             aria-labelledby="tieu-de-cau-hoi-thuong-gap"
-            className="box-border min-h-[100cqh] border border-current px-50 py-16"
+            className="box-border min-h-[100cqh] bg-cream px-5 py-20 sm:px-10 lg:px-24 xl:px-40"
         >
-            <div className="grid items-start gap-12 lg:grid-cols-2">
+            <div className="grid items-start gap-16 lg:grid-cols-[1.2fr_1fr]">
                 <div>
                     <h2
                         id="tieu-de-cau-hoi-thuong-gap"
-                        className="m-0 max-w-[16ch] text-4xl leading-tight font-semibold tracking-tight"
+                        className="m-0 max-w-[14ch] font-display text-[clamp(2.5rem,1.5rem+3.2vw,4.5rem)] leading-[0.98] font-semibold tracking-[-0.02em] text-balance"
                     >
                         {getLocaleValue(messages, ["faq", "title"])}
                     </h2>
-                    <div className="mt-6 border-b border-charcoal/15">
+                    <div className="mt-10 flex flex-col gap-2">
                         {FAQ_KEYS.map((key) => (
-                            <details
-                                key={key}
-                                className="border-t border-charcoal/15 py-1"
-                            >
-                                <summary className="flex min-h-11 cursor-pointer items-center py-2 font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green">
+                            <details key={key} className="group bg-white px-6 py-1">
+                                <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 py-3 font-display text-xl font-semibold marker:hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green [&::-webkit-details-marker]:hidden">
                                     {getLocaleValue(messages, ["faq", "items", key, "q"])}
+                                    <span
+                                        aria-hidden="true"
+                                        className="text-2xl leading-none text-green transition-transform group-open:rotate-45 motion-reduce:transition-none"
+                                    >
+                                        +
+                                    </span>
                                 </summary>
-                                <p className="mt-1 mb-3 max-w-prose text-base leading-relaxed text-charcoal/80">
+                                <p className="mt-1 mb-4 max-w-prose text-base leading-relaxed text-charcoal/80">
                                     {getLocaleValue(messages, ["faq", "items", key, "a"])}
                                 </p>
                             </details>
                         ))}
                     </div>
                 </div>
-                <FaqAsk />
+                <div className="bg-green p-8 text-cream sm:p-10">
+                    <FaqAsk />
+                </div>
             </div>
         </section>
     );

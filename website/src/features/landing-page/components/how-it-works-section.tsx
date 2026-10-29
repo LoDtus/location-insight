@@ -3,30 +3,6 @@ import { getLocaleValue } from "@/shared/utils/locale.utils";
 
 const STEPS = ["0", "1", "2", "3"] as const;
 
-const CHEVRON =
-    "relative flex min-h-[5.25rem] flex-col justify-center gap-1 rounded-2xl border border-charcoal/15 px-4 py-3.5 xl:rounded-none xl:border-0 xl:py-3.5 xl:pr-8";
-
-const NOTCH =
-    "xl:[clip-path:polygon(0_0,calc(100%_-_16px)_0,100%_50%,calc(100%_-_16px)_100%,0_100%,16px_50%)]";
-
-function chevronClass(index: number): string {
-    if (index === 0) {
-        return `${CHEVRON} bg-green text-cream xl:z-40 xl:-mr-4 xl:pl-4 xl:[clip-path:polygon(0_0,calc(100%_-_16px)_0,100%_50%,calc(100%_-_16px)_100%,0_100%)]`;
-    }
-
-    if (index === 1) {
-        return `${CHEVRON} ${NOTCH} bg-green/15 text-green xl:z-30 xl:-mr-4 xl:pl-7`;
-    }
-
-    const edge = "bg-white text-charcoal xl:[filter:drop-shadow(0_0_0.6px_rgba(16,17,17,0.55))]";
-
-    if (index === 2) {
-        return `${CHEVRON} ${NOTCH} ${edge} xl:z-20 xl:-mr-4 xl:pl-7`;
-    }
-
-    return `${CHEVRON} ${NOTCH} ${edge} xl:z-10 xl:pl-7`;
-}
-
 export default async function CachHoatDongSection() {
     const messages = await getLandingMessages();
 
@@ -34,41 +10,34 @@ export default async function CachHoatDongSection() {
         <section
             id="cach-hoat-dong"
             aria-labelledby="tieu-de-cach-hoat-dong"
-            className="box-border min-h-[100cqh] border border-current px-50 py-16"
+            className="box-border grid min-h-[100cqh] gap-14 bg-white px-5 py-20 sm:px-10 lg:grid-cols-[1fr_1.3fr] lg:gap-24 lg:px-24 xl:px-40"
         >
-            <h2
-                id="tieu-de-cach-hoat-dong"
-                className="m-0 max-w-[18ch] text-4xl leading-tight font-semibold tracking-tight"
-            >
-                {getLocaleValue(messages, ["how", "title"])}
-            </h2>
-            <p className="mt-4 max-w-2xl text-base leading-relaxed text-charcoal/75">
-                {getLocaleValue(messages, ["how", "lede"])}
-            </p>
-            <ol className="m-0 mt-10 grid list-none gap-5 p-0 xl:grid-cols-4 xl:grid-rows-[auto_auto] xl:gap-0">
-                {STEPS.map((key, index) => (
-                    <li
-                        key={key}
-                        className="min-w-0 xl:row-span-2 xl:grid xl:grid-rows-subgrid"
-                    >
-                        <div className={chevronClass(index)}>
-                            <strong className="text-base leading-snug font-semibold">
-                                {getLocaleValue(messages, ["how", "steps", key, "title"])}
-                            </strong>
-                            <span
-                                className={`text-sm leading-snug ${index === 0 ? "text-cream/80" : index === 1 ? "text-green/80" : "text-charcoal/70"}`}
-                            >
-                                {getLocaleValue(messages, ["how", "steps", key, "hint"])}
-                            </span>
-                        </div>
-                        <div className="mt-3 flex flex-col gap-2 xl:mt-0 xl:px-3 xl:pt-4">
-                            <p className="m-0 text-base leading-relaxed">
-                                {getLocaleValue(messages, ["how", "steps", key, "0"])}
-                            </p>
-                            <p className="m-0 text-base leading-relaxed text-charcoal/75">
-                                {getLocaleValue(messages, ["how", "steps", key, "1"])}
-                            </p>
-                        </div>
+            <div className="lg:sticky lg:top-24 lg:self-start">
+                <h2
+                    id="tieu-de-cach-hoat-dong"
+                    className="m-0 max-w-[12ch] font-display text-[clamp(2.5rem,1.5rem+3.2vw,4.5rem)] leading-[0.98] font-semibold tracking-[-0.02em] text-balance"
+                >
+                    {getLocaleValue(messages, ["how", "title"])}
+                </h2>
+                <p className="mt-6 max-w-md text-lg leading-relaxed text-charcoal/80">
+                    {getLocaleValue(messages, ["how", "lede"])}
+                </p>
+            </div>
+            <ol className="m-0 flex list-none flex-col gap-12 p-0">
+                {STEPS.map((key) => (
+                    <li key={key} className="border-l-4 border-gold pl-6 sm:pl-8">
+                        <h3 className="m-0 font-display text-3xl leading-tight font-semibold">
+                            {getLocaleValue(messages, ["how", "steps", key, "title"])}
+                        </h3>
+                        <p className="mt-1 mb-0 text-base font-semibold text-green">
+                            {getLocaleValue(messages, ["how", "steps", key, "hint"])}
+                        </p>
+                        <p className="mt-4 mb-0 max-w-prose text-base leading-relaxed">
+                            {getLocaleValue(messages, ["how", "steps", key, "0"])}
+                        </p>
+                        <p className="mt-2 mb-0 max-w-prose text-base leading-relaxed text-charcoal/75">
+                            {getLocaleValue(messages, ["how", "steps", key, "1"])}
+                        </p>
                     </li>
                 ))}
             </ol>

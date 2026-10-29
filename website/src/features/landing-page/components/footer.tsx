@@ -9,6 +9,9 @@ import { getLegalMessages } from "@/features/legal/server/get-legal-messages";
 import { getLandingMessages } from "@/features/landing-page/server/get-landing-messages";
 import { getLocaleValue } from "@/shared/utils/locale.utils";
 
+const LINK_CLASS =
+    "inline-flex min-h-11 items-center text-cream/85 decoration-gold decoration-2 underline-offset-[0.4em] hover:text-cream hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold";
+
 export default async function Footer() {
     const [landing, legal] = await Promise.all([
         getLandingMessages(),
@@ -16,37 +19,42 @@ export default async function Footer() {
     ]);
 
     return (
-        <nav
-            aria-label={getLocaleValue(landing, ["footerNav"])}
-            className="mx-auto flex w-full max-w-960 flex-wrap items-center gap-x-2 gap-y-1 px-4 py-4 sm:px-8 xl:px-50"
-        >
-            <Link
-                href="/bai-viet"
-                className="inline-flex min-h-11 items-center px-2 py-1 text-sm font-semibold underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
+        <div className="mx-auto grid w-full max-w-960 gap-10 px-5 py-14 sm:px-10 lg:grid-cols-[1fr_auto] lg:items-end xl:px-24">
+            <img
+                src="/logos/diathe-text.svg"
+                alt=""
+                aria-hidden="true"
+                className="h-10 w-auto justify-self-start"
+            />
+            <nav
+                aria-label={getLocaleValue(landing, ["footerNav"])}
+                className="flex flex-wrap gap-x-6 gap-y-1"
             >
-                {getLocaleValue(landing, ["articles", "title"])}
-            </Link>
-            <Link
-                href={LEGAL_PATH_PREFIX}
-                className="inline-flex min-h-11 items-center px-2 py-1 text-sm font-semibold underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
-            >
-                {getLocaleValue(legal, ["index", "title"])}
-            </Link>
-            {LEGAL_DOCUMENTS.filter((document) => document.indexable).map(
-                (document) => (
-                    <Link
-                        key={document.slug}
-                        href={legalDocumentPath(document.slug)}
-                        className="inline-flex min-h-11 items-center px-2 py-1 text-sm underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
-                    >
-                        {getLocaleValue(legal, [
-                            "documents",
-                            document.slug,
-                            "title",
-                        ])}
-                    </Link>
-                ),
-            )}
-        </nav>
+                <Link href="/bai-viet" className={`${LINK_CLASS} font-semibold`}>
+                    {getLocaleValue(landing, ["articles", "title"])}
+                </Link>
+                <Link
+                    href={LEGAL_PATH_PREFIX}
+                    className={`${LINK_CLASS} font-semibold`}
+                >
+                    {getLocaleValue(legal, ["index", "title"])}
+                </Link>
+                {LEGAL_DOCUMENTS.filter((document) => document.indexable).map(
+                    (document) => (
+                        <Link
+                            key={document.slug}
+                            href={legalDocumentPath(document.slug)}
+                            className={`${LINK_CLASS} text-sm`}
+                        >
+                            {getLocaleValue(legal, [
+                                "documents",
+                                document.slug,
+                                "title",
+                            ])}
+                        </Link>
+                    ),
+                )}
+            </nav>
+        </div>
     );
 }

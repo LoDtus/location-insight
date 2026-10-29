@@ -10,12 +10,15 @@ export default async function BanDoSection() {
         <section
             id="ban-do"
             aria-labelledby="tieu-de-ban-do"
-            className="box-border flex min-h-[100cqh] flex-col border border-current px-50 py-4"
+            className="box-border flex min-h-[100cqh] flex-col bg-cream px-5 py-16 sm:px-10 lg:px-24 xl:px-40"
         >
-            <h2 id="tieu-de-ban-do" className="m-0 shrink-0">
+            <h2
+                id="tieu-de-ban-do"
+                className="m-0 shrink-0 font-display text-[clamp(2.5rem,1.5rem+3.2vw,4.5rem)] leading-none font-semibold tracking-[-0.02em]"
+            >
                 {title}
             </h2>
-            <div className="mt-4 min-h-0 flex-1">
+            <div className="mt-8 min-h-[32rem] flex-1 bg-white p-2">
                 <MapPreview />
             </div>
         </section>

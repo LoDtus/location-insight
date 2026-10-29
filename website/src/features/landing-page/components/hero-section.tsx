@@ -23,13 +23,13 @@ export default async function HeroSection() {
         <section
             id="gioi-thieu"
             aria-label={label}
-            className="box-border grid min-h-[100cqh] px-50 lg:h-[100cqh] lg:grid-cols-2 lg:grid-rows-[minmax(0,1fr)_auto]"
+            className="box-border grid min-h-[100cqh] bg-green text-cream lg:grid-cols-[1.1fr_1fr] lg:grid-rows-[minmax(0,1fr)_auto]"
         >
-            <div className="flex flex-col justify-center py-10">
-                <h1 className="m-0 max-w-[12ch] text-4xl leading-[1.05] font-semibold tracking-tight text-charcoal md:text-5xl">
+            <div className="flex flex-col justify-center px-5 py-16 sm:px-10 lg:py-10 lg:pr-16 lg:pl-24 xl:pl-40">
+                <h1 className="m-0 max-w-[11ch] font-display text-[clamp(3rem,1.4rem+5.4vw,6.5rem)] leading-[0.95] font-semibold tracking-[-0.02em] text-balance">
                     {title}
                 </h1>
-                <p className="mt-4 max-w-md text-base leading-relaxed text-charcoal/75">
+                <p className="mt-8 max-w-md text-lg leading-relaxed text-cream/85">
                     {subtitle}
                 </p>
                 <HeroSearch placeholder={placeholder} submit={submit} />
@@ -44,14 +44,14 @@ export default async function HeroSection() {
             />
             <dl
                 aria-label={getLocaleValue(messages, ["hero", "statsLabel"])}
-                className="m-0 grid grid-cols-2 gap-x-8 gap-y-6 py-8 lg:col-span-2 lg:grid-cols-4"
+                className="m-0 grid grid-cols-2 gap-x-8 gap-y-8 bg-charcoal px-5 py-10 sm:px-10 lg:col-span-2 lg:grid-cols-4 lg:px-24 xl:px-40"
             >
                 {STATS.map((key) => (
-                    <div key={key} className="m-0 flex flex-col gap-1">
-                        <dt className="order-2 m-0 text-sm leading-snug font-normal text-charcoal/70">
+                    <div key={key} className="m-0 flex flex-col gap-2">
+                        <dt className="order-2 m-0 text-base leading-snug font-normal text-cream/75">
                             {getLocaleValue(messages, ["hero", "stats", key, "label"])}
                         </dt>
-                        <dd className="order-1 m-0 text-3xl leading-none font-semibold tracking-tight text-charcoal tabular-nums sm:text-4xl">
+                        <dd className="order-1 m-0 font-display text-5xl leading-none font-semibold text-gold tabular-nums sm:text-6xl">
                             {getLocaleValue(messages, ["hero", "stats", key, "value"])}
                         </dd>
                     </div>

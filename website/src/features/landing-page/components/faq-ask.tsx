@@ -55,14 +55,14 @@ export default function FaqAsk() {
 
     return (
         <div>
-            <h2 className="m-0 text-2xl leading-tight font-semibold tracking-tight">
+            <h2 className="m-0 font-display text-4xl leading-none font-semibold tracking-[-0.01em]">
                 {text(["faq", "askTitle"])}
             </h2>
-            <p className="mt-3 max-w-prose text-base leading-relaxed text-charcoal/75">
+            <p className="mt-3 max-w-prose text-base leading-relaxed text-cream/85">
                 {text(["faq", "askLede"])}
             </p>
             <form className="mt-6" noValidate onSubmit={handleSubmit}>
-                <label htmlFor={fieldId} className="text-sm font-medium">
+                <label htmlFor={fieldId} className="text-base font-semibold">
                     {text(["faq", "questionLabel"])}
                 </label>
                 <textarea
@@ -73,27 +73,27 @@ export default function FaqAsk() {
                     required
                     aria-invalid={error !== ""}
                     aria-describedby={error ? errorId : undefined}
-                    className="mt-1 box-border min-h-32 w-full rounded-2xl border border-charcoal/20 bg-white px-4 py-3 text-base text-charcoal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
+                    className="mt-1 box-border min-h-32 w-full bg-cream px-4 py-3 text-base text-charcoal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
                     onChange={(event) => setQuestion(event.target.value)}
                 />
                 {error ? (
-                    <p id={errorId} role="alert" className="mt-2 mb-0 text-sm">
+                    <p id={errorId} role="alert" className="mt-2 mb-0 text-base font-semibold text-gold">
                         {error}
                     </p>
                 ) : null}
                 <button
                     type="submit"
-                    className="mt-4 inline-flex min-h-11 items-center rounded-full bg-green px-6 text-cream focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
+                    className="mt-4 inline-flex min-h-12 items-center bg-gold px-8 font-semibold tracking-wide text-charcoal transition-colors hover:bg-cream focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold motion-reduce:transition-none"
                 >
                     {text(["faq", "submit"])}
                 </button>
             </form>
             {answer ? (
-                <div className="mt-6 border-t border-charcoal/15 pt-4">
+                <div className="mt-8 bg-cream p-6 text-charcoal">
                     <h3
                         ref={answerRef}
                         tabIndex={-1}
-                        className="m-0 text-base font-semibold outline-none"
+                        className="m-0 font-display text-2xl font-semibold outline-none"
                     >
                         {text(["faq", "answerTitle"])}
                     </h3>

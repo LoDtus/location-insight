@@ -1,5 +1,6 @@
 "use client";
 
+import { Search } from "lucide-react";
 import type { FormEvent } from "react";
 
 export default function HeroSearch({
@@ -15,7 +16,7 @@ export default function HeroSearch({
 
     return (
         <form
-            className="mt-8 flex max-w-lg flex-col gap-3 sm:flex-row"
+            className="mt-10 flex max-w-xl flex-col gap-2 sm:flex-row"
             onSubmit={handleSubmit}
         >
             <input
@@ -23,12 +24,13 @@ export default function HeroSearch({
                 type="text"
                 placeholder={placeholder}
                 aria-label={placeholder}
-                className="m-0 min-w-0 flex-1 rounded-full border border-charcoal/20 bg-cream px-5 py-3 text-charcoal"
+                className="m-0 min-h-14 min-w-0 flex-1 bg-cream px-5 text-base text-charcoal placeholder:text-charcoal/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
             />
             <button
                 type="submit"
-                className="rounded-full bg-green px-6 py-3 text-cream"
+                className="inline-flex min-h-14 items-center justify-center gap-2 bg-gold px-8 text-base font-semibold tracking-wide text-charcoal transition-colors hover:bg-cream focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold motion-reduce:transition-none"
             >
+                <Search size={18} aria-hidden="true" />
                 {submit}
             </button>
         </form>

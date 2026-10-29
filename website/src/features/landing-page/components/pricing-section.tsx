@@ -9,17 +9,19 @@ export default async function BangGiaSection() {
         <section
             id="bang-gia"
             aria-labelledby="tieu-de-bang-gia"
-            className="box-border min-h-[100cqh] border border-current px-50 py-16"
+            className="box-border min-h-[100cqh] bg-cream px-5 py-20 sm:px-10 lg:px-24 xl:px-40"
         >
-            <h2
-                id="tieu-de-bang-gia"
-                className="m-0 max-w-[18ch] text-4xl leading-tight font-semibold tracking-tight"
-            >
-                {getLocaleValue(messages, ["pricing", "title"])}
-            </h2>
-            <p className="mt-4 max-w-2xl text-base leading-relaxed text-charcoal/75">
-                {getLocaleValue(messages, ["pricing", "lede"])}
-            </p>
+            <div className="grid items-end gap-6 lg:grid-cols-[1.2fr_1fr] lg:gap-16">
+                <h2
+                    id="tieu-de-bang-gia"
+                    className="m-0 max-w-[14ch] font-display text-[clamp(2.5rem,1.5rem+3.2vw,4.5rem)] leading-[0.98] font-semibold tracking-[-0.02em] text-balance"
+                >
+                    {getLocaleValue(messages, ["pricing", "title"])}
+                </h2>
+                <p className="m-0 max-w-md text-lg leading-relaxed text-charcoal/80">
+                    {getLocaleValue(messages, ["pricing", "lede"])}
+                </p>
+            </div>
             <PricingGrid />
         </section>
     );

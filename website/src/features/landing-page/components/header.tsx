@@ -76,7 +76,7 @@ export default function Header() {
     }
 
     return (
-        <div className="relative mx-auto flex w-full max-w-960 flex-wrap items-center gap-x-3 px-4 sm:px-8 xl:px-50">
+        <div className="relative mx-auto flex w-full max-w-960 flex-wrap items-center gap-x-3 px-5 sm:px-10 xl:px-24">
             <a
                 href="/"
                 className="inline-flex min-h-11 shrink-0 items-center py-3 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-current"
@@ -101,7 +101,7 @@ export default function Header() {
                                 ? "page"
                                 : undefined
                         }
-                        className="inline-flex min-h-11 items-center px-2 py-1 whitespace-nowrap text-cream underline-offset-[0.2em] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-current aria-[current=page]:underline"
+                        className="inline-flex min-h-11 items-center px-3 py-1 text-[0.95rem] tracking-wide whitespace-nowrap text-cream/85 decoration-gold decoration-2 underline-offset-[0.45em] transition-colors hover:text-cream hover:underline focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-current aria-[current=page]:text-cream aria-[current=page]:underline motion-reduce:transition-none"
                         onClick={
                             tab.href.startsWith("/#")
                                 ? (event) => handleClick(event, tab.href)
@@ -115,7 +115,7 @@ export default function Header() {
             <div className="ml-auto flex shrink-0 items-center gap-x-3 py-2 min-[88rem]:ml-0">
                 <a
                     href="/auth/login"
-                    className="inline-flex min-h-11 items-center px-2 py-1 text-cream underline-offset-[0.2em] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-current"
+                    className="inline-flex min-h-11 items-center px-3 py-1 text-[0.95rem] tracking-wide text-cream decoration-gold decoration-2 underline-offset-[0.45em] hover:underline focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-current"
                 >
                     {getLocaleValue(landing, ["login"])}
                 </a>

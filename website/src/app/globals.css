@@ -16,6 +16,11 @@
     --font-sans: system-ui, -apple-system, sans-serif;
 }
 
+@theme inline {
+    --font-serif: var(--font-text-serif), Georgia, "Times New Roman", serif;
+    --font-display: var(--font-display-serif), Georgia, "Times New Roman", serif;
+}
+
 :root {
     color-scheme: light;
     --bg-main: #e6e2da;

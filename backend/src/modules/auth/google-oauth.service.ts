@@ -104,7 +104,7 @@ export class GoogleOAuthService {
     error: string | undefined,
     meta: { userAgent: string | null; ipAddress: string | null },
   ): Promise<GoogleCallbackResult> {
-    const fallback = '/app/map';
+    const fallback = '/app/properties';
     if (error) {
       return { ok: false, error: 'oauth_denied', redirectTo: fallback };
     }

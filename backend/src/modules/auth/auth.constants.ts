@@ -89,7 +89,7 @@ export function safeRedirect(
   value: string | undefined,
   allowed: string[],
 ): string {
-  const fallback = '/app/map';
+  const fallback = '/app/properties';
   if (
     !value ||
     !value.startsWith('/') ||

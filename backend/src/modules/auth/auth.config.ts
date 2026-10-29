@@ -47,7 +47,7 @@ export class AuthConfig {
 
   get allowedRedirects(): string[] {
     return splitList(
-      this.config.get<string>('AUTH_ALLOWED_REDIRECTS') || '/app/map,/app',
+      this.config.get<string>('AUTH_ALLOWED_REDIRECTS') || '/app/properties,/app/map,/app',
     );
   }
 

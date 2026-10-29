@@ -30,7 +30,7 @@ export default function Page() {
                 (next.startsWith("/app/") || next.startsWith("/admin/")) &&
                 !next.startsWith("//") &&
                 !next.includes("\\");
-            router.push(safe ? next : "/app/map");
+            router.push(safe ? next : "/app/properties");
         } catch (error) {
             setMessage(
                 error instanceof AuthApiError
@@ -47,7 +47,7 @@ export default function Page() {
             <h1 className={AUTH_TITLE_CLASS}>Đăng nhập</h1>
             <a
                 className={`${AUTH_BUTTON_CLASS} block text-center no-underline`}
-                href="/api/v1/auth/google/start?redirectTo=/app/map"
+                href="/api/v1/auth/google/start?redirectTo=/app/properties"
             >
                 Đăng nhập với Google
             </a>

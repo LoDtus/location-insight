@@ -110,6 +110,7 @@ Untitled
 # =========================================================
 **/test-results/
 **/playwright-report/
+**/.playwright-mcp/
 **/cypress/screenshots/
 **/cypress/videos/
 

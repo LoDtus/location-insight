@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ReactNode } from "react";
 
+import AppSidebar from "@/features/app/components/app-sidebar";
 import { RequireAdmin } from "@/features/auth/route-gate";
 import { PRIVATE_ROBOTS } from "@/shared/constants/seo.constant";
 
@@ -15,7 +16,12 @@ export default function Layout({
 }) {
     return (
         <RequireAdmin>
-            <div>{children}</div>
+            <div className="flex h-full min-h-0 w-full bg-cream text-charcoal">
+                <AppSidebar />
+                <div id="noi-dung" className="h-full min-h-0 min-w-0 flex-1 overflow-auto">
+                    {children}
+                </div>
+            </div>
         </RequireAdmin>
     );
 }

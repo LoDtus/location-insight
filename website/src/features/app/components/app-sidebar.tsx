@@ -6,9 +6,10 @@ import {
     House,
     LogOut,
     Map,
+    Newspaper,
     PanelLeftClose,
     PanelLeftOpen,
-    Shield,
+    Receipt,
     Undo2,
     Wallet,
     type LucideIcon,
@@ -22,10 +23,19 @@ import { useAuth } from "@/features/auth/use-auth";
 import { useLocale } from "@/shared/hooks/useLocale";
 
 type NavItem = {
+    kind: "item";
     href: string;
     icon: LucideIcon;
     label: string;
 };
+
+type NavDivider = {
+    kind: "divider";
+    id: string;
+    label: string;
+};
+
+type NavEntry = NavItem | NavDivider;
 
 function isItemActive(href: string, pathname: string): boolean {
     return pathname === href || pathname.startsWith(`${href}/`);
@@ -60,28 +70,33 @@ export default function AppSidebar(): JSX.Element {
         };
     }, []);
 
-    const items: NavItem[] = [
+    const items: NavEntry[] = [
         {
+            kind: "item",
             href: "/app/properties",
             icon: House,
             label: vi ? "Tin rao bán" : "For sale",
         },
         {
+            kind: "item",
             href: "/app/map",
             icon: Map,
             label: vi ? "Bản đồ" : "Map",
         },
         {
+            kind: "item",
             href: "/app/goi",
             icon: BadgeCheck,
             label: vi ? "Gói" : "Plan",
         },
         {
+            kind: "item",
             href: "/app/thanh-toan",
             icon: Wallet,
             label: vi ? "Thanh toán" : "Payment",
         },
         {
+            kind: "item",
             href: "/app/hoan-tien",
             icon: Undo2,
             label: vi ? "Hoàn tiền" : "Refund",
@@ -89,11 +104,25 @@ export default function AppSidebar(): JSX.Element {
     ];
 
     if (user?.role === "admin") {
-        items.push({
-            href: "/admin/blogs",
-            icon: Shield,
-            label: vi ? "Quản trị" : "Admin",
-        });
+        items.push(
+            {
+                kind: "divider",
+                id: "admin",
+                label: vi ? "Quản trị" : "Admin",
+            },
+            {
+                kind: "item",
+                href: "/admin/blogs",
+                icon: Newspaper,
+                label: vi ? "Bài viết" : "Articles",
+            },
+            {
+                kind: "item",
+                href: "/admin/thanh-toan",
+                icon: Receipt,
+                label: vi ? "Đối soát" : "Reconciliation",
+            },
+        );
     }
 
     async function handleLogout(): Promise<void> {
@@ -139,6 +168,19 @@ export default function AppSidebar(): JSX.Element {
                 className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 py-4"
             >
                 {items.map((item) => {
+                    if (item.kind === "divider") {
+                        return (
+                            <div key={item.id} className="my-2 px-2">
+                                {collapsed ? null : (
+                                    <p className="m-0 pb-2 text-xs font-semibold text-charcoal/60">
+                                        {item.label}
+                                    </p>
+                                )}
+                                <div className="h-px bg-charcoal/15" />
+                            </div>
+                        );
+                    }
+
                     const active = isItemActive(item.href, pathname);
                     const Icon = item.icon;
                     return (

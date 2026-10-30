@@ -1,0 +1,26 @@
+{
+  "domain": "places",
+  "source": "so-cong-thuong",
+  "version": "2026-10-19",
+  "stage": "raw",
+  "upstream_version": "2026-06-18",
+  "retrieved_at": "2026-10-19T00:00:00Z",
+  "url": "https://openscience.vn/chi-tiet-du-lieu/du-lieu-ve-danh-sach-cac-cho-tren-dia-ban-thanh-pho-ha-noi-11740",
+  "license": "CC0",
+  "path": "raw/places/so-cong-thuong/2026-10-19",
+  "files": [
+    {
+      "path": "raw/places/so-cong-thuong/2026-10-19/Danh sach cac cho tren dia ban Thanh pho Ha Noi.xlsx",
+      "sha256": "ac55809ae1fad59fca6398163d44cdf8caea5c4fb8f1a73505e98ff6f5f18dae",
+      "bytes": 31460
+    },
+    {
+      "path": "raw/places/so-cong-thuong/2026-10-19/dataset_1792357361641.rar",
+      "sha256": "feea3b76233f44672bb5c0da813f9e28377586133d399a70fc97176f1b45b94a",
+      "bytes": 28973
+    }
+  ],
+  "record_count": null,
+  "bbox": null,
+  "notes": "Danh sách chợ Hà Nội, không có tọa độ. File .rar chứa cùng nội dung với .xlsx."
+}

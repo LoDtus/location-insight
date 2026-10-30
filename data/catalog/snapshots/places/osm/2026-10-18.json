@@ -1,0 +1,21 @@
+{
+  "domain": "places",
+  "source": "osm",
+  "version": "2026-10-18",
+  "stage": "raw",
+  "upstream_version": "2026-10-17",
+  "retrieved_at": "2026-10-18T00:00:00Z",
+  "url": "https://download.geofabrik.de/asia/vietnam.html",
+  "license": "ODbL",
+  "path": "raw/places/osm/2026-10-18",
+  "files": [
+    {
+      "path": "raw/places/osm/2026-10-18/vietnam-261017.osm.pbf",
+      "sha256": "eabf5f75363d94d1b27c6a0410fc91f6aef74afb565602e55cc00e3fc2227637",
+      "bytes": 330800912
+    }
+  ],
+  "record_count": null,
+  "bbox": null,
+  "notes": "Bản cả nước, tên file vietnam-261017 (phát hành 17/10/2026). Cắt Hà Nội ở interim."
+}

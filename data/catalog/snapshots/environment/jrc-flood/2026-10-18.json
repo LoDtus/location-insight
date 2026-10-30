@@ -1,0 +1,26 @@
+{
+  "domain": "environment",
+  "source": "jrc-flood",
+  "version": "2026-10-18",
+  "stage": "raw",
+  "upstream_version": "ID210 RP10/RP100",
+  "retrieved_at": "2026-10-18T00:00:00Z",
+  "url": "https://data.jrc.ec.europa.eu/dataset/jrc-floods-floodmapgl_rp50y-tif",
+  "license": "CC BY 4.0",
+  "path": "raw/environment/jrc-flood/2026-10-18",
+  "files": [
+    {
+      "path": "raw/environment/jrc-flood/2026-10-18/ID210_N20_E100_RP100_depth.tif",
+      "sha256": "30ae53de8f66c92d34d8149d0134c5913dc37f4874604a1dfe4c6a054a1b9748",
+      "bytes": 36839218
+    },
+    {
+      "path": "raw/environment/jrc-flood/2026-10-18/ID210_N20_E100_RP10_depth.tif",
+      "sha256": "f70d9d85fe81ca122d67ba72adcec8f60395305ed85d59f0e21d0fa73995b66c",
+      "bytes": 29918737
+    }
+  ],
+  "record_count": null,
+  "bbox": null,
+  "notes": "Độ sâu ngập sông chu kỳ 10 và 100 năm, ô ID210_N20_E100. Chưa kiểm tra phạm vi có phủ Hà Nội."
+}

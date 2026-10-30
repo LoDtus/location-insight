@@ -1,0 +1,21 @@
+{
+  "domain": "environment",
+  "source": "worldpop",
+  "version": "R2025A",
+  "stage": "raw",
+  "upstream_version": "R2025A",
+  "retrieved_at": "2026-10-18T00:00:00Z",
+  "url": "https://hub.worldpop.org/rest/data/pop/G2_CN_POP_R25A_100m?iso3=VNM",
+  "license": "CC BY 4.0",
+  "path": "raw/environment/worldpop/R2025A",
+  "files": [
+    {
+      "path": "raw/environment/worldpop/R2025A/vnm_pop_2025_CN_100m_R2025A_v1.tif",
+      "sha256": "21f403884d5a2d3a0961f75ef66dea51c43fcc9e2e99d4e43cbcceafd6774540",
+      "bytes": 75215955
+    }
+  ],
+  "record_count": null,
+  "bbox": null,
+  "notes": "Dân số constrained 100 m cả nước. Cắt Hà Nội ở interim."
+}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { AUTH_BUTTON_CLASS, AUTH_FORM_CLASS, AUTH_TITLE_CLASS } from "@/app/auth/form-class";
+import type { ShellRoot } from "@/features/app/shell";
 import { AuthApiError } from "@/features/auth/auth.api";
 import {
     ORDER_STATUS,
@@ -20,7 +21,7 @@ const PLAN_NAME = {
     valued: "Có định giá",
 } as const;
 
-export default function Page() {
+export function PlanScreen({ root }: { root: ShellRoot }) {
     const [billing, setBilling] = useState<MyBilling | null>(null);
     const [message, setMessage] = useState("");
 
@@ -67,7 +68,7 @@ export default function Page() {
                             {billing.cancelAtPeriodEnd ? " Đã hủy, quyền giữ đến hết hạn đã trả." : ""}
                         </p>
                         <p className="m-0 text-sm">Lượt định giá lẻ còn {billing.valuationCredits}.</p>
-                        <Link className={AUTH_BUTTON_CLASS} href="/app/thanh-toan">
+                        <Link className={AUTH_BUTTON_CLASS} href={`${root}/thanh-toan`}>
                             Gia hạn hoặc mua thêm
                         </Link>
                         {!billing.cancelAtPeriodEnd && billing.subscriptionId ? (
@@ -131,7 +132,7 @@ export default function Page() {
                         {billing?.orders.map((order) => (
                             <tr key={order.id}>
                                 <td className="border-b p-2">
-                                    <Link href={`/app/thanh-toan/${order.id}`}>{order.code}</Link>
+                                    <Link href={`${root}/thanh-toan/${order.id}`}>{order.code}</Link>
                                 </td>
                                 <td className="border-b p-2 text-right tabular-nums">
                                     {formatVnd(order.amountVnd)}
@@ -142,9 +143,13 @@ export default function Page() {
                     </tbody>
                 </table>
                 <p className="text-sm">
-                    <Link href="/app/hoan-tien">Xin hoàn một đơn đã trả</Link>
+                    <Link href={`${root}/hoan-tien`}>Xin hoàn một đơn đã trả</Link>
                 </p>
             </section>
         </main>
     );
+}
+
+export default function Page() {
+    return <PlanScreen root="/app" />;
 }

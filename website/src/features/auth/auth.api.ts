@@ -122,12 +122,13 @@ async function runRefresh(): Promise<boolean> {
     return execute();
 }
 
-export async function login(email: string, password: string): Promise<void> {
+export async function login(email: string, password: string): Promise<TokenPayload> {
     const data = await apiRequest<TokenPayload>("/auth/login", {
         method: "POST",
         body: JSON.stringify({ email, password }),
     });
     store.dispatch(sessionStarted(data));
+    return data;
 }
 
 export async function registerAccount(input: {

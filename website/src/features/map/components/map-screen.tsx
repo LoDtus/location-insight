@@ -3,6 +3,8 @@
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import type { ShellRoot } from "@/features/app/shell";
+import { MAP_PLACE_SLUG } from "@/features/landing-page/data/listings";
 import MapLayer from "@/features/map/components/map-layer";
 import MapLayerPicker from "@/features/map/components/map-layer-picker";
 import MapPlaceDetail from "@/features/map/components/map-place-detail";
@@ -16,9 +18,10 @@ const ZOOM_MAX = 20;
 
 interface MapScreenProps {
     placeId?: string;
+    root?: ShellRoot;
 }
 
-export default function MapScreen({ placeId }: MapScreenProps) {
+export default function MapScreen({ placeId, root = "/app" }: MapScreenProps) {
     const router = useRouter();
     const [zoom, setZoom] = useState(12);
     const [detailOpen, setDetailOpen] = useState(placeId !== undefined);
@@ -27,9 +30,9 @@ export default function MapScreen({ placeId }: MapScreenProps) {
         setDetailOpen(false);
 
         if (placeId !== undefined) {
-            router.push("/app/map");
+            router.push(`${root}/map`);
         }
-    }, [placeId, router]);
+    }, [placeId, root, router]);
 
     function zoomIn(): void {
         setZoom((current) => Math.min(current + 1, ZOOM_MAX));
@@ -53,7 +56,12 @@ export default function MapScreen({ placeId }: MapScreenProps) {
                             <MapZoomControls onZoomIn={zoomIn} onZoomOut={zoomOut} />
                         </div>
                     </div>
-                    {detailOpen ? <MapPlaceDetail onClose={closeDetail} /> : null}
+                    {detailOpen ? (
+                        <MapPlaceDetail
+                            listingHref={`${root}/properties/${MAP_PLACE_SLUG}`}
+                            onClose={closeDetail}
+                        />
+                    ) : null}
                 </div>
             </div>
         </div>

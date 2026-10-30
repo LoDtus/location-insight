@@ -11,6 +11,7 @@ import {
   AUTH_LIMITS,
   REDIS_KEYS,
   randomToken,
+  redirectForRole,
   safeRedirect,
 } from './auth.constants.js';
 import { AuthConfig } from './auth.config.js';
@@ -177,7 +178,11 @@ export class GoogleOAuthService {
       userAgent: meta.userAgent,
       ipAddress: meta.ipAddress,
     });
-    return { ok: true, issued, redirectTo: saved.redirectTo };
+    return {
+      ok: true,
+      issued,
+      redirectTo: redirectForRole(linked.user.role, saved.redirectTo),
+    };
   }
 
   private async exchange(code: string, codeVerifier: string): Promise<string> {

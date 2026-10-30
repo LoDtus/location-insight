@@ -17,7 +17,7 @@ export default function Layout({
     return (
         <RequireAdmin>
             <div className="flex h-full min-h-0 w-full bg-cream text-charcoal">
-                <AppSidebar />
+                <AppSidebar surface="admin" />
                 <div id="noi-dung" className="h-full min-h-0 min-w-0 flex-1 overflow-auto">
                     {children}
                 </div>

@@ -11,6 +11,7 @@ import {
     AUTH_LABEL_CLASS,
     AUTH_TITLE_CLASS,
 } from "@/app/auth/form-class";
+import type { ShellRoot } from "@/features/app/shell";
 import { AuthApiError } from "@/features/auth/auth.api";
 import { createOrder, formatVnd } from "@/features/billing/billing.api";
 
@@ -20,7 +21,7 @@ const PRICES = {
     credit: { month: 10000, year: 10000, name: "Một lần định giá" },
 } as const;
 
-export default function Page() {
+export function CheckoutScreen({ root }: { root: ShellRoot }) {
     const router = useRouter();
     const params = useSearchParams();
     const initialPlan = params.get("plan");
@@ -46,7 +47,7 @@ export default function Page() {
                     ? { kind: "valuation_credit" }
                     : { kind: "subscription", plan, cycle },
             );
-            router.push(`/app/thanh-toan/${order.id}`);
+            router.push(`${root}/thanh-toan/${order.id}`);
         } catch (error) {
             setMessage(error instanceof AuthApiError ? error.message : "Chưa tạo được đơn.");
             setPending(false);
@@ -94,9 +95,13 @@ export default function Page() {
                     {pending ? "Đang tạo mã" : "Tạo mã chuyển khoản"}
                 </button>
                 <p className="m-0 text-sm">
-                    <Link href="/app/goi">Gói của tôi</Link>
+                    <Link href={`${root}/goi`}>Gói của tôi</Link>
                 </p>
             </form>
         </main>
     );
+}
+
+export default function Page() {
+    return <CheckoutScreen root="/app" />;
 }

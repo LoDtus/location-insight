@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
+import { UserRole } from '../rbac/authorization.types.js';
 
 export const AUTH_LIMITS = {
   accessTtlSeconds: 900,
@@ -103,4 +104,21 @@ export function safeRedirect(
     (entry) => value === entry || value.startsWith(`${entry}/`),
   );
   return ok ? value : fallback;
+}
+
+export function homeForRole(role: string): string {
+  return role === UserRole.ADMIN ? '/admin/properties' : '/app/properties';
+}
+
+export function redirectForRole(role: string, requested: string): string {
+  const root = role === UserRole.ADMIN ? '/admin' : '/app';
+  if (
+    requested === root ||
+    (requested.startsWith(`${root}/`) &&
+      !requested.startsWith('//') &&
+      !requested.includes('\\'))
+  ) {
+    return requested;
+  }
+  return homeForRole(role);
 }

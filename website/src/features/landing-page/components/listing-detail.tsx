@@ -20,7 +20,7 @@ import {
     type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useRef, useState, type JSX, type ReactNode } from "react";
 
 import {
     LISTINGS,
@@ -46,7 +46,13 @@ function text(messages: Record<string, unknown>, key: string): string {
     return getLocaleValue(messages, ["catalog", "detail", key]);
 }
 
-export default function ListingDetail({ id }: { id: string }) {
+export default function ListingDetail({
+    id,
+    surface = "public",
+}: {
+    id: string;
+    surface?: "public" | "app" | "admin";
+}) {
     const { locale } = useLocale();
     const messages = useLocaleMessages("landing");
     const listing = getListingByParam(id);
@@ -65,6 +71,18 @@ export default function ListingDetail({ id }: { id: string }) {
         return null;
     }
 
+    const shell = surface === "admin" ? "/admin" : "/app";
+    const signedIn = surface !== "public";
+    const catalogHref = signedIn ? `${shell}/properties` : "/nha-dat";
+    const homeHref = signedIn ? `${shell}/properties` : "/";
+    const districtHref = signedIn
+        ? `${shell}/properties`
+        : `/nha-dat?district=${encodeURIComponent(listing.district)}`;
+    const mapHref = signedIn ? `${shell}/map` : "/app/map";
+    const legalDataHref = signedIn ? null : "/phap-ly/tuyen-bo-du-lieu";
+    const legalPostHref = signedIn ? null : "/phap-ly/chinh-sach-dang-tin";
+    const hrefFor = (item: Pick<Listing, "slug">): string =>
+        signedIn ? `${shell}/properties/${item.slug}` : listingPath(item);
     const price = formatListingPrice(listing, locale);
     const perArea = formatPricePerArea(listing, locale);
     const phone = revealed ? PHONE_SHOWN : PHONE_HIDDEN;
@@ -142,7 +160,7 @@ export default function ListingDetail({ id }: { id: string }) {
     return (
         <div className="box-border w-full px-4 py-8 pb-28 sm:px-8 lg:pb-16 xl:px-50">
             <Link
-                href="/nha-dat"
+                href={catalogHref}
                 className="inline-flex min-h-11 items-center text-sm font-semibold no-underline hover:underline"
             >
                 {text(messages, "back")}
@@ -150,20 +168,20 @@ export default function ListingDetail({ id }: { id: string }) {
             <nav aria-label={text(messages, "breadcrumb")} className="py-2 text-sm text-charcoal/70">
                 <ol className="m-0 flex list-none flex-wrap items-center gap-x-2 p-0">
                     <li>
-                        <Link href="/" className="inline-flex min-h-8 items-center">
+                        <Link href={homeHref} className="inline-flex min-h-8 items-center">
                             {text(messages, "home")}
                         </Link>
                     </li>
                     <li aria-hidden="true">›</li>
                     <li>
-                        <Link href="/nha-dat" className="inline-flex min-h-8 items-center">
+                        <Link href={catalogHref} className="inline-flex min-h-8 items-center">
                             {text(messages, "catalog")}
                         </Link>
                     </li>
                     <li aria-hidden="true">›</li>
                     <li>
                         <Link
-                            href={`/nha-dat?district=${encodeURIComponent(listing.district)}`}
+                            href={districtHref}
                             className="inline-flex min-h-8 items-center"
                         >
                             {listing.district}
@@ -416,7 +434,7 @@ export default function ListingDetail({ id }: { id: string }) {
                         </div>
                         <div className="mt-2 flex flex-wrap gap-x-4">
                             <Link
-                                href="/app/map"
+                                href={mapHref}
                                 className="inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-[3px]"
                             >
                                 {text(messages, "openMap")}
@@ -486,8 +504,8 @@ export default function ListingDetail({ id }: { id: string }) {
                             {text(messages, "posts")}
                         </h2>
                         <div className="mt-4 grid gap-4 md:grid-cols-2">
-                            <Link
-                                href="/phap-ly/tuyen-bo-du-lieu"
+                            <StayLink
+                                href={legalDataHref}
                                 className="grid grid-cols-[7rem_minmax(0,1fr)] gap-3 no-underline"
                             >
                                 <img
@@ -503,9 +521,9 @@ export default function ListingDetail({ id }: { id: string }) {
                                         {text(messages, "postGuideBody")}
                                     </span>
                                 </span>
-                            </Link>
-                            <Link
-                                href="/phap-ly/chinh-sach-dang-tin"
+                            </StayLink>
+                            <StayLink
+                                href={legalPostHref}
                                 className="grid grid-cols-[7rem_minmax(0,1fr)] gap-3 no-underline"
                             >
                                 <img
@@ -521,7 +539,7 @@ export default function ListingDetail({ id }: { id: string }) {
                                         {text(messages, "postLegalBody")}
                                     </span>
                                 </span>
-                            </Link>
+                            </StayLink>
                         </div>
                     </section>
 
@@ -535,7 +553,7 @@ export default function ListingDetail({ id }: { id: string }) {
                         <ul className="m-0 mt-4 list-none p-0">
                             <li className="border-b border-charcoal/15">
                                 <Link
-                                    href="/app/map"
+                                    href={mapHref}
                                     className="flex min-h-11 items-center justify-between gap-3 py-2 no-underline"
                                 >
                                     <span>{text(messages, "linkMap")}</span>
@@ -546,7 +564,7 @@ export default function ListingDetail({ id }: { id: string }) {
                             </li>
                             <li className="border-b border-charcoal/15">
                                 <Link
-                                    href={`/nha-dat?district=${encodeURIComponent(listing.district)}`}
+                                    href={districtHref}
                                     className="flex min-h-11 items-center justify-between gap-3 py-2 no-underline"
                                 >
                                     <span>
@@ -584,6 +602,7 @@ export default function ListingDetail({ id }: { id: string }) {
                             locale={locale}
                             title={text(messages, "similar")}
                             note={text(messages, "similarNote")}
+                            hrefFor={hrefFor}
                         />
                     ) : null}
                 </div>
@@ -810,16 +829,38 @@ export default function ListingDetail({ id }: { id: string }) {
     );
 }
 
+function StayLink({
+    href,
+    className,
+    children,
+}: {
+    href: string | null;
+    className: string;
+    children: ReactNode;
+}): JSX.Element {
+    if (href === null) {
+        return <div className={className}>{children}</div>;
+    }
+
+    return (
+        <Link href={href} className={className}>
+            {children}
+        </Link>
+    );
+}
+
 function SimilarListings({
     listings,
     locale,
     title,
     note,
+    hrefFor,
 }: {
     listings: Listing[];
     locale: string;
     title: string;
     note: string;
+    hrefFor: (item: Pick<Listing, "slug">) => string;
 }) {
     return (
         <section
@@ -836,7 +877,7 @@ function SimilarListings({
                 {listings.map((item) => (
                     <Link
                         key={item.id}
-                        href={listingPath(item)}
+                        href={hrefFor(item)}
                         className="grid gap-2 no-underline"
                     >
                         <img

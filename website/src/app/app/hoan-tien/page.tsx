@@ -10,10 +10,11 @@ import {
     AUTH_LABEL_CLASS,
     AUTH_TITLE_CLASS,
 } from "@/app/auth/form-class";
+import type { ShellRoot } from "@/features/app/shell";
 import { AuthApiError } from "@/features/auth/auth.api";
 import { formatVnd, getMyBilling, requestRefund, type OrderView } from "@/features/billing/billing.api";
 
-export default function Page() {
+export function RefundScreen({ root }: { root: ShellRoot }) {
     const [orders, setOrders] = useState<OrderView[]>([]);
     const [message, setMessage] = useState("");
     const [done, setDone] = useState("");
@@ -109,9 +110,13 @@ export default function Page() {
                     Gửi yêu cầu
                 </button>
                 <p className="m-0 text-sm">
-                    <Link href="/app/goi">Về gói của tôi</Link>
+                    <Link href={`${root}/goi`}>Về gói của tôi</Link>
                 </p>
             </form>
         </main>
     );
+}
+
+export default function Page() {
+    return <RefundScreen root="/app" />;
 }

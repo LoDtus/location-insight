@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { AUTH_BUTTON_CLASS, AUTH_FORM_CLASS, AUTH_TITLE_CLASS } from "@/app/auth/form-class";
+import type { ShellRoot } from "@/features/app/shell";
 import { AuthApiError } from "@/features/auth/auth.api";
 import {
     ORDER_STATUS,
@@ -14,7 +15,7 @@ import {
     type OrderView,
 } from "@/features/billing/billing.api";
 
-export default function Page() {
+export function OrderScreen({ root }: { root: ShellRoot }) {
     const params = useParams<{ id: string }>();
     const [order, setOrder] = useState<OrderView | null>(null);
     const [message, setMessage] = useState("");
@@ -126,9 +127,13 @@ export default function Page() {
                     </>
                 ) : null}
                 <p className="m-0 text-sm">
-                    <Link href="/app/goi">Gói của tôi</Link>
+                    <Link href={`${root}/goi`}>Gói của tôi</Link>
                 </p>
             </section>
         </main>
     );
+}
+
+export default function Page() {
+    return <OrderScreen root="/app" />;
 }

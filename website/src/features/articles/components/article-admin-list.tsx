@@ -52,7 +52,7 @@ export default function ArticleAdminList() {
                 <div>
                     <h1 className="m-0 text-2xl font-semibold">Bài viết</h1>
                     <p className="mt-1 mb-0 text-sm">
-                        <Link href="/admin/thanh-toan" className="underline underline-offset-4">
+                        <Link href="/admin/doi-soat" className="underline underline-offset-4">
                             Đối soát thanh toán
                         </Link>
                     </p>

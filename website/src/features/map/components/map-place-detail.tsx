@@ -17,11 +17,13 @@ import { getLocaleValue } from "@/shared/utils/locale.utils";
 interface MapPlaceDetailProps {
     onClose: () => void;
     placement?: "overlay" | "beside";
+    listingHref?: string;
 }
 
 export default function MapPlaceDetail({
     onClose,
     placement = "overlay",
+    listingHref,
 }: MapPlaceDetailProps) {
     const panelRef = useRef<HTMLDivElement>(null);
     const beside = placement === "beside";
@@ -124,7 +126,7 @@ export default function MapPlaceDetail({
                             </div>
                         </div>
                         <Link
-                            href={listingPath(listing)}
+                            href={listingHref ?? listingPath(listing)}
                             className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-charcoal/30 bg-white px-4 text-sm font-semibold no-underline"
                         >
                             {getLocaleValue(messages, ["catalog", "detail", "fullPage"])}

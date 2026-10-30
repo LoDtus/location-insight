@@ -12,6 +12,7 @@ import {
     AUTH_TITLE_CLASS,
 } from "@/app/auth/form-class";
 import { AuthApiError, login } from "@/features/auth/auth.api";
+import { destinationFor } from "@/features/auth/role-home";
 
 export default function Page() {
     const router = useRouter();
@@ -24,13 +25,12 @@ export default function Page() {
         setPending(true);
         setMessage("");
         try {
-            await login(String(form.get("email") || ""), String(form.get("password") || ""));
+            const session = await login(
+                String(form.get("email") || ""),
+                String(form.get("password") || ""),
+            );
             const next = new URLSearchParams(window.location.search).get("next") || "";
-            const safe =
-                (next.startsWith("/app/") || next.startsWith("/admin/")) &&
-                !next.startsWith("//") &&
-                !next.includes("\\");
-            router.push(safe ? next : "/app/properties");
+            router.push(destinationFor(session.user.role, next));
         } catch (error) {
             setMessage(
                 error instanceof AuthApiError

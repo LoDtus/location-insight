@@ -165,14 +165,6 @@ export default function ArticleEditor({ article }: { article: AdminArticle | nul
                         {article ? ` · ${article.source === "ai" ? "Do AI tạo" : "Soạn tay"}` : ""}
                     </p>
                 </div>
-                {article && form.status === "published" && !deleted ? (
-                    <a
-                        href={`/bai-viet/${form.slug}`}
-                        className="inline-flex min-h-11 items-center underline underline-offset-4"
-                    >
-                        Xem trên site
-                    </a>
-                ) : null}
             </header>
             {message ? (
                 <p role="status" className="m-0 text-sm">

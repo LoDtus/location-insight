@@ -5,13 +5,13 @@ import {
     LISTINGS,
     formatArea,
     formatListingPrice,
-    listingPath,
 } from "@/features/landing-page/data/listings";
 import { getLandingMessages } from "@/features/landing-page/server/get-landing-messages";
 import { getLocale } from "@/shared/services/locale.service";
 import { getLocaleValue } from "@/shared/utils/locale.utils";
+import type { ShellRoot } from "@/features/app/shell";
 
-export default async function Page() {
+export async function SaleList({ root }: { root: ShellRoot }) {
     const [locale, messages] = await Promise.all([getLocale(), getLandingMessages()]);
     const sales = LISTINGS.filter((listing) => listing.purpose === "ban").sort((left, right) =>
         right.updatedAt.localeCompare(left.updatedAt),
@@ -32,7 +32,7 @@ export default async function Page() {
                     </p>
                 </div>
                 <Link
-                    href="/app/map"
+                    href={`${root}/map`}
                     className="inline-flex min-h-11 items-center underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
                 >
                     {vi ? "Mở bản đồ" : "Open the map"}
@@ -57,7 +57,7 @@ export default async function Page() {
                                 </p>
                                 <h2 className="m-0 text-lg font-semibold">
                                     <Link
-                                        href={listingPath(listing)}
+                                        href={`${root}/properties/${listing.slug}`}
                                         className="text-inherit no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
                                     >
                                         {listing.title}
@@ -76,4 +76,8 @@ export default async function Page() {
             </ul>
         </main>
     );
+}
+
+export default function Page() {
+    return <SaleList root="/app" />;
 }

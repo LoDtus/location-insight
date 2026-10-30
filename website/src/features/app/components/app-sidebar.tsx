@@ -48,7 +48,11 @@ function initialsOf(name: string): string {
     return letters.join("").toLocaleUpperCase("vi");
 }
 
-export default function AppSidebar(): JSX.Element {
+export default function AppSidebar({
+    surface,
+}: {
+    surface: "app" | "admin";
+}): JSX.Element {
     const pathname = usePathname();
     const router = useRouter();
     const { locale } = useLocale();
@@ -57,6 +61,7 @@ export default function AppSidebar(): JSX.Element {
     const [signingOut, setSigningOut] = useState(false);
     const vi = locale === "vi";
     const user = auth.user;
+    const home = surface === "admin" ? "/admin/properties" : "/app/properties";
 
     useEffect(() => {
         const compact = window.matchMedia("(max-width: 767px)");
@@ -70,60 +75,89 @@ export default function AppSidebar(): JSX.Element {
         };
     }, []);
 
-    const items: NavEntry[] = [
-        {
-            kind: "item",
-            href: "/app/properties",
-            icon: House,
-            label: vi ? "Tin rao bán" : "For sale",
-        },
-        {
-            kind: "item",
-            href: "/app/map",
-            icon: Map,
-            label: vi ? "Bản đồ" : "Map",
-        },
-        {
-            kind: "item",
-            href: "/app/goi",
-            icon: BadgeCheck,
-            label: vi ? "Gói" : "Plan",
-        },
-        {
-            kind: "item",
-            href: "/app/thanh-toan",
-            icon: Wallet,
-            label: vi ? "Thanh toán" : "Payment",
-        },
-        {
-            kind: "item",
-            href: "/app/hoan-tien",
-            icon: Undo2,
-            label: vi ? "Hoàn tiền" : "Refund",
-        },
-    ];
-
-    if (user?.role === "admin") {
-        items.push(
-            {
-                kind: "divider",
-                id: "admin",
-                label: vi ? "Quản trị" : "Admin",
-            },
-            {
-                kind: "item",
-                href: "/admin/blogs",
-                icon: Newspaper,
-                label: vi ? "Bài viết" : "Articles",
-            },
-            {
-                kind: "item",
-                href: "/admin/thanh-toan",
-                icon: Receipt,
-                label: vi ? "Đối soát" : "Reconciliation",
-            },
-        );
-    }
+    const items: NavEntry[] =
+        surface === "admin"
+            ? [
+                  {
+                      kind: "item",
+                      href: "/admin/properties",
+                      icon: House,
+                      label: vi ? "Tin rao bán" : "For sale",
+                  },
+                  {
+                      kind: "item",
+                      href: "/admin/map",
+                      icon: Map,
+                      label: vi ? "Bản đồ" : "Map",
+                  },
+                  {
+                      kind: "item",
+                      href: "/admin/goi",
+                      icon: BadgeCheck,
+                      label: vi ? "Gói" : "Plan",
+                  },
+                  {
+                      kind: "item",
+                      href: "/admin/thanh-toan",
+                      icon: Wallet,
+                      label: vi ? "Thanh toán" : "Payment",
+                  },
+                  {
+                      kind: "item",
+                      href: "/admin/hoan-tien",
+                      icon: Undo2,
+                      label: vi ? "Hoàn tiền" : "Refund",
+                  },
+                  {
+                      kind: "divider",
+                      id: "admin",
+                      label: vi ? "Quản trị" : "Admin",
+                  },
+                  {
+                      kind: "item",
+                      href: "/admin/blogs",
+                      icon: Newspaper,
+                      label: vi ? "Bài viết" : "Articles",
+                  },
+                  {
+                      kind: "item",
+                      href: "/admin/doi-soat",
+                      icon: Receipt,
+                      label: vi ? "Đối soát" : "Reconciliation",
+                  },
+              ]
+            : [
+                  {
+                      kind: "item",
+                      href: "/app/properties",
+                      icon: House,
+                      label: vi ? "Tin rao bán" : "For sale",
+                  },
+                  {
+                      kind: "item",
+                      href: "/app/map",
+                      icon: Map,
+                      label: vi ? "Bản đồ" : "Map",
+                  },
+                  {
+                      kind: "item",
+                      href: "/app/goi",
+                      icon: BadgeCheck,
+                      label: vi ? "Gói" : "Plan",
+                  },
+                  {
+                      kind: "item",
+                      href: "/app/thanh-toan",
+                      icon: Wallet,
+                      label: vi ? "Thanh toán" : "Payment",
+                  },
+                  {
+                      kind: "item",
+                      href: "/app/hoan-tien",
+                      icon: Undo2,
+                      label: vi ? "Hoàn tiền" : "Refund",
+                  },
+              ];
 
     async function handleLogout(): Promise<void> {
         setSigningOut(true);
@@ -140,7 +174,7 @@ export default function AppSidebar(): JSX.Element {
             >
                 {collapsed ? null : (
                     <Link
-                        href="/app/properties"
+                        href={home}
                         className="flex min-w-0 flex-1 items-center gap-2 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
                     >
                         <Image src="/logos/diathe.svg" alt="" width={32} height={32} className="size-8 shrink-0" />
@@ -164,7 +198,15 @@ export default function AppSidebar(): JSX.Element {
             </div>
 
             <nav
-                aria-label={vi ? "Trong ứng dụng" : "In the app"}
+                aria-label={
+                    surface === "admin"
+                        ? vi
+                            ? "Quản trị"
+                            : "Admin"
+                        : vi
+                          ? "Trong ứng dụng"
+                          : "In the app"
+                }
                 className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 py-4"
             >
                 {items.map((item) => {

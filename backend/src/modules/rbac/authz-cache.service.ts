@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, MoreThan, Repository } from 'typeorm';
+import { In, IsNull, MoreThan, Repository } from 'typeorm';
 import { RedisService } from '../../integrations/redis/redis.service.js';
 import { UserEntity } from '../auth/entities/user.entity.js';
 import { REDIS_CHANNELS, REDIS_KEYS } from '../auth/auth.constants.js';
@@ -89,7 +89,7 @@ export class AuthzCacheService {
       where: [
         {
           userId,
-          status: SubscriptionStatus.ACTIVE,
+          status: In([SubscriptionStatus.ACTIVE, SubscriptionStatus.TRAILING]),
           periodEnd: MoreThan(now),
           endedAt: IsNull(),
         },

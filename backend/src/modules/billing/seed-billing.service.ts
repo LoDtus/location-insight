@@ -15,7 +15,6 @@ import { BILLING_CATALOG, addDays } from './billing.constants.js';
 import { BillingNoticeEntity } from './entities/billing-notice.entity.js';
 import { PaymentOrderEntity } from './entities/payment-order.entity.js';
 import { PaymentTransactionEntity } from './entities/payment-transaction.entity.js';
-import { RefundRequestEntity } from './entities/refund-request.entity.js';
 import { SEED_BILLING } from './seed.config.js';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -34,8 +33,6 @@ export class SeedBillingService implements OnModuleInit {
     private readonly orders: Repository<PaymentOrderEntity>,
     @InjectRepository(PaymentTransactionEntity)
     private readonly transactions: Repository<PaymentTransactionEntity>,
-    @InjectRepository(RefundRequestEntity)
-    private readonly refunds: Repository<RefundRequestEntity>,
     @InjectRepository(BillingNoticeEntity)
     private readonly notices: Repository<BillingNoticeEntity>,
     @InjectRepository(CreditLedgerEntryEntity)
@@ -66,10 +63,15 @@ export class SeedBillingService implements OnModuleInit {
       return;
     }
 
+    await this.subscriptions.query(
+      'DROP INDEX IF EXISTS uk_subscriptions_one_open',
+    );
+    await this.clearAdminPlan(admin);
     await this.paidPlan(user, admin);
     await this.grantedPlan(lan, admin);
     await this.reviewOrder(lan);
-    await this.creditRefund(minh);
+    await this.creditOrder(minh);
+    await this.directorySamples(admin);
   }
 
   private async paidPlan(user: UserEntity, admin: UserEntity): Promise<void> {
@@ -104,6 +106,7 @@ export class SeedBillingService implements OnModuleInit {
         plan: Plan.UNLIMITED,
         status: SubscriptionStatus.ACTIVE,
         source: SubscriptionSource.PAYMENT,
+        cycle: 'month',
         periodStart: paidAt,
         periodEnd: addDays(paidAt, BILLING_CATALOG.periodDays.month),
         endedAt: null,
@@ -159,6 +162,7 @@ export class SeedBillingService implements OnModuleInit {
         plan: Plan.VALUED,
         status: SubscriptionStatus.ACTIVE,
         source: SubscriptionSource.ADMIN_GRANT,
+        cycle: 'month',
         periodStart: start,
         periodEnd: addDays(start, BILLING_CATALOG.periodDays.month),
         endedAt: null,
@@ -214,7 +218,7 @@ export class SeedBillingService implements OnModuleInit {
     this.logger.log('Đã tạo đơn chờ đối soát mẫu.');
   }
 
-  private async creditRefund(user: UserEntity): Promise<void> {
+  private async creditOrder(user: UserEntity): Promise<void> {
     if (
       (await this.orders.findOne({ where: { code: SEED_BILLING.creditOrderCode } })) ||
       (await this.credits.findOne({
@@ -269,25 +273,235 @@ export class SeedBillingService implements OnModuleInit {
         raw: { seed: true },
       }),
     );
-    await this.refunds.save(
-      this.refunds.create({
-        orderId: order.id,
+    this.logger.log('Đã tạo đơn tín dụng mẫu.');
+  }
+
+  private async clearAdminPlan(admin: UserEntity): Promise<void> {
+    const open = await this.subscriptions.find({
+      where: { userId: admin.id, endedAt: IsNull() },
+    });
+    const now = new Date();
+    for (const row of open) {
+      row.status = SubscriptionStatus.CANCELED;
+      row.endedAt = now;
+      await this.subscriptions.save(row);
+    }
+    if (open.length > 0) await this.authz.invalidate(admin.id);
+  }
+
+  private async directorySamples(admin: UserEntity): Promise<void> {
+    await this.stabilizeKnownPlans();
+    const samples: DirectorySample[] = [
+      {
+        email: 'ha-my@location-insight.local',
+        plan: Plan.UNLIMITED,
+        status: SubscriptionStatus.ACTIVE,
+        cycle: 'month',
+        start: '2026-10-12T01:00:00.000Z',
+        end: '2026-11-11T01:00:00.000Z',
+        endedAt: null,
+        orderCode: 'DTSEED21',
+        amountVnd: 30_000,
+        paidAt: '2026-10-12T01:00:00.000Z',
+      },
+      {
+        email: 'quoc-bao@location-insight.local',
+        plan: Plan.VALUED,
+        status: SubscriptionStatus.ACTIVE,
+        cycle: 'year',
+        start: '2026-10-01T01:00:00.000Z',
+        end: '2027-10-01T01:00:00.000Z',
+        endedAt: null,
+        orderCode: 'DTSEED22',
+        amountVnd: 600_000,
+        paidAt: '2026-10-01T01:00:00.000Z',
+      },
+      {
+        email: 'thu-ha@location-insight.local',
+        plan: Plan.UNLIMITED,
+        status: SubscriptionStatus.TRAILING,
+        cycle: 'month',
+        start: '2026-10-20T02:00:00.000Z',
+        end: '2026-11-20T02:00:00.000Z',
+        endedAt: null,
+      },
+      {
+        email: 'duc-anh@location-insight.local',
+        plan: Plan.VALUED,
+        status: SubscriptionStatus.TRAILING,
+        cycle: 'month',
+        start: '2026-11-01T02:00:00.000Z',
+        end: '2026-11-15T02:00:00.000Z',
+        endedAt: null,
+      },
+      {
+        email: 'ngoc-lan@location-insight.local',
+        plan: Plan.UNLIMITED,
+        status: SubscriptionStatus.CANCELED,
+        cycle: 'month',
+        start: '2026-10-18T06:00:00.000Z',
+        end: '2026-11-18T06:00:00.000Z',
+        endedAt: null,
+      },
+      {
+        email: 'thanh-son@location-insight.local',
+        plan: Plan.VALUED,
+        status: SubscriptionStatus.CANCELED,
+        cycle: 'month',
+        start: '2026-09-05T07:00:00.000Z',
+        end: '2026-10-05T07:00:00.000Z',
+        endedAt: '2026-10-01T07:00:00.000Z',
+      },
+      {
+        email: 'my-linh@location-insight.local',
+        plan: Plan.UNLIMITED,
+        status: SubscriptionStatus.EXPIRED,
+        cycle: 'month',
+        start: '2026-09-20T04:00:00.000Z',
+        end: '2026-10-20T04:00:00.000Z',
+        endedAt: null,
+      },
+      {
+        email: 'hoang-nam@location-insight.local',
+        plan: Plan.VALUED,
+        status: SubscriptionStatus.ACTIVE,
+        cycle: 'month',
+        start: '2026-09-26T08:00:00.000Z',
+        end: '2026-10-26T08:00:00.000Z',
+        endedAt: null,
+        orderCode: 'DTSEED23',
+        amountVnd: 60_000,
+        paidAt: '2026-09-26T08:00:00.000Z',
+      },
+      {
+        email: 'phuong-anh@location-insight.local',
+        plan: Plan.UNLIMITED,
+        status: SubscriptionStatus.ACTIVE,
+        cycle: 'month',
+        start: '2026-11-01T05:00:00.000Z',
+        end: '2026-12-01T05:00:00.000Z',
+        endedAt: null,
+        orderCode: 'DTSEED24',
+        amountVnd: 30_000,
+        paidAt: '2026-11-01T05:00:00.000Z',
+      },
+      {
+        email: 'khoa-nguyen@location-insight.local',
+        plan: Plan.VALUED,
+        status: SubscriptionStatus.ACTIVE,
+        cycle: 'month',
+        start: '2026-11-01T07:00:00.000Z',
+        end: '2026-12-01T07:00:00.000Z',
+        endedAt: null,
+        orderCode: 'DTSEED12',
+        amountVnd: 60_000,
+        paidAt: '2026-11-01T07:00:00.000Z',
+      },
+    ];
+    for (const sample of samples) {
+      await this.ensureSample(admin, sample);
+    }
+    await this.ensureRevenueOrder({
+      email: 'user@location-insight.local',
+      code: 'DTSEED11',
+      amountVnd: 300_000,
+      plan: 'unlimited',
+      cycle: 'year',
+      paidAt: '2026-10-15T02:00:00.000Z',
+    });
+  }
+
+  private async stabilizeKnownPlans(): Promise<void> {
+    const known = [
+      {
+        email: 'user@location-insight.local',
+        start: '2026-10-27T02:00:00.000Z',
+        end: '2026-11-26T02:00:00.000Z',
+      },
+      {
+        email: 'lan-anh@location-insight.local',
+        start: '2026-10-08T03:00:00.000Z',
+        end: '2026-11-08T03:00:00.000Z',
+      },
+    ];
+    for (const item of known) {
+      const user = await this.users.findOne({ where: { email: item.email } });
+      if (!user) continue;
+      const row = await this.openSubscription(user.id);
+      if (!row || row.cycle) continue;
+      row.cycle = 'month';
+      row.periodStart = new Date(item.start);
+      row.periodEnd = new Date(item.end);
+      await this.subscriptions.save(row);
+    }
+  }
+
+  private async ensureSample(
+    admin: UserEntity,
+    sample: DirectorySample,
+  ): Promise<void> {
+    const user = await this.users.findOne({ where: { email: sample.email } });
+    if (!user) return;
+    const reason = `seed:directory:${sample.email}`;
+    const existing = await this.subscriptions.findOne({ where: { reason } });
+    if (!existing && !(await this.openSubscription(user.id))) {
+      await this.subscriptions.save(
+        this.subscriptions.create({
+          userId: user.id,
+          plan: sample.plan,
+          status: sample.status,
+          source: SubscriptionSource.ADMIN_GRANT,
+          cycle: sample.cycle,
+          periodStart: new Date(sample.start),
+          periodEnd: new Date(sample.end),
+          endedAt: sample.endedAt ? new Date(sample.endedAt) : null,
+          paymentOrderId: null,
+          grantedBy: admin.id,
+          reason,
+        }),
+      );
+      await this.authz.invalidate(user.id);
+    }
+    if (!sample.orderCode || !sample.paidAt || !sample.amountVnd) return;
+    await this.ensureRevenueOrder({
+      email: sample.email,
+      code: sample.orderCode,
+      amountVnd: sample.amountVnd,
+      plan: sample.plan === Plan.VALUED ? 'valued' : 'unlimited',
+      cycle: sample.cycle,
+      paidAt: sample.paidAt,
+    });
+  }
+
+  private async ensureRevenueOrder(input: {
+    email: string;
+    code: string;
+    amountVnd: number;
+    plan: 'unlimited' | 'valued';
+    cycle: 'month' | 'year';
+    paidAt: string;
+  }): Promise<void> {
+    if (await this.orders.findOne({ where: { code: input.code } })) return;
+    const user = await this.users.findOne({ where: { email: input.email } });
+    if (!user) return;
+    const paidAt = new Date(input.paidAt);
+    await this.orders.save(
+      this.orders.create({
         userId: user.id,
-        reason: 'within_24h',
-        amountVnd: BILLING_CATALOG.valuationCreditVnd,
-        status: 'requested',
-        userNote: 'Yêu cầu hoàn mẫu, chưa dùng lượt định giá.',
-        payoutAccountName: 'Minh Đức',
-        payoutAccountNumber: '0000000000',
-        payoutBank: 'Ngân hàng mẫu',
-        decisionNote: null,
-        payoutReference: null,
-        decidedBy: null,
-        decidedAt: null,
-        paidOutAt: null,
+        kind: 'subscription',
+        plan: input.plan,
+        cycle: input.cycle,
+        amountVnd: input.amountVnd,
+        receivedVnd: input.amountVnd,
+        code: input.code,
+        status: 'paid',
+        expiresAt: new Date(paidAt.getTime() + 30 * 60 * 1000),
+        paidAt,
+        subscriptionId: null,
+        creditEntryId: null,
+        benefitUsedAt: null,
       }),
     );
-    this.logger.log('Đã tạo đơn tín dụng và yêu cầu hoàn mẫu.');
   }
 
   private openSubscription(userId: string): Promise<SubscriptionEntity | null> {
@@ -295,7 +509,11 @@ export class SeedBillingService implements OnModuleInit {
       where: {
         userId,
         endedAt: IsNull(),
-        status: In([SubscriptionStatus.ACTIVE, SubscriptionStatus.CANCELED]),
+        status: In([
+          SubscriptionStatus.ACTIVE,
+          SubscriptionStatus.TRAILING,
+          SubscriptionStatus.CANCELED,
+        ]),
       },
     });
   }
@@ -321,4 +539,17 @@ export class SeedBillingService implements OnModuleInit {
       }),
     );
   }
+}
+
+interface DirectorySample {
+  email: string;
+  plan: Plan.UNLIMITED | Plan.VALUED;
+  status: SubscriptionStatus;
+  cycle: 'month' | 'year';
+  start: string;
+  end: string;
+  endedAt: string | null;
+  orderCode?: string;
+  amountVnd?: number;
+  paidAt?: string;
 }

@@ -1,6 +1,7 @@
+import { randomInt } from 'node:crypto';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { UserRole } from '../rbac/authorization.types.js';
 import { AuthConfig } from './auth.config.js';
 import {
@@ -35,7 +36,7 @@ export class SeedAccountService implements OnModuleInit {
 
   private async upsert(account: (typeof SEED_ACCOUNTS)[number]): Promise<void> {
     const email = account.email.toLowerCase();
-    let user = await this.users.findOne({ where: { email } });
+    let user = await this.users.findOne({ where: { email }, withDeleted: true });
     const created = !user;
     if (!user) {
       user = this.users.create({
@@ -51,12 +52,15 @@ export class SeedAccountService implements OnModuleInit {
         locale: 'vi',
         failedLoginCount: 0,
         emailVerifiedAt: new Date(),
+        planCode: await this.uniquePlanCode(),
       });
     }
+    if (user.deletedAt) user.deletedAt = null;
 
     if (!user.username) user.username = account.username;
     if (!user.city) user.city = account.city;
     if (!user.bio) user.bio = account.bio;
+    if (!user.planCode) user.planCode = await this.uniquePlanCode();
     user.role = account.role;
     user.status = UserStatus.ACTIVE;
     if (!user.emailVerifiedAt) user.emailVerifiedAt = new Date();
@@ -71,6 +75,10 @@ export class SeedAccountService implements OnModuleInit {
     }
 
     user = await this.users.save(user);
+    await this.users.query('UPDATE users SET created_at = $1 WHERE id = $2', [
+      account.joinedAt,
+      user.id,
+    ]);
     await this.ensurePasswordIdentity(user.id, email);
     if (created || !alreadyValid) {
       const label = account.role === UserRole.ADMIN ? 'admin' : 'user';
@@ -78,6 +86,22 @@ export class SeedAccountService implements OnModuleInit {
         `${created ? 'Đã tạo' : 'Đã đặt lại mật khẩu'} ${label} ${email}`,
       );
     }
+  }
+
+  private async uniquePlanCode(): Promise<string> {
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const code = createPlanCode();
+      const taken = await this.users.findOne({
+        where: { planCode: code },
+        withDeleted: true,
+      });
+      if (!taken) return code;
+    }
+    const fallback = await this.users.count({
+      where: { planCode: IsNull() },
+      withDeleted: true,
+    });
+    return createPlanCode().slice(0, 6) + String(fallback % 100).padStart(2, '0');
   }
 
   private async ensurePasswordIdentity(
@@ -98,4 +122,19 @@ export class SeedAccountService implements OnModuleInit {
       }),
     );
   }
+}
+
+function createPlanCode(): string {
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const digits = '0123456789';
+  const all = letters + digits;
+  const chars = [letters[randomInt(26)] ?? 'A', digits[randomInt(10)] ?? '0'];
+  while (chars.length < 8) chars.push(all[randomInt(36)] ?? 'A');
+  for (let index = chars.length - 1; index > 0; index -= 1) {
+    const swap = randomInt(index + 1);
+    const current = chars[index] ?? 'A';
+    chars[index] = chars[swap] ?? 'A';
+    chars[swap] = current;
+  }
+  return chars.join('');
 }

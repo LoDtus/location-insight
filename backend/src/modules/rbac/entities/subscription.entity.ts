@@ -5,6 +5,7 @@ import { UserEntity } from '../../auth/entities/user.entity.js';
 
 export enum SubscriptionStatus {
   ACTIVE = 'active',
+  TRAILING = 'trailing',
   CANCELED = 'canceled',
   EXPIRED = 'expired',
 }
@@ -20,9 +21,9 @@ export enum SubscriptionSource {
   'status',
   'periodEnd',
 ])
-@Index('uk_subscriptions_one_open', ['userId'], {
+@Index('uk_subscriptions_one_open_v2', ['userId'], {
   unique: true,
-  where: "ended_at IS NULL AND status IN ('active', 'canceled')",
+  where: "ended_at IS NULL AND status IN ('active', 'trailing', 'canceled')",
 })
 export class SubscriptionEntity extends AppBaseEntity {
   @ManyToOne(() => UserEntity, { onDelete: 'CASCADE' })
@@ -40,6 +41,9 @@ export class SubscriptionEntity extends AppBaseEntity {
 
   @Column({ type: 'varchar', length: 20 })
   source: SubscriptionSource;
+
+  @Column({ type: 'varchar', length: 16, nullable: true })
+  cycle: 'month' | 'year' | null;
 
   @Column({ type: 'timestamptz', name: 'period_start' })
   periodStart: Date;

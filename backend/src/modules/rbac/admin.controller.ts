@@ -78,6 +78,22 @@ export class AdminController {
     );
   }
 
+  @RequirePermission('user:lock')
+  @Delete('users/:userId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteUser(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body() body: ReasonDto,
+    @Req() request: RequestWithPrincipal,
+  ) {
+    return this.admin.deleteUser(
+      this.actor(request),
+      userId,
+      body.reason,
+      clientIp(request.ip),
+    );
+  }
+
   @RequirePermission('user:session:revoke')
   @Post('users/:userId/sessions/revoke')
   revoke(

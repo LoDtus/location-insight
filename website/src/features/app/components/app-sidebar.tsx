@@ -10,8 +10,7 @@ import {
     Newspaper,
     PanelLeftClose,
     PanelLeftOpen,
-    Receipt,
-    Undo2,
+    Users,
     Wallet,
     type LucideIcon,
 } from "lucide-react";
@@ -99,24 +98,6 @@ export default function AppSidebar({
                       label: vi ? "Diễn đàn" : "Discussions",
                   },
                   {
-                      kind: "item",
-                      href: "/admin/plans",
-                      icon: BadgeCheck,
-                      label: vi ? "Gói" : "Plan",
-                  },
-                  {
-                      kind: "item",
-                      href: "/admin/payments",
-                      icon: Wallet,
-                      label: vi ? "Thanh toán" : "Payment",
-                  },
-                  {
-                      kind: "item",
-                      href: "/admin/refunds",
-                      icon: Undo2,
-                      label: vi ? "Hoàn tiền" : "Refund",
-                  },
-                  {
                       kind: "divider",
                       id: "admin",
                       label: vi ? "Quản trị" : "Admin",
@@ -129,9 +110,9 @@ export default function AppSidebar({
                   },
                   {
                       kind: "item",
-                      href: "/admin/reconciliation",
-                      icon: Receipt,
-                      label: vi ? "Đối soát" : "Reconciliation",
+                      href: "/admin/users",
+                      icon: Users,
+                      label: vi ? "Người dùng" : "Users",
                   },
               ]
             : [
@@ -164,12 +145,6 @@ export default function AppSidebar({
                       href: "/app/payments",
                       icon: Wallet,
                       label: vi ? "Thanh toán" : "Payment",
-                  },
-                  {
-                      kind: "item",
-                      href: "/app/refunds",
-                      icon: Undo2,
-                      label: vi ? "Hoàn tiền" : "Refund",
                   },
               ];
 

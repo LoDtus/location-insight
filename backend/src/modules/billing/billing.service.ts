@@ -4,6 +4,7 @@ import { randomBytes } from 'node:crypto';
 import {
   DataSource,
   EntityManager,
+  In,
   IsNull,
   MoreThan,
   QueryFailedError,
@@ -33,16 +34,13 @@ import {
   billingPrice,
 } from './billing.constants.js';
 import { BillingConfig } from './billing.config.js';
-import { CreateOrderDto, CreateRefundDto } from './dto/billing.dto.js';
+import { CreateOrderDto } from './dto/billing.dto.js';
 import { BillingNoticeEntity } from './entities/billing-notice.entity.js';
 import {
   PaymentOrderEntity,
   PaymentOrderStatus,
 } from './entities/payment-order.entity.js';
-import { RefundRequestEntity } from './entities/refund-request.entity.js';
 import { PaymentTransactionEntity } from './entities/payment-transaction.entity.js';
-
-const REFUND_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export interface OrderView {
   id: string;
@@ -71,8 +69,6 @@ export class BillingService {
     private readonly authz: AuthzCacheService,
     @InjectRepository(PaymentOrderEntity)
     private readonly orders: Repository<PaymentOrderEntity>,
-    @InjectRepository(RefundRequestEntity)
-    private readonly refunds: Repository<RefundRequestEntity>,
     @InjectRepository(BillingNoticeEntity)
     private readonly notices: Repository<BillingNoticeEntity>,
     @InjectRepository(SubscriptionEntity)
@@ -176,7 +172,7 @@ export class BillingService {
       where: [
         {
           userId,
-          status: SubscriptionStatus.ACTIVE,
+          status: In([SubscriptionStatus.ACTIVE, SubscriptionStatus.TRAILING]),
           periodEnd: MoreThan(now),
           endedAt: IsNull(),
         },
@@ -296,83 +292,6 @@ export class BillingService {
       notice.readAt = new Date();
       await this.notices.save(notice);
     }
-  }
-
-  async requestRefund(userId: string, orderId: string, input: CreateRefundDto) {
-    const order = await this.requireOwn(userId, orderId);
-    if (order.status !== 'paid' || !order.paidAt) {
-      throw new BusinessException(
-        ErrorCode.CONFLICT,
-        'Chỉ xin hoàn đơn đã thanh toán.',
-        null,
-        HttpStatus.CONFLICT,
-      );
-    }
-    const open = await this.refunds.findOne({
-      where: { orderId: order.id, status: 'requested' },
-    });
-    if (open) {
-      throw new BusinessException(
-        ErrorCode.CONFLICT,
-        'Đơn này đang có một yêu cầu hoàn chưa xử lý.',
-        null,
-        HttpStatus.CONFLICT,
-      );
-    }
-    if (input.reason === 'within_24h') {
-      const fresh = Date.now() - order.paidAt.getTime() <= REFUND_WINDOW_MS;
-      const used = await this.benefitUsed(order);
-      if (!fresh || used || input.amountVnd !== order.amountVnd) {
-        throw new BusinessException(
-          ErrorCode.CONFLICT,
-          'Hoàn trong 24 giờ chỉ áp dụng khi chưa dùng quyền và hoàn cả số đã trả.',
-          null,
-          HttpStatus.CONFLICT,
-        );
-      }
-    }
-    if (input.reason === 'overpay') {
-      const extra = order.receivedVnd - order.amountVnd;
-      if (extra <= 0 || input.amountVnd !== extra) {
-        throw new BusinessException(
-          ErrorCode.VALIDATION_ERROR,
-          'Số hoàn phần thừa phải đúng số tiền chuyển dư.',
-          null,
-          HttpStatus.UNPROCESSABLE_ENTITY,
-        );
-      }
-    } else if (input.amountVnd > order.receivedVnd) {
-      throw new BusinessException(
-        ErrorCode.VALIDATION_ERROR,
-        'Số hoàn không được vượt số tiền đã nhận.',
-        null,
-        HttpStatus.UNPROCESSABLE_ENTITY,
-      );
-    }
-    const saved = await this.refunds.save(
-      this.refunds.create({
-        orderId: order.id,
-        userId,
-        reason: input.reason,
-        amountVnd: input.amountVnd,
-        status: 'requested',
-        userNote: input.userNote ?? null,
-        payoutAccountName: input.payoutAccountName.trim(),
-        payoutAccountNumber: input.payoutAccountNumber.replace(/\s/g, ''),
-        payoutBank: input.payoutBank.trim(),
-        decisionNote: null,
-        payoutReference: null,
-        decidedBy: null,
-        decidedAt: null,
-        paidOutAt: null,
-      }),
-    );
-    return {
-      id: saved.id,
-      status: saved.status,
-      amountVnd: saved.amountVnd,
-      reason: saved.reason,
-    };
   }
 
   async fulfillOrder(
@@ -498,19 +417,6 @@ export class BillingService {
     return order;
   }
 
-  private async benefitUsed(order: PaymentOrderEntity): Promise<boolean> {
-    if (order.benefitUsedAt) return true;
-    if (order.kind !== 'valuation_credit' || !order.paidAt) return false;
-    const used = await this.credits.count({
-      where: {
-        userId: order.userId,
-        reason: 'use',
-        createdAt: MoreThan(order.paidAt),
-      },
-    });
-    return used > 0;
-  }
-
   private nextCode(): string {
     return `${this.config.paymentPrefix}${randomBytes(4).toString('hex').toUpperCase()}`;
   }
@@ -536,7 +442,7 @@ export class BillingService {
       where: [
         {
           userId,
-          status: SubscriptionStatus.ACTIVE,
+          status: In([SubscriptionStatus.ACTIVE, SubscriptionStatus.TRAILING]),
           periodEnd: MoreThan(now),
           endedAt: IsNull(),
         },
@@ -571,7 +477,11 @@ export class BillingService {
       .where('sub.userId = :userId', { userId: order.userId })
       .andWhere('sub.endedAt IS NULL')
       .andWhere('sub.status IN (:...statuses)', {
-        statuses: [SubscriptionStatus.ACTIVE, SubscriptionStatus.CANCELED],
+        statuses: [
+          SubscriptionStatus.ACTIVE,
+          SubscriptionStatus.TRAILING,
+          SubscriptionStatus.CANCELED,
+        ],
       })
       .getMany();
     const entitled = open.filter(
@@ -605,6 +515,7 @@ export class BillingService {
       }
       row.periodEnd = addDays(row.periodEnd, days);
       row.status = SubscriptionStatus.ACTIVE;
+      row.cycle = cycle;
       if (!row.paymentOrderId) row.paymentOrderId = order.id;
       return manager.save(row);
     }
@@ -619,6 +530,7 @@ export class BillingService {
         plan: plan as SubscriptionEntity['plan'],
         status: SubscriptionStatus.ACTIVE,
         source: SubscriptionSource.PAYMENT,
+        cycle,
         periodStart: paidAt,
         periodEnd: addDays(paidAt, days),
         endedAt: null,

@@ -24,48 +24,6 @@ export class CreateOrderDto {
   cycle?: 'month' | 'year';
 }
 
-export class CreateRefundDto {
-  @IsIn([
-    'within_24h',
-    'service_outage',
-    'operator_stop',
-    'duplicate_or_wrong',
-    'overpay',
-    'legal',
-  ])
-  reason:
-    | 'within_24h'
-    | 'service_outage'
-    | 'operator_stop'
-    | 'duplicate_or_wrong'
-    | 'overpay'
-    | 'legal';
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(500)
-  userNote?: string;
-
-  @IsString()
-  @MinLength(2)
-  @MaxLength(120)
-  payoutAccountName: string;
-
-  @IsString()
-  @MinLength(4)
-  @MaxLength(32)
-  payoutAccountNumber: string;
-
-  @IsString()
-  @MinLength(2)
-  @MaxLength(64)
-  payoutBank: string;
-
-  @IsInt()
-  @Min(1)
-  amountVnd: number;
-}
-
 export class ResolveOrderDto {
   @IsIn(['fulfill', 'reject'])
   decision: 'fulfill' | 'reject';
@@ -76,21 +34,34 @@ export class ResolveOrderDto {
   reason: string;
 }
 
-export class RefundDecisionDto {
-  @IsIn(['approve', 'reject'])
-  decision: 'approve' | 'reject';
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(500)
-  note?: string;
+export class ChangePlanDto {
+  @IsIn(['unlimited', 'valued'])
+  plan: 'unlimited' | 'valued';
 }
 
-export class PaidOutDto {
+export class DirectoryQueryDto {
+  @IsOptional()
   @IsString()
-  @MinLength(3)
-  @MaxLength(64)
-  referenceCode: string;
+  @MaxLength(80)
+  q?: string;
+
+  @IsOptional()
+  @IsIn(['active', 'trailing', 'canceled', 'expired', 'none'])
+  status?: 'active' | 'trailing' | 'canceled' | 'expired' | 'none';
+
+  @IsOptional()
+  @IsIn(['free', 'unlimited', 'valued'])
+  plan?: 'free' | 'unlimited' | 'valued';
+
+  @IsOptional()
+  @IsIn(['created_desc', 'created_asc', 'name', 'expiry'])
+  sort?: 'created_desc' | 'created_asc' | 'name' | 'expiry';
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
 }
 
 export class RevokeDto {

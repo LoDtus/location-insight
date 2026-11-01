@@ -60,4 +60,8 @@ export class UserEntity extends AppBaseEntity {
 
   @Column({ type: 'varchar', length: 5, default: 'vi' })
   locale: string;
+
+  @Index('uk_users_plan_code', { unique: true })
+  @Column({ type: 'varchar', length: 8, name: 'plan_code', nullable: true })
+  planCode: string | null;
 }

@@ -139,6 +139,33 @@ export class AdminUsersService {
     return { revoked };
   }
 
+  async deleteUser(
+    actor: Principal,
+    userId: string,
+    reason: string,
+    ip: string | null,
+  ) {
+    const user = await this.requireUser(userId);
+    this.policy.assertCanAffectUser(actor, user);
+    const open = await this.subscriptions.find({
+      where: { userId: user.id, endedAt: IsNull() },
+    });
+    const now = new Date();
+    for (const row of open) {
+      row.status = SubscriptionStatus.CANCELED;
+      row.endedAt = now;
+      await this.subscriptions.save(row);
+    }
+    user.status = UserStatus.DELETED;
+    user.deletedAt = now;
+    await this.users.save(user);
+    await this.sessions.revokeAll(user.id, SessionRevokeReason.ACCOUNT_DELETED);
+    await this.authz.invalidate(user.id);
+    await this.audit(actor, 'user_delete', user.id, reason, ip, null, {
+      status: user.status,
+    });
+  }
+
   async grantSubscription(
     actor: Principal,
     userId: string,
@@ -167,7 +194,11 @@ export class AdminUsersService {
         where: {
           userId: user.id,
           endedAt: IsNull(),
-          status: In([SubscriptionStatus.ACTIVE, SubscriptionStatus.CANCELED]),
+          status: In([
+            SubscriptionStatus.ACTIVE,
+            SubscriptionStatus.TRAILING,
+            SubscriptionStatus.CANCELED,
+          ]),
         },
         lock: { mode: 'pessimistic_write' },
       });
@@ -190,6 +221,7 @@ export class AdminUsersService {
           plan: input.plan as SubscriptionEntity['plan'],
           status: SubscriptionStatus.ACTIVE,
           source: SubscriptionSource.ADMIN_GRANT,
+          cycle: 'month',
           periodStart: new Date(),
           periodEnd,
           endedAt: null,

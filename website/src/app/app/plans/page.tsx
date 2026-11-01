@@ -168,9 +168,6 @@ export function PlanScreen({ root }: { root: ShellRoot }) {
                         ))}
                     </tbody>
                 </table>
-                <p className="text-sm">
-                    <Link href={`${root}/refunds`}>Xin hoàn một đơn đã trả</Link>
-                </p>
             </section>
         </main>
     );

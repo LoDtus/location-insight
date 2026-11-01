@@ -47,19 +47,6 @@ export interface AdminUserHit {
     plan: string;
 }
 
-export interface RefundView {
-    id: string;
-    orderId?: string;
-    userId?: string;
-    status: "requested" | "approved" | "rejected" | "paid_out";
-    amountVnd: number;
-    reason: string;
-    payoutAccountName?: string;
-    payoutAccountNumber?: string;
-    payoutBank?: string;
-    payoutReference?: string | null;
-}
-
 export function createOrder(input: {
     kind: "subscription" | "valuation_credit";
     plan?: "unlimited" | "valued";
@@ -95,30 +82,9 @@ export function markNoticeRead(id: string): Promise<void> {
     return apiRequest(`/me/billing/notices/${id}/read`, { method: "POST" });
 }
 
-export function requestRefund(
-    orderId: string,
-    input: {
-        reason: string;
-        amountVnd: number;
-        userNote?: string;
-        payoutAccountName: string;
-        payoutAccountNumber: string;
-        payoutBank: string;
-    },
-): Promise<RefundView> {
-    return apiRequest<RefundView>(`/billing/orders/${orderId}/refunds`, {
-        method: "POST",
-        body: JSON.stringify(input),
-    });
-}
-
 export function adminOrders(status?: string): Promise<OrderView[]> {
     const query = status ? `?status=${encodeURIComponent(status)}` : "";
     return apiRequest<OrderView[]>(`/admin/billing/orders${query}`);
-}
-
-export function adminRefunds(): Promise<RefundView[]> {
-    return apiRequest<RefundView[]>("/admin/billing/refunds");
 }
 
 export function resolveOrder(id: string, decision: "fulfill" | "reject", reason: string) {
@@ -150,20 +116,6 @@ export function grantSubscription(
     return apiRequest(`/admin/users/${userId}/subscriptions`, {
         method: "POST",
         body: JSON.stringify(input),
-    });
-}
-
-export function decideRefund(id: string, decision: "approve" | "reject", note: string) {
-    return apiRequest(`/admin/billing/refunds/${id}`, {
-        method: "POST",
-        body: JSON.stringify({ decision, note }),
-    });
-}
-
-export function markRefundPaid(id: string, referenceCode: string) {
-    return apiRequest(`/admin/billing/refunds/${id}/paid-out`, {
-        method: "POST",
-        body: JSON.stringify({ referenceCode }),
     });
 }
 

@@ -15,26 +15,63 @@ import { Principal } from '../rbac/authorization.types.js';
 import { BillingAdminService } from './billing-admin.service.js';
 import {
   AdminListQueryDto,
-  PaidOutDto,
-  RefundDecisionDto,
+  ChangePlanDto,
+  DirectoryQueryDto,
   ResolveOrderDto,
   RevokeDto,
 } from './dto/billing.dto.js';
+import { UserDirectoryService } from './user-directory.service.js';
 
 @Controller('admin/billing')
 export class BillingAdminController {
-  constructor(private readonly admin: BillingAdminService) {}
+  constructor(
+    private readonly admin: BillingAdminService,
+    private readonly directory: UserDirectoryService,
+  ) {}
+
+  @RequirePermission('user:read')
+  @Get('directory')
+  directoryList(@Query() query: DirectoryQueryDto) {
+    return this.directory.list(query);
+  }
+
+  @RequirePermission('subscription:grant')
+  @Post('users/:userId/renew')
+  renew(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Req() request: RequestWithPrincipal,
+  ) {
+    return this.directory.renew(this.actor(request), userId, clientIp(request.ip));
+  }
+
+  @RequirePermission('subscription:grant')
+  @Post('users/:userId/cancel')
+  cancelPlan(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Req() request: RequestWithPrincipal,
+  ) {
+    return this.directory.cancel(this.actor(request), userId, clientIp(request.ip));
+  }
+
+  @RequirePermission('subscription:grant')
+  @Post('users/:userId/plan')
+  changePlan(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body() body: ChangePlanDto,
+    @Req() request: RequestWithPrincipal,
+  ) {
+    return this.directory.changePlan(
+      this.actor(request),
+      userId,
+      body.plan,
+      clientIp(request.ip),
+    );
+  }
 
   @RequirePermission('admin:access')
   @Get('orders')
   orders(@Query() query: AdminListQueryDto) {
     return this.admin.listOrders(query.status, query.page ?? 1);
-  }
-
-  @RequirePermission('admin:access')
-  @Get('refunds')
-  refunds(@Query() query: AdminListQueryDto) {
-    return this.admin.listRefunds(query.page ?? 1);
   }
 
   @RequirePermission('admin:access')
@@ -73,37 +110,6 @@ export class BillingAdminController {
       this.actor(request),
       id,
       body.reason,
-      clientIp(request.ip),
-    );
-  }
-
-  @RequirePermission('admin:access')
-  @Post('refunds/:id')
-  decide(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: RefundDecisionDto,
-    @Req() request: RequestWithPrincipal,
-  ) {
-    return this.admin.decideRefund(
-      this.actor(request),
-      id,
-      body.decision,
-      body.note,
-      clientIp(request.ip),
-    );
-  }
-
-  @RequirePermission('admin:access')
-  @Post('refunds/:id/paid-out')
-  paidOut(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: PaidOutDto,
-    @Req() request: RequestWithPrincipal,
-  ) {
-    return this.admin.markPaidOut(
-      this.actor(request),
-      id,
-      body.referenceCode,
       clientIp(request.ip),
     );
   }

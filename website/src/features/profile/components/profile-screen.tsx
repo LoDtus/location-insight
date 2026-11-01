@@ -16,6 +16,7 @@ import { AUTH_BUTTON_CLASS, AUTH_FIELD_CLASS } from "@/app/auth/form-class";
 import type { ShellRoot } from "@/features/app/shell";
 import { AuthApiError } from "@/features/auth/auth.api";
 import { profileUpdated } from "@/features/auth/auth.slice";
+import { ProfileForumPost } from "@/features/profile/components/profile-forum-post";
 import {
     getOwnProfile,
     getPublicProfile,
@@ -369,6 +370,8 @@ export default function ProfileScreen({
                         {message}
                     </p>
                 ) : null}
+
+                {own ? <ProfileForumPost root={root} /> : null}
 
                 {own && root === "/app" && profile.username ? (
                     <p className="mt-8 mb-0 border-t border-charcoal/15 pt-6 text-sm">

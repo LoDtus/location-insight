@@ -36,6 +36,8 @@ const nextConfig: NextConfig = {
         ? {}
         : {
               allowedDevOrigins: ["localhost", "127.0.0.1"],
+              // Next không proxy WebSocket: ở dev trình duyệt nối thẳng cổng backend.
+              env: { REALTIME_BACKEND_PORT: process.env.BACKEND_PORT || "22370" },
           }),
     async rewrites() {
         const prefix = process.env.GLOBAL_PREFIX || "api/v1";

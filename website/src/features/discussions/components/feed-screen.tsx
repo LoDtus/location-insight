@@ -22,6 +22,7 @@ import {
 } from "@/features/discussions/discussions.api";
 import { PostCard, readSavedPosts, writeSavedPosts } from "@/features/discussions/components/post-card";
 import { PostComposer } from "@/features/discussions/components/post-composer";
+import { SharePostDialog } from "@/features/messaging/components/share-post-dialog";
 import { getConfirmModal } from "@/shared/utils/confirm.utils";
 
 export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
@@ -41,6 +42,7 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
     const [quote, setQuote] = useState<DiscussionPost | null>(null);
     const [saved, setSaved] = useState<string[]>([]);
     const [message, setMessage] = useState("");
+    const [sharing, setSharing] = useState<DiscussionPost | null>(null);
     const [pending, setPending] = useState(false);
     const [loading, setLoading] = useState(true);
 
@@ -173,12 +175,6 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
         setMessage(next.includes(id) ? "Đã lưu. Chỉ mình bạn thấy bài đã lưu trên trình duyệt này." : "Đã bỏ lưu.");
     }
 
-    async function share(post: DiscussionPost): Promise<void> {
-        const url = `${window.location.origin}${root}/feed/${post.id}`;
-        await navigator.clipboard.writeText(url);
-        setMessage("Đã sao chép liên kết.");
-    }
-
     return (
         <main ref={scroller} className={`h-full overflow-auto ${root === "/admin" ? "bg-white" : "bg-cream"}`}>
             <div className="mx-auto min-h-full w-full max-w-[640px] border-x border-charcoal/10 bg-white">
@@ -250,7 +246,7 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
                                     setQuote(post);
                                     scroller.current?.scrollTo({ top: 0 });
                                 }}
-                                onShare={() => void share(post).catch(() => setMessage("Chưa sao chép được liên kết."))}
+                                onShare={() => (setSharing(post))}
                                 onSave={() => toggleSaved(post.id)}
                                 onDelete={() => {
                                     void getConfirmModal({
@@ -271,6 +267,17 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
                 </ol>
                 <div ref={sentinel} className="h-16" />
             </div>
+            {sharing ? (
+                <SharePostDialog
+                    postId={sharing.id}
+                    link={`${window.location.origin}${root}/feed/${sharing.id}`}
+                    onClose={() => setSharing(null)}
+                    onDone={(text) => {
+                        setSharing(null);
+                        setMessage(text);
+                    }}
+                />
+            ) : null}
         </main>
     );
 }

@@ -10,6 +10,8 @@ import {
     Newspaper,
     PanelLeftClose,
     PanelLeftOpen,
+    Send,
+    ShieldAlert,
     Users,
     Wallet,
     type LucideIcon,
@@ -20,6 +22,7 @@ import { useEffect, useRef, useState, type JSX } from "react";
 
 import { logout } from "@/features/auth/auth.api";
 import { useAuth } from "@/features/auth/use-auth";
+import { useUnreadBadge } from "@/features/messaging/messaging-provider";
 import { useLocale } from "@/shared/hooks/useLocale";
 
 type NavItem = {
@@ -27,6 +30,7 @@ type NavItem = {
     href: string;
     icon: LucideIcon;
     label: string;
+    badge?: number;
 };
 
 type NavDivider = {
@@ -61,6 +65,7 @@ export default function AppSidebar({
     const router = useRouter();
     const { locale } = useLocale();
     const auth = useAuth();
+    const unread = useUnreadBadge();
     const [collapsed, setCollapsed] = useState(false);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [signingOut, setSigningOut] = useState(false);
@@ -121,6 +126,13 @@ export default function AppSidebar({
                       label: vi ? "Diễn đàn" : "Discussions",
                   },
                   {
+                      kind: "item",
+                      href: "/admin/messages",
+                      icon: Send,
+                      label: vi ? "Tin nhắn" : "Messages",
+                      badge: unread,
+                  },
+                  {
                       kind: "divider",
                       id: "admin",
                       label: vi ? "Quản trị" : "Admin",
@@ -136,6 +148,12 @@ export default function AppSidebar({
                       href: "/admin/users",
                       icon: Users,
                       label: vi ? "Người dùng" : "Users",
+                  },
+                  {
+                      kind: "item",
+                      href: "/admin/messaging",
+                      icon: ShieldAlert,
+                      label: vi ? "Báo cáo tin nhắn" : "Message reports",
                   },
               ]
             : [
@@ -156,6 +174,13 @@ export default function AppSidebar({
                       href: "/app/feed",
                       icon: MessagesSquare,
                       label: vi ? "Diễn đàn" : "Discussions",
+                  },
+                  {
+                      kind: "item",
+                      href: "/app/messages",
+                      icon: Send,
+                      label: vi ? "Tin nhắn" : "Messages",
+                      badge: unread,
                   },
                   {
                       kind: "item",
@@ -261,8 +286,21 @@ export default function AppSidebar({
                             aria-current={active ? "page" : undefined}
                             className={`flex min-h-11 items-center rounded-xl text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green ${compact ? "justify-center px-2" : "gap-3 px-3"} ${active ? "bg-green font-semibold text-cream" : "text-charcoal/80 hover:bg-green/10 hover:text-green"}`}
                         >
-                            <Icon className="size-[18px] shrink-0" aria-hidden="true" />
+                            <span className="relative inline-flex shrink-0">
+                                <Icon className="size-[18px]" aria-hidden="true" />
+                                {compact && item.badge ? (
+                                    <span className="absolute -top-1 -right-1 size-2.5 rounded-full bg-gold ring-2 ring-cream" aria-hidden="true" />
+                                ) : null}
+                            </span>
                             {compact ? null : <span className="truncate">{item.label}</span>}
+                            {!compact && item.badge ? (
+                                <span
+                                    className={`ml-auto inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-semibold ${active ? "bg-cream text-green" : "bg-green text-cream"}`}
+                                    aria-label={`${item.badge} chưa đọc`}
+                                >
+                                    {item.badge >= 99 ? "99+" : item.badge}
+                                </span>
+                            ) : null}
                         </Link>
                     );
                 })}

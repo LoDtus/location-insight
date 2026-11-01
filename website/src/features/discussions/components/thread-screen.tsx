@@ -19,6 +19,7 @@ import {
 } from "@/features/discussions/discussions.api";
 import { PostCard, readSavedPosts, writeSavedPosts } from "@/features/discussions/components/post-card";
 import { PostComposer } from "@/features/discussions/components/post-composer";
+import { SharePostDialog } from "@/features/messaging/components/share-post-dialog";
 import { getConfirmModal } from "@/shared/utils/confirm.utils";
 
 export function ThreadScreen({ id, root }: { id: string; root: ShellRoot }): JSX.Element {
@@ -35,6 +36,7 @@ export function ThreadScreen({ id, root }: { id: string; root: ShellRoot }): JSX
     const [quote, setQuote] = useState<DiscussionPost | null>(null);
     const [saved, setSaved] = useState<string[]>([]);
     const [message, setMessage] = useState("");
+    const [sharing, setSharing] = useState<DiscussionPost | null>(null);
     const [pending, setPending] = useState(false);
     const replyRef = useRef<HTMLDivElement>(null);
 
@@ -107,11 +109,6 @@ export function ThreadScreen({ id, root }: { id: string; root: ShellRoot }): JSX
         setMessage(next.includes(postId) ? "Đã lưu. Chỉ mình bạn thấy bài đã lưu trên trình duyệt này." : "Đã bỏ lưu.");
     }
 
-    async function share(target: DiscussionPost): Promise<void> {
-        await navigator.clipboard.writeText(`${window.location.origin}${root}/feed/${target.id}`);
-        setMessage("Đã sao chép liên kết.");
-    }
-
     async function sendReply(): Promise<void> {
         setPending(true);
         setMessage("");
@@ -178,7 +175,7 @@ export function ThreadScreen({ id, root }: { id: string; root: ShellRoot }): JSX
                                     setQuote(item);
                                     replyRef.current?.scrollIntoView({ block: "nearest" });
                                 }}
-                                onShare={() => void share(item).catch(() => setMessage("Chưa sao chép được liên kết."))}
+                                onShare={() => (setSharing(item))}
                                 onSave={() => toggleSaved(item.id)}
                                 onDelete={() => {
                                     void getConfirmModal({
@@ -218,6 +215,17 @@ export function ThreadScreen({ id, root }: { id: string; root: ShellRoot }): JSX
                     />
                 </div>
             </div>
+            {sharing ? (
+                <SharePostDialog
+                    postId={sharing.id}
+                    link={`${window.location.origin}${root}/feed/${sharing.id}`}
+                    onClose={() => setSharing(null)}
+                    onDone={(text) => {
+                        setSharing(null);
+                        setMessage(text);
+                    }}
+                />
+            ) : null}
         </main>
     );
 }

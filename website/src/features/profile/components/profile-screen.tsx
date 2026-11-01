@@ -17,6 +17,7 @@ import { AUTH_BUTTON_CLASS, AUTH_FIELD_CLASS } from "@/app/auth/form-class";
 import type { ShellRoot } from "@/features/app/shell";
 import { AuthApiError } from "@/features/auth/auth.api";
 import { profileUpdated } from "@/features/auth/auth.slice";
+import { EmailPreferencesCard } from "@/features/email/components/email-preferences-card";
 import { ProfileForumPost } from "@/features/profile/components/profile-forum-post";
 import { ProfilePosts } from "@/features/profile/components/profile-posts";
 import {
@@ -381,6 +382,12 @@ export default function ProfileScreen({
                 ) : null}
 
                 {own ? <ProfileForumPost root={root} onPosted={() => setPostedTick((current) => current + 1)} /> : null}
+
+                {own ? (
+                    <div className="mt-8">
+                        <EmailPreferencesCard />
+                    </div>
+                ) : null}
 
                 {own && root === "/app" && profile.username ? (
                     <p className="mt-8 mb-0 border-t border-charcoal/15 pt-6 text-sm">

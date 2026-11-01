@@ -4,6 +4,7 @@ import Image from "next/image";
 import {
     BadgeCheck,
     House,
+    Mail,
     LogOut,
     Map,
     MessagesSquare,
@@ -141,6 +142,12 @@ export default function AppSidebar({
                       icon: MessageSquareHeart,
                       label: vi ? "Góp ý" : "Feedback",
                       badge: feedbackBadge,
+                  },
+                  {
+                      kind: "item",
+                      href: "/admin/email",
+                      icon: Mail,
+                      label: "Email",
                   },
                   {
                       kind: "divider",

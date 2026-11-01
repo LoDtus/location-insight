@@ -24,6 +24,7 @@ import { MessagingPresenterService } from './messaging-presenter.service.js';
 import { MessagingRateLimitService } from './messaging-rate-limit.service.js';
 import { MessagingRealtimeService } from './messaging-realtime.service.js';
 import { MessagingSafetyService } from './messaging-safety.service.js';
+import { SeedMessagingService } from './seed-messaging.service.js';
 import { MessagingSchemaService } from './messaging-schema.service.js';
 import { MessagingController } from './messaging.controller.js';
 
@@ -58,6 +59,7 @@ import { MessagingController } from './messaging.controller.js';
     MessagingRealtimeService,
     MessagingMaintenanceService,
     MessagingSchemaService,
+    SeedMessagingService,
   ],
 })
 export class MessagingModule {}

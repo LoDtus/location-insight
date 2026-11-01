@@ -8,7 +8,9 @@ info:
     - Người không phải thành viên hội thoại nhận 404 `not_found` (không phân biệt "không tồn tại" và "không phải của bạn").
     - Chặn và `who_can_message = nobody` cùng trả 403 `cannot_message_user` để không lộ ai chặn ai.
     - Phân trang bằng `seq` (tin) hoặc con trỏ mờ `cursor` (hộp thư). Không dùng offset.
-    - Lỗi chuẩn: { statusCode, message, code, trackId }.
+    - Lỗi theo khung phản hồi của dự án: { success: false, status, message, error: { code, details }, traceId }.
+    - Mã lỗi nghiệp vụ nằm ở error.details.code: cannot_message_user, request_pending, email_not_verified, attachment_rejected. 429 có error.details.retryAfter (giây).
+    - Phản hồi thành công nằm trong `data` của khung chuẩn.
     - Tin nhắn và URL ảnh không bao giờ ghi vào nhật ký.
 tags:
   - { name: conversations }
@@ -148,14 +150,14 @@ paths:
       tags: [messages]
       summary: Tin trong hội thoại
       description: |
-        Không có tham số: 30 tin mới nhất. `before_seq`: các tin cũ hơn (tải thêm lên trên). `after_seq`: các tin mới hơn (đồng bộ lại sau khi mất kết nối).
+        Không có tham số: 30 tin mới nhất. `beforeSeq`: các tin cũ hơn (tải thêm lên trên). `afterSeq`: các tin mới hơn (đồng bộ lại sau khi mất kết nối).
         Kết quả luôn sắp seq tăng dần. Tin có seq <= cleared_before_seq của người gọi không trả về.
         Tin `deleted` trả với body rỗng và status deleted (để vẽ "Tin nhắn đã thu hồi"). Tin `hidden` trả như `deleted` cho người dùng.
         URL ảnh ký hạn 1 giờ, tạo lại mỗi lần gọi.
       x-permission: message:read
       parameters:
-        - { name: before_seq, in: query, schema: { type: integer, format: int64, minimum: 1 } }
-        - { name: after_seq, in: query, schema: { type: integer, format: int64, minimum: 0 } }
+        - { name: beforeSeq, in: query, schema: { type: integer, format: int64, minimum: 1 } }
+        - { name: afterSeq, in: query, schema: { type: integer, format: int64, minimum: 0 } }
         - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 30 } }
       responses:
         "200":
@@ -172,7 +174,7 @@ paths:
                   lastSeq: { type: integer, format: int64 }
                   peerLastReadSeq: { type: integer, format: int64, nullable: true, description: "null nếu người kia tắt báo đã đọc" }
         "404": { $ref: "#/components/responses/NotFound" }
-        "422": { description: "before_seq và after_seq cùng có" }
+        "422": { description: "beforeSeq và afterSeq cùng có" }
     post:
       tags: [messages]
       summary: Gửi một tin
@@ -204,7 +206,7 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { description: "request_pending" }
         "422": { description: "Body rỗng sau khi làm sạch, quá 2.000 ký tự, replyToSeq không tồn tại, attachment không hợp lệ, bài không hiển thị" }
-        "429": { description: "Vượt giới hạn tần suất; kèm header Retry-After" }
+        "429": { description: "Vượt giới hạn tần suất; error.details.retryAfter là số giây phải chờ" }
         "503": { description: "Redis giới hạn tần suất lỗi (đóng an toàn)" }
   /messaging/conversations/{conversationId}/messages/{messageId}:
     parameters:

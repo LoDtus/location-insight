@@ -58,6 +58,8 @@ Lưu ý: kiểm tra theo **quyền**, không theo tên vai trò. Chuỗi `role =
 | `comment:delete` | xóa bình luận | chủ bình luận, hoặc `listing:moderate` |
 | `discussion:read` | đọc diễn đàn | cần đăng nhập |
 | `discussion:write` | tạo chủ đề, bài, trả lời, thích, báo cáo | cần đăng nhập |
+| `message:read` | đọc tin nhắn riêng của mình | cần đăng nhập; chỉ hội thoại mình tham gia (`009-messaging`) |
+| `message:write` | nhắn tin, thả cảm xúc, chặn, báo cáo tin | cần đăng nhập; có giới hạn tần suất riêng |
 
 ### 2.3 Theo gói
 
@@ -80,6 +82,7 @@ Lưu ý: kiểm tra theo **quyền**, không theo tên vai trò. Chuỗi `role =
 | `report:review` | xử lý báo cáo vi phạm | không |
 | `article:manage` | tạo, sửa, xuất bản bài viết | không |
 | `discussion:moderate` | ẩn bài diễn đàn, khóa hoặc ẩn chủ đề | không |
+| `message:moderate` | xem tin bị báo cáo (bản chụp ngữ cảnh), ẩn tin | không; không đọc được hội thoại tùy ý |
 | `audit:read` | xem `admin_audit_logs`, `auth_events` rút gọn | không |
 
 ## 3. Ma trận vai trò × quyền
@@ -149,11 +152,11 @@ export type Permission =
   | 'notification:read' | 'place:save' | 'place:note' | 'analysis:run' | 'analysis:history:read'
   | 'listing:create' | 'listing:update' | 'listing:delete' | 'listing:contact:reveal'
   | 'listing:report' | 'comment:create' | 'comment:delete'
-  | 'discussion:read' | 'discussion:write'
+  | 'discussion:read' | 'discussion:write' | 'message:read' | 'message:write'
   | 'valuation:run'
   | 'admin:access' | 'user:read' | 'user:lock' | 'user:session:revoke' | 'subscription:grant'
   | 'credit:grant' | 'quota:reset' | 'listing:moderate' | 'report:review' | 'article:manage'
-  | 'discussion:moderate'
+  | 'discussion:moderate' | 'message:moderate'
   | 'audit:read';
 
 export type QuotaName = 'analysisDaily';
@@ -189,13 +192,13 @@ export const USER_PERMISSIONS = [
   'notification:read', 'place:save', 'place:note', 'analysis:run', 'analysis:history:read',
   'listing:create', 'listing:update', 'listing:delete', 'listing:contact:reveal',
   'listing:report', 'comment:create', 'comment:delete',
-  'discussion:read', 'discussion:write',
+  'discussion:read', 'discussion:write', 'message:read', 'message:write',
 ] as const satisfies readonly Permission[];
 
 export const ADMIN_PERMISSIONS = [
   'admin:access', 'user:read', 'user:lock', 'user:session:revoke', 'subscription:grant',
   'credit:grant', 'quota:reset', 'listing:moderate', 'report:review', 'article:manage',
-  'discussion:moderate', 'audit:read',
+  'discussion:moderate', 'message:moderate', 'audit:read',
 ] as const satisfies readonly Permission[];
 
 export const PLAN_ENTITLEMENTS: Readonly<Record<Plan, PlanEntitlement>> = {

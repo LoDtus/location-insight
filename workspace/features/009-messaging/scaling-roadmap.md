@@ -8,6 +8,8 @@ Tham khảo: [Discord](https://discord.com/blog/how-discord-stores-trillions-of-
 
 ## Bước 0 — Việc phải làm ngay trước khi mở tính năng
 
+**Trạng thái (02/11/2026): đã làm** — pipeline `recheck`, chỉ transport websocket, `maxHttpBufferSize` 16 KB, danh sách origin + kiểm `Origin` (`allowRequest`), tối đa 5 socket mỗi người (4403), tối đa 10 sự kiện mỗi giây mỗi socket (4429). Còn thiếu: số liệu (số socket, độ trễ commit → emit) và load test.
+
 Đã có trong hạ tầng realtime của 003-auth nhưng không chịu được tải nhắn tin:
 
 | Việc | Lý do |
@@ -47,7 +49,7 @@ Thay đổi:
 
 1. **Tiến trình realtime riêng**: cùng mã nguồn, chạy với `APP_ROLE=realtime` (chỉ nạp gateway và bộ đăng ký sự kiện), tách khỏi `APP_ROLE=api`. Lý do giống Zulip tách Tornado giữ kết nối dài khỏi Django: vòng đời kết nối dài và vòng đời request ngắn khác nhau, deploy API không làm rớt socket.
 2. **Redis sharded Pub/Sub** (Redis 7+, `@socket.io/redis-adapter` `createShardedAdapter`, ioredis `shardedSubscribers: true`): tài liệu Socket.IO khuyến nghị cho dự án mới. Định tuyến theo `userId` để mỗi người thuộc một slot.
-3. **Đọc từ bản sao** (read replica) cho `GET messages` và hộp thư với độ trễ chấp nhận được; ghi và `last_seq` luôn trên primary. Cần xử lý "đọc ngay sau khi ghi": phản hồi `POST` đã chứa tin; `GET after_seq` sau reconnect có thể đọc replica với `after_seq` khớp `lastSeq` từ primary hoặc fallback.
+3. **Đọc từ bản sao** (read replica) cho `GET messages` và hộp thư với độ trễ chấp nhận được; ghi và `last_seq` luôn trên primary. Cần xử lý "đọc ngay sau khi ghi": phản hồi `POST` đã chứa tin; `GET afterSeq` sau reconnect có thể đọc replica với `afterSeq` khớp `lastSeq` từ primary hoặc fallback.
 4. **Outbox giao dịch**: ghi một dòng `message_outbox` trong cùng giao dịch gửi tin, một worker đọc và `PUBLISH`. Sửa lỗi hiếm "commit xong, tiến trình chết trước khi PUBLISH" thay vì dựa vào client đồng bộ lại. Dùng chung cho thông báo đẩy ở bậc này.
 5. **Thông báo ngoài ứng dụng** (push, email khi chưa đọc 15 phút) chạy từ outbox; tôn trọng `muted_until`.
 6. **Hàng đợi** (Redis Streams hoặc BullMQ nếu đã dùng ở nơi khác) cho job dọn tệp, đối soát, gửi thông báo. Không bắt buộc thêm Kafka/NATS.
@@ -66,7 +68,7 @@ Hợp đồng sự kiện (`socket-api.yml`) và API REST giữ nguyên; `v` cho
 Thay đổi:
 
 1. **Hash partition `messages`, `message_attachments`, `message_reactions` theo `conversation_id`** (16–64 partition). Khóa chính và truy vấn không đổi (xem `data-review.md`). Cách này khớp Discord: dữ liệu khóa theo kênh. Phân vùng theo thời gian chỉ dùng cho kho lưu trữ lạnh.
-2. **Lưu trữ lạnh**: tin cũ hơn N tháng chuyển sang bảng/phân vùng rẻ hơn; API vẫn cùng `before_seq`.
+2. **Lưu trữ lạnh**: tin cũ hơn N tháng chuyển sang bảng/phân vùng rẻ hơn; API vẫn cùng `beforeSeq`.
 3. **Con trỏ đã đọc kiểu "tính theo yêu cầu" cho nhóm lớn**: bỏ cập nhật mỗi người mỗi tin; chỉ cập nhật `last_read_seq` khi người đọc, tính chưa đọc bằng so với `last_seq` khi hiển thị; phát sự kiện nhóm theo phòng hội thoại thay vì từng người.
 4. **Cấp `seq` không dùng khóa dòng** cho hội thoại rất sôi động: bộ đếm trong Redis (`INCR`) có ghi nhật ký, hoặc khối `seq` cấp phát theo lô. Chỉ áp dụng cho nhóm lớn; 1-1 giữ nguyên.
 5. **Cơ sở dữ liệu tách theo hàng (Citus) hoặc kho cột rộng** (Cassandra/ScyllaDB) cho `messages`, nếu một primary PostgreSQL không còn đủ. Discord khóa theo `(channel_id, bucket)` và chuyển Cassandra sang ScyllaDB vì partition nóng; ta tránh được một phần nhờ giới hạn kích thước hội thoại. Quyết định này là một chiều: cần một bản ghi quyết định mới trong `research.md` và load test trước.

@@ -23,7 +23,7 @@ Theo quy ước `003-auth/redis.md`: chữ thường, ngăn bằng `:`, mọi kh
 | `ratelimit:msg:read:user_{userId}` | số đếm | | 10 giây | đánh dấu đã đọc | 30 lần mỗi 10 giây (client đã debounce) |
 | `ratelimit:msg:typing:conv_{conversationId}:user_{userId}` | chuỗi | | 2 giây | sự kiện typing | một tín hiệu mỗi 2 giây, vượt thì bỏ im lặng |
 | `msg:members:{conversationId}` | set | `userId` còn tham gia | 10 phút | gửi tin, typing, nạp từ DB | Kiểm tra thành viên nhanh cho socket; xóa khi đổi thành viên hoặc `declined` |
-| `msg:ws:count:{userId}` | số đếm | số socket đang mở | 90 giây, gia hạn mỗi ping | gateway connect/disconnect/ping | Tối đa 5 socket mỗi người |
+| `msg:ws:sockets:{userId}` | zset | member = socketId, score = lần ping gần nhất (ms) | 180 giây, gia hạn khi nối | gateway connect/ping/disconnect | Tối đa 5 socket mỗi người; dư thì phát `events:realtime:evict` để các instance đóng socket cũ nhất (4403); mục quá 90 giây không ping bị dọn lúc có socket mới |
 | `presence:online:{userId}` | string `1` | | 90 giây, gia hạn mỗi `ping` (25 giây) | gateway | "Đang hoạt động" nếu khóa còn |
 | `presence:last:{userId}` | string (ms) | thời điểm gần nhất thấy hoạt động | 30 ngày | gateway (ping, disconnect) | "Hoạt động 9 giờ trước" |
 | `msg:unread:{userId}` | hash `inbox`, `requests` | số hội thoại chưa đọc | 5 phút | tính từ DB khi thiếu | Bộ đệm cho `GET /messaging/unread-count`; xóa khi gửi tin tới người đó hoặc khi đọc |
@@ -45,6 +45,10 @@ Mỗi sự kiện là JSON, có `v` (phiên bản), `at` (ms), và danh sách `t
 | `events:messaging:conversation.updated` | `{ v, at, to, conversationId, state, reason }` | chấp nhận, từ chối, chặn |
 | `events:messaging:typing` | `{ v, at, to, conversationId, userId, active }` | phát `typing`; không lưu |
 | `events:messaging:unread` | `{ v, at, to: [userId] }` | phát `unread.changed` để client lấy lại số chưa đọc (khi thiếu bộ đệm thì tính lại) |
+
+Có thêm kênh `events:realtime:evict` (`{ socketIds }`) do gateway dùng chung, không thuộc nhắn tin.
+
+Tên khóa giới hạn thực tế: `ratelimit:msg:{send|sendConversation|newConversation|attach|react|report|search|read}:{phạm vi}`, một script Lua `INCR` + `EXPIRE` nguyên tử.
 
 Pub/Sub không đảm bảo giao: client bù bằng `GET` khi nối lại hoặc khi thấy lỗ hổng `seq`. Sự kiện luôn phát **sau khi** giao dịch DB commit; thứ tự lỗi (đã phát nhưng rollback) bị loại trừ vì phát nằm sau commit; thứ tự ngược (commit rồi mất sự kiện) được bù như trên.
 

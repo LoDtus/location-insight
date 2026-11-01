@@ -3,7 +3,7 @@ info:
   title: Địa Thế — Realtime (nhắn tin)
   version: 0.1.0
   description: |
-    Dùng chung một kết nối Socket.IO với `003-auth` (`/api/v1/realtime`, vé một lần từ `POST /realtime/ticket`).
+    Dùng chung một kết nối Socket.IO với `003-auth` (đường dẫn Socket.IO `/api/v1/ws`, vé một lần từ `POST /api/v1/realtime/ticket`; không đặt dưới `/realtime` vì engine.io chặn mọi URL bắt đầu bằng path của nó).
     Không mở kết nối thứ hai. Chỉ cho transport `websocket` để không cần sticky session (long-polling tắt).
 
     Nguyên tắc:
@@ -12,16 +12,17 @@ info:
     - Ghi dữ liệu luôn qua REST. Client chỉ gửi lên socket: `ping`, `typing`.
     - Mọi sự kiện có `v` (phiên bản, bắt đầu 1). Client bỏ qua sự kiện có `v` lớn hơn bản nó hiểu và trường lạ.
     - Mỗi socket tối đa 10 sự kiện lên mỗi giây; vượt thì đóng với 4429. Kích thước gói tối đa 16 KB (`maxHttpBufferSize`).
-    - Mã đóng giữ nguyên ở 003-auth: 4401, 4408, 4429, 1001. Thêm: 4403 (quá 5 socket mỗi người, socket cũ nhất bị đóng).
+    - Socket.IO không gửi mã đóng tùy ý: trước khi ngắt, máy chủ phát sự kiện `realtime.close` với `{ code }`. Mã: 4401 (phiên không hợp lệ, không nối lại), 4403 (quá 5 socket mỗi người, socket lâu không hoạt động nhất bị đóng, không nối lại), 4408 (vé sai hoặc hết hạn, xin vé mới), 4429 (quá 10 sự kiện mỗi giây, chờ 60 giây rồi nối lại).
+    - Dev: Next không proxy WebSocket nên trình duyệt nối thẳng cổng backend (`REALTIME_BACKEND_PORT`). Production: reverse proxy phải chuyển `/api/v1/ws` về backend (xem `website/nginx.conf`).
 servers:
   production:
     host: example.invalid
     protocol: wss
-    pathname: /api/v1/realtime
+    pathname: /api/v1/ws
     description: "Địa chỉ thật lấy từ cấu hình; qua proxy cùng origin. CORS dùng danh sách origin tường minh, không dùng origin = true."
 channels:
   connection:
-    address: /api/v1/realtime?ticket={ticket}
+    address: /api/v1/ws?ticket={ticket}
     parameters:
       ticket:
         description: Vé dùng một lần, sống 30 giây
@@ -115,6 +116,7 @@ components:
           seq: { type: integer, format: int64 }
           userId: { type: string, format: uuid }
           emoji: { type: string, nullable: true, description: "null khi bỏ cảm xúc" }
+          previousEmoji: { type: string, nullable: true, description: "cảm xúc cũ của người đó trên tin này, để client trừ đúng" }
         additionalProperties: false
     conversationRead:
       name: conversation.read

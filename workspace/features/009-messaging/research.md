@@ -57,7 +57,7 @@ Cần thứ tự ổn định, phân trang không lệch, phát hiện mất tin
 
 | Option | Fit with existing stack | Maintainability (solo-dev) | Reversibility | Notes |
 | --- | --- | --- | --- | --- |
-| `seq` bigint tăng dần trong từng hội thoại, khóa chính `(conversation_id, seq)`, `id` UUID v7 để công khai | Quy ước UUID v7 vẫn giữ cho id công khai | Phân trang `before_seq` / `after_seq` đơn giản; phát hiện lỗ hổng bằng so số | Đổi khóa chính bảng lớn sau này rất tốn | Khớp hash partition theo `conversation_id`; tăng `seq` trong giao dịch tuần tự hóa theo hội thoại, đủ cho 1-1 |
+| `seq` bigint tăng dần trong từng hội thoại, khóa chính `(conversation_id, seq)`, `id` UUID v7 để công khai | Quy ước UUID v7 vẫn giữ cho id công khai | Phân trang `beforeSeq` / `afterSeq` đơn giản; phát hiện lỗ hổng bằng so số | Đổi khóa chính bảng lớn sau này rất tốn | Khớp hash partition theo `conversation_id`; tăng `seq` trong giao dịch tuần tự hóa theo hội thoại, đủ cho 1-1 |
 | Chỉ UUID v7 làm khóa chính, sắp theo id | Giống các bảng khác | Không phát hiện được lỗ hổng; cursor theo thời gian dễ lệch khi hai tin cùng mili giây | Dễ | Không có thứ tự toàn phần trong một hội thoại |
 | Snowflake 64 bit toàn cục như Discord | Cần dịch vụ cấp id hoặc bố trí worker id | Thêm khái niệm vận hành | Khó | Không cần ở quy mô này |
 
@@ -97,7 +97,7 @@ Redis Pub/Sub chỉ giao "nhiều nhất một lần". Redis adapter của Socke
 
 ### Quyết định <!-- key: decision -->
 
-Giữ mô hình hiện có: kênh `events:messaging:*`, mỗi instance tự phát tới phòng `user:{id}` của mình. Mọi sự kiện mang `conversationId` và `seq`. Khi socket nối lại hoặc client thấy lỗ hổng: tải `GET /messaging/conversations` và `GET .../messages?after_seq=`. Không bật `connectionStateRecovery`.
+Giữ mô hình hiện có: kênh `events:messaging:*`, mỗi instance tự phát tới phòng `user:{id}` của mình. Mọi sự kiện mang `conversationId` và `seq`. Khi socket nối lại hoặc client thấy lỗ hổng: tải `GET /messaging/conversations` và `GET .../messages?afterSeq=`. Không bật `connectionStateRecovery`.
 
 Phát bằng `emit` tới phòng thay vì dùng Redis adapter, vì mỗi instance đã tự đăng ký kênh. Chuyển sang `@socket.io/redis-adapter` (sharded) khi cần hoặc khi nhiều module cùng phát (xem roadmap).
 

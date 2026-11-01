@@ -1,7 +1,7 @@
 # Nhắn tin trực tiếp thời gian thực (Messaging)
 
 **Feature ID:** 009-messaging
-**Status:** Draft
+**Status:** In Progress
 **Last Updated:** 2026-11-02
 
 ## Tổng quan <!-- key: overview -->
@@ -47,7 +47,7 @@ Người dùng đã đăng nhập nhắn tin riêng 1-1, nhận tin ngay qua Web
 - **FR-12 (đã đọc):** `PUT .../read { seq }` chỉ tăng. Người kia nhận `conversation.read` nếu người đọc bật báo đã đọc. Chưa đọc = `last_seq - last_read_seq`.
 - **FR-13 (số chưa đọc):** `GET /messaging/unread-count` trả số hội thoại chưa đọc của Inbox và Requests (chặn ở 99). Sự kiện `unread.changed` báo cập nhật.
 - **FR-14 (realtime):** sự kiện `message.created`, `message.updated`, `reaction.changed`, `conversation.read`, `conversation.updated`, `typing`, `unread.changed` tới phòng `user:{id}` trên mọi instance.
-- **FR-15 (đồng bộ lại):** sau khi nối lại hoặc khi thấy lỗ hổng `seq`, client gọi `GET .../messages?after_seq=` và tải lại hộp thư. Không phụ thuộc vào việc không mất sự kiện.
+- **FR-15 (đồng bộ lại):** sau khi nối lại hoặc khi thấy lỗ hổng `seq`, client gọi `GET .../messages?afterSeq=` và tải lại hộp thư. Không phụ thuộc vào việc không mất sự kiện.
 - **FR-16 (đang gõ):** client gửi `typing` tối đa mỗi 2 giây; máy chủ kiểm thành viên, giới hạn rồi chuyển cho người kia; không lưu.
 - **FR-17 (hiện diện):** "Đang hoạt động" / "Hoạt động X trước" lấy từ Redis, chỉ hiện cho người có hội thoại `active` và khi cả hai bên bật. Client hỏi khi mở hội thoại, không có phát quảng bá.
 - **FR-18 (cài đặt):** `GET/PATCH /messaging/preferences` cho `whoCanMessage`, `showActivityStatus`, `sendReadReceipts`.
@@ -67,7 +67,7 @@ Người dùng đã đăng nhập nhắn tin riêng 1-1, nhận tin ngay qua Web
 - **BR-06 (chặn):** A chặn B thì B không gửi, không thấy hiện diện của A, không tìm thấy A ở `/messaging/recipients`. Phản hồi không nêu lý do.
 - **BR-07 (thành viên):** mọi route theo hội thoại kiểm người gọi là thành viên đang tham gia, trong cùng truy vấn. Không phải thành viên (kể cả admin) thì `404`.
 - **BR-08 (gửi lại):** `(conversation_id, sender_id, client_msg_id)` duy nhất. Gửi lại với nội dung khác vẫn trả tin cũ.
-- **BR-09 (thu hồi):** chỉ tác giả; không giới hạn thời gian; thu hồi lần hai cũng `204`. Xem trước hội thoại tính lại từ tin `visible` gần nhất.
+- **BR-09 (thu hồi):** chỉ tác giả; không giới hạn thời gian; thu hồi lần hai cũng `204`. Nếu đó là tin cuối của hội thoại, xem trước đổi thành "Tin nhắn đã thu hồi".
 - **BR-10 (xóa phía mình):** không đổi dữ liệu của người kia. Tin mới đến hiện lại hội thoại, chỉ từ `seq` sau mốc xóa.
 - **BR-11 (đã đọc):** `last_read_seq` chỉ tăng; `seq` vượt `last_seq` bị cắt về `last_seq`. Tin của chính mình không tính là chưa đọc.
 - **BR-12 (ảnh):** chỉ nhận tệp `ready`, do chính người gửi tải, đúng hội thoại, chưa gắn tin nào. Hội thoại `pending` chưa được nhận ảnh. Quá 24 giờ chưa gắn thì bị dọn.
@@ -129,6 +129,8 @@ Sơ đồ: `diagrams/sequence-send-message.mmd`, `diagrams/sequence-reconnect-sy
 - Scaling: `scaling-roadmap.md`
 - Threat model: `threat-model.md`
 - UI: `ui/ui-spec.md`
+- Mã nguồn backend: `backend/src/modules/messaging/` (module), `backend/src/modules/auth/realtime.gateway.ts` và `realtime.registry.ts` (kênh realtime dùng chung)
+- Mã nguồn website: `website/src/features/messaging/` (store, socket, màn hình), `website/src/app/app/messages/`, `website/src/app/admin/messaging/`
 
 ## Tiêu chí nghiệm thu (Acceptance Criteria) <!-- key: acceptance_criteria -->
 
@@ -157,7 +159,7 @@ Sơ đồ: `diagrams/sequence-send-message.mmd`, `diagrams/sequence-reconnect-sy
 
 ## Câu hỏi mở (Open Questions) <!-- key: open_questions -->
 
-- Có yêu cầu email đã xác minh để gửi tin không (BR-16)? Đề xuất: có.
+- Có yêu cầu email đã xác minh để gửi tin không (BR-16)? Đã có cờ `MESSAGING_REQUIRE_VERIFIED_EMAIL=true` để bật; mặc định tắt vì môi trường hiện chưa có luồng xác minh email.
 - Chính sách lưu giữ cụ thể (BR-18) và cách xử lý tin của tài khoản đã xóa: cần xác nhận pháp lý theo Nghị định 13/2023/NĐ-CP.
 - Danh sách emoji cho phép: đề xuất 6 emoji nhanh (👍 ❤️ 😂 😮 😢 🙏) ở bản đầu, mở bảng đầy đủ sau.
 - Có cần email nhắc khi chưa đọc quá 15 phút ở bản đầu không? Đề xuất: không, làm ở bậc 2.
@@ -166,4 +168,5 @@ Sơ đồ: `diagrams/sequence-send-message.mmd`, `diagrams/sequence-reconnect-sy
 
 ## Nhật ký cập nhật <!-- key: update_log -->
 
+- 2026-11-02 (triển khai): hoàn thiện backend (REST, WebSocket, đồng bộ, giới hạn, báo cáo, dọn dẹp) và website (hộp thư, hội thoại, yêu cầu nhắn, ảnh, cảm xúc, chia sẻ bài, cài đặt, màn admin). Đổi đường dẫn Socket.IO sang `/api/v1/ws` vì `/api/v1/realtime` trùng tiền tố với `POST /realtime/ticket` (engine.io chặn mất route). Tham số phân trang đổi thành `beforeSeq`/`afterSeq`; mã lỗi nghiệp vụ nằm ở `error.details.code`; `429` trả `error.details.retryAfter`. Chọn người nhắn thì tạo hội thoại ngay (không có khung nháp). Cờ `MESSAGING_REQUIRE_VERIFIED_EMAIL` (mặc định tắt) cho BR-16.
 - 2026-11-02: Đặc tả đầu cho nhắn tin 1-1 thời gian thực, tham khảo giao diện Threads/Messenger và kiến trúc Discord, Zulip, Mattermost, Socket.IO (`research.md`). Nhóm chat để chỗ sẵn trong schema, chưa mở.

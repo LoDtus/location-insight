@@ -19,7 +19,7 @@ Phương pháp: STRIDE theo `02-planning-design/06-threat-modeling.md`, đối c
 | `POST .../messages` | Người đã đăng nhập, là thành viên | Chữ, ảnh, bài chia sẻ; nguồn spam |
 | `POST /messaging/attachments`, `.../complete` | Người đã đăng nhập | Tệp lên MinIO |
 | `GET /messaging/recipients` | Người đã đăng nhập | Dò người dùng |
-| WebSocket `/api/v1/realtime` | Người có vé | Sự kiện `typing`, `ping` từ client |
+| WebSocket `/api/v1/ws` | Người có vé | Sự kiện `typing`, `ping` từ client |
 | Kênh Redis `events:messaging:*` | Chỉ backend | Ai ghi được Redis giả mạo được sự kiện |
 | `/admin/messaging/*` | Admin | Đọc tin bị báo cáo |
 | MinIO bucket tin nhắn | Qua URL ký | Rò URL |

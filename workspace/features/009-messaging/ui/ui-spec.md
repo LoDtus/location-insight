@@ -98,7 +98,7 @@ Menu app thu gọn thành icon. Cột danh sách 300 px. Khung hội thoại ph�
 - Cuộn:
   - Mở hội thoại: cuộn xuống tin cuối; nếu có tin chưa đọc, cuộn tới ranh giới **"Tin mới"** (đường kẻ + nhãn) đầu tiên chưa đọc.
   - Có tin mới khi người dùng đang ở cách đáy < 120 px: tự cuộn xuống. Xa hơn: không cuộn, hiện nút nổi "Tin mới ↓" kèm số.
-  - Cuộn lên gần đỉnh (< 200 px): tải trang cũ (`before_seq`), giữ vị trí cuộn bằng neo (scroll anchoring), hiện chỉ báo ở đỉnh.
+  - Cuộn lên gần đỉnh (< 200 px): tải trang cũ (`beforeSeq`), giữ vị trí cuộn bằng neo (scroll anchoring), hiện chỉ báo ở đỉnh.
   - Khi số bong bóng trong DOM > 300: ảo hóa danh sách (windowing) hoặc cắt bớt phía xa; thư viện mới phải qua quy tắc dependency của dự án.
 - Vùng danh sách tin có `role="log"`, `aria-live="polite"`, `aria-relevant="additions"`; không đọc lại toàn bộ khi tải trang cũ.
 - Dấu hiệu đang gõ: ba chấm động ở đáy danh sách, `aria-live` im lặng (không đọc to), ẩn sau 5 giây không có tín hiệu mới.
@@ -126,13 +126,13 @@ Menu app thu gọn thành icon. Cột danh sách 300 px. Khung hội thoại ph�
 | Tài khoản người kia đã xóa/khóa | Tên "Người dùng đã xóa", avatar mặc định, thanh soạn bị vô hiệu, chữ giải thích |
 | Hội thoại không tồn tại hoặc không phải của mình | Trang 404 chung (không nói "không có quyền") |
 | Mất mạng khi mở | Giữ tin đã tải; banner "Không có kết nối"; cho soạn nháp; gửi lỗi sẽ vào trạng thái "Gửi lại" |
-| Quá giới hạn tốc độ (429) | Toast "Bạn gửi hơi nhanh, thử lại sau X giây" (dùng `Retry-After`); thanh soạn vẫn mở, tin giữ ở trạng thái lỗi |
+| Quá giới hạn tốc độ (429) | Toast "Bạn gửi hơi nhanh, thử lại sau X giây" (dùng `error.details.retryAfter`); thanh soạn vẫn mở, tin giữ ở trạng thái lỗi |
 | Phiên hết hạn / bị thu hồi | Dùng luồng sẵn có của 003-auth (chuyển tới đăng nhập, không mất nháp) |
 
 ## 6. Soạn tin mới
 
 - Mở bằng nút ✎ hoặc nút "Nhắn tin" ở hồ sơ (bỏ qua bước tìm, mở thẳng hội thoại).
-- Hộp thoại (dialog, `role="dialog"`, giữ focus, Esc đóng): ô "Tới:" có tìm kiếm; kết quả tối đa 10 dòng (avatar + tên); chọn một người; nút "Trò chuyện" mở khung hội thoại **nháp** ở phía client (chưa có bản ghi ở DB). Chỉ khi người dùng bấm gửi tin đầu tiên, client mới gọi `POST /messaging/conversations` rồi `POST .../messages`. Nếu đã có hội thoại với người này, API trả hội thoại cũ (200) và khung mở hội thoại thật. Hội thoại không có tin nào quá 24 giờ (do lỗi giữa hai lời gọi) bị job dọn xóa.
+- Hộp thoại (dialog, `role="dialog"`, giữ focus, Esc đóng): ô tìm kiếm; kết quả tối đa 10 dòng (avatar + tên); chọn một người thì tìm hoặc tạo hội thoại ngay (`POST /messaging/conversations`) rồi mở. (Bản triển khai không dùng khung hội thoại nháp; hội thoại chưa có tin nào không hiện ở hộp thư và bị job dọn sau 24 giờ.) Ghi chú thiết kế ban đầu: khung hội thoại **nháp** ở phía client (chưa có bản ghi ở DB). Chỉ khi người dùng bấm gửi tin đầu tiên, client mới gọi `POST /messaging/conversations` rồi `POST .../messages`. Nếu đã có hội thoại với người này, API trả hội thoại cũ (200) và khung mở hội thoại thật. Hội thoại không có tin nào quá 24 giờ (do lỗi giữa hai lời gọi) bị job dọn xóa.
 - Người chưa nhận tin vì đặt `nobody`: không xuất hiện trong kết quả.
 
 ## 7. Điểm vào từ phần khác của ứng dụng

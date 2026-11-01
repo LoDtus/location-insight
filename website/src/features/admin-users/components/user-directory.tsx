@@ -31,11 +31,19 @@ const STATUS_OPTIONS: { id: DirectoryStatus; label: string }[] = [
     { id: "none", label: "Chưa có gói" },
 ];
 
-const PLAN_OPTIONS: { id: DirectoryPlan; label: string }[] = [
-    { id: "free", label: "Miễn phí" },
-    { id: "unlimited", label: "Không giới hạn lượt" },
-    { id: "valued", label: "Có định giá" },
+const PLAN_OPTIONS: { id: DirectoryPlan; label: string; background: string; color: string }[] = [
+    { id: "free", label: "Miễn phí", background: "#e6e2da", color: "#101111" },
+    { id: "unlimited", label: "Không giới hạn lượt", background: "#026a4e", color: "#e6e2da" },
+    { id: "valued", label: "Có định giá", background: "#1d4e89", color: "#ffffff" },
 ];
+
+const STATUS_TAG: Record<DirectoryStatus, { label: string; background: string; color: string }> = {
+    active: { label: "Đang hoạt động", background: "#026a4e", color: "#e6e2da" },
+    trailing: { label: "Đang dùng thử", background: "#1d4e89", color: "#ffffff" },
+    canceled: { label: "Đã huỷ", background: "#b42318", color: "#ffffff" },
+    expired: { label: "Quá hạn", background: "#b54708", color: "#ffffff" },
+    none: { label: "Chưa có gói", background: "#e6e2da", color: "#101111" },
+};
 
 const SORT_OPTIONS: { id: DirectorySort; label: string }[] = [
     { id: "created_desc", label: "Đăng ký mới nhất" },
@@ -87,18 +95,35 @@ function listSearch(input: {
     return params.toString();
 }
 
-function signed(value: number): string {
+type DeltaTone = "up" | "down" | "flat";
+
+function signed(value: number): { text: string; tone: DeltaTone } {
     const amount = Math.abs(value).toLocaleString("vi-VN");
-    if (value > 0) return `Tăng ${amount} so với tháng trước`;
-    if (value < 0) return `Giảm ${amount} so với tháng trước`;
-    return "Không đổi so với tháng trước";
+    if (value > 0) return { text: `Tăng ${amount} so với tháng trước`, tone: "up" };
+    if (value < 0) return { text: `Giảm ${amount} so với tháng trước`, tone: "down" };
+    return { text: "Không đổi so với tháng trước", tone: "flat" };
 }
 
-function revenueNote(percent: number | null, current: number): string {
-    if (percent === null) return current > 0 ? "Phát sinh mới so với tháng trước" : "Không đổi so với tháng trước";
-    if (percent > 0) return `Tăng ${percent}% so với tháng trước`;
-    if (percent < 0) return `Giảm ${Math.abs(percent)}% so với tháng trước`;
-    return "Không đổi so với tháng trước";
+function revenueNote(percent: number | null, current: number): { text: string; tone: DeltaTone } {
+    if (percent === null) {
+        return current > 0
+            ? { text: "Phát sinh mới so với tháng trước", tone: "up" }
+            : { text: "Không đổi so với tháng trước", tone: "flat" };
+    }
+    if (percent > 0) return { text: `Tăng ${percent}% so với tháng trước`, tone: "up" };
+    if (percent < 0) return { text: `Giảm ${Math.abs(percent)}% so với tháng trước`, tone: "down" };
+    return { text: "Không đổi so với tháng trước", tone: "flat" };
+}
+
+function planTag(plan: DirectoryPlan): JSX.Element | null {
+    const option = PLAN_OPTIONS.find((item) => item.id === plan);
+    return option ? tintedTag(option.label, option.background, option.color) : null;
+}
+
+function tintedTag(label: string, background: string, color: string): JSX.Element {
+    return (
+        <Tag style={{ margin: 0, background, color, borderColor: background }}>{label}</Tag>
+    );
 }
 
 export default function UserDirectory(): JSX.Element {
@@ -169,7 +194,7 @@ export default function UserDirectory(): JSX.Element {
                 render: (_value, row) => (
                     <div className="flex flex-col items-start gap-1">
                         <span className="font-mono text-sm tracking-wide">{row.planCode || "—"}</span>
-                        <Tag>{PLAN_OPTIONS.find((option) => option.id === row.plan)?.label}</Tag>
+                        {planTag(row.plan)}
                     </div>
                 ),
             },
@@ -203,8 +228,10 @@ export default function UserDirectory(): JSX.Element {
                 title: "Trạng thái",
                 dataIndex: "status",
                 width: 160,
-                render: (value: DirectoryStatus) =>
-                    value === "none" ? "—" : STATUS_OPTIONS.find((option) => option.id === value)?.label,
+                render: (value: DirectoryStatus) => {
+                    const option = STATUS_TAG[value];
+                    return tintedTag(option.label, option.background, option.color);
+                },
             },
             {
                 title: "Chu kỳ",
@@ -343,12 +370,12 @@ export default function UserDirectory(): JSX.Element {
             <main className="box-border flex flex-col gap-6 px-4 py-8 sm:px-8">
                 <h1 className="m-0 text-2xl font-semibold">Quản lý người dùng</h1>
                 <section aria-label="Tổng quan người dùng" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                    <StatCard title="Tổng số người dùng" value={summary ? String(summary.users.total) : "—"} note={summary ? signed(summary.users.delta) : ""} highlight={summary ? summary.users.delta > 0 : false} />
-                    <StatCard title="Số người dùng mới" value={summary ? String(summary.newUsers.current) : "—"} note={summary ? signed(summary.newUsers.current - summary.newUsers.previous) : ""} highlight={summary ? summary.newUsers.current - summary.newUsers.previous > 0 : false} />
-                    <StatCard title="Số người đang online" value={summary ? String(summary.online) : "—"} note="Trong 5 phút gần đây" highlight={false} />
-                    <StatCard title="Số gói đang active" value={summary ? String(summary.activePlans.current) : "—"} note={summary ? signed(summary.activePlans.delta) : ""} highlight={summary ? summary.activePlans.delta > 0 : false} />
-                    <StatCard title="Doanh thu 1 tháng" value={summary ? formatVnd(summary.revenue.currentVnd) : "—"} note={summary ? revenueNote(summary.revenue.percent, summary.revenue.currentVnd) : ""} highlight={summary ? (summary.revenue.percent ?? 0) > 0 : false} />
-                    <StatCard title="Cần xử lý" value={summary ? String(summary.pastDue) : "—"} note="Đăng ký quá hạn thanh toán" highlight={false} />
+                    <StatCard title="Tổng số người dùng" value={summary ? String(summary.users.total) : "—"} note={summary ? signed(summary.users.delta) : null} />
+                    <StatCard title="Số người dùng mới" value={summary ? String(summary.newUsers.current) : "—"} note={summary ? signed(summary.newUsers.current - summary.newUsers.previous) : null} />
+                    <StatCard title="Số người đang online" value={summary ? String(summary.online) : "—"} note={{ text: "Trong 5 phút gần đây", tone: "flat" }} />
+                    <StatCard title="Số gói đang active" value={summary ? String(summary.activePlans.current) : "—"} note={summary ? signed(summary.activePlans.delta) : null} />
+                    <StatCard title="Doanh thu 1 tháng" value={summary ? formatVnd(summary.revenue.currentVnd) : "—"} note={summary ? revenueNote(summary.revenue.percent, summary.revenue.currentVnd) : null} />
+                    <StatCard title="Cần xử lý" value={summary ? String(summary.pastDue) : "—"} note={{ text: "Đăng ký quá hạn thanh toán", tone: "flat" }} />
                 </section>
                 <div className="flex flex-wrap gap-3">
                     <Input
@@ -418,7 +445,7 @@ export default function UserDirectory(): JSX.Element {
                                 if (!(target instanceof Element)) return;
                                 if (target.closest("button, a, input, label, .ant-checkbox, .ant-table-selection-column, .ant-dropdown")) return;
                                 if (!row.username) return;
-                                router.push(`/admin/profile/@${row.username}`);
+                                router.push(`/app/profile/@${row.username}`);
                             },
                         })}
                         pagination={{
@@ -440,19 +467,24 @@ function StatCard({
     title,
     value,
     note,
-    highlight,
 }: {
     title: string;
     value: string;
-    note: string;
-    highlight: boolean;
+    note: { text: string; tone: DeltaTone } | null;
 }): JSX.Element {
     return (
         <article className="rounded-md border border-[#d9d9d9] bg-white p-4">
             <h2 className="m-0 text-sm font-semibold">{title}</h2>
             <p className="m-0 mt-2 text-2xl font-semibold tabular-nums">{value}</p>
-            {note ? (
-                <p className={`m-0 mt-1 text-sm ${highlight ? "font-semibold text-[#026a4e]" : "text-[#101111]"}`}>{note}</p>
+            {note?.tone === "flat" ? <p className="m-0 mt-2 text-sm text-[#101111]">{note.text}</p> : null}
+            {note && note.tone !== "flat" ? (
+                <span
+                    className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-sm font-semibold ${
+                        note.tone === "up" ? "bg-[#026a4e] text-[#e6e2da]" : "bg-[#b42318] text-white"
+                    }`}
+                >
+                    {note.text}
+                </span>
             ) : null}
         </article>
     );

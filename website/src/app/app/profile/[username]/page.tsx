@@ -1,3 +1,5 @@
+import { notFound } from "next/navigation";
+
 import ProfileScreen from "@/features/profile/components/profile-screen";
 
 export default async function Page({
@@ -6,5 +8,7 @@ export default async function Page({
     params: Promise<{ username: string }>;
 }) {
     const { username } = await params;
-    return <ProfileScreen root="/app" username={username} />;
+    const handle = decodeURIComponent(username).replace(/^@/, "");
+    if (!handle) notFound();
+    return <ProfileScreen root="/app" username={handle} />;
 }

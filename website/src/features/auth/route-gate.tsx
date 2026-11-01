@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 
 import { homeForRole } from "@/features/auth/role-home";
@@ -11,20 +11,26 @@ function loginPath(): string {
     return `/auth/login?next=${encodeURIComponent(next)}`;
 }
 
+function adminViewingProfile(pathname: string): boolean {
+    return pathname === "/app/profile" || pathname.startsWith("/app/profile/");
+}
+
 export function RequireSession({ children }: { children: ReactNode }) {
     const auth = useAuth();
+    const pathname = usePathname();
     const router = useRouter();
+    const adminOnProfile = auth.user?.role === "admin" && adminViewingProfile(pathname);
 
     useEffect(() => {
         if (auth.status === "anonymous") {
             router.replace(loginPath());
         }
-        if (auth.status === "authenticated" && auth.user?.role === "admin") {
+        if (auth.status === "authenticated" && auth.user?.role === "admin" && !adminViewingProfile(pathname)) {
             router.replace(homeForRole("admin"));
         }
-    }, [auth.status, auth.user?.role, router]);
+    }, [auth.status, auth.user?.role, pathname, router]);
 
-    if (auth.status !== "authenticated" || auth.user?.role !== "user") return null;
+    if (auth.status !== "authenticated" || (auth.user?.role !== "user" && !adminOnProfile)) return null;
     return children;
 }
 

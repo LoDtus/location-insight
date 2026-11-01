@@ -168,13 +168,33 @@ export default function ArticleAdminList() {
                     const deleted = Boolean(article.deletedAt);
                     return (
                         <div className="flex flex-nowrap items-center gap-2">
-                            <Button type="primary" onClick={() => void editArticle(article)}>
+                            <Button
+                                type="primary"
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    void editArticle(article);
+                                }}
+                            >
                                 Sửa
                             </Button>
-                            <Button disabled={deleted || article.status === "hidden"} onClick={() => void hideArticle(article)}>
+                            <Button
+                                disabled={deleted || article.status === "hidden"}
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    void hideArticle(article);
+                                }}
+                            >
                                 Ẩn
                             </Button>
-                            <Button type="primary" danger disabled={deleted} onClick={() => void removeArticle(article)}>
+                            <Button
+                                type="primary"
+                                danger
+                                disabled={deleted}
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    void removeArticle(article);
+                                }}
+                            >
                                 Xóa
                             </Button>
                         </div>
@@ -425,6 +445,15 @@ export default function ArticleAdminList() {
                             selectedRowKeys: selected,
                             onChange: (keys) => setSelected(keys.map(String)),
                         }}
+                        onRow={(article) => ({
+                            className: "cursor-pointer",
+                            onClick: (event) => {
+                                const target = event.target;
+                                if (!(target instanceof Element)) return;
+                                if (target.closest("button, a, input, label, .ant-checkbox, .ant-table-selection-column")) return;
+                                router.push(`/bai-viet/${article.slug}`);
+                            },
+                        })}
                         pagination={{
                             current: page,
                             pageSize: list?.pageSize ?? 10,

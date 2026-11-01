@@ -1,0 +1,13 @@
+stateDiagram-v2
+  [*] --> sending: Client tạo clientMsgId (chỉ ở client)
+  sending --> failed: Lỗi mạng hoặc 4xx/5xx
+  failed --> sending: Người dùng bấm gửi lại (cùng clientMsgId)
+  sending --> visible: 201/200 (có seq)
+  visible --> deleted: Tác giả thu hồi (body rỗng)
+  visible --> hidden: Admin ẩn sau báo cáo
+  hidden --> visible: Admin mở lại
+  deleted --> [*]
+  note right of visible
+    "Xóa phía mình" không đổi trạng thái tin
+    chỉ tăng cleared_before_seq của người đó
+  end note

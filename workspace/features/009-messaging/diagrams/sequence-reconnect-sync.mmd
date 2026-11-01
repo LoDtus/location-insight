@@ -1,0 +1,30 @@
+%% Mất kết nối rồi đồng bộ lại (không dựa vào khôi phục kết nối của Socket.IO)
+sequenceDiagram
+    autonumber
+    actor U as Người dùng (tab đang mở hội thoại C, lastSeq = 120)
+    participant S as Socket.IO client
+    participant BE as Backend
+    participant DB as PostgreSQL
+    participant R as Redis
+
+    S--xBE: Mất kết nối (mạng, proxy, deploy)
+    S->>S: Hiện banner "Đang kết nối lại…", cho phép soạn tin, tin gửi đi vẫn qua REST nếu mạng cho phép
+    loop Lùi theo cấp số nhân 1s, 2s, 4s … tối đa 30s, cộng nhiễu ±20%
+        S->>BE: POST /realtime/ticket (Bearer)
+        BE->>R: SET ticket:ws:{ticket} EX 30
+        BE-->>S: { ticket }
+        S->>BE: Nối WebSocket ?ticket=...
+    end
+    BE->>R: GETDEL ticket:ws:{ticket}
+    BE-->>S: Đã nối (phòng user:{id})
+    S->>BE: GET /messaging/unread-count
+    S->>BE: GET /messaging/conversations?folder=inbox (trang đầu)
+    S->>BE: GET /messaging/conversations/C/messages?after_seq=120&limit=100
+    BE->>DB: SELECT ... WHERE conversation_id = C AND seq > 120 ORDER BY seq LIMIT 100
+    BE-->>S: Tin 121..134
+    S->>S: Hợp nhất theo seq, bỏ trùng, cuộn tới tin mới nếu đang ở đáy
+    alt Còn nhiều hơn 100 tin
+        S->>BE: GET ... after_seq=220
+    end
+    Note over S,BE: Mã đóng 4401: đăng xuất, không nối lại. 4408: xin vé mới. 4429: chờ lâu hơn rồi nối lại.
+    Note over S,R: Trong lúc mất kết nối, sự kiện Pub/Sub bị bỏ rơi. Nguồn sự thật là DB, nên bước 8-10 bù đủ.

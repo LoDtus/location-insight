@@ -1,0 +1,18 @@
+%% Nhắn lần đầu cho người chưa có hội thoại
+flowchart TD
+    A([Người A bấm "Nhắn tin" ở hồ sơ B]) --> B{Có hội thoại direct_key A:B?}
+    B -- Có --> Z[Mở hội thoại sẵn có]
+    B -- Không --> C{A bị B chặn, hoặc B đặt who_can_message = nobody?}
+    C -- Có --> X[403 cannot_message_user<br/>cùng một lời cho cả hai lý do]
+    C -- Không --> D{A có >= 30 hội thoại pending do A khởi tạo,<br/>hoặc >= 20 hội thoại mới hôm nay?}
+    D -- Có --> Y[429 hoặc 409 limit_reached]
+    D -- Không --> E[Tạo hội thoại state = pending, initiator = A]
+    E --> F[A soạn tin đầu: chỉ chữ, tối đa 1 tin]
+    F --> G[B thấy trong Requests, không tăng badge Inbox]
+    G --> H{B chọn}
+    H -- Chấp nhận --> I[state = active<br/>chuyển sang Inbox của B<br/>A gửi tự do]
+    H -- B trả lời --> I
+    H -- Từ chối --> J[state = declined<br/>A không gửi thêm, A không thấy "bị từ chối"<br/>cho A hội thoại vẫn hiện như đã gửi]
+    H -- Chặn --> K[Thêm user_blocks<br/>ẩn hội thoại, A không gửi được nữa]
+    H -- Báo cáo --> L[Chụp ngữ cảnh -> message_reports]
+    H -- Bỏ qua 30 ngày --> M[Job ẩn hội thoại pending quá hạn khỏi Requests]

@@ -1,0 +1,190 @@
+asyncapi: 3.0.0
+info:
+  title: Địa Thế — Realtime (nhắn tin)
+  version: 0.1.0
+  description: |
+    Dùng chung một kết nối Socket.IO với `003-auth` (`/api/v1/realtime`, vé một lần từ `POST /realtime/ticket`).
+    Không mở kết nối thứ hai. Chỉ cho transport `websocket` để không cần sticky session (long-polling tắt).
+
+    Nguyên tắc:
+    - Máy chủ phát sự kiện tới phòng `user:{userId}`. Client KHÔNG chọn phòng; không có sự kiện `join` từ client.
+    - Sự kiện là gợi ý, không phải nguồn sự thật. Khi thấy lỗ hổng `seq` hoặc sau khi nối lại, client gọi REST (xem diagrams/sequence-reconnect-sync.mmd).
+    - Ghi dữ liệu luôn qua REST. Client chỉ gửi lên socket: `ping`, `typing`.
+    - Mọi sự kiện có `v` (phiên bản, bắt đầu 1). Client bỏ qua sự kiện có `v` lớn hơn bản nó hiểu và trường lạ.
+    - Mỗi socket tối đa 10 sự kiện lên mỗi giây; vượt thì đóng với 4429. Kích thước gói tối đa 16 KB (`maxHttpBufferSize`).
+    - Mã đóng giữ nguyên ở 003-auth: 4401, 4408, 4429, 1001. Thêm: 4403 (quá 5 socket mỗi người, socket cũ nhất bị đóng).
+servers:
+  production:
+    host: example.invalid
+    protocol: wss
+    pathname: /api/v1/realtime
+    description: "Địa chỉ thật lấy từ cấu hình; qua proxy cùng origin. CORS dùng danh sách origin tường minh, không dùng origin = true."
+channels:
+  connection:
+    address: /api/v1/realtime?ticket={ticket}
+    parameters:
+      ticket:
+        description: Vé dùng một lần, sống 30 giây
+    messages:
+      messageCreated: { $ref: "#/components/messages/messageCreated" }
+      messageUpdated: { $ref: "#/components/messages/messageUpdated" }
+      reactionChanged: { $ref: "#/components/messages/reactionChanged" }
+      conversationRead: { $ref: "#/components/messages/conversationRead" }
+      conversationUpdated: { $ref: "#/components/messages/conversationUpdated" }
+      typing: { $ref: "#/components/messages/typing" }
+      unreadChanged: { $ref: "#/components/messages/unreadChanged" }
+      typingSend: { $ref: "#/components/messages/typingSend" }
+      ping: { $ref: "#/components/messages/ping" }
+operations:
+  receiveMessageCreated:
+    action: receive
+    channel: { $ref: "#/channels/connection" }
+    messages: [{ $ref: "#/channels/connection/messages/messageCreated" }]
+  receiveMessageUpdated:
+    action: receive
+    channel: { $ref: "#/channels/connection" }
+    messages: [{ $ref: "#/channels/connection/messages/messageUpdated" }]
+  receiveReactionChanged:
+    action: receive
+    channel: { $ref: "#/channels/connection" }
+    messages: [{ $ref: "#/channels/connection/messages/reactionChanged" }]
+  receiveConversationRead:
+    action: receive
+    channel: { $ref: "#/channels/connection" }
+    messages: [{ $ref: "#/channels/connection/messages/conversationRead" }]
+  receiveConversationUpdated:
+    action: receive
+    channel: { $ref: "#/channels/connection" }
+    messages: [{ $ref: "#/channels/connection/messages/conversationUpdated" }]
+  receiveTyping:
+    action: receive
+    channel: { $ref: "#/channels/connection" }
+    messages: [{ $ref: "#/channels/connection/messages/typing" }]
+  receiveUnreadChanged:
+    action: receive
+    channel: { $ref: "#/channels/connection" }
+    messages: [{ $ref: "#/channels/connection/messages/unreadChanged" }]
+  sendTyping:
+    action: send
+    channel: { $ref: "#/channels/connection" }
+    messages: [{ $ref: "#/channels/connection/messages/typingSend" }]
+  sendPing:
+    action: send
+    channel: { $ref: "#/channels/connection" }
+    messages: [{ $ref: "#/channels/connection/messages/ping" }]
+components:
+  messages:
+    messageCreated:
+      name: message.created
+      summary: Có tin mới trong một hội thoại của người dùng (kể cả tin do chính người dùng gửi từ tab khác)
+      description: |
+        `message` giống schema `Message` của REST. Người nhận có `clientMsgId = null`; người gửi có giá trị để tab gửi bỏ qua bản trùng.
+        Ảnh có URL ký hạn 1 giờ. Nếu ảnh trả 403 sau khi hết hạn, client gọi lại GET tin đó.
+        Hội thoại tắt thông báo vẫn nhận sự kiện (để cập nhật danh sách); client tự quyết định có phát âm hay không.
+      payload:
+        type: object
+        required: [type, v, conversationId, message]
+        properties:
+          type: { const: message.created }
+          v: { const: 1 }
+          conversationId: { type: string, format: uuid }
+          message: { type: object, description: "Schema Message ở rest-api.yml" }
+        additionalProperties: false
+    messageUpdated:
+      name: message.updated
+      summary: Tin bị thu hồi hoặc bị admin ẩn; client thay bằng "Tin nhắn đã thu hồi"
+      payload:
+        type: object
+        required: [type, v, conversationId, seq, change]
+        properties:
+          type: { const: message.updated }
+          v: { const: 1 }
+          conversationId: { type: string, format: uuid }
+          seq: { type: integer, format: int64 }
+          change: { type: string, enum: [deleted, hidden] }
+        additionalProperties: false
+    reactionChanged:
+      name: reaction.changed
+      payload:
+        type: object
+        required: [type, v, conversationId, seq, userId, emoji]
+        properties:
+          type: { const: reaction.changed }
+          v: { const: 1 }
+          conversationId: { type: string, format: uuid }
+          seq: { type: integer, format: int64 }
+          userId: { type: string, format: uuid }
+          emoji: { type: string, nullable: true, description: "null khi bỏ cảm xúc" }
+        additionalProperties: false
+    conversationRead:
+      name: conversation.read
+      summary: Người kia đã đọc tới seq (chỉ gửi nếu họ bật báo đã đọc); cũng gửi tới các tab khác của chính người đọc để xóa chấm chưa đọc
+      payload:
+        type: object
+        required: [type, v, conversationId, userId, lastReadSeq]
+        properties:
+          type: { const: conversation.read }
+          v: { const: 1 }
+          conversationId: { type: string, format: uuid }
+          userId: { type: string, format: uuid }
+          lastReadSeq: { type: integer, format: int64 }
+        additionalProperties: false
+    conversationUpdated:
+      name: conversation.updated
+      summary: Đổi trạng thái hội thoại (chấp nhận, từ chối, chặn, tạo mới)
+      payload:
+        type: object
+        required: [type, v, conversationId, reason]
+        properties:
+          type: { const: conversation.updated }
+          v: { const: 1 }
+          conversationId: { type: string, format: uuid }
+          reason: { type: string, enum: [created, accepted, declined, blocked, unblocked, deleted_by_me] }
+        additionalProperties: false
+    typing:
+      name: typing
+      summary: Người kia đang gõ; client tự hết hạn sau 5 giây nếu không nhận thêm
+      payload:
+        type: object
+        required: [type, v, conversationId, userId, active]
+        properties:
+          type: { const: typing }
+          v: { const: 1 }
+          conversationId: { type: string, format: uuid }
+          userId: { type: string, format: uuid }
+          active: { type: boolean }
+        additionalProperties: false
+    unreadChanged:
+      name: unread.changed
+      summary: Số chưa đọc đã đổi; client gọi GET /messaging/unread-count (hoặc cập nhật từ message.created nếu đủ thông tin)
+      payload:
+        type: object
+        required: [type, v]
+        properties:
+          type: { const: unread.changed }
+          v: { const: 1 }
+        additionalProperties: false
+    typingSend:
+      name: typing
+      summary: Client báo đang gõ. Gửi tối đa một lần mỗi 2 giây khi người dùng gõ; gửi active=false khi dừng 3 giây hoặc khi gửi tin
+      payload:
+        type: object
+        required: [type, conversationId, active]
+        properties:
+          type: { const: typing }
+          conversationId: { type: string, format: uuid }
+          active: { type: boolean }
+        additionalProperties: false
+    ping:
+      name: ping
+      summary: "Client gửi mỗi 25 giây; máy chủ gia hạn presence:online và trả { type: \"pong\" }"
+      payload:
+        type: object
+        properties:
+          type: { const: ping }
+  # Kiểm tra phía máy chủ cho `typing` từ client:
+  #  1. Socket đã xác thực (userId lấy từ socket.data, không lấy từ payload).
+  #  2. conversationId là UUID hợp lệ; userId là thành viên (msg:members:{id}, rơi về DB nếu thiếu).
+  #  3. Hội thoại không ở trạng thái pending nếu người gửi là người nhận chưa chấp nhận; không bị chặn.
+  #  4. Giới hạn 1 tín hiệu mỗi 2 giây; vượt thì bỏ im lặng, không báo lỗi.
+  # Mọi sai điều kiện: bỏ im lặng, không phản hồi chi tiết (tránh dò hội thoại).

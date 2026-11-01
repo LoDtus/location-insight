@@ -1,0 +1,31 @@
+%% Gửi một tin và phát tới người nhận (nhiều instance backend)
+sequenceDiagram
+    autonumber
+    actor A as Người gửi (tab 1)
+    participant BE1 as Backend instance 1
+    participant R as Redis
+    participant DB as PostgreSQL
+    participant BE2 as Backend instance 2
+    actor B as Người nhận (đang mở socket)
+
+    A->>A: Sinh clientMsgId, hiện bong bóng "đang gửi" (lạc quan)
+    A->>BE1: POST /messaging/conversations/{id}/messages (Bearer)
+    BE1->>BE1: Xác thực, quyền message:write, validate DTO, cắt thẻ HTML
+    BE1->>R: Giới hạn tần suất (fail closed nếu Redis lỗi)
+    BE1->>DB: Đọc hội thoại, chặn, cài đặt người nhận
+    BE1->>DB: BEGIN; UPDATE conversations SET last_seq = last_seq + 1 RETURNING
+    BE1->>DB: INSERT messages ON CONFLICT (client_msg_id) DO NOTHING
+    BE1->>DB: UPDATE participants (last_activity_at, hidden_at, last_read_seq người gửi); COMMIT
+    BE1->>R: PUBLISH events:messaging:message.created (to = cả hai người)
+    BE1-->>A: 201 { message, seq }
+    A->>A: Thay bong bóng lạc quan bằng bản có seq
+    R-->>BE2: events:messaging:message.created
+    BE2->>B: socket "message.created" tới phòng user:{B}
+    BE2->>A: socket "message.created" tới phòng user:{A} (các tab khác; tab 1 bỏ qua nhờ clientMsgId)
+    B->>B: Chèn tin, nếu đang xem hội thoại và tab hiển thị thì debounce 300 ms
+    B->>BE2: PUT /messaging/conversations/{id}/read { seq }
+    BE2->>DB: UPDATE last_read_seq = GREATEST(...)
+    BE2->>R: PUBLISH events:messaging:conversation.read (nếu B bật báo đã đọc)
+    R-->>BE1: conversation.read
+    BE1->>A: socket "conversation.read" -> A thấy "Đã xem"
+    Note over BE1,DB: Nếu A mất mạng sau bước 8 mà trước khi nhận 201, A gửi lại cùng clientMsgId và nhận lại đúng tin (200)

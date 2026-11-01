@@ -1,0 +1,537 @@
+openapi: 3.0.3
+info:
+  title: Location Insight messaging
+  version: 0.1.0
+  description: |
+    Tiền tố thật: /api/v1 (GLOBAL_PREFIX). Mọi route yêu cầu Bearer access token.
+    Quy ước chung:
+    - Người không phải thành viên hội thoại nhận 404 `not_found` (không phân biệt "không tồn tại" và "không phải của bạn").
+    - Chặn và `who_can_message = nobody` cùng trả 403 `cannot_message_user` để không lộ ai chặn ai.
+    - Phân trang bằng `seq` (tin) hoặc con trỏ mờ `cursor` (hộp thư). Không dùng offset.
+    - Lỗi chuẩn: { statusCode, message, code, trackId }.
+    - Tin nhắn và URL ảnh không bao giờ ghi vào nhật ký.
+tags:
+  - { name: conversations }
+  - { name: messages }
+  - { name: attachments }
+  - { name: safety }
+  - { name: admin }
+paths:
+  /messaging/conversations:
+    get:
+      tags: [conversations]
+      summary: Hộp thư của tôi, mới nhất trước
+      x-permission: message:read
+      parameters:
+        - { name: folder, in: query, schema: { type: string, enum: [inbox, requests], default: inbox } }
+        - { name: q, in: query, description: "Tìm theo tên người kia (tiền tố, không phân biệt hoa thường)", schema: { type: string, minLength: 2, maxLength: 50 } }
+        - { name: cursor, in: query, schema: { type: string, maxLength: 200 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 30 } }
+      responses:
+        "200":
+          description: Danh sách hội thoại và con trỏ trang kế
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/ConversationSummary" } }
+                  nextCursor: { type: string, nullable: true }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/PermissionDenied" }
+    post:
+      tags: [conversations]
+      summary: Tìm hoặc tạo hội thoại 1-1 với một người
+      description: Idempotent theo cặp người dùng. Trả 200 nếu đã có, 201 nếu mới tạo (state pending).
+      x-permission: message:write
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId]
+              additionalProperties: false
+              properties:
+                userId: { type: string, format: uuid }
+      responses:
+        "200": { description: "Hội thoại đã có", content: { application/json: { schema: { $ref: "#/components/schemas/Conversation" } } } }
+        "201": { description: "Đã tạo", content: { application/json: { schema: { $ref: "#/components/schemas/Conversation" } } } }
+        "403": { description: "cannot_message_user hoặc email_not_verified" }
+        "409": { description: "limit_reached: quá 30 hội thoại pending do mình khởi tạo" }
+        "422": { description: "Gửi cho chính mình" }
+        "429": { description: "Quá 20 hội thoại mới mỗi ngày" }
+  /messaging/conversations/{conversationId}:
+    parameters:
+      - { $ref: "#/components/parameters/ConversationId" }
+    get:
+      tags: [conversations]
+      summary: Chi tiết một hội thoại, kèm người kia và trạng thái hoạt động
+      x-permission: message:read
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Conversation" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [conversations]
+      summary: Xóa hội thoại phía mình
+      description: Đặt cleared_before_seq = last_seq và hidden_at. Người kia vẫn thấy. Tin mới đến sẽ hiện lại hội thoại, chỉ từ tin mới.
+      x-permission: message:write
+      responses:
+        "204": { description: Đã xóa phía mình }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /messaging/conversations/{conversationId}/accept:
+    post:
+      tags: [conversations]
+      summary: Chấp nhận yêu cầu nhắn
+      x-permission: message:write
+      parameters: [{ $ref: "#/components/parameters/ConversationId" }]
+      responses:
+        "200": { description: state = active, content: { application/json: { schema: { $ref: "#/components/schemas/Conversation" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { description: "Hội thoại không ở trạng thái pending hoặc người gọi là người khởi tạo" }
+  /messaging/conversations/{conversationId}/decline:
+    post:
+      tags: [conversations]
+      summary: Từ chối yêu cầu nhắn
+      description: Người khởi tạo không được báo; hội thoại ẩn khỏi Requests của người nhận.
+      x-permission: message:write
+      parameters: [{ $ref: "#/components/parameters/ConversationId" }]
+      responses:
+        "204": { description: state = declined }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { description: "Không phải pending hoặc người gọi là người khởi tạo" }
+  /messaging/conversations/{conversationId}/read:
+    put:
+      tags: [conversations]
+      summary: Đánh dấu đã đọc tới seq
+      description: Chỉ tăng (GREATEST). seq lớn hơn last_seq bị cắt về last_seq. Client debounce 300 ms.
+      x-permission: message:read
+      parameters: [{ $ref: "#/components/parameters/ConversationId" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [seq]
+              additionalProperties: false
+              properties:
+                seq: { type: integer, format: int64, minimum: 0 }
+      responses:
+        "204": { description: Đã ghi }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { description: Quá nhiều lần }
+  /messaging/conversations/{conversationId}/mute:
+    put:
+      tags: [conversations]
+      summary: Tắt thông báo hội thoại
+      x-permission: message:write
+      parameters: [{ $ref: "#/components/parameters/ConversationId" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [until]
+              additionalProperties: false
+              properties:
+                until: { type: string, format: date-time, nullable: true, description: "null để bật lại; 9999-12-31T00:00:00Z để tắt vô hạn" }
+      responses:
+        "204": { description: Đã đặt }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /messaging/conversations/{conversationId}/messages:
+    parameters:
+      - { $ref: "#/components/parameters/ConversationId" }
+    get:
+      tags: [messages]
+      summary: Tin trong hội thoại
+      description: |
+        Không có tham số: 30 tin mới nhất. `before_seq`: các tin cũ hơn (tải thêm lên trên). `after_seq`: các tin mới hơn (đồng bộ lại sau khi mất kết nối).
+        Kết quả luôn sắp seq tăng dần. Tin có seq <= cleared_before_seq của người gọi không trả về.
+        Tin `deleted` trả với body rỗng và status deleted (để vẽ "Tin nhắn đã thu hồi"). Tin `hidden` trả như `deleted` cho người dùng.
+        URL ảnh ký hạn 1 giờ, tạo lại mỗi lần gọi.
+      x-permission: message:read
+      parameters:
+        - { name: before_seq, in: query, schema: { type: integer, format: int64, minimum: 1 } }
+        - { name: after_seq, in: query, schema: { type: integer, format: int64, minimum: 0 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 30 } }
+      responses:
+        "200":
+          description: Tin, seq tăng dần
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, hasMoreBefore, hasMoreAfter, lastSeq]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/Message" } }
+                  hasMoreBefore: { type: boolean }
+                  hasMoreAfter: { type: boolean }
+                  lastSeq: { type: integer, format: int64 }
+                  peerLastReadSeq: { type: integer, format: int64, nullable: true, description: "null nếu người kia tắt báo đã đọc" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { description: "before_seq và after_seq cùng có" }
+    post:
+      tags: [messages]
+      summary: Gửi một tin
+      description: |
+        Idempotent theo (người gửi, clientMsgId): gửi lại trả 200 với đúng tin cũ.
+        Hội thoại pending do người gọi khởi tạo: chỉ `kind = text`, không ảnh, không chia sẻ, đã gửi 1 tin thì 409 `request_pending`.
+        Hội thoại declined do người gọi khởi tạo: 409 `request_pending` (không lộ bị từ chối).
+        Máy chủ cắt khoảng trắng đầu/cuối, bỏ thẻ HTML, chuẩn hóa Unicode NFC, loại ký tự điều khiển (trừ xuống dòng).
+      x-permission: message:write
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [clientMsgId, kind]
+              additionalProperties: false
+              properties:
+                clientMsgId: { type: string, format: uuid }
+                kind: { type: string, enum: [text, image, post_share] }
+                body: { type: string, maxLength: 2000, description: "Bắt buộc với text; tùy chọn làm chú thích cho image và post_share" }
+                replyToSeq: { type: integer, format: int64, minimum: 1 }
+                attachmentIds: { type: array, items: { type: string, format: uuid }, minItems: 1, maxItems: 4, description: "Bắt buộc với image" }
+                postId: { type: string, format: uuid, description: "Bắt buộc với post_share; phải là bài visible ở /feed" }
+      responses:
+        "200": { description: "Gửi lại cùng clientMsgId", content: { application/json: { schema: { $ref: "#/components/schemas/Message" } } } }
+        "201": { description: Đã tạo, content: { application/json: { schema: { $ref: "#/components/schemas/Message" } } } }
+        "403": { description: "cannot_message_user (chặn hoặc nobody) hoặc email_not_verified" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { description: "request_pending" }
+        "422": { description: "Body rỗng sau khi làm sạch, quá 2.000 ký tự, replyToSeq không tồn tại, attachment không hợp lệ, bài không hiển thị" }
+        "429": { description: "Vượt giới hạn tần suất; kèm header Retry-After" }
+        "503": { description: "Redis giới hạn tần suất lỗi (đóng an toàn)" }
+  /messaging/conversations/{conversationId}/messages/{messageId}:
+    parameters:
+      - { $ref: "#/components/parameters/ConversationId" }
+      - { $ref: "#/components/parameters/MessageId" }
+    delete:
+      tags: [messages]
+      summary: Thu hồi tin của mình (với mọi người)
+      description: Chỉ tác giả. Xóa body và gỡ ảnh ngay khỏi API; object trên MinIO bị job dọn sau 7 ngày. Thu hồi lần hai trả 204.
+      x-permission: message:write
+      responses:
+        "204": { description: Đã thu hồi }
+        "403": { description: Không phải tác giả }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /messaging/conversations/{conversationId}/messages/{messageId}/reaction:
+    parameters:
+      - { $ref: "#/components/parameters/ConversationId" }
+      - { $ref: "#/components/parameters/MessageId" }
+    put:
+      tags: [messages]
+      summary: Thả hoặc đổi cảm xúc
+      description: Một người một cảm xúc trên một tin. Emoji phải thuộc danh sách cấu hình.
+      x-permission: message:write
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [emoji]
+              additionalProperties: false
+              properties:
+                emoji: { type: string, maxLength: 16 }
+      responses:
+        "204": { description: Đã đặt }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { description: Emoji không cho phép, hoặc tin đã thu hồi }
+    delete:
+      tags: [messages]
+      summary: Bỏ cảm xúc của mình
+      x-permission: message:write
+      responses:
+        "204": { description: Đã bỏ }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /messaging/conversations/{conversationId}/messages/{messageId}/report:
+    post:
+      tags: [safety]
+      summary: Báo cáo một tin
+      description: Chụp tin và tối đa 10 tin quanh nó vào bản ghi báo cáo. Một người báo một tin một lần.
+      x-permission: message:write
+      parameters:
+        - { $ref: "#/components/parameters/ConversationId" }
+        - { $ref: "#/components/parameters/MessageId" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reasonCode]
+              additionalProperties: false
+              properties:
+                reasonCode: { type: string, enum: [spam, scam, harassment, sexual, other] }
+                note: { type: string, maxLength: 500 }
+      responses:
+        "201": { description: Đã ghi }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { description: Đã báo tin này }
+        "422": { description: Không thể báo tin của chính mình }
+  /messaging/attachments:
+    post:
+      tags: [attachments]
+      summary: Tạo bản ghi ảnh và URL tải lên
+      x-permission: message:write
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [conversationId, contentType, byteSize]
+              additionalProperties: false
+              properties:
+                conversationId: { type: string, format: uuid }
+                contentType: { type: string, enum: [image/jpeg, image/png, image/webp] }
+                byteSize: { type: integer, minimum: 1, maximum: 8388608 }
+      responses:
+        "201":
+          description: PUT tệp tới uploadUrl trong 5 phút
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [attachmentId, uploadUrl, expiresAt]
+                properties:
+                  attachmentId: { type: string, format: uuid }
+                  uploadUrl: { type: string }
+                  expiresAt: { type: string, format: date-time }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { description: MIME hoặc kích thước không hợp lệ, hoặc hội thoại pending (chưa được nhận ảnh) }
+        "429": { description: Quá 30 tệp mỗi giờ }
+  /messaging/attachments/{attachmentId}/complete:
+    post:
+      tags: [attachments]
+      summary: Xác nhận đã tải lên, máy chủ kiểm magic byte
+      x-permission: message:write
+      parameters:
+        - { name: attachmentId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: status = ready, content: { application/json: { schema: { $ref: "#/components/schemas/Attachment" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { description: attachment_rejected }
+  /messaging/unread-count:
+    get:
+      tags: [conversations]
+      summary: Số hội thoại chưa đọc
+      description: Đếm hội thoại, không đếm tin. Hội thoại tắt thông báo không tính vào badge của Inbox nhưng vẫn in đậm trong danh sách. Chặn ở 99 (client hiện "99+").
+      x-permission: message:read
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [inbox, requests]
+                properties:
+                  inbox: { type: integer, minimum: 0, maximum: 99 }
+                  requests: { type: integer, minimum: 0, maximum: 99 }
+  /messaging/recipients:
+    get:
+      tags: [conversations]
+      summary: Tìm người để nhắn
+      description: Tìm theo tiền tố tên, tối thiểu 2 ký tự, tối đa 10 kết quả. Loại người chặn mình, người đặt nobody, tài khoản bị khóa hoặc đã xóa, chính mình. Chỉ trả id, tên, ảnh.
+      x-permission: message:write
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string, minLength: 2, maxLength: 50 } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, maxItems: 10, items: { $ref: "#/components/schemas/Person" } }
+        "429": { description: Quá 30 lần mỗi phút }
+  /messaging/preferences:
+    get:
+      tags: [safety]
+      summary: Cài đặt nhắn tin của tôi
+      x-permission: message:read
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Preferences" } } } }
+    patch:
+      tags: [safety]
+      summary: Đổi cài đặt
+      x-permission: message:write
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Preferences" }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Preferences" } } } }
+  /messaging/blocks:
+    get:
+      tags: [safety]
+      summary: Danh sách tôi đã chặn
+      x-permission: message:read
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/Person" } }
+  /messaging/blocks/{userId}:
+    parameters:
+      - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+    put:
+      tags: [safety]
+      summary: Chặn một người
+      description: Ẩn hội thoại với người đó phía mình, thôi nhận tin; người kia gửi sẽ nhận 403 cannot_message_user. Idempotent.
+      x-permission: message:write
+      responses:
+        "204": { description: Đã chặn }
+        "422": { description: Chặn chính mình }
+    delete:
+      tags: [safety]
+      summary: Bỏ chặn
+      x-permission: message:write
+      responses:
+        "204": { description: Đã bỏ }
+  /admin/messaging/reports:
+    get:
+      tags: [admin]
+      summary: Báo cáo tin nhắn
+      description: Chỉ trả phần chụp ngữ cảnh của báo cáo. Không có route đọc hội thoại tùy ý.
+      x-permission: message:moderate
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [open, dismissed, actioned], default: open } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        "200": { description: Danh sách báo cáo }
+  /admin/messaging/reports/{reportId}/resolve:
+    post:
+      tags: [admin]
+      summary: Xử lý báo cáo
+      description: Ghi admin_audit_logs (người làm, đối tượng, lý do, IP, phiên). `hide_message` đặt status hidden; khóa tài khoản dùng API người dùng của 004-rbac.
+      x-permission: message:moderate
+      parameters:
+        - { name: reportId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action, reason]
+              additionalProperties: false
+              properties:
+                action: { type: string, enum: [dismiss, hide_message] }
+                reason: { type: string, minLength: 5, maxLength: 255 }
+      responses:
+        "200": { description: Đã xử lý }
+        "400": { description: Thiếu lý do }
+        "403": { $ref: "#/components/responses/PermissionDenied" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { description: Báo cáo đã xử lý }
+components:
+  parameters:
+    ConversationId: { name: conversationId, in: path, required: true, schema: { type: string, format: uuid } }
+    MessageId: { name: messageId, in: path, required: true, schema: { type: string, format: uuid } }
+  responses:
+    Unauthorized: { description: "401 (session_revoked, session_inactive, token hết hạn)" }
+    PermissionDenied: { description: "403 permission_denied" }
+    NotFound: { description: "404 not_found: không tồn tại hoặc không phải thành viên" }
+  schemas:
+    Person:
+      type: object
+      required: [id, displayName]
+      properties:
+        id: { type: string, format: uuid }
+        displayName: { type: string }
+        avatarUrl: { type: string, nullable: true }
+    Presence:
+      type: object
+      description: Có mặt chỉ khi cả hai bên bật show_activity_status và hai người có hội thoại active.
+      properties:
+        online: { type: boolean }
+        lastActiveAt: { type: string, format: date-time, nullable: true }
+    Attachment:
+      type: object
+      required: [id, contentType, width, height, url]
+      properties:
+        id: { type: string, format: uuid }
+        contentType: { type: string }
+        width: { type: integer }
+        height: { type: integer }
+        url: { type: string, description: "URL đọc ký hạn 1 giờ" }
+    ReactionSummary:
+      type: object
+      properties:
+        emoji: { type: string }
+        count: { type: integer }
+        mine: { type: boolean }
+    Message:
+      type: object
+      required: [id, conversationId, seq, senderId, kind, body, status, createdAt, clientMsgId]
+      properties:
+        id: { type: string, format: uuid }
+        conversationId: { type: string, format: uuid }
+        seq: { type: integer, format: int64 }
+        senderId: { type: string, format: uuid }
+        kind: { type: string, enum: [text, image, post_share, system] }
+        body: { type: string, description: "Rỗng khi status khác visible" }
+        status: { type: string, enum: [visible, deleted] }
+        clientMsgId: { type: string, format: uuid, description: "Chỉ trả cho người gửi; người nhận nhận null" , nullable: true }
+        replyTo:
+          type: object
+          nullable: true
+          properties:
+            seq: { type: integer, format: int64 }
+            senderId: { type: string, format: uuid }
+            excerpt: { type: string, maxLength: 120 }
+        attachments: { type: array, items: { $ref: "#/components/schemas/Attachment" } }
+        sharedPost:
+          type: object
+          nullable: true
+          properties:
+            id: { type: string, format: uuid }
+            excerpt: { type: string, maxLength: 200 }
+            authorName: { type: string }
+            available: { type: boolean, description: "false nếu bài đã ẩn hoặc xóa" }
+        reactions: { type: array, items: { $ref: "#/components/schemas/ReactionSummary" } }
+        createdAt: { type: string, format: date-time }
+    ConversationSummary:
+      type: object
+      required: [id, type, state, peer, lastSeq, lastReadSeq, unread, lastMessagePreview, lastMessageAt]
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string, enum: [direct] }
+        state: { type: string, enum: [pending, active, declined] }
+        peer: { $ref: "#/components/schemas/Person" }
+        lastSeq: { type: integer, format: int64 }
+        lastReadSeq: { type: integer, format: int64 }
+        unread: { type: boolean }
+        muted: { type: boolean }
+        lastMessagePreview: { type: string, maxLength: 120 }
+        lastMessageAt: { type: string, format: date-time, nullable: true }
+        lastSenderIsMe: { type: boolean }
+    Conversation:
+      allOf:
+        - $ref: "#/components/schemas/ConversationSummary"
+        - type: object
+          properties:
+            iAmInitiator: { type: boolean }
+            peerLastReadSeq: { type: integer, format: int64, nullable: true }
+            peerPresence: { $ref: "#/components/schemas/Presence" }
+            canSend: { type: boolean, description: "false khi bị chặn, pending đã gửi 1 tin, hoặc người kia ngừng nhận" }
+            blockedByMe: { type: boolean }
+    Preferences:
+      type: object
+      properties:
+        whoCanMessage: { type: string, enum: [everyone, nobody] }
+        showActivityStatus: { type: boolean }
+        sendReadReceipts: { type: boolean }

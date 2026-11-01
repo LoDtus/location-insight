@@ -1,0 +1,183 @@
+// Nhắn tin trực tiếp (009-messaging).
+// Quy ước: bảng snake_case số nhiều, cột snake_case, id công khai là UUID v7.
+// users nằm ở 003-auth (xóa mềm bằng deleted_at, không xóa cứng). discussion_posts nằm ở 008-discussions.
+// Bảng messages và message_attachments LUÔN được truy vấn kèm conversation_id: để sẵn hash partition theo conversation_id.
+// Khóa ngoại tới messages dùng cặp (conversation_id, seq). Nếu sau này partition, giữ nguyên cặp này.
+
+Enum conversation_type {
+  direct
+  group // bản đầu chưa mở API và giao diện
+}
+
+Enum conversation_state {
+  pending  // 1-1: người lạ đã nhắn, người nhận chưa chấp nhận
+  active
+  declined // người nhận từ chối; người khởi tạo không gửi thêm
+}
+
+Enum participant_role {
+  member
+  owner // chỉ dùng cho nhóm
+}
+
+Enum message_kind {
+  text
+  image
+  post_share // chia sẻ một bài ở /feed
+  system     // dành cho nhóm (thêm/bớt thành viên)
+}
+
+Enum message_status {
+  visible
+  deleted // tác giả thu hồi: body rỗng, tệp bị dọn sau 7 ngày
+  hidden  // admin ẩn sau báo cáo: body giữ lại cho điều tra, không trả cho client
+}
+
+Enum attachment_status {
+  pending
+  ready
+  rejected
+}
+
+Enum who_can_message {
+  everyone
+  nobody
+}
+
+Table conversations {
+  id uuid [pk]
+  type conversation_type [not null, default: 'direct']
+  state conversation_state [not null, default: 'pending']
+  direct_key varchar(73) [unique, note: 'chỉ type = direct: min(userId):max(userId); null với nhóm. Chống tạo trùng khi hai người cùng tạo']
+  initiator_id uuid [not null, ref: > users.id, note: 'người gửi tin đầu tiên / người tạo']
+  last_seq bigint [not null, default: 0, note: 'seq của tin cuối; tăng trong giao dịch gửi, khóa dòng này tuần tự hóa các tin cùng hội thoại']
+  last_message_at timestamptz
+  last_sender_id uuid [ref: > users.id]
+  last_message_preview varchar(120) [not null, default: '', note: 'bản chữ ngắn để vẽ hộp thư; "Đã gửi ảnh", "Đã gửi một bài viết" tùy kiểu; cập nhật lại khi tin cuối bị thu hồi']
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (state, created_at) [name: 'idx_conversations_state_created_at', note: 'job dọn Requests quá hạn']
+  }
+}
+
+Table conversation_participants {
+  conversation_id uuid [not null, ref: > conversations.id]
+  user_id uuid [not null, ref: > users.id]
+  role participant_role [not null, default: 'member']
+  last_read_seq bigint [not null, default: 0, note: 'đã đọc tới seq này; chưa đọc = conversations.last_seq - last_read_seq. Chỉ tăng (GREATEST)']
+  cleared_before_seq bigint [not null, default: 0, note: '"Xóa hội thoại" phía mình: tin có seq <= giá trị này không hiện với người này']
+  last_activity_at timestamptz [not null, default: `now()`, note: 'chép từ tin cuối để sắp hộp thư bằng một chỉ mục, không join conversations']
+  hidden_at timestamptz [note: 'ẩn khỏi hộp thư; tin mới đến sẽ đặt lại null']
+  muted_until timestamptz [note: 'null = không tắt; năm 9999 = tắt vô hạn']
+  joined_at timestamptz [not null, default: `now()`]
+  left_at timestamptz [note: 'rời nhóm hoặc tài khoản bị xóa; null = đang tham gia']
+
+  indexes {
+    (conversation_id, user_id) [pk, name: 'pk_conversation_participants']
+    (user_id, last_activity_at) [name: 'idx_participants_user_activity', note: 'hộp thư: WHERE hidden_at IS NULL AND left_at IS NULL ORDER BY last_activity_at DESC; nên là chỉ mục một phần (xem data-review.md)']
+  }
+}
+
+Table messages {
+  conversation_id uuid [not null, ref: > conversations.id]
+  seq bigint [not null, note: 'bắt đầu từ 1, liên tục trong hội thoại']
+  id uuid [not null, note: 'UUID v7, dùng ở URL và tham chiếu công khai; duy nhất trong hội thoại']
+  sender_id uuid [not null, ref: > users.id]
+  kind message_kind [not null, default: 'text']
+  body varchar(2000) [not null, default: '', note: 'rỗng khi kind khác text hoặc khi đã thu hồi']
+  reply_to_seq bigint [note: 'trả lời trích dẫn một tin cùng hội thoại']
+  shared_post_id uuid [ref: > discussion_posts.id, note: 'chỉ kind = post_share']
+  client_msg_id uuid [not null, note: 'client sinh; chống gửi trùng khi thử lại']
+  status message_status [not null, default: 'visible']
+  created_at timestamptz [not null, default: `now()`]
+  deleted_at timestamptz
+
+  indexes {
+    (conversation_id, seq) [pk, name: 'pk_messages']
+    (conversation_id, id) [unique, name: 'uk_messages_conversation_id_id']
+    (conversation_id, sender_id, client_msg_id) [unique, name: 'uk_messages_client_msg', note: 'idempotency: gửi lại cùng clientMsgId trả tin cũ']
+    (sender_id, created_at) [name: 'idx_messages_sender_created', note: 'điều tra lạm dụng, xuất dữ liệu cá nhân; cân nhắc bỏ khi partition']
+  }
+  // CHECK: seq > 0; (kind = 'text') => char_length(btrim(body)) > 0 hoặc status <> 'visible'
+  // CHECK: (kind = 'post_share') = (shared_post_id IS NOT NULL)
+  // FK: (conversation_id, reply_to_seq) -> messages(conversation_id, seq) — khai báo trong migration vì dbml không diễn tả khóa ngoại ghép trong cùng bảng.
+}
+
+Table message_attachments {
+  id uuid [pk]
+  conversation_id uuid [not null, ref: > conversations.id]
+  message_seq bigint [note: 'null khi pending; gắn khi gửi tin']
+  uploader_id uuid [not null, ref: > users.id]
+  object_key varchar(240) [not null, unique, note: 'ngẫu nhiên, không chứa tên tệp gốc']
+  content_type varchar(40) [not null, note: 'image/jpeg | image/png | image/webp']
+  byte_size int [not null]
+  width int
+  height int
+  sort_order smallint [not null, default: 0]
+  status attachment_status [not null, default: 'pending']
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (conversation_id, message_seq) [name: 'idx_attachments_message']
+    (uploader_id, status) [name: 'idx_attachments_uploader_status']
+    (status, created_at) [name: 'idx_attachments_status_created', note: 'job dọn pending quá 24 giờ']
+  }
+  // FK: (conversation_id, message_seq) -> messages(conversation_id, seq) — trong migration.
+}
+
+Table message_reactions {
+  conversation_id uuid [not null, ref: > conversations.id]
+  message_seq bigint [not null]
+  user_id uuid [not null, ref: > users.id]
+  emoji varchar(16) [not null, note: 'một ký tự emoji nằm trong danh sách cho phép ở cấu hình']
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (conversation_id, message_seq, user_id) [pk, name: 'pk_message_reactions', note: 'một người một cảm xúc trên một tin']
+  }
+  // FK: (conversation_id, message_seq) -> messages(conversation_id, seq) — trong migration.
+}
+
+Table user_blocks {
+  blocker_id uuid [not null, ref: > users.id]
+  blocked_id uuid [not null, ref: > users.id]
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (blocker_id, blocked_id) [pk, name: 'pk_user_blocks']
+    blocked_id [name: 'idx_user_blocks_blocked', note: 'kiểm tra ngược: ai chặn tôi']
+  }
+  // CHECK: blocker_id <> blocked_id
+}
+
+Table messaging_preferences {
+  user_id uuid [pk, ref: - users.id]
+  who_can_message who_can_message [not null, default: 'everyone']
+  show_activity_status boolean [not null, default: true]
+  send_read_receipts boolean [not null, default: true]
+  updated_at timestamptz [not null, default: `now()`]
+  // Không có dòng = giá trị mặc định. Chỉ tạo dòng khi người dùng đổi cài đặt.
+}
+
+Table message_reports {
+  id uuid [pk]
+  conversation_id uuid [not null, ref: > conversations.id]
+  message_seq bigint [not null]
+  reporter_id uuid [not null, ref: > users.id]
+  reported_user_id uuid [not null, ref: > users.id]
+  reason_code varchar(20) [not null, note: 'spam | scam | harassment | sexual | other']
+  note varchar(500)
+  context_snapshot jsonb [not null, note: 'tin bị báo cáo và tối đa 10 tin quanh nó, chụp lúc báo cáo; admin chỉ đọc phần này']
+  status varchar(20) [not null, default: 'open', note: 'open | dismissed | actioned']
+  resolved_by uuid [ref: > users.id]
+  resolved_at timestamptz
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (conversation_id, message_seq, reporter_id) [unique, name: 'uk_message_reports_once']
+    (status, created_at) [name: 'idx_message_reports_status_created']
+    (reported_user_id, created_at) [name: 'idx_message_reports_reported_user', note: 'người bị báo cáo nhiều lần']
+  }
+}

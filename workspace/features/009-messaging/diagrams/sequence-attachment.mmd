@@ -1,0 +1,25 @@
+%% Gửi ảnh: tải thẳng lên MinIO, dùng lại cách làm 008-discussions
+sequenceDiagram
+    autonumber
+    actor U as Người dùng
+    participant BE as Backend
+    participant DB as PostgreSQL
+    participant M as MinIO
+
+    U->>BE: POST /messaging/attachments { conversationId, contentType, byteSize }
+    BE->>BE: Quyền, là thành viên, MIME thuộc danh sách, byteSize <= 8 MB, giới hạn 30 tệp/giờ
+    BE->>DB: INSERT message_attachments (pending, object_key ngẫu nhiên)
+    BE-->>U: { attachmentId, uploadUrl (PUT, hết hạn 5 phút) }
+    U->>M: PUT tệp
+    U->>BE: POST /messaging/attachments/{id}/complete
+    BE->>M: Đọc 16 byte đầu (magic byte), kích thước thật
+    alt Khớp MIME và kích thước
+        BE->>DB: status = ready, lưu width/height
+        BE-->>U: 200
+    else Lệch
+        BE->>M: Xóa object
+        BE->>DB: status = rejected
+        BE-->>U: 422 attachment_rejected
+    end
+    U->>BE: POST .../messages { kind: image, attachmentIds: [..] }
+    Note over BE,DB: Giao dịch gửi chỉ nhận tệp ready, của chính người gửi, cùng hội thoại, chưa gắn

@@ -1,0 +1,11 @@
+stateDiagram-v2
+  [*] --> pending: Người lạ gửi tin đầu (tối đa 1 tin chữ)
+  pending --> active: Người nhận chấp nhận hoặc trả lời
+  pending --> declined: Người nhận từ chối
+  pending --> pending: Quá 30 ngày không trả lời (chỉ ẩn khỏi Requests)
+  declined --> active: Người nhận tự nhắn lại hoặc chấp nhận sau đó
+  active --> active: Gửi, thu hồi, thả cảm xúc, tắt thông báo, xóa phía mình
+  note right of pending
+    Người khởi tạo không thấy khác biệt giữa pending và declined
+    Chặn là bảng riêng user_blocks, không phải một state
+  end note

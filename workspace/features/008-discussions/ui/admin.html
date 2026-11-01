@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Duyệt diễn đàn · Địa Thế</title>
+    <link rel="icon" href="../../001-ui/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../../001-ui/css/site.css" />
+    <link rel="stylesheet" href="discussions.css" />
+  </head>
+  <body>
+    <a class="skip" href="#noi-dung">Đi tới nội dung</a>
+    <header class="app-header">
+      <a class="logo" href="admin.html">
+        <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#1b4332"/><path fill="#f4efe6" d="M16 5.5c-3.6 0-6.5 2.8-6.5 6.4 0 4.7 6.5 14.6 6.5 14.6s6.5-9.9 6.5-14.6c0-3.6-2.9-6.4-6.5-6.4zm0 8.7a2.3 2.3 0 1 1 0-4.6 2.3 2.3 0 0 1 0 4.6z"/></svg>
+        <span>Địa Thế</span>
+      </a>
+      <nav class="app-nav" aria-label="Duyệt diễn đàn">
+        <a href="admin.html" aria-current="page">Duyệt bài</a>
+      </nav>
+    </header>
+    <main id="noi-dung" class="thread-wrap">
+      <p class="thread-note">Bản mô phỏng. Báo cáo dưới đây là nội dung mẫu.</p>
+      <header>
+        <h1>Báo cáo đang mở</h1>
+        <p class="meta">Ẩn bài thì người dùng không còn thấy chữ và ảnh. Tệp được dọn sau 7 ngày.</p>
+      </header>
+      <article class="post">
+        <p class="meta">Báo cáo bởi Hà My · 1/11/2026 · Chủ đề Hồ Tây</p>
+        <h2>Mặt hồ phía Quảng An</h2>
+        <p>Lý do: Bài đăng kèm ảnh nhà mặt đường và số nhà, không phải cảnh hồ.</p>
+        <img src="../../001-ui/images/ngo-ha-noi-ngang.webp" width="1200" height="675" alt="Ngõ Hà Nội, ảnh mẫu gắn với báo cáo" />
+        <label class="thread-label">
+          Lý do ghi nhật ký
+          <input name="reason" value="Ảnh lộ số nhà, không đúng chủ đề hồ." />
+        </label>
+        <div class="actions">
+          <button class="btn btn-danger" type="button">Ẩn bài này</button>
+          <button class="btn btn-secondary" type="button">Khóa chủ đề Hồ Tây</button>
+        </div>
+      </article>
+      <section class="states">
+        <h2>Khi không còn báo cáo</h2>
+        <article>
+          <p>Không có báo cáo đang mở.</p>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

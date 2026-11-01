@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Diễn đàn · Địa Thế</title>
+    <link rel="icon" href="../../001-ui/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../../001-ui/css/site.css" />
+    <link rel="stylesheet" href="discussions.css" />
+  </head>
+  <body>
+    <a class="skip" href="#noi-dung">Đi tới nội dung</a>
+    <header class="app-header">
+      <a class="logo" href="bang-tin.html">
+        <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#1b4332"/><path fill="#f4efe6" d="M16 5.5c-3.6 0-6.5 2.8-6.5 6.4 0 4.7 6.5 14.6 6.5 14.6s6.5-9.9 6.5-14.6c0-3.6-2.9-6.4-6.5-6.4zm0 8.7a2.3 2.3 0 1 1 0-4.6 2.3 2.3 0 0 1 0 4.6z"/></svg>
+        <span>Địa Thế</span>
+      </a>
+      <nav class="app-nav" aria-label="Diễn đàn">
+        <a href="bang-tin.html" aria-current="page">Diễn đàn</a>
+      </nav>
+    </header>
+    <main id="noi-dung" class="thread-wrap">
+      <p class="thread-note">Bản mô phỏng. Bài viết và tên người dưới đây là nội dung mẫu, không phải dữ liệu thật.</p>
+      <header>
+        <h1>Hỏi về một khu</h1>
+        <p class="meta">Đăng một câu hỏi hoặc một bài ngắn trong một chủ đề. Người khác trả lời bên dưới bài đó.</p>
+      </header>
+      <form class="composer">
+        <label class="thread-label">
+          Chủ đề
+          <select name="topic">
+            <option>Hồ Tây</option>
+            <option>Hoàn Kiếm</option>
+            <option>Ngõ nhỏ</option>
+          </select>
+        </label>
+        <label class="thread-label">
+          Câu hỏi
+          <textarea name="body" maxlength="2000">Đường dạo quanh Hồ Tây đoạn Quảng An tối nay có đang mở không?</textarea>
+        </label>
+        <label class="thread-label">
+          Ảnh hoặc một video
+          <input type="file" accept="image/jpeg,image/png,image/webp,video/mp4" multiple />
+        </label>
+        <p class="meta">Tối đa 4 ảnh, hoặc một video. Không đăng cả hai.</p>
+        <button class="btn btn-primary" type="submit">Đăng câu hỏi</button>
+      </form>
+      <nav class="topic-row" aria-label="Chủ đề">
+        <a href="bang-tin.html" aria-current="page">Mới nhất</a>
+        <a href="mach-bai.html">Hồ Tây</a>
+        <a href="bang-tin.html">Hoàn Kiếm</a>
+        <a href="bang-tin.html">Ngõ nhỏ</a>
+      </nav>
+      <ol class="post-list">
+        <li>
+          <article class="post">
+            <p class="meta">Minh Anh · Hồ Tây · Câu hỏi · 1/11/2026</p>
+            <h2><a href="mach-bai.html">Mặt hồ phía Quảng An</a></h2>
+            <p>Mình đi bộ buổi sáng quanh Quảng An. Muốn hỏi đoạn kè nào đang sửa, và có nên tránh phía đường Xuân Diệu giờ tan tầm không.</p>
+            <img src="../../001-ui/images/ho-tay.webp" width="1200" height="800" alt="Mặt Hồ Tây nhìn từ bờ, ảnh mẫu của Địa Thế" />
+            <p class="meta">2 trả lời · 3 lượt thích</p>
+            <div class="actions">
+              <a class="btn btn-secondary" href="mach-bai.html">Xem mạch bài</a>
+            </div>
+          </article>
+        </li>
+        <li>
+          <article class="post">
+            <p class="meta">Quốc Bảo · Ngõ nhỏ · Bài ngắn · 31/10/2026</p>
+            <h2><a href="mach-bai.html">Ngõ đủ xe máy tránh nhau</a></h2>
+            <p>Ngõ này một xe máy đi vừa. Ô tô chỉ vào được đến đầu ngõ. Ảnh chụp buổi trưa, không phải lúc tan tầm.</p>
+            <img src="../../001-ui/images/ngo-ha-noi.webp" width="1200" height="800" alt="Ngõ nhà ở Hà Nội, ảnh mẫu của Địa Thế" loading="lazy" />
+            <p class="meta">0 trả lời · 1 lượt thích</p>
+          </article>
+        </li>
+      </ol>
+      <section class="states" aria-label="Các trạng thái khác của màn này">
+        <h2>Trạng thái khác</h2>
+        <article>
+          <h3>Chưa có bài</h3>
+          <p>Chủ đề này chưa có câu hỏi. Hãy đăng câu hỏi đầu tiên ở ô phía trên.</p>
+        </article>
+        <article>
+          <h3>Chưa tải được</h3>
+          <p>Danh sách chưa tải được. Bài bạn đang viết vẫn còn trong ô soạn.</p>
+          <button class="btn btn-secondary" type="button">Tải lại</button>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

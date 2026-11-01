@@ -1,0 +1,13 @@
+flowchart TD
+  A[Mở /app/discussions] --> B{Đã đăng nhập?}
+  B -- không --> C[Đăng nhập rồi quay lại]
+  B -- có --> D[Bài gốc mới nhất và ô đăng]
+  D --> E{Đã có chủ đề?}
+  E -- chưa --> F[Tạo chủ đề]
+  E -- rồi --> G[Chọn chủ đề đang mở]
+  F --> G
+  G --> H[Viết câu hỏi hoặc bài ngắn]
+  H --> I[Gắn ảnh hoặc một video đã ready]
+  I --> J[Đăng]
+  J --> K[Mạch bài]
+  K --> L[Người khác trả lời hoặc thích]

@@ -1,0 +1,221 @@
+openapi: 3.0.3
+info:
+  title: Location Insight discussions
+  version: 0.1.0
+paths:
+  /discussions/topics:
+    get:
+      summary: Chủ đề đang mở, mới nhất trước
+      x-permission: discussion:read
+      parameters:
+        - { name: query, in: query, schema: { type: string, maxLength: 80 } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: Danh sách chủ đề
+    post:
+      summary: Tạo chủ đề
+      x-permission: discussion:write
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, slug]
+              properties:
+                name: { type: string, minLength: 3, maxLength: 80 }
+                slug: { type: string, pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$", minLength: 3, maxLength: 80 }
+                summary: { type: string, maxLength: 280 }
+      responses:
+        "201":
+          description: Đã tạo
+        "409":
+          description: Slug đã có
+  /discussions/topics/{slug}:
+    get:
+      summary: Một chủ đề và bài gốc của chủ đề đó
+      x-permission: discussion:read
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: Chủ đề còn mở hoặc khóa. Ẩn thì 404 với người dùng.
+  /admin/discussions/topics/{id}/status:
+    post:
+      summary: Khóa, mở hoặc ẩn chủ đề
+      x-permission: discussion:moderate
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status, reason]
+              properties:
+                status: { type: string, enum: [open, locked, hidden] }
+                reason: { type: string, minLength: 5, maxLength: 255 }
+      responses:
+        "200":
+          description: Đã đổi, có audit
+  /discussions/posts:
+    get:
+      summary: Bài gốc mới nhất
+      x-permission: discussion:read
+      parameters:
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: Mỗi phần tử gồm tác giả, chủ đề, đoạn đầu, số trả lời, số thích, media
+    post:
+      summary: Đăng bài gốc
+      x-permission: discussion:write
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [topicSlug, kind, body]
+              properties:
+                topicSlug: { type: string }
+                kind: { type: string, enum: [question, note] }
+                body: { type: string, minLength: 1, maxLength: 2000 }
+                mediaIds: { type: array, maxItems: 4, items: { type: string, format: uuid } }
+      responses:
+        "201":
+          description: Đã đăng
+        "422":
+          description: Chủ đề khóa, quá ảnh, hoặc trộn ảnh với video
+  /discussions/posts/{id}:
+    get:
+      summary: Bài gốc và trả lời còn hiện
+      x-permission: discussion:read
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: Ẩn hoặc đã xóa thì 404
+    delete:
+      summary: Tác giả xóa bài của mình
+      x-permission: discussion:write
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "204":
+          description: Đã xóa mềm
+  /discussions/posts/{id}/replies:
+    post:
+      summary: Trả lời trong mạch
+      x-permission: discussion:write
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string, minLength: 1, maxLength: 2000 }
+                parentId: { type: string, format: uuid, description: Mặc định là bài gốc }
+                mediaIds: { type: array, maxItems: 4, items: { type: string, format: uuid } }
+      responses:
+        "201":
+          description: Đã trả lời
+  /discussions/posts/{id}/likes:
+    post:
+      summary: Thích
+      x-permission: discussion:write
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: likeCount mới
+    delete:
+      summary: Bỏ thích
+      x-permission: discussion:write
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: likeCount mới
+  /discussions/posts/{id}/reports:
+    post:
+      summary: Báo cáo một lần
+      x-permission: discussion:write
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 5, maxLength: 500 }
+      responses:
+        "201":
+          description: Đã ghi
+        "409":
+          description: Đã báo cáo bài này
+  /admin/discussions/posts/{id}/hide:
+    post:
+      summary: Ẩn hoặc mở lại bài
+      x-permission: discussion:moderate
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [hidden, reason]
+              properties:
+                hidden: { type: boolean }
+                reason: { type: string, minLength: 5, maxLength: 255 }
+      responses:
+        "200":
+          description: Đã ghi audit
+  /admin/discussions/reports:
+    get:
+      summary: Báo cáo đang mở
+      x-permission: discussion:moderate
+      responses:
+        "200":
+          description: Bài, người báo cáo, lý do
+  /discussions/media:
+    post:
+      summary: Xin URL tải lên
+      x-permission: discussion:write
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [contentType, byteSize]
+              properties:
+                contentType: { type: string, enum: [image/jpeg, image/png, image/webp, video/mp4] }
+                byteSize: { type: integer, minimum: 1 }
+      responses:
+        "201":
+          description: mediaId và uploadUrl hết hạn sau 10 phút
+        "413":
+          description: Vượt 8 MB với ảnh hoặc 50 MB với video
+  /discussions/media/{id}/complete:
+    post:
+      summary: Xác nhận tệp đã lên và đối MIME
+      x-permission: discussion:write
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: status ready, hoặc rejected nếu lệch loại

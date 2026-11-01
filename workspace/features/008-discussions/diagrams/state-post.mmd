@@ -1,0 +1,10 @@
+stateDiagram-v2
+  [*] --> visible: Đăng bài hoặc trả lời
+  visible --> deleted: Tác giả xóa
+  visible --> hidden: Admin ẩn, có lý do
+  hidden --> visible: Admin mở lại
+  deleted --> [*]
+  note right of visible
+    Chủ đề locked chặn bài mới
+    không đổi bài đang visible
+  end note

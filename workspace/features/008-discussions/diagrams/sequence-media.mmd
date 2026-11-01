@@ -1,0 +1,14 @@
+sequenceDiagram
+  participant U as Người dùng
+  participant API as Backend
+  participant S as MinIO
+  U->>API: POST /discussions/media
+  API->>API: Kiểm MIME, kích thước, tần suất
+  API->>S: URL PUT có hạn
+  API-->>U: mediaId và uploadUrl
+  U->>S: PUT tệp
+  U->>API: POST /discussions/media/{id}/complete
+  API->>S: Đọc vài byte đầu, đối MIME
+  API-->>U: status ready
+  U->>API: POST /discussions/posts kèm mediaId
+  API->>API: Gắn tệp ready của đúng người đăng

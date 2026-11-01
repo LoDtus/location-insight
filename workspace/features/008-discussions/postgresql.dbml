@@ -1,0 +1,111 @@
+// Diễn đàn hỏi đáp (008-discussions).
+// Quy ước: bảng snake_case số nhiều, cột snake_case, khóa chính UUID v7.
+// users nằm ở 003-auth. Nhật ký admin nằm ở 004-rbac.
+
+Enum discussion_topic_status {
+  open
+  locked
+  hidden
+}
+
+Enum discussion_post_kind {
+  question
+  note
+  reply
+}
+
+Enum discussion_post_status {
+  visible
+  hidden
+  deleted
+}
+
+Enum discussion_media_kind {
+  image
+  video
+}
+
+Enum discussion_media_status {
+  pending
+  ready
+  rejected
+}
+
+Table discussion_topics {
+  id uuid [pk]
+  author_id uuid [not null, ref: > users.id]
+  name varchar(80) [not null]
+  slug varchar(80) [not null, unique, note: 'chữ thường, số, gạch ngang']
+  summary varchar(280) [not null, default: '']
+  status discussion_topic_status [not null, default: 'open']
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (status, created_at) [name: 'idx_discussion_topics_status_created_at']
+  }
+}
+
+Table discussion_posts {
+  id uuid [pk]
+  author_id uuid [not null, ref: > users.id]
+  topic_id uuid [not null, ref: > discussion_topics.id]
+  root_id uuid [ref: > discussion_posts.id, note: 'trống khi dòng này là bài gốc']
+  parent_id uuid [ref: > discussion_posts.id, note: 'trống khi là bài gốc; trả lời trỏ bài được đáp']
+  kind discussion_post_kind [not null]
+  body varchar(2000) [not null]
+  status discussion_post_status [not null, default: 'visible']
+  reply_count int [not null, default: 0, note: 'chỉ bài gốc được tăng']
+  like_count int [not null, default: 0]
+  created_at timestamptz [not null, default: `now()`]
+  deleted_at timestamptz
+
+  indexes {
+    (topic_id, created_at) [name: 'idx_discussion_posts_topic_created', note: 'danh sách bài gốc: root_id IS NULL AND status = visible']
+    (root_id, created_at) [name: 'idx_discussion_posts_root_created']
+    (author_id, created_at) [name: 'idx_discussion_posts_author_created']
+  }
+}
+
+Table discussion_media {
+  id uuid [pk]
+  post_id uuid [ref: > discussion_posts.id, note: 'trống lúc pending, gắn khi đăng']
+  author_id uuid [not null, ref: > users.id]
+  object_key varchar(240) [not null]
+  content_type varchar(40) [not null]
+  byte_size int [not null]
+  kind discussion_media_kind [not null]
+  status discussion_media_status [not null, default: 'pending']
+  sort_order int [not null, default: 0]
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    object_key [unique, name: 'uk_discussion_media_object_key']
+    (author_id, status) [name: 'idx_discussion_media_author_status']
+    post_id [name: 'idx_discussion_media_post_id']
+  }
+}
+
+Table discussion_likes {
+  post_id uuid [not null, ref: > discussion_posts.id]
+  user_id uuid [not null, ref: > users.id]
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (post_id, user_id) [unique, name: 'uk_discussion_likes_post_user']
+  }
+}
+
+Table discussion_reports {
+  id uuid [pk]
+  post_id uuid [not null, ref: > discussion_posts.id]
+  reporter_id uuid [not null, ref: > users.id]
+  reason varchar(500) [not null]
+  status varchar(20) [not null, default: 'open', note: 'open | resolved']
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (post_id, reporter_id) [unique, name: 'uk_discussion_reports_post_reporter']
+    (status, created_at) [name: 'idx_discussion_reports_status_created']
+  }
+}

@@ -1,0 +1,28 @@
+%% Theo dõi một người
+sequenceDiagram
+    autonumber
+    actor A as Người dùng A
+    participant FE as Website
+    participant BE as Backend (FollowService)
+    participant R as Redis
+    participant DB as PostgreSQL
+
+    A->>FE: Bấm "Theo dõi" trên hồ sơ B
+    FE->>FE: Cập nhật lạc quan: "Đang theo dõi", đếm +1
+    FE->>BE: PUT /users/B/follow
+    BE->>BE: Quyền follow:write, A <> B
+    BE->>R: Giới hạn 60 lần/giờ (Redis lỗi -> 503)
+    BE->>DB: B tồn tại, active, chưa xóa? (không -> 404)
+    BE->>DB: Có user_blocks giữa A và B? (có -> 403 cannot_follow_user)
+    BE->>DB: BEGIN
+    BE->>DB: Đếm following của A < 5.000? (không -> 409 limit_reached)
+    BE->>DB: INSERT user_follows ... ON CONFLICT DO NOTHING RETURNING
+    alt Dòng mới được thêm
+        BE->>DB: Upsert user_follow_stats của A và B (khóa theo thứ tự id): following+1, follower+1
+    else Đã theo dõi từ trước
+        BE->>DB: Không đổi bộ đếm
+    end
+    BE->>DB: COMMIT
+    BE-->>FE: 200 { following: true, followedBy, followerCount, followingCount }
+    FE->>FE: Thay trạng thái lạc quan bằng số liệu máy chủ
+    Note over FE,BE: Lỗi: FE hoàn lại trạng thái cũ và báo lỗi

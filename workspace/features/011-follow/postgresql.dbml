@@ -1,0 +1,26 @@
+// Theo dõi người dùng (011-follow). users nằm ở 003-auth. user_blocks nằm ở 009-messaging.
+// Quy ước: bảng snake_case số nhiều, cột snake_case.
+
+Table user_follows {
+  follower_id uuid [not null, ref: > users.id, note: 'người theo dõi']
+  followee_id uuid [not null, ref: > users.id, note: 'người được theo dõi']
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (follower_id, followee_id) [pk, name: 'pk_user_follows', note: 'A có theo dõi B; danh sách đang theo dõi (sắp theo created_at bằng chỉ mục dưới)']
+    (follower_id, created_at, followee_id) [name: 'idx_user_follows_follower_created', note: 'danh sách "đang theo dõi" mới nhất trước']
+    (followee_id, created_at, follower_id) [name: 'idx_user_follows_followee_created', note: 'danh sách "người theo dõi" mới nhất trước']
+  }
+  // CHECK: follower_id <> followee_id
+}
+
+Table user_follow_stats {
+  user_id uuid [pk, ref: - users.id]
+  follower_count int [not null, default: 0, note: 'số người theo dõi mình; luôn >= 0']
+  following_count int [not null, default: 0, note: 'số người mình theo dõi; luôn >= 0']
+  updated_at timestamptz [not null, default: `now()`]
+  // Không có dòng = 0. Tạo bằng upsert lần đầu có quan hệ.
+  // Đối soát: UPDATE user_follow_stats s SET
+  //   follower_count = (SELECT count(*) FROM user_follows WHERE followee_id = s.user_id),
+  //   following_count = (SELECT count(*) FROM user_follows WHERE follower_id = s.user_id);
+}

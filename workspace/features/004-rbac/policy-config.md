@@ -60,6 +60,8 @@ Lưu ý: kiểm tra theo **quyền**, không theo tên vai trò. Chuỗi `role =
 | `discussion:write` | tạo chủ đề, bài, trả lời, thích, báo cáo | cần đăng nhập |
 | `message:read` | đọc tin nhắn riêng của mình | cần đăng nhập; chỉ hội thoại mình tham gia (`009-messaging`) |
 | `message:write` | nhắn tin, thả cảm xúc, chặn, báo cáo tin | cần đăng nhập; có giới hạn tần suất riêng |
+| `follow:read` | xem số theo dõi và danh sách người theo dõi | cần đăng nhập (`011-follow`) |
+| `follow:write` | theo dõi, bỏ theo dõi | cần đăng nhập; 60 lần mỗi giờ |
 | `feedback:write` | gửi góp ý kèm ảnh/video, xem và trả lời góp ý của mình | cần đăng nhập; 5 góp ý mỗi giờ |
 
 ### 2.3 Theo gói
@@ -154,7 +156,7 @@ export type Permission =
   | 'notification:read' | 'place:save' | 'place:note' | 'analysis:run' | 'analysis:history:read'
   | 'listing:create' | 'listing:update' | 'listing:delete' | 'listing:contact:reveal'
   | 'listing:report' | 'comment:create' | 'comment:delete'
-  | 'discussion:read' | 'discussion:write' | 'message:read' | 'message:write' | 'feedback:write'
+  | 'discussion:read' | 'discussion:write' | 'message:read' | 'message:write' | 'feedback:write' | 'follow:read' | 'follow:write'
   | 'valuation:run'
   | 'admin:access' | 'user:read' | 'user:lock' | 'user:session:revoke' | 'subscription:grant'
   | 'credit:grant' | 'quota:reset' | 'listing:moderate' | 'report:review' | 'article:manage'
@@ -194,7 +196,7 @@ export const USER_PERMISSIONS = [
   'notification:read', 'place:save', 'place:note', 'analysis:run', 'analysis:history:read',
   'listing:create', 'listing:update', 'listing:delete', 'listing:contact:reveal',
   'listing:report', 'comment:create', 'comment:delete',
-  'discussion:read', 'discussion:write', 'message:read', 'message:write', 'feedback:write',
+  'discussion:read', 'discussion:write', 'message:read', 'message:write', 'feedback:write', 'follow:read', 'follow:write',
 ] as const satisfies readonly Permission[];
 
 export const ADMIN_PERMISSIONS = [

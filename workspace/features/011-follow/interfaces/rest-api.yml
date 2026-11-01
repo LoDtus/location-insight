@@ -1,0 +1,114 @@
+openapi: 3.0.3
+info:
+  title: Location Insight follow
+  version: 0.1.0
+  description: |
+    Tiền tố thật: /api/v1. Mọi route yêu cầu Bearer access token. Phản hồi thành công nằm trong `data` của khung chuẩn.
+    Lỗi nghiệp vụ nằm ở `error.details.code`: `cannot_follow_user`, `limit_reached`. `429` có `error.details.retryAfter`.
+paths:
+  /users/{userId}/follow:
+    parameters:
+      - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      summary: Số đếm và quan hệ của mình với một người
+      x-permission: follow:read
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/FollowState" } } } }
+        "404": { description: Không có người dùng }
+    put:
+      summary: Theo dõi (idempotent)
+      x-permission: follow:write
+      responses:
+        "200": { description: Đã theo dõi (kể cả đã theo dõi từ trước), content: { application/json: { schema: { $ref: "#/components/schemas/FollowState" } } } }
+        "403": { description: "cannot_follow_user: một bên đã chặn bên kia" }
+        "404": { description: Người dùng không tồn tại hoặc không hoạt động }
+        "409": { description: "limit_reached: đang theo dõi 5.000 người" }
+        "422": { description: Tự theo dõi chính mình }
+        "429": { description: Quá 60 lần mỗi giờ }
+        "503": { description: Redis giới hạn tần suất lỗi }
+    delete:
+      summary: Bỏ theo dõi (idempotent)
+      x-permission: follow:write
+      responses:
+        "200": { description: Đã bỏ (kể cả chưa theo dõi), content: { application/json: { schema: { $ref: "#/components/schemas/FollowState" } } } }
+        "404": { description: Người dùng không tồn tại }
+        "429": { description: Quá 60 lần mỗi giờ }
+  /users/{userId}/followers:
+    get:
+      summary: Những người theo dõi một người, mới nhất trước
+      x-permission: follow:read
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: cursor, in: query, schema: { type: string, maxLength: 200 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 30 } }
+      responses:
+        "200": { description: Trang kết quả, content: { application/json: { schema: { $ref: "#/components/schemas/FollowPage" } } } }
+        "404": { description: Người dùng không tồn tại }
+  /users/{userId}/following:
+    get:
+      summary: Những người một người đang theo dõi, mới nhất trước
+      x-permission: follow:read
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: cursor, in: query, schema: { type: string, maxLength: 200 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 30 } }
+      responses:
+        "200": { description: Trang kết quả, content: { application/json: { schema: { $ref: "#/components/schemas/FollowPage" } } } }
+        "404": { description: Người dùng không tồn tại }
+  /follow/relationships:
+    get:
+      summary: Quan hệ của mình với nhiều người (tối đa 50)
+      x-permission: follow:read
+      parameters:
+        - { name: ids, in: query, required: true, description: "Danh sách uuid, cách nhau dấu phẩy", schema: { type: string } }
+      responses:
+        "200":
+          description: Khóa là userId
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: { $ref: "#/components/schemas/Relationship" }
+        "400": { description: Quá 50 id hoặc id không hợp lệ }
+  /discussions/posts:
+    get:
+      summary: "(Mở rộng 008) Thêm scope=following để chỉ lấy bài của người mình theo dõi"
+      x-permission: discussion:read
+      parameters:
+        - { name: scope, in: query, schema: { type: string, enum: [following] } }
+      responses:
+        "200": { description: Danh sách bài như cũ }
+components:
+  schemas:
+    Relationship:
+      type: object
+      required: [following, followedBy]
+      properties:
+        following: { type: boolean, description: "Mình theo dõi họ" }
+        followedBy: { type: boolean, description: "Họ theo dõi mình" }
+    FollowState:
+      allOf:
+        - $ref: "#/components/schemas/Relationship"
+        - type: object
+          required: [followerCount, followingCount, self]
+          properties:
+            followerCount: { type: integer, minimum: 0 }
+            followingCount: { type: integer, minimum: 0 }
+            self: { type: boolean }
+    FollowEntry:
+      type: object
+      required: [id, displayName, followedByMe, followsMe]
+      properties:
+        id: { type: string, format: uuid }
+        displayName: { type: string }
+        username: { type: string, nullable: true }
+        avatarUrl: { type: string, nullable: true }
+        followedByMe: { type: boolean }
+        followsMe: { type: boolean }
+        followedAt: { type: string, format: date-time }
+    FollowPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/FollowEntry" } }
+        nextCursor: { type: string, nullable: true }

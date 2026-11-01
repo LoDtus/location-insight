@@ -1,0 +1,12 @@
+flowchart TD
+    A([A chặn B]) --> B1[INSERT user_blocks A->B]
+    B1 --> C{Có user_follows A->B hoặc B->A?}
+    C -- Có --> D[Giao dịch: DELETE các cạnh, trừ bộ đếm hai bên]
+    C -- Không --> E[Xong]
+    D --> E
+    F([A hoặc B muốn theo dõi nhau]) --> G{user_blocks hai chiều?}
+    G -- Có --> H[403 cannot_follow_user, cùng phản hồi cho cả hai hướng]
+    G -- Không --> I[Cho phép]
+    J([A nhắn B lần đầu]) --> K{B đang theo dõi A?}
+    K -- Có --> L[Hội thoại active, vào Inbox của B]
+    K -- Không --> M[Hội thoại pending, vào Requests của B]

@@ -18,6 +18,7 @@ import { RbacModule } from './modules/rbac/rbac.module.js';
 import { BillingModule } from './modules/billing/billing.module.js';
 import { ArticlesModule } from './modules/articles/articles.module.js';
 import { DiscussionsModule } from './modules/discussions/discussions.module.js';
+import { MessagingModule } from './modules/messaging/messaging.module.js';
 import { TypeOrmDatabaseModule } from './shared/database/typeorm/typeorm.module.js';
 import { isTestRuntime } from './shared/utils/runtime.util.js';
 
@@ -84,7 +85,7 @@ const nodeEnv = process.env.NODE_ENV || 'development';
     UserModule,
     ...(isTestRuntime()
         ? []
-        : [AuthModule, RbacModule, BillingModule, ArticlesModule, DiscussionsModule]),
+        : [AuthModule, RbacModule, BillingModule, ArticlesModule, DiscussionsModule, MessagingModule]),
   ],
   controllers: [AppController],
   providers: [AppService],

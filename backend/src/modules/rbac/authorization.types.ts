@@ -35,6 +35,8 @@ export type Permission =
   | 'comment:delete'
   | 'discussion:read'
   | 'discussion:write'
+  | 'message:read'
+  | 'message:write'
   | 'valuation:run'
   | 'admin:access'
   | 'user:read'
@@ -46,6 +48,7 @@ export type Permission =
   | 'listing:moderate'
   | 'article:manage'
   | 'discussion:moderate'
+  | 'message:moderate'
   | 'audit:read';
 
 export type QuotaName = 'analysisDaily';

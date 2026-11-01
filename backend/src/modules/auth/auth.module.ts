@@ -18,6 +18,7 @@ import { ProfileController } from './profile.controller.js';
 import { ProfileService } from './profile.service.js';
 import { RealtimeController } from './realtime.controller.js';
 import { RealtimeGateway } from './realtime.gateway.js';
+import { RealtimeRegistry } from './realtime.registry.js';
 import { SessionMaintenanceService } from './session-maintenance.service.js';
 import { SessionService } from './session.service.js';
 import { SeedAccountService } from './seed-account.service.js';
@@ -47,10 +48,11 @@ import { TokenService } from './token.service.js';
     GoogleOAuthService,
     SessionVerifierService,
     SessionMaintenanceService,
+    RealtimeRegistry,
     RealtimeGateway,
     { provide: APP_GUARD, useClass: AuthRateLimitGuard },
     { provide: APP_GUARD, useClass: AuthGuard },
   ],
-  exports: [AuthConfig, SessionService, TokenService],
+  exports: [AuthConfig, SessionService, TokenService, RealtimeRegistry],
 })
 export class AuthModule {}

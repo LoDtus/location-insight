@@ -3,6 +3,7 @@ import {
   DeleteObjectCommand,
   GetObjectCommand,
   HeadBucketCommand,
+  HeadObjectCommand,
   PutBucketCorsCommand,
   PutObjectCommand,
   S3Client,
@@ -87,6 +88,17 @@ export class StorageService implements OnModuleInit {
     await this.client.send(
       new DeleteObjectCommand({ Bucket: this.bucket, Key: key }),
     );
+  }
+
+  async objectSize(key: string): Promise<number | null> {
+    try {
+      const response = await this.client.send(
+        new HeadObjectCommand({ Bucket: this.bucket, Key: key }),
+      );
+      return response.ContentLength ?? null;
+    } catch {
+      return null;
+    }
   }
 
   async getObjectRange(key: string, bytes: number): Promise<Buffer> {

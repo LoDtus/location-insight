@@ -74,6 +74,15 @@ describe('authorization config', () => {
     );
   });
 
+  it('quyền nhắn tin: user đọc và ghi, chỉ admin kiểm duyệt', () => {
+    const user = effectivePermissions(UserRole.USER, Plan.FREE);
+    expect(user).toContain('message:read');
+    expect(user).toContain('message:write');
+    expect(user).not.toContain('message:moderate');
+    expect(effectivePermissions(UserRole.ADMIN, Plan.FREE)).toContain('message:moderate');
+    expect(effectivePermissions(UserRole.GUEST, Plan.FREE)).not.toContain('message:read');
+  });
+
   it('gói hết hạn được tính là free', () => {
     expect(effectivePlan(Plan.VALUED, Date.now() - 1000)).toBe(Plan.FREE);
     expect(effectivePlan(Plan.VALUED, Date.now() + 60_000)).toBe(Plan.VALUED);

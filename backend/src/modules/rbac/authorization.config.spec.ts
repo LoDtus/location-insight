@@ -83,6 +83,13 @@ describe('authorization config', () => {
     expect(effectivePermissions(UserRole.GUEST, Plan.FREE)).not.toContain('message:read');
   });
 
+  it('quyền góp ý: user gửi, chỉ admin quản lý', () => {
+    expect(effectivePermissions(UserRole.USER, Plan.FREE)).toContain('feedback:write');
+    expect(effectivePermissions(UserRole.USER, Plan.FREE)).not.toContain('feedback:manage');
+    expect(effectivePermissions(UserRole.ADMIN, Plan.FREE)).toContain('feedback:manage');
+    expect(effectivePermissions(UserRole.GUEST, Plan.FREE)).not.toContain('feedback:write');
+  });
+
   it('gói hết hạn được tính là free', () => {
     expect(effectivePlan(Plan.VALUED, Date.now() - 1000)).toBe(Plan.FREE);
     expect(effectivePlan(Plan.VALUED, Date.now() + 60_000)).toBe(Plan.VALUED);

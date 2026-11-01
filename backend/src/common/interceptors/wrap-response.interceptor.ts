@@ -31,6 +31,8 @@ export class WrapResponseInterceptor<T> implements NestInterceptor<
     context: ExecutionContext,
     next: CallHandler,
   ): Observable<ApiResponseDto<T> | T> {
+    // Sự kiện WebSocket không có phản hồi HTTP để bọc.
+    if (context.getType() !== 'http') return next.handle();
     const request = context.switchToHttp().getRequest<Request>();
     const url = request.originalUrl || request.url || '';
     if (isHealthUrl(url) || url.split('?')[0]?.includes('/billing/sepay/webhook')) {

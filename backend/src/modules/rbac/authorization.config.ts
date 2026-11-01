@@ -36,6 +36,7 @@ export const USER_PERMISSIONS = [
   'discussion:write',
   'message:read',
   'message:write',
+  'feedback:write',
 ] as const satisfies readonly Permission[];
 
 export const ADMIN_PERMISSIONS = [
@@ -50,6 +51,7 @@ export const ADMIN_PERMISSIONS = [
   'article:manage',
   'discussion:moderate',
   'message:moderate',
+  'feedback:manage',
   'audit:read',
 ] as const satisfies readonly Permission[];
 

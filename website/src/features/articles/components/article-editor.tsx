@@ -26,6 +26,26 @@ const TOPIC_LABEL: Record<(typeof ARTICLE_TOPICS)[number], string> = {
     "du-lieu": "Dữ liệu",
 };
 
+const DEFAULT_LIST_HREF = "/admin/blogs?page=1&sort=updated_desc";
+
+function storedBlogListHref(): string {
+    const stored = sessionStorage.getItem("admin-blogs-return");
+    if (!stored) return DEFAULT_LIST_HREF;
+    if (!stored.startsWith("{")) return `/admin/blogs?${stored}`;
+    try {
+        const parsed = JSON.parse(stored) as { id?: string; q?: string; status?: string; sort?: string };
+        const params = new URLSearchParams();
+        params.set("page", "1");
+        params.set("sort", parsed.sort || "updated_desc");
+        if (parsed.status) params.set("status", parsed.status);
+        if (parsed.q) params.set("q", parsed.q);
+        if (parsed.id) params.set("focus", parsed.id);
+        return `/admin/blogs?${params.toString()}`;
+    } catch {
+        return DEFAULT_LIST_HREF;
+    }
+}
+
 function toLocalInput(iso: string | null): string {
     if (!iso) return "";
     const date = new Date(iso);
@@ -71,7 +91,12 @@ export default function ArticleEditor({ article }: { article: AdminArticle | nul
     const [saved, setSaved] = useState(JSON.stringify(article ? fromArticle(article) : emptyWrite()));
     const [message, setMessage] = useState(article?.reviewNote ?? "");
     const [pending, setPending] = useState(false);
+    const [listHref, setListHref] = useState(DEFAULT_LIST_HREF);
     const dirty = JSON.stringify(form) !== saved;
+
+    useEffect(() => {
+        setListHref(storedBlogListHref());
+    }, []);
 
     useEffect(() => {
         function warn(event: BeforeUnloadEvent): void {
@@ -123,7 +148,7 @@ export default function ArticleEditor({ article }: { article: AdminArticle | nul
         try {
             await deleteAdminArticle(article.id);
             sessionStorage.removeItem("admin-blogs-return");
-            router.push("/admin/blogs?status=deleted");
+            router.push("/admin/blogs?page=1&sort=updated_desc&status=deleted", { scroll: false });
         } catch (error) {
             setMessage(error instanceof AuthApiError ? error.message : "Chưa bỏ được bài.");
             setPending(false);
@@ -154,7 +179,15 @@ export default function ArticleEditor({ article }: { article: AdminArticle | nul
     return (
         <div className="box-border flex flex-col gap-6 px-4 py-8 sm:px-8">
             <p className="m-0">
-                <Link href="/admin/blogs" className="inline-flex min-h-11 items-center underline underline-offset-4">
+                <Link
+                    href={listHref}
+                    scroll={false}
+                    className="inline-flex min-h-11 items-center underline underline-offset-4"
+                    onClick={(event) => {
+                        event.preventDefault();
+                        router.push(storedBlogListHref(), { scroll: false });
+                    }}
+                >
                     Danh sách bài
                 </Link>
             </p>

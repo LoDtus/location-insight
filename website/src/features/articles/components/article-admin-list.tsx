@@ -4,8 +4,8 @@ import { Button, Checkbox, ConfigProvider, DatePicker, Dropdown, Input, Table, T
 import viVN from "antd/locale/vi_VN";
 import dayjs from "dayjs";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { AuthApiError } from "@/features/auth/auth.api";
 import {
@@ -42,13 +42,7 @@ type StatusFilter = (typeof STATUS_OPTIONS)[number]["id"];
 type ArticleSort = (typeof SORT_OPTIONS)[number]["id"];
 
 const BLOG_RETURN_KEY = "admin-blogs-return";
-
-type BlogReturn = {
-    id: string;
-    q: string;
-    status: string;
-    sort: string;
-};
+const ARTICLE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const DEFAULT_SORT: ArticleSort = "updated_desc";
 
@@ -60,21 +54,44 @@ const WHEN = new Intl.DateTimeFormat("vi-VN", {
     minute: "2-digit",
 });
 
-function parseBlogReturn(raw: string | null): (BlogReturn & { statuses: StatusFilter[] }) | null {
-    if (!raw) return null;
-    try {
-        const parsed = JSON.parse(raw) as Partial<BlogReturn>;
-        if (!parsed.id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(parsed.id)) return null;
-        const allowed = new Set<string>(STATUS_OPTIONS.map((option) => option.id));
-        const statuses = (parsed.status ?? "")
-            .split(",")
-            .map((item) => item.trim())
-            .filter((item): item is StatusFilter => allowed.has(item));
-        const sort = SORT_OPTIONS.some((option) => option.id === parsed.sort) ? (parsed.sort as ArticleSort) : DEFAULT_SORT;
-        return { id: parsed.id, q: parsed.q ?? "", status: statuses.join(","), sort, statuses };
-    } catch {
-        return null;
-    }
+function parseStatuses(raw: string | null): StatusFilter[] {
+    const allowed = new Set<string>(STATUS_OPTIONS.map((option) => option.id));
+    return (raw ?? "")
+        .split(",")
+        .map((item) => item.trim())
+        .filter((item): item is StatusFilter => allowed.has(item));
+}
+
+function parseSort(raw: string | null): ArticleSort {
+    return SORT_OPTIONS.some((option) => option.id === raw) ? (raw as ArticleSort) : DEFAULT_SORT;
+}
+
+function parsePage(raw: string | null): number {
+    const page = Number(raw);
+    return Number.isInteger(page) && page > 0 ? page : 1;
+}
+
+function listSearch(input: { page: number; q: string; statuses: StatusFilter[]; sort: ArticleSort; focus?: string }): string {
+    const params = new URLSearchParams();
+    params.set("page", String(input.page));
+    params.set("sort", input.sort);
+    if (input.statuses.length > 0) params.set("status", input.statuses.join(","));
+    const q = input.q.trim();
+    if (q) params.set("q", q);
+    if (input.focus) params.set("focus", input.focus);
+    return params.toString();
+}
+
+function scrollRowIntoPane(id: string): boolean {
+    const pane = document.getElementById("noi-dung");
+    const row = document.querySelector(`tr[data-row-key="${id}"]`);
+    if (!pane || !(row instanceof HTMLElement)) return false;
+    const rowBox = row.getBoundingClientRect();
+    if (rowBox.height === 0) return false;
+    const paneBox = pane.getBoundingClientRect();
+    const next = pane.scrollTop + (rowBox.top - paneBox.top) - (pane.clientHeight - rowBox.height) / 2;
+    pane.scrollTop = Math.max(0, next);
+    return true;
 }
 
 function formatWhen(iso: string | null): string {
@@ -91,10 +108,12 @@ function statusText(article: AdminArticle): string {
 
 export default function ArticleAdminList() {
     const router = useRouter();
-    const [query, setQuery] = useState("");
-    const [statuses, setStatuses] = useState<StatusFilter[]>([]);
-    const [sort, setSort] = useState<ArticleSort>(DEFAULT_SORT);
-    const [page, setPage] = useState(1);
+    const search = useSearchParams();
+    const focusFromUrl = search.get("focus");
+    const [query, setQuery] = useState(() => search.get("q") ?? "");
+    const [statuses, setStatuses] = useState<StatusFilter[]>(() => parseStatuses(search.get("status")));
+    const [sort, setSort] = useState<ArticleSort>(() => parseSort(search.get("sort")));
+    const [page, setPage] = useState(() => parsePage(search.get("page")));
     const [list, setList] = useState<AdminArticleList | null>(null);
     const [message, setMessage] = useState("");
     const [selected, setSelected] = useState<string[]>([]);
@@ -103,52 +122,51 @@ export default function ArticleAdminList() {
     const [range, setRange] = useState(() => defaultFrequencyRange("month"));
     const [frequency, setFrequency] = useState<PublishedFrequency | null>(null);
     const [frequencyMessage, setFrequencyMessage] = useState("");
-    const [boot, setBoot] = useState<"pending" | "ready">("pending");
-    const [highlightId, setHighlightId] = useState<string | null>(null);
-    const listContext = useRef({ q: "", status: "", sort: "" });
-    const scrolledId = useRef<string | null>(null);
-    listContext.current = {
-        q: query.trim(),
-        status: statuses.join(","),
-        sort: sort === DEFAULT_SORT ? "" : sort,
-    };
+    const [highlightId, setHighlightId] = useState<string | null>(() => (focusFromUrl && ARTICLE_ID.test(focusFromUrl) ? focusFromUrl : null));
+    const [anchorReady, setAnchorReady] = useState(() => !(focusFromUrl && ARTICLE_ID.test(focusFromUrl)));
+    const [placed, setPlaced] = useState(() => !(focusFromUrl && ARTICLE_ID.test(focusFromUrl)));
+    const listContext = useRef({ page: 1, q: "", statuses: [] as StatusFilter[], sort: DEFAULT_SORT as ArticleSort });
+    listContext.current = { page, q: query, statuses, sort };
 
     useEffect(() => {
-        const focus = parseBlogReturn(sessionStorage.getItem(BLOG_RETURN_KEY));
-        if (!focus) {
-            setBoot("ready");
-            return;
-        }
-        setQuery(focus.q);
-        setStatuses(focus.statuses);
-        setSort(focus.sort);
+        const focus = search.get("focus");
+        if (!focus || !ARTICLE_ID.test(focus)) return;
+        const q = search.get("q") ?? "";
+        const status = parseStatuses(search.get("status")).join(",");
+        const activeSort = parseSort(search.get("sort"));
         let active = true;
         void locateAdminArticle({
-            id: focus.id,
-            q: focus.q,
-            status: focus.status,
-            sort: focus.sort === DEFAULT_SORT ? undefined : focus.sort,
+            id: focus,
+            q,
+            status,
+            sort: activeSort === DEFAULT_SORT ? undefined : activeSort,
         })
             .then((place) => {
                 if (!active) return;
-                if (place.found) {
-                    setPage(place.page);
-                    setHighlightId(focus.id);
+                if (place.found) setPage(place.page);
+                else {
+                    setHighlightId(null);
+                    setPlaced(true);
                 }
             })
-            .catch(() => undefined)
+            .catch(() => {
+                if (!active) return;
+                setPlaced(true);
+            })
             .finally(() => {
                 if (!active) return;
                 sessionStorage.removeItem(BLOG_RETURN_KEY);
-                setBoot("ready");
+                setAnchorReady(true);
             });
         return () => {
             active = false;
         };
+        // Chỉ tính lại trang của bài khi vừa quay lại.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
-        if (boot !== "ready") return;
+        if (!anchorReady) return;
         let active = true;
         const handle = window.setTimeout(() => {
             void listAdminArticles({
@@ -165,22 +183,35 @@ export default function ArticleAdminList() {
                 .catch((error: unknown) => {
                     if (!active) return;
                     setMessage(error instanceof AuthApiError ? error.message : "Chưa tải được danh sách.");
+                    setPlaced(true);
                 });
-        }, 200);
+        }, highlightId && !list ? 0 : 200);
         return () => {
             active = false;
             window.clearTimeout(handle);
         };
-    }, [boot, query, statuses, sort, page, reloadKey]);
+    }, [anchorReady, query, statuses, sort, page, reloadKey]);
+
+    useLayoutEffect(() => {
+        if (placed || !highlightId || !list?.items.some((item) => item.id === highlightId)) return;
+        if (!scrollRowIntoPane(highlightId)) return;
+        const next = listSearch({ page, q: query, statuses, sort });
+        window.history.replaceState(window.history.state, "", `/admin/blogs?${next}`);
+        setPlaced(true);
+    }, [placed, highlightId, list, page, query, statuses, sort]);
 
     useEffect(() => {
-        if (!highlightId || !list?.items.some((item) => item.id === highlightId)) return;
-        if (scrolledId.current === highlightId) return;
-        const row = document.querySelector(`tr[data-row-key="${highlightId}"]`);
-        if (!row) return;
-        row.scrollIntoView({ block: "center", inline: "nearest" });
-        scrolledId.current = highlightId;
-    }, [highlightId, list]);
+        if (!anchorReady || !list || placed || !highlightId) return;
+        if (list.items.some((item) => item.id === highlightId)) return;
+        setPlaced(true);
+    }, [anchorReady, list, placed, highlightId]);
+
+    useEffect(() => {
+        if (!placed) return;
+        const next = listSearch({ page, q: query, statuses, sort });
+        if (window.location.search === `?${next}`) return;
+        router.replace(`/admin/blogs?${next}`, { scroll: false });
+    }, [placed, page, query, statuses, sort, router]);
 
     useEffect(() => {
         let active = true;
@@ -287,6 +318,12 @@ export default function ArticleAdminList() {
         [],
     );
 
+    function rememberArticle(id: string): void {
+        const searchValue = listSearch({ ...listContext.current, focus: id });
+        sessionStorage.setItem(BLOG_RETURN_KEY, searchValue);
+        window.history.replaceState(window.history.state, "", `/admin/blogs?${searchValue}`);
+    }
+
     async function editArticle(article: AdminArticle): Promise<void> {
         const accepted = await getConfirmModal({
             title: "Sửa bài viết",
@@ -295,7 +332,7 @@ export default function ArticleAdminList() {
             cancelText: "Hủy",
         });
         if (!accepted) return;
-        sessionStorage.setItem(BLOG_RETURN_KEY, JSON.stringify({ id: article.id, ...listContext.current }));
+        rememberArticle(article.id);
         router.push(`/admin/blogs/${article.id}`);
     }
 
@@ -351,7 +388,7 @@ export default function ArticleAdminList() {
                 },
             }}
         >
-        <main className="box-border flex flex-col gap-6 px-4 py-8 sm:px-8">
+        <main className={`box-border flex flex-col gap-6 px-4 py-8 sm:px-8 ${placed ? "" : "invisible"}`} aria-busy={!placed}>
             <header className="flex flex-wrap items-center justify-between gap-3">
                 <h1 className="m-0 text-2xl font-semibold">Bài viết</h1>
                 <Button type="primary" href="/admin/blogs/new" className="min-h-11">
@@ -520,7 +557,7 @@ export default function ArticleAdminList() {
                         size="middle"
                         columns={columns}
                         dataSource={items}
-                        loading={boot !== "ready" || !list}
+                        loading={!list}
                         rowClassName={(article) => (article.id === highlightId ? "[&>td]:!bg-[#f3f4f6]" : "")}
                         locale={{ emptyText: "Không có bài trong bộ lọc này." }}
                         scroll={{ x: 1200 }}
@@ -534,7 +571,7 @@ export default function ArticleAdminList() {
                                 const target = event.target;
                                 if (!(target instanceof Element)) return;
                                 if (target.closest("button, a, input, label, .ant-checkbox, .ant-table-selection-column")) return;
-                                sessionStorage.setItem(BLOG_RETURN_KEY, JSON.stringify({ id: article.id, ...listContext.current }));
+                                rememberArticle(article.id);
                                 router.push(`/bai-viet/${article.slug}`);
                             },
                         })}
@@ -544,7 +581,10 @@ export default function ArticleAdminList() {
                             total: list?.total ?? 0,
                             showSizeChanger: false,
                             size: "large",
-                            onChange: setPage,
+                            onChange: (next) => {
+                                setHighlightId(null);
+                                setPage(next);
+                            },
                         }}
                     />
                 </div>

@@ -33,6 +33,8 @@ export const USER_PERMISSIONS = [
   'listing:report',
   'comment:create',
   'comment:delete',
+  'discussion:read',
+  'discussion:write',
 ] as const satisfies readonly Permission[];
 
 export const ADMIN_PERMISSIONS = [
@@ -46,6 +48,7 @@ export const ADMIN_PERMISSIONS = [
   'listing:moderate',
   'report:review',
   'article:manage',
+  'discussion:moderate',
   'audit:read',
 ] as const satisfies readonly Permission[];
 

@@ -6,6 +6,7 @@ import {
     House,
     LogOut,
     Map,
+    MessagesSquare,
     Newspaper,
     PanelLeftClose,
     PanelLeftOpen,
@@ -93,6 +94,12 @@ export default function AppSidebar({
                   },
                   {
                       kind: "item",
+                      href: "/admin/discussions",
+                      icon: MessagesSquare,
+                      label: vi ? "Diễn đàn" : "Discussions",
+                  },
+                  {
+                      kind: "item",
                       href: "/admin/plans",
                       icon: BadgeCheck,
                       label: vi ? "Gói" : "Plan",
@@ -139,6 +146,12 @@ export default function AppSidebar({
                       href: "/app/map",
                       icon: Map,
                       label: vi ? "Bản đồ" : "Map",
+                  },
+                  {
+                      kind: "item",
+                      href: "/app/discussions",
+                      icon: MessagesSquare,
+                      label: vi ? "Diễn đàn" : "Discussions",
                   },
                   {
                       kind: "item",

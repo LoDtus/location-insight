@@ -56,6 +56,8 @@ Lưu ý: kiểm tra theo **quyền**, không theo tên vai trò. Chuỗi `role =
 | `listing:report` | báo cáo tin vi phạm | |
 | `comment:create` | bình luận, hỏi đáp | |
 | `comment:delete` | xóa bình luận | chủ bình luận, hoặc `listing:moderate` |
+| `discussion:read` | đọc diễn đàn | cần đăng nhập |
+| `discussion:write` | tạo chủ đề, bài, trả lời, thích, báo cáo | cần đăng nhập |
 
 ### 2.3 Theo gói
 
@@ -77,6 +79,7 @@ Lưu ý: kiểm tra theo **quyền**, không theo tên vai trò. Chuỗi `role =
 | `listing:moderate` | ẩn, gỡ tin, xóa bình luận vi phạm | không |
 | `report:review` | xử lý báo cáo vi phạm | không |
 | `article:manage` | tạo, sửa, xuất bản bài viết | không |
+| `discussion:moderate` | ẩn bài diễn đàn, khóa hoặc ẩn chủ đề | không |
 | `audit:read` | xem `admin_audit_logs`, `auth_events` rút gọn | không |
 
 ## 3. Ma trận vai trò × quyền
@@ -146,9 +149,11 @@ export type Permission =
   | 'notification:read' | 'place:save' | 'place:note' | 'analysis:run' | 'analysis:history:read'
   | 'listing:create' | 'listing:update' | 'listing:delete' | 'listing:contact:reveal'
   | 'listing:report' | 'comment:create' | 'comment:delete'
+  | 'discussion:read' | 'discussion:write'
   | 'valuation:run'
   | 'admin:access' | 'user:read' | 'user:lock' | 'user:session:revoke' | 'subscription:grant'
   | 'credit:grant' | 'quota:reset' | 'listing:moderate' | 'report:review' | 'article:manage'
+  | 'discussion:moderate'
   | 'audit:read';
 
 export type QuotaName = 'analysisDaily';
@@ -184,11 +189,13 @@ export const USER_PERMISSIONS = [
   'notification:read', 'place:save', 'place:note', 'analysis:run', 'analysis:history:read',
   'listing:create', 'listing:update', 'listing:delete', 'listing:contact:reveal',
   'listing:report', 'comment:create', 'comment:delete',
+  'discussion:read', 'discussion:write',
 ] as const satisfies readonly Permission[];
 
 export const ADMIN_PERMISSIONS = [
   'admin:access', 'user:read', 'user:lock', 'user:session:revoke', 'subscription:grant',
-  'credit:grant', 'quota:reset', 'listing:moderate', 'report:review', 'article:manage', 'audit:read',
+  'credit:grant', 'quota:reset', 'listing:moderate', 'report:review', 'article:manage',
+  'discussion:moderate', 'audit:read',
 ] as const satisfies readonly Permission[];
 
 export const PLAN_ENTITLEMENTS: Readonly<Record<Plan, PlanEntitlement>> = {

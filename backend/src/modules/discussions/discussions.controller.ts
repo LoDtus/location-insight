@@ -58,6 +58,16 @@ export class DiscussionsController {
     return this.discussions.listPosts(this.userId(request), query.cursor);
   }
 
+  @RequirePermission('discussion:read')
+  @Get('authors/:username/posts')
+  authorPosts(
+    @Param('username') username: string,
+    @Query() query: CursorQueryDto,
+    @Req() request: RequestWithPrincipal,
+  ) {
+    return this.discussions.listAuthorPosts(username, this.userId(request), query.cursor);
+  }
+
   @RequirePermission('discussion:write')
   @Post('posts')
   createPost(

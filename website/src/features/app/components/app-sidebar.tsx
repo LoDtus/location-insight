@@ -116,7 +116,7 @@ export default function AppSidebar({
                   },
                   {
                       kind: "item",
-                      href: "/admin/discussions",
+                      href: "/admin/feed",
                       icon: MessagesSquare,
                       label: vi ? "Diễn đàn" : "Discussions",
                   },

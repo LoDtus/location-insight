@@ -16,7 +16,7 @@ import {
     type DiscussionTopic,
 } from "@/features/discussions/discussions.api";
 
-export function ProfileForumPost({ root }: { root: ShellRoot }): JSX.Element {
+export function ProfileForumPost({ root, onPosted }: { root: ShellRoot; onPosted?: () => void }): JSX.Element {
     const auth = useAuth();
     const [topics, setTopics] = useState<DiscussionTopic[]>([]);
     const [topicSlug, setTopicSlug] = useState("");
@@ -83,6 +83,7 @@ export function ProfileForumPost({ root }: { root: ShellRoot }): JSX.Element {
             setFiles([]);
             setPostedId(post.id);
             setMessage("Đã đăng lên diễn đàn.");
+            onPosted?.();
         } catch (error) {
             setMessage(error instanceof AuthApiError ? error.message : "Chưa đăng được bài.");
         } finally {
@@ -114,8 +115,8 @@ export function ProfileForumPost({ root }: { root: ShellRoot }): JSX.Element {
             {message ? (
                 <p role={message.startsWith("Đã ") ? "status" : "alert"} className="m-0 border-t border-charcoal/10 px-4 py-3 text-sm">
                     {message}{" "}
-                    {postedId && root === "/app" ? (
-                        <Link href={`/app/feed/${postedId}`} className="font-semibold underline underline-offset-4">
+                    {postedId ? (
+                        <Link href={`${root}/feed/${postedId}`} className="font-semibold underline underline-offset-4">
                             Xem bài vừa đăng
                         </Link>
                     ) : null}

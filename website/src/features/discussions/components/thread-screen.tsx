@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type JSX } from "react";
 
+import type { ShellRoot } from "@/features/app/shell";
 import { AuthApiError } from "@/features/auth/auth.api";
 import { useAuth } from "@/features/auth/use-auth";
 import {
@@ -21,7 +22,7 @@ import { PostCard, readSavedPosts, writeSavedPosts } from "@/features/discussion
 import { PostComposer } from "@/features/discussions/components/post-composer";
 import { getConfirmModal } from "@/shared/utils/confirm.utils";
 
-export function ThreadScreen({ id }: { id: string }): JSX.Element {
+export function ThreadScreen({ id, root }: { id: string; root: ShellRoot }): JSX.Element {
     const auth = useAuth();
     const router = useRouter();
     const scroller = useRef<HTMLElement>(null);
@@ -108,7 +109,7 @@ export function ThreadScreen({ id }: { id: string }): JSX.Element {
     }
 
     async function share(target: DiscussionPost): Promise<void> {
-        await navigator.clipboard.writeText(`${window.location.origin}/app/feed/${target.id}`);
+        await navigator.clipboard.writeText(`${window.location.origin}${root}/feed/${target.id}`);
         setMessage("Đã sao chép liên kết.");
     }
 
@@ -133,7 +134,7 @@ export function ThreadScreen({ id }: { id: string }): JSX.Element {
 
     if (!post) {
         return (
-            <main className="h-full overflow-auto bg-cream">
+            <main className={`h-full overflow-auto ${root === "/admin" ? "bg-white" : "bg-cream"}`}>
                 <p className="m-0 px-4 py-8 text-sm">{message || "Đang tải mạch bài."}</p>
             </main>
         );
@@ -142,10 +143,10 @@ export function ThreadScreen({ id }: { id: string }): JSX.Element {
     const items = [post, ...replies];
 
     return (
-        <main ref={scroller} className="h-full overflow-auto bg-cream">
+        <main ref={scroller} className={`h-full overflow-auto ${root === "/admin" ? "bg-white" : "bg-cream"}`}>
             <div className="mx-auto min-h-full w-full max-w-[640px] border-x border-charcoal/10 bg-white">
                 <p className="m-0 border-b border-charcoal/10 px-4 py-3 text-sm">
-                    <Link href="/app/feed" className="font-semibold text-green no-underline">
+                    <Link href={`${root}/feed`} className="font-semibold text-green no-underline">
                         Diễn đàn
                     </Link>
                 </p>
@@ -159,6 +160,7 @@ export function ThreadScreen({ id }: { id: string }): JSX.Element {
                         <li key={item.id}>
                             <PostCard
                                 post={item}
+                                root={root}
                                 connected={index < items.length - 1}
                                 saved={saved.includes(item.id)}
                                 mine={auth.user?.userId === item.authorId}
@@ -189,7 +191,7 @@ export function ThreadScreen({ id }: { id: string }): JSX.Element {
                                         if (!accepted) return;
                                         void deletePost(item.id)
                                             .then(() => {
-                                                if (item.id === post.id) router.push("/app/feed");
+                                                if (item.id === post.id) router.push(`${root}/feed`);
                                                 else void load();
                                             })
                                             .catch(() => setMessage("Chưa xóa được."));

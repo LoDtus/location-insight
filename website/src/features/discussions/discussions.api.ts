@@ -74,6 +74,13 @@ export function listPosts(cursor?: string): Promise<DiscussionPage<DiscussionPos
     return apiRequest(`/discussions/posts${query}`);
 }
 
+export function listAuthorPosts(username: string, cursor?: string): Promise<DiscussionPage<DiscussionPost>> {
+    const params = new URLSearchParams();
+    if (cursor) params.set("cursor", cursor);
+    const suffix = params.toString();
+    return apiRequest(`/discussions/authors/${encodeURIComponent(username)}/posts${suffix ? `?${suffix}` : ""}`);
+}
+
 export function topicFeed(
     slug: string,
     cursor?: string,

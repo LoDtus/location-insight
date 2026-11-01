@@ -4,6 +4,7 @@ import { Bookmark, Heart, MessageCircle, MoreHorizontal, Repeat2, Send } from "l
 import Link from "next/link";
 import { useEffect, useRef, useState, type JSX } from "react";
 
+import type { ShellRoot } from "@/features/app/shell";
 import type { DiscussionPost } from "@/features/discussions/discussions.api";
 import { Avatar } from "@/features/discussions/components/post-composer";
 
@@ -41,6 +42,7 @@ export function relativeTime(iso: string): string {
 
 export function PostCard({
     post,
+    root,
     connected,
     saved,
     mine,
@@ -54,6 +56,7 @@ export function PostCard({
     onReport,
 }: {
     post: DiscussionPost;
+    root: ShellRoot;
     connected?: boolean;
     saved: boolean;
     mine: boolean;
@@ -93,11 +96,13 @@ export function PostCard({
             <div className="min-w-0 flex-1">
                 <header className="flex items-start gap-2">
                     <p className="m-0 min-w-0 flex-1 text-sm">
-                        <Link href={`/app/feed/${post.id}`} className="font-semibold text-inherit no-underline">
+                        <Link href={`${root}/feed/${post.id}`} className="font-semibold text-inherit no-underline">
                             {post.authorName}
                         </Link>
                         {post.authorUsername ? (
-                            <span className="text-charcoal/55"> @{post.authorUsername}</span>
+                            <Link href={`${root}/profile/${post.authorUsername}`} className="text-charcoal/55 no-underline">
+                                {" "}@{post.authorUsername}
+                            </Link>
                         ) : null}
                         <span className="text-charcoal/55"> · {relativeTime(post.createdAt)}</span>
                     </p>
@@ -154,7 +159,7 @@ export function PostCard({
                         ) : null}
                     </div>
                 </header>
-                <Link href={`/app/feed/${post.id}`} className="mt-1 block text-inherit no-underline">
+                <Link href={`${root}/feed/${post.id}`} className="mt-1 block text-inherit no-underline">
                     {post.topicName ? (
                         <p className="m-0 text-sm font-semibold text-green">Chủ đề: {post.topicName}</p>
                     ) : null}

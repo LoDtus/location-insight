@@ -138,6 +138,12 @@ export class DiscussionsService {
     return this.pagePosts(cursor, null, viewerId);
   }
 
+  async listAuthorPosts(username: string, viewerId: string, cursor?: string) {
+    const author = await this.users.findOne({ where: { username } });
+    if (!author) this.missing('Không tìm thấy người dùng.');
+    return this.pagePosts(cursor, null, viewerId, author.id);
+  }
+
   async createPost(userId: string, input: CreatePostDto): Promise<PostView> {
     await this.consume(userId, 'post');
     const body = this.requireBody(input.body);
@@ -493,6 +499,7 @@ export class DiscussionsService {
     cursor: string | undefined,
     topicId: string | null,
     viewerId: string,
+    authorId?: string,
   ) {
     const qb = this.posts
       .createQueryBuilder('post')
@@ -502,6 +509,7 @@ export class DiscussionsService {
       .addOrderBy('post.id', 'DESC')
       .take(FEED_PAGE + 1);
     if (topicId) qb.andWhere('post.topicId = :topicId', { topicId });
+    if (authorId) qb.andWhere('post.authorId = :authorId', { authorId });
     const point = readCursor(cursor);
     if (point) {
       qb.andWhere(

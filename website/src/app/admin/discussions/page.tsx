@@ -1,7 +1,5 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { ModerationScreen } from "@/features/discussions/components/moderation-screen";
-
-export default function Page() {
-    return <ModerationScreen />;
+export default function Page(): never {
+    redirect("/admin/feed");
 }

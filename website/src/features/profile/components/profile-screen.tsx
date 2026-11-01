@@ -17,6 +17,7 @@ import type { ShellRoot } from "@/features/app/shell";
 import { AuthApiError } from "@/features/auth/auth.api";
 import { profileUpdated } from "@/features/auth/auth.slice";
 import { ProfileForumPost } from "@/features/profile/components/profile-forum-post";
+import { ProfilePosts } from "@/features/profile/components/profile-posts";
 import {
     getOwnProfile,
     getPublicProfile,
@@ -87,6 +88,7 @@ export default function ProfileScreen({
     const [editing, setEditing] = useState(false);
     const [pending, setPending] = useState(false);
     const [message, setMessage] = useState("");
+    const [postedTick, setPostedTick] = useState(0);
 
     useEffect(() => {
         let active = true;
@@ -371,7 +373,11 @@ export default function ProfileScreen({
                     </p>
                 ) : null}
 
-                {own ? <ProfileForumPost root={root} /> : null}
+                {profile.username ? (
+                    <ProfilePosts username={profile.username} root={root} reloadKey={postedTick} />
+                ) : null}
+
+                {own ? <ProfileForumPost root={root} onPosted={() => setPostedTick((current) => current + 1)} /> : null}
 
                 {own && root === "/app" && profile.username ? (
                     <p className="mt-8 mb-0 border-t border-charcoal/15 pt-6 text-sm">

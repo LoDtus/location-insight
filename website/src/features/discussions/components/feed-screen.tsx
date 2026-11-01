@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type JSX } from "react";
 
+import type { ShellRoot } from "@/features/app/shell";
 import { AuthApiError } from "@/features/auth/auth.api";
 import { useAuth } from "@/features/auth/use-auth";
 import {
@@ -24,7 +26,7 @@ import { PostCard, readSavedPosts, writeSavedPosts } from "@/features/discussion
 import { PostComposer } from "@/features/discussions/components/post-composer";
 import { getConfirmModal } from "@/shared/utils/confirm.utils";
 
-export function FeedScreen(): JSX.Element {
+export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
     const auth = useAuth();
     const router = useRouter();
     const scroller = useRef<HTMLElement>(null);
@@ -174,13 +176,13 @@ export function FeedScreen(): JSX.Element {
     }
 
     async function share(post: DiscussionPost): Promise<void> {
-        const url = `${window.location.origin}/app/feed/${post.id}`;
+        const url = `${window.location.origin}${root}/feed/${post.id}`;
         await navigator.clipboard.writeText(url);
         setMessage("Đã sao chép liên kết.");
     }
 
     return (
-        <main ref={scroller} className="h-full overflow-auto bg-cream">
+        <main ref={scroller} className={`h-full overflow-auto ${root === "/admin" ? "bg-white" : "bg-cream"}`}>
             <div className="mx-auto min-h-full w-full max-w-[640px] border-x border-charcoal/10 bg-white">
                 <div className="sticky top-0 z-10 flex gap-2 overflow-x-auto border-b border-charcoal/10 bg-white px-4 py-3">
                     <TopicTab
@@ -193,6 +195,14 @@ export function FeedScreen(): JSX.Element {
                             });
                         }}
                     />
+                    {root === "/admin" ? (
+                        <Link
+                            href="/admin/feed/reports"
+                            className="inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-sm font-semibold text-green no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
+                        >
+                            Duyệt báo cáo
+                        </Link>
+                    ) : null}
                     {topics.map((topic) => (
                         <TopicTab
                             key={topic.id}
@@ -239,11 +249,12 @@ export function FeedScreen(): JSX.Element {
                         <li key={post.id} className="border-t border-charcoal/10">
                             <PostCard
                                 post={post}
+                                root={root}
                                 connected={false}
                                 saved={saved.includes(post.id)}
                                 mine={auth.user?.userId === post.authorId}
                                 onLike={() => void toggleLike(post).catch(() => setMessage("Chưa thích được."))}
-                                onReply={() => router.push(`/app/feed/${post.id}`)}
+                                onReply={() => router.push(`${root}/feed/${post.id}`)}
                                 onRepost={() => void repost(post).catch(() => setMessage("Chưa đăng lại được."))}
                                 onQuote={() => {
                                     setQuote(post);

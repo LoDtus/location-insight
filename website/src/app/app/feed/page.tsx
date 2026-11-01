@@ -3,5 +3,5 @@
 import { FeedScreen } from "@/features/discussions/components/feed-screen";
 
 export default function Page() {
-    return <FeedScreen />;
+    return <FeedScreen root="/app" />;
 }

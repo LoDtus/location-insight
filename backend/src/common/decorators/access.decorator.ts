@@ -17,7 +17,8 @@ export type AuthRateLimitAction =
   | 'login'
   | 'reset'
   | 'refresh'
-  | 'sepay';
+  | 'sepay'
+  | 'unsubscribe';
 
 export const Public = () => SetMetadata(PUBLIC_KEY, true);
 export const AuthenticatedOnly = () => SetMetadata(AUTHENTICATED_KEY, true);

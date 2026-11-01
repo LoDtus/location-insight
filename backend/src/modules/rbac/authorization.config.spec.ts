@@ -86,6 +86,9 @@ describe('authorization config', () => {
   it('quyền góp ý: user gửi, chỉ admin quản lý', () => {
     expect(effectivePermissions(UserRole.USER, Plan.FREE)).toContain('feedback:write');
     expect(effectivePermissions(UserRole.USER, Plan.FREE)).not.toContain('feedback:manage');
+    expect(effectivePermissions(UserRole.USER, Plan.FREE)).toContain('email:self');
+    expect(effectivePermissions(UserRole.USER, Plan.FREE)).not.toContain('email:manage');
+    expect(effectivePermissions(UserRole.ADMIN, Plan.FREE)).toContain('email:manage');
     expect(effectivePermissions(UserRole.ADMIN, Plan.FREE)).toContain('feedback:manage');
     expect(effectivePermissions(UserRole.GUEST, Plan.FREE)).not.toContain('feedback:write');
   });

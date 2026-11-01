@@ -4,6 +4,7 @@ import { DataSource, EntityManager, Repository } from 'typeorm';
 import { BusinessException } from '../../common/exceptions/business.exception.js';
 import { RedisService } from '../../integrations/redis/redis.service.js';
 import { ErrorCode } from '../../shared/constants/error-code.constant.js';
+import { EmailService } from '../email/email.service.js';
 import { UserEntity, UserStatus } from '../auth/entities/user.entity.js';
 import { rowsOf } from '../messaging/messaging-db.js';
 import { invalid, notFound, tooMany, unavailable } from '../messaging/messaging-errors.js';
@@ -50,6 +51,7 @@ export class FollowService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly redis: RedisService,
+    private readonly email: EmailService,
     @InjectRepository(UserEntity) private readonly users: Repository<UserEntity>,
     @InjectRepository(UserFollowEntity) private readonly follows: Repository<UserFollowEntity>,
   ) {}
@@ -82,7 +84,7 @@ export class FollowService {
         );
       }
     }
-    await this.dataSource.transaction(async (manager) => {
+    const created = await this.dataSource.transaction(async (manager) => {
       const inserted = rowsOf<{ follower_id: string }>(
         await manager.query(
           `INSERT INTO user_follows (follower_id, followee_id) VALUES ($1, $2)
@@ -90,12 +92,14 @@ export class FollowService {
           [viewerId, targetId],
         ),
       );
-      if (!inserted.length) return;
+      if (!inserted.length) return false;
       await this.bump(manager, [
         { userId: viewerId, followers: 0, following: 1 },
         { userId: targetId, followers: 1, following: 0 },
       ]);
+      return true;
     });
+    if (created) void this.notifyFollowed(viewerId, targetId);
     return this.stateOf(viewerId, targetId);
   }
 
@@ -289,6 +293,25 @@ export class FollowService {
         [delta.userId, delta.followers, delta.following],
       );
     }
+  }
+
+  /** Email "có người theo dõi": mỗi cặp một lần, chỉ tới tài khoản đang hoạt động và đã xác minh. */
+  private async notifyFollowed(followerId: string, targetId: string): Promise<void> {
+    const [follower, target] = await Promise.all([
+      this.users.findOne({ where: { id: followerId } }),
+      this.users.findOne({ where: { id: targetId } }),
+    ]);
+    if (!follower || !target?.emailVerifiedAt || target.status !== UserStatus.ACTIVE) return;
+    const origin = (process.env.AUTH_ALLOWED_ORIGINS ?? '').split(',')[0]?.trim() || 'http://127.0.0.1:22360';
+    await this.email.send({
+      template: 'new_follower',
+      to: { userId: target.id, email: target.email, displayName: target.displayName, locale: target.locale },
+      vars: {
+        follower_name: follower.displayName,
+        profile_url: `${origin}/app/profile/${follower.username ?? follower.id}`,
+      },
+      dedupeKey: `new_follower:${followerId}:${targetId}`,
+    });
   }
 
   private async requireTarget(targetId: string): Promise<void> {

@@ -4,6 +4,7 @@ import argon2 from 'argon2';
 import { IsNull, MoreThan, Repository } from 'typeorm';
 import { BusinessException } from '../../common/exceptions/business.exception.js';
 import { ErrorCode } from '../../shared/constants/error-code.constant.js';
+import { EmailService } from '../email/email.service.js';
 import { AUTH_LIMITS, randomToken, sha256 } from './auth.constants.js';
 import { AuthConfig } from './auth.config.js';
 import { AuthProvider } from './entities/auth-identity.entity.js';
@@ -35,6 +36,7 @@ export class PasswordService implements OnModuleInit {
   constructor(
     private readonly authConfig: AuthConfig,
     private readonly sessions: SessionService,
+    private readonly email: EmailService,
     @InjectRepository(UserEntity)
     private readonly users: Repository<UserEntity>,
     @InjectRepository(AuthIdentityEntity)
@@ -112,6 +114,14 @@ export class PasswordService implements OnModuleInit {
       { id: row.userId },
       { emailVerifiedAt: new Date() },
     );
+    const user = await this.users.findOne({ where: { id: row.userId } });
+    if (user) {
+      void this.email.send({
+        template: 'welcome',
+        to: this.recipient(user),
+        dedupeKey: `welcome:${user.id}`,
+      });
+    }
   }
 
   async login(email: string, password: string): Promise<UserEntity> {
@@ -178,6 +188,8 @@ export class PasswordService implements OnModuleInit {
       null,
       null,
     );
+    const user = await this.users.findOne({ where: { id: row.userId } });
+    if (user) this.notifyPasswordChanged(user);
   }
 
   async change(
@@ -213,6 +225,26 @@ export class PasswordService implements OnModuleInit {
       null,
       null,
     );
+    this.notifyPasswordChanged(user);
+  }
+
+  private recipient(user: UserEntity) {
+    return {
+      userId: user.id,
+      email: user.email,
+      displayName: user.displayName,
+      locale: user.locale,
+    };
+  }
+
+  private notifyPasswordChanged(user: UserEntity): void {
+    const now = new Date();
+    void this.email.send({
+      template: 'password_changed',
+      to: this.recipient(user),
+      vars: { changed_at: now.toISOString().slice(0, 16).replace('T', ' ') + ' UTC' },
+      dedupeKey: `password_changed:${user.id}:${now.getTime()}`,
+    });
   }
 
   async reauth(user: UserEntity, password: string): Promise<void> {
@@ -249,9 +281,17 @@ export class PasswordService implements OnModuleInit {
         ipAddress,
       }),
     );
-    if (process.env.NODE_ENV !== 'production') {
-      this.logger.log(`Token ${purpose} cho ${user.id}: ${raw}`);
-    }
+    const isVerify = purpose === 'verify_email';
+    const path = isVerify ? '/auth/verify-email' : '/auth/reset-password';
+    const url = `${this.authConfig.websiteOrigin}${path}?token=${encodeURIComponent(raw)}`;
+    await this.email.send({
+      template: isVerify ? 'verify_email' : 'reset_password',
+      to: this.recipient(user),
+      vars: {
+        [isVerify ? 'verify_url' : 'reset_url']: url,
+        expires_minutes: String(AUTH_LIMITS.oneTimeTokenMinutes),
+      },
+    });
   }
 
   private async consume(

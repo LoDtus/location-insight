@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
 import { v7 as uuidv7 } from 'uuid';
+import { EmailService } from '../email/email.service.js';
 import { RedisService } from '../../integrations/redis/redis.service.js';
 import { StorageService } from '../../integrations/storage/storage.service.js';
 import { UserEntity } from '../auth/entities/user.entity.js';
@@ -71,6 +72,7 @@ export class FeedbackService {
     private readonly dataSource: DataSource,
     private readonly redis: RedisService,
     private readonly storage: StorageService,
+    private readonly email: EmailService,
     @InjectRepository(FeedbackEntity) private readonly feedbacks: Repository<FeedbackEntity>,
     @InjectRepository(FeedbackMediaEntity) private readonly media: Repository<FeedbackMediaEntity>,
     @InjectRepository(FeedbackReplyEntity) private readonly replies: Repository<FeedbackReplyEntity>,
@@ -211,6 +213,7 @@ export class FeedbackService {
     const reply = await this.addReply(row, actor.userId as string, 'admin', bodyText);
     if (row.status === 'open') await this.feedbacks.update({ id }, { status: 'in_progress' });
     await this.audit(actor, 'feedback_reply', id, null, { replyId: reply.id }, ip);
+    await this.notifyAuthor(row, reply.body);
     return this.detail(id, { forAdmin: true });
   }
 
@@ -241,6 +244,22 @@ export class FeedbackService {
   }
 
   // --- Nội bộ --------------------------------------------------------------
+
+  private async notifyAuthor(row: FeedbackEntity, replyBody: string): Promise<void> {
+    const author = await this.users.findOne({ where: { id: row.authorId } });
+    if (!author?.emailVerifiedAt) return;
+    const origin = (process.env.AUTH_ALLOWED_ORIGINS ?? '').split(',')[0]?.trim() || 'http://127.0.0.1:22360';
+    const excerpt = (text: string) => (text.length > 200 ? `${text.slice(0, 200)}…` : text);
+    await this.email.send({
+      template: 'feedback_reply',
+      to: { userId: author.id, email: author.email, displayName: author.displayName, locale: author.locale },
+      vars: {
+        feedback_excerpt: excerpt(row.description),
+        reply_excerpt: excerpt(replyBody),
+        feedback_url: `${origin}/app/feedback/${row.id}`,
+      },
+    });
+  }
 
   private async addReply(
     row: FeedbackEntity,

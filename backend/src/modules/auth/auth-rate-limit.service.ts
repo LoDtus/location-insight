@@ -19,6 +19,10 @@ export class AuthRateLimitService {
       },
       login: { key: REDIS_KEYS.loginIp(ip), ...AUTH_RATE_LIMITS.loginIp },
       sepay: { key: REDIS_KEYS.sepayIp(ip), ...AUTH_RATE_LIMITS.sepayIp },
+      unsubscribe: {
+        key: REDIS_KEYS.unsubscribeIp(ip),
+        ...AUTH_RATE_LIMITS.unsubscribeIp,
+      },
       reset: { key: REDIS_KEYS.resetIp(ip), ...AUTH_RATE_LIMITS.resetIp },
     }[action];
     await this.hit(rule.key, rule.limit, rule.windowSeconds);

@@ -16,6 +16,7 @@ import { PaymentOrderEntity } from './entities/payment-order.entity.js';
 import { PaymentTransactionEntity } from './entities/payment-transaction.entity.js';
 import { RefundRequestEntity } from './entities/refund-request.entity.js';
 import { SepayWebhookController } from './sepay-webhook.controller.js';
+import { SeedBillingService } from './seed-billing.service.js';
 import { SepayWebhookService } from './sepay-webhook.service.js';
 
 @Module({
@@ -43,6 +44,7 @@ import { SepayWebhookService } from './sepay-webhook.service.js';
     SepayWebhookService,
     BillingAdminService,
     BillingMaintenanceService,
+    SeedBillingService,
   ],
 })
 export class BillingModule {}

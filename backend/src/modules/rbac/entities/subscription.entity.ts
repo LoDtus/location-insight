@@ -20,6 +20,10 @@ export enum SubscriptionSource {
   'status',
   'periodEnd',
 ])
+@Index('uk_subscriptions_one_open', ['userId'], {
+  unique: true,
+  where: "ended_at IS NULL AND status IN ('active', 'canceled')",
+})
 export class SubscriptionEntity extends AppBaseEntity {
   @ManyToOne(() => UserEntity, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })

@@ -35,6 +35,7 @@ Table subscriptions {
 
   indexes {
     (user_id, status, period_end) [name: 'idx_subscriptions_user_id_status_period_end']
+    user_id [unique, name: 'uk_subscriptions_one_open', note: 'partial: ended_at IS NULL AND status IN (active, canceled). Một người một gói đang mở. Hết hạn phải chuyển expired trước khi ghi dòng mới.']
     payment_order_id [unique, name: 'uk_subscriptions_payment_order_id']
   }
 }

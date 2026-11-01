@@ -120,6 +120,20 @@ export class BillingAdminService {
     return this.billing.toView(order);
   }
 
+  async userBilling(actor: Principal, userId: string) {
+    const user = await this.users.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new BusinessException(
+        ErrorCode.NOT_FOUND,
+        'Không tìm thấy người dùng.',
+        null,
+        HttpStatus.NOT_FOUND,
+      );
+    }
+    this.policy.assertCanAffectUser(actor, user);
+    return this.billing.myBilling(userId);
+  }
+
   async revoke(
     actor: Principal,
     subscriptionId: string,

@@ -59,7 +59,7 @@ export function CheckoutScreen({ root }: { root: ShellRoot }) {
             <form className={AUTH_FORM_CLASS} onSubmit={handleSubmit}>
                 <h1 className={AUTH_TITLE_CLASS}>Tạo mã chuyển khoản</h1>
                 <p className="m-0 text-sm leading-relaxed">
-                    {PRICES[plan].name}, {formatVnd(amount)}. Gói không tự trừ tiền lần sau.
+                    {PRICES[plan].name}, {formatVnd(amount)}. Gói không tự trừ tiền lần sau. Cùng hạng thì nối hạn. Hạng cao hơn thay gói cũ khi tiền vào. Hạng thấp hơn bị từ chối nếu gói hiện tại còn hạn. Một lần định giá không tính là gói thứ hai.
                 </p>
                 <label className={AUTH_LABEL_CLASS}>
                     Gói

@@ -107,7 +107,7 @@ Vai trò, gói, trạng thái thanh toán, nhật ký hành động admin, danh 
 - Q1. Chốt bảng giá và hạn mức thật (A1, A3).
 - Q2. "So sánh" có tính lượt riêng, hay chỉ tính lượt khi chạy phân tích mới? (Đề xuất: chỉ tính khi chạy phân tích mới; so sánh các kết quả đã có thì miễn phí.)
 - Q3. Có cho khách một lượt dùng thử cố định mỗi ngày theo IP không? (Đề xuất: không.)
-- Q4. Gói đang có hiệu lực mà mua gói cao hơn thì cộng dồn thời gian hay thay thế phần còn lại? (Đề xuất: gói cao hơn có hiệu lực ngay, thời gian gói thấp hơn còn lại không hoàn; chốt cùng tính năng thanh toán.)
+- Q4. Đã chốt ở `007-billing/research.md` Bản ghi quyết định 4: một gói đang mở. Cùng hạng nối hạn. Lên hạng đóng dòng cũ, không hoàn ngày còn lại. Xuống hạng khi còn hạn thì từ chối.
 - Q5. Thông tin liên hệ người đăng tin: khách có thấy không? (Đề xuất: ẩn với khách, hiện khi đăng nhập, để chống thu thập hàng loạt.)
 
 ## Tính năng liên quan <!-- key: related_features -->
@@ -117,3 +117,4 @@ Vai trò, gói, trạng thái thanh toán, nhật ký hành động admin, danh 
 ## Nhật ký cập nhật <!-- key: update_log -->
 
 - 26/10/2026: tạo bản đầu từ yêu cầu của chủ dự án (3 vai trò, gói, hardcode); số liệu hạn mức lấy từ trang giá minh họa của landing.
+- 01/11/2026: Q4 đóng bằng quyết định một gói đang mở của `007-billing`.

@@ -6,7 +6,7 @@
 
 ## Vấn đề <!-- key: problem -->
 
-Người dùng thấy giá tại `/#bang-gia` nhưng chưa có cách trả tiền, nhận gói, gia hạn, hủy, yêu cầu hoàn hoặc được báo trước khi gói hết hạn. Chính sách thanh toán đã công bố cách làm với SePay, trong khi phân quyền chỉ nhận kết quả "gói nào đến ngày nào".
+Người dùng thấy giá tại `/#bang-gia` nhưng chưa có cách trả tiền, nhận gói, gia hạn, hủy, yêu cầu hoàn hoặc được báo trước khi gói hết hạn. Chính sách thanh toán đã công bố cách làm với SePay, trong khi phân quyền chỉ nhận kết quả "gói nào đến ngày nào". Sản phẩm không phải tenant: một người chỉ được một gói cho chính mình, nhưng bản đặc tả trước vẫn cho hai hạng chạy cùng lúc và để admin thu hồi theo mã gói.
 
 ## Bối cảnh hiện tại <!-- key: current_context -->
 
@@ -14,7 +14,7 @@ Mục `/#bang-gia` niêm yết ba mức: miễn phí, không giới hạn lượ
 
 ## Mục tiêu <!-- key: goal -->
 
-Một người đã đăng nhập trả đúng số tiền, đúng nội dung, thì gói hoặc lượt định giá có hiệu lực ngay. Họ xem được hạn, gia hạn bằng một lần trả mới, hủy mà vẫn dùng đến hết hạn đã trả, và được nhắc trước khi hết hạn. Người vận hành đối soát giao dịch lệch, thu hồi gói và ghi nhận hoàn tiền. Không lưu thông tin đăng nhập ngân hàng.
+Một người đã đăng nhập trả đúng số tiền, đúng nội dung, thì đúng một gói hoặc một lượt định giá có hiệu lực ngay. Họ xem được hạn, gia hạn hoặc đổi gói theo quy tắc một gói, hủy mà vẫn dùng đến hết hạn đã trả, rút lại lệnh hủy trước ngày đó, và được nhắc trước khi hết hạn. Người vận hành tìm một người, thấy gói đang mở của người đó, cấp hoặc kết thúc gói đó, đối soát giao dịch lệch và ghi nhận hoàn tiền. Không lưu thông tin đăng nhập ngân hàng.
 
 ## Phạm vi <!-- key: scope -->
 
@@ -24,12 +24,16 @@ Một người đã đăng nhập trả đúng số tiền, đúng nội dung, t
 - Mã QR và nội dung chuyển khoản do SePay/VietQR điền sẵn số tiền.
 - Webhook SePay: đủ tiền, thiếu tiền, thừa tiền, sai nội dung, tiền ra, gửi lại, đến muộn, giả mạo.
 - Kích hoạt hoặc cộng hạn `subscriptions` và cộng tín dụng định giá, rồi xóa cache quyền như `004-rbac`.
-- Hủy gói (còn dùng đến `period_end`), thu hồi ngay bởi admin, yêu cầu hoàn và ghi nhận đã chuyển trả.
+- Đúng một gói đang mở cho mỗi người. Gia hạn cùng hạng nối hạn. Lên hạng thì gói cũ đóng lúc gói mới có hiệu lực. Xuống hạng khi gói đắt hơn còn hạn thì bị từ chối.
+- Hủy gói (còn dùng đến `period_end`), rút lại lệnh hủy trước ngày đó, thu hồi ngay bởi admin, yêu cầu hoàn và ghi nhận đã chuyển trả.
+- Admin tìm một người rồi xem, cấp hoặc kết thúc đúng gói đang mở của người đó. Cấp đè lên gói còn hạn bị từ chối.
 - Nhắc gia hạn trong ứng dụng trước 7 ngày, 1 ngày và đúng ngày hết hạn. Không tự trừ tiền.
 - Màn người dùng và màn đối soát cho người vận hành.
 
 **Out of scope (non-goals):**
 
+- Tenant, tổ chức, ghế, số lượng thành viên, gán gói cho người khác.
+- Hai gói trả phí chạy cùng lúc, prorate, mã giảm giá, kho phương thức thanh toán.
 - Thu tiền thật trong bản đặc tả này, và không gọi SePay từ môi trường dev nếu chưa có khóa.
 - Thẻ quốc tế, ví điện tử, trừ tiền định kỳ, hóa đơn điện tử tự động.
 - Đổi giá đã niêm yết. Catalog lấy số đang có trên `/#bang-gia`.
@@ -40,15 +44,17 @@ Một người đã đăng nhập trả đúng số tiền, đúng nội dung, t
 - Chọn gói trên bảng giá dẫn tới một đơn, một mã, một số tiền. Quét QR hoặc chuyển khoản đúng mã và đủ tiền thì gói hoặc lượt định giá có hiệu lực, và người dùng thấy biên lai.
 - Cùng một giao dịch SePay gửi nhiều lần không kích hoạt hai lần.
 - Thiếu tiền, sai mã, hết hạn đơn, hoặc webhook không xác thực được thì không mở quyền.
-- Hủy không cắt ngày đã trả. Thu hồi và hoàn tiền đã duyệt thì quyền hết ngay và cache quyền bị xóa.
+- Hủy không cắt ngày đã trả. Rút lại lệnh hủy trước ngày đó thì gói trở lại như chưa hủy. Thu hồi và hoàn tiền đã duyệt thì quyền hết ngay và cache quyền bị xóa.
+- Một người không có hai gói trả phí cùng lúc. Lượt định giá mua lẻ không tính là gói thứ hai.
+- Admin làm việc trên một người, không cần biết trước mã gói. Cấp gói khi người đó còn hạn trả phí thì bị từ chối.
 - Trước ngày hết hạn có thông báo trong ứng dụng. Không có lệnh trừ tiền tự động.
 
 ## Đối tượng sử dụng chính & Kịch bản sử dụng <!-- key: primary_actors -->
 
-- **Người dùng đã đăng nhập:** mua gói hoặc một lượt định giá, chờ xác nhận, gia hạn, hủy, xin hoàn, xem lịch sử.
+- **Người dùng đã đăng nhập:** mua đúng một gói cho mình hoặc một lượt định giá, chờ xác nhận, gia hạn, đổi hạng, hủy, rút lại lệnh hủy, xin hoàn, xem lịch sử.
 - **Khách chưa đăng nhập:** chỉ xem bảng giá. Bấm trả tiền thì tới đăng nhập, rồi quay lại đơn.
 - **SePay:** gửi webhook khi có giao dịch ngân hàng.
-- **Người vận hành (admin):** đối soát lệnh lệch, thu hồi gói, chấp thuận hoặc từ chối hoàn, ghi đã chuyển tiền trả.
+- **Người vận hành (admin):** tìm một người, xem gói đang mở của người đó, cấp gói khi họ đang miễn phí, kết thúc gói đó, đối soát lệnh lệch, chấp thuận hoặc từ chối hoàn, ghi đã chuyển tiền trả.
 - **Job nhắc hạn:** mỗi sáng tạo thông báo 7 ngày, 1 ngày và đúng ngày hết hạn.
 
 ## Nơi bị ảnh hưởng <!-- key: impacted_areas -->
@@ -79,15 +85,15 @@ Có dữ liệu thanh toán: số tiền, mã đơn, nội dung chuyển khoản
 
 - Chuyển thiếu hoặc sai nội dung là trường hợp hay gặp. Nếu kích hoạt khi thiếu tiền sẽ lỗ. Nếu không có màn "còn thiếu" thì người dùng tưởng hệ thống nuốt tiền.
 - Webhook giả có thể mở gói không mất tiền nếu chỉ tin body JSON.
-- Hai gói chồng hạn (đang không giới hạn rồi mua có định giá) dễ tính ngày sai nếu không dùng đúng quy tắc hạng của `004-rbac`.
+- Hai request mua cùng lúc có thể tạo hai dòng gói nếu không khóa theo người trong cùng transaction.
 - Giao dịch đến sau khi đơn hết hạn cần người đối soát, không được tự mở quyền.
 
 ## Giả định (Assumptions) <!-- key: assumptions -->
 
 - Số trên `/#bang-gia` là catalog làm việc của bản này, dù trang đích đang ghi là mức minh họa. Đổi số sau này chỉ sửa một catalog.
 - "Năm bằng 10 tháng" là cách tính giá (300.000 và 600.000), còn thời hạn dùng là 365 ngày. Tháng là 30 ngày, tính từ lúc webhook ghi nhận đủ tiền.
-- Nâng gói trả đủ giá gói mới. Gói cũ vẫn chạy đến hết hạn. Hạng cao hơn đang còn hạn thì có hiệu lực, đúng `004-rbac`. Không prorate.
-- Hạ gói không cắt hạn gói đắt hơn. Người dùng chỉ việc không gia hạn gói đắt, rồi mua gói rẻ khi muốn.
+- Một người chỉ có một gói đang mở. Cách đổi hạng nằm ở `research.md` Bản ghi quyết định 4. Giả định cũ "hai hạng chạy chồng, hạng cao thắng" không còn dùng.
+- Lượt định giá mua lẻ vẫn là sổ tín dụng, không phải gói thứ hai.
 - Một giao dịch vào được tính là đủ khi `transferAmount` lớn hơn hoặc bằng số tiền đơn, đúng mã, đúng tài khoản thụ hưởng, `transferType = in`. Phần thừa ghi vào đơn để xin hoàn phần thừa, không tự chuyển trả.
 - Mã thanh toán là tiền tố `DT` cộng 8 ký tự hex ngẫu nhiên. SePay cấu hình mẫu này để điền trường `code`.
 - Nhắc hạn chỉ trong ứng dụng ở bản này. Email gửi sau, khi đã có kênh thư thật. Dev không gửi thư.
@@ -109,3 +115,4 @@ Có dữ liệu thanh toán: số tiền, mã đơn, nội dung chuyển khoản
 ## Nhật ký cập nhật <!-- key: update_log -->
 
 - Tạo từ mục `/#bang-gia`, chính sách thanh toán đã công bố, và tài liệu webhook/VietQR trên developer.sepay.vn. Người dùng yêu cầu đủ các tình huống thanh toán và quản lý gói, kèm đặc tả và UI.
+- Khóa một gói cho một người, không phải tenant. Đối chiếu Stripe Customer Portal (một subscription, hủy cuối kỳ, rút lại hủy, đổi gói) và trang giới hạn một subscription của Stripe. Bỏ chồng hạng. Admin quản lý theo người.

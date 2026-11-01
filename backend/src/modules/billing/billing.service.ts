@@ -15,6 +15,11 @@ import { ErrorCode } from '../../shared/constants/error-code.constant.js';
 import { AuthzCacheService } from '../rbac/authz-cache.service.js';
 import { Plan } from '../rbac/authorization.types.js';
 import { PLAN_RANK } from '../rbac/authorization.config.js';
+import {
+  DOWNGRADE_MESSAGE,
+  decidePlanChange,
+  type PaidPlan,
+} from '../rbac/subscription-policy.js';
 import { CreditLedgerEntryEntity } from '../rbac/entities/credit-ledger-entry.entity.js';
 import {
   SubscriptionEntity,
@@ -35,6 +40,7 @@ import {
   PaymentOrderStatus,
 } from './entities/payment-order.entity.js';
 import { RefundRequestEntity } from './entities/refund-request.entity.js';
+import { PaymentTransactionEntity } from './entities/payment-transaction.entity.js';
 
 const REFUND_WINDOW_MS = 24 * 60 * 60 * 1000;
 
@@ -104,6 +110,9 @@ export class BillingService {
         null,
         HttpStatus.UNPROCESSABLE_ENTITY,
       );
+    }
+    if (input.kind === 'subscription' && input.plan) {
+      await this.assertPurchaseAllowed(userId, input.plan);
     }
     await this.consumeCheckout(userId);
     const expiresAt = new Date(
@@ -183,6 +192,7 @@ export class BillingService {
     let periodEnd: Date | null = null;
     let cancelAtPeriodEnd = false;
     let subscriptionId: string | null = null;
+    let source: SubscriptionSource | null = null;
     for (const row of rows) {
       const laterSameRank =
         PLAN_RANK[row.plan] === PLAN_RANK[plan] &&
@@ -193,6 +203,7 @@ export class BillingService {
         periodEnd = row.periodEnd;
         cancelAtPeriodEnd = row.status === SubscriptionStatus.CANCELED;
         subscriptionId = row.id;
+        source = row.source;
       }
     }
     const creditRows = await this.credits.find({
@@ -217,6 +228,7 @@ export class BillingService {
       periodEnd,
       cancelAtPeriodEnd,
       subscriptionId,
+      source,
       valuationCredits,
       notices: notices.map((notice) => ({
         id: notice.id,
@@ -244,6 +256,27 @@ export class BillingService {
       return { id: row.id, status: row.status, periodEnd: row.periodEnd };
     }
     row.status = SubscriptionStatus.CANCELED;
+    await this.subscriptions.save(row);
+    await this.authz.invalidate(userId);
+    return { id: row.id, status: row.status, periodEnd: row.periodEnd };
+  }
+
+  async resumeSubscription(userId: string, id: string) {
+    const row = await this.subscriptions.findOne({ where: { id, userId } });
+    if (
+      !row ||
+      row.endedAt ||
+      row.periodEnd.getTime() <= Date.now() ||
+      row.status !== SubscriptionStatus.CANCELED
+    ) {
+      throw new BusinessException(
+        ErrorCode.CONFLICT,
+        'Không còn rút lại được lệnh hủy.',
+        null,
+        HttpStatus.CONFLICT,
+      );
+    }
+    row.status = SubscriptionStatus.ACTIVE;
     await this.subscriptions.save(row);
     await this.authz.invalidate(userId);
     return { id: row.id, status: row.status, periodEnd: row.periodEnd };
@@ -349,41 +382,43 @@ export class BillingService {
     received: number,
   ): Promise<void> {
     if (order.status === 'paid') return;
-    order.status = 'paid';
-    order.paidAt = paidAt;
     order.receivedVnd = Math.max(order.receivedVnd, received);
     if (
       order.kind === 'subscription' &&
       order.plan &&
       (order.cycle === 'month' || order.cycle === 'year')
     ) {
-      const days = BILLING_CATALOG.periodDays[order.cycle];
-      const plan = order.plan as SubscriptionEntity['plan'];
-      const previous = await manager.findOne(SubscriptionEntity, {
-        where: {
-          userId: order.userId,
-          plan,
-          endedAt: IsNull(),
-          periodEnd: MoreThan(paidAt),
-        },
-        order: { periodEnd: 'DESC' },
-      });
-      const start = previous ? previous.periodEnd : paidAt;
-      const subscription = await manager.save(
-        manager.create(SubscriptionEntity, {
-          userId: order.userId,
-          plan,
-          status: SubscriptionStatus.ACTIVE,
-          source: SubscriptionSource.PAYMENT,
-          periodStart: start,
-          periodEnd: addDays(start, days),
-          endedAt: null,
-          paymentOrderId: order.id,
-          grantedBy: null,
-          reason: null,
-        }),
+      const applied = await this.applyPaidPlan(
+        manager,
+        order,
+        order.plan,
+        order.cycle,
+        paidAt,
       );
-      order.subscriptionId = subscription.id;
+      if (!applied) {
+        order.status = 'needs_review';
+        await manager.save(order);
+        await manager
+          .createQueryBuilder()
+          .update(PaymentTransactionEntity)
+          .set({ applyResult: 'needs_review' })
+          .where('orderId = :orderId', { orderId: order.id })
+          .andWhere('applyResult = :result', { result: 'fulfilled' })
+          .execute();
+        await manager.save(
+          manager.create(BillingNoticeEntity, {
+            userId: order.userId,
+            type: 'payment_review',
+            subscriptionId: null,
+            orderId: order.id,
+            title: 'Khoản thanh toán cần đối soát',
+            body: DOWNGRADE_MESSAGE,
+            readAt: null,
+          }),
+        );
+        return;
+      }
+      order.subscriptionId = applied.id;
     } else {
       const entry = await manager.save(
         manager.create(CreditLedgerEntryEntity, {
@@ -398,6 +433,8 @@ export class BillingService {
       );
       order.creditEntryId = entry.id;
     }
+    order.status = 'paid';
+    order.paidAt = paidAt;
     await manager.save(order);
     await manager.save(
       manager.create(BillingNoticeEntity, {
@@ -476,6 +513,120 @@ export class BillingService {
 
   private nextCode(): string {
     return `${this.config.paymentPrefix}${randomBytes(4).toString('hex').toUpperCase()}`;
+  }
+
+  private async assertPurchaseAllowed(
+    userId: string,
+    plan: PaidPlan,
+  ): Promise<void> {
+    const current = await this.currentPaidPlan(userId);
+    if (decidePlanChange(current, plan) === 'reject') {
+      throw new BusinessException(
+        ErrorCode.CONFLICT,
+        DOWNGRADE_MESSAGE,
+        null,
+        HttpStatus.CONFLICT,
+      );
+    }
+  }
+
+  private async currentPaidPlan(userId: string): Promise<PaidPlan | null> {
+    const now = new Date();
+    const rows = await this.subscriptions.find({
+      where: [
+        {
+          userId,
+          status: SubscriptionStatus.ACTIVE,
+          periodEnd: MoreThan(now),
+          endedAt: IsNull(),
+        },
+        {
+          userId,
+          status: SubscriptionStatus.CANCELED,
+          periodEnd: MoreThan(now),
+          endedAt: IsNull(),
+        },
+      ],
+    });
+    let plan: PaidPlan | null = null;
+    for (const row of rows) {
+      if (!plan || PLAN_RANK[row.plan] > PLAN_RANK[plan]) plan = row.plan;
+    }
+    return plan;
+  }
+
+  private async applyPaidPlan(
+    manager: EntityManager,
+    order: PaymentOrderEntity,
+    plan: PaidPlan,
+    cycle: 'month' | 'year',
+    paidAt: Date,
+  ): Promise<SubscriptionEntity | null> {
+    await manager.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [
+      order.userId,
+    ]);
+    const open = await manager
+      .createQueryBuilder(SubscriptionEntity, 'sub')
+      .setLock('pessimistic_write')
+      .where('sub.userId = :userId', { userId: order.userId })
+      .andWhere('sub.endedAt IS NULL')
+      .andWhere('sub.status IN (:...statuses)', {
+        statuses: [SubscriptionStatus.ACTIVE, SubscriptionStatus.CANCELED],
+      })
+      .getMany();
+    const entitled = open.filter(
+      (row) => row.periodEnd.getTime() > paidAt.getTime(),
+    );
+    for (const row of open) {
+      if (row.periodEnd.getTime() <= paidAt.getTime()) {
+        row.status = SubscriptionStatus.EXPIRED;
+        await manager.save(row);
+      }
+    }
+    let current: PaidPlan | null = null;
+    for (const row of entitled) {
+      if (!current || PLAN_RANK[row.plan] > PLAN_RANK[current]) {
+        current = row.plan;
+      }
+    }
+    const change = decidePlanChange(current, plan);
+    if (change === 'reject') return null;
+    const days = BILLING_CATALOG.periodDays[cycle];
+    if (change === 'extend') {
+      const row = entitled
+        .filter((item) => item.plan === plan)
+        .sort((a, b) => b.periodEnd.getTime() - a.periodEnd.getTime())[0];
+      if (!row) return null;
+      for (const other of entitled) {
+        if (other.id === row.id) continue;
+        other.endedAt = paidAt;
+        other.status = SubscriptionStatus.CANCELED;
+        await manager.save(other);
+      }
+      row.periodEnd = addDays(row.periodEnd, days);
+      row.status = SubscriptionStatus.ACTIVE;
+      if (!row.paymentOrderId) row.paymentOrderId = order.id;
+      return manager.save(row);
+    }
+    for (const row of entitled) {
+      row.endedAt = paidAt;
+      row.status = SubscriptionStatus.CANCELED;
+      await manager.save(row);
+    }
+    return manager.save(
+      manager.create(SubscriptionEntity, {
+        userId: order.userId,
+        plan: plan as SubscriptionEntity['plan'],
+        status: SubscriptionStatus.ACTIVE,
+        source: SubscriptionSource.PAYMENT,
+        periodStart: paidAt,
+        periodEnd: addDays(paidAt, days),
+        endedAt: null,
+        paymentOrderId: order.id,
+        grantedBy: null,
+        reason: null,
+      }),
+    );
   }
 
   private async consumeCheckout(userId: string): Promise<void> {

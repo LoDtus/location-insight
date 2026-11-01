@@ -102,13 +102,27 @@ paths:
   /me/billing/subscriptions/{id}/cancel:
     post:
       tags: [billing]
-      summary: Hủy gia hạn, vẫn dùng đến period_end
+      summary: Hủy cuối kỳ, vẫn dùng đến period_end
       x-permission: authenticated-only
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
         "200":
           description: status canceled, ended_at null
+        "409":
+          description: Không phải gói đang mở của chính người gọi
+  /me/billing/subscriptions/{id}/resume:
+    post:
+      tags: [billing]
+      summary: Rút lại lệnh hủy trước period_end
+      x-permission: authenticated-only
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: status active, ended_at vẫn trống
+        "409":
+          description: Đã qua period_end hoặc không phải chủ gói
   /me/billing/notices/{id}/read:
     post:
       tags: [billing]
@@ -179,6 +193,21 @@ paths:
       responses:
         "200":
           description: fulfill thì ghi gói hoặc tín dụng một lần. reject thì không mở quyền.
+  /admin/billing/users/{userId}:
+    get:
+      tags: [admin]
+      summary: Gói đang mở và đơn gần đây của một người
+      x-permission: admin:access
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Tối đa một subscription đang mở. subscription null khi đang miễn phí.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MyBilling" }
+        "403":
+          description: Không xem gói của admin khác hoặc của chính mình
   /admin/billing/subscriptions/{id}/revoke:
     post:
       tags: [admin]
@@ -332,7 +361,9 @@ components:
     MyBilling:
       type: object
       properties:
+        subscriptionId: { type: string, format: uuid, nullable: true }
         effectivePlan: { type: string, enum: [free, unlimited, valued] }
+        source: { type: string, enum: [payment, admin_grant], nullable: true }
         periodEnd: { type: string, format: date-time, nullable: true }
         cancelAtPeriodEnd: { type: boolean }
         valuationCredits: { type: integer }

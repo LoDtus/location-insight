@@ -93,3 +93,35 @@ Endpoint webhook không đi qua envelope `ApiResponseDto`. Giống health: body 
 ### Khả năng đảo ngược <!-- key: reversibility -->
 
 Khi có thư hoặc việc chậm, đẩy phần đó ra sau commit mà không đổi hợp đồng với SePay.
+
+---
+
+## Bản ghi quyết định 4 — Một gói đang mở cho mỗi người <!-- key: decision_record -->
+
+**Status:** Accepted
+**Category:** Data Migration
+**Door Type:** Two-way (cheap to reverse)
+
+### Bối cảnh <!-- key: context -->
+
+Sản phẩm không có tenant. Mỗi người chỉ đăng ký một gói cho chính mình. Giả định cũ của `billing-idea.md` cho hai hạng chạy cùng lúc và lấy hạng cao hơn, đúng câu hỏi Q4 còn mở của `004-rbac`. Stripe, với mô hình một khách một subscription, đưa người đã có gói về trang quản lý gói thay vì tạo subscription thứ hai. Cổng khách của Stripe cho đổi gói, hủy cuối kỳ và dùng tiếp đến hết kỳ. Sản phẩm này không prorate và không tự trừ tiền.
+
+### Các phương án đã xem xét <!-- key: options_considered -->
+
+| Option | Fit with existing stack | Maintainability (solo-dev) | Reversibility | Notes |
+| --- | --- | --- | --- | --- |
+| Một dòng đang mở. Cùng hạng thì nối `period_end`. Lên hạng thì đóng dòng cũ lúc dòng mới bắt đầu. Xuống hạng khi còn hạn thì từ chối | Khớp "một người, một gói" và luật không prorate | Một transaction theo `user_id` | Đổi được, vì lịch sử vẫn là nhiều dòng đã đóng | Giống giới hạn một subscription của Stripe, bỏ prorate và bỏ ghế |
+| Hai hạng chồng, hạng cao thắng | Đã viết trong `004-rbac` | Dễ tính nhầm ngày đã trả | Dễ | Trái yêu cầu một gói. Bỏ |
+| Hoàn phần ngày chưa dùng khi đổi hạng | Công bằng hơn | Phải tính tiền lẻ và hoàn tay | Khó giải thích trên chính sách hiện tại | Trái "không prorate" |
+
+### Quyết định <!-- key: decision -->
+
+Mỗi người có tối đa một dòng `subscriptions` chưa kết thúc (`ended_at` trống và trạng thái còn `active` hoặc `canceled`). Hết hạn thì dòng đó chuyển `expired` trong cùng transaction trước khi ghi dòng mới. Mua cùng hạng khi chưa hết hạn thì nối `period_end`, không tạo dòng thứ hai. Mua hạng cao hơn thì đóng dòng cũ tại thời điểm trả và mở dòng mới từ lúc đó, không hoàn phần ngày còn lại. Mua hạng thấp hơn khi dòng cao hơn chưa hết hạn thì từ chối. Lượt định giá lẻ không chiếm chỗ gói. Admin chỉ cấp gói khi không còn dòng trả phí đang mở. Người dùng hủy thì dùng đến `period_end` và được rút lại lệnh hủy trước ngày đó.
+
+### Hệ quả <!-- key: consequences -->
+
+`004-rbac` vẫn có thể lấy hạng cao nhất nếu dữ liệu cũ bẩn, nhưng thanh toán không tạo thêm dòng đang mở. Q4 của `004-rbac` được chốt tại đây. Cấp gói đè và mua hạ hạng khi còn hạn trả `409`.
+
+### Khả năng đảo ngược <!-- key: reversibility -->
+
+Bỏ ràng buộc một dòng đang mở là sửa transaction và chỉ mục. Các dòng đã đóng không cần viết lại.

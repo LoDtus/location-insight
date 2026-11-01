@@ -188,3 +188,34 @@ Có thể có khoảng ngắn UI lỗi thời (cho tới khi nhận `authz.chang
 ### Khả năng đảo ngược <!-- key: reversibility -->
 
 Dễ.
+
+---
+
+## Bản ghi quyết định 7 — Một dòng gói đang mở <!-- key: decision_record -->
+
+**Status:** Accepted. Thu hẹp hệ quả của Bản ghi quyết định 4 về mua chồng gói.
+**Category:** Data Migration
+**Door Type:** Two-way (cheap to reverse)
+
+### Bối cảnh <!-- key: context -->
+
+Quyết định 4 để ngỏ quy tắc khi có nhiều dòng còn hạn. `007-billing` đã chốt một gói đang mở cho mỗi người.
+
+### Các phương án đã xem xét <!-- key: options_considered -->
+
+| Option | Fit with existing stack | Maintainability (solo-dev) | Reversibility | Notes |
+| --- | --- | --- | --- | --- |
+| Giữ công thức hạng cao nhất, thanh toán không tạo dòng thứ hai đang mở | Khớp quyết định 4 | Không đổi guard | Dễ | Dữ liệu cũ bẩn vẫn có lưới an toàn |
+| Bỏ công thức hạng cao nhất, chỉ đọc một dòng | Gọn hơn | Phải sửa mọi chỗ tính gói | Dễ | Không cần khi thanh toán đã chặn dòng thứ hai |
+
+### Quyết định <!-- key: decision -->
+
+Giữ công thức hạng cao nhất trong `004-rbac`. Ràng buộc "một dòng đang mở" thuộc thanh toán và chỉ mục `uk_subscriptions_one_open`. Q4 đóng.
+
+### Hệ quả <!-- key: consequences -->
+
+Guard không cần biết luật đổi hạng. Luật đó nằm ở `007-billing/research.md` Bản ghi quyết định 4.
+
+### Khả năng đảo ngược <!-- key: reversibility -->
+
+Bỏ chỉ mục và cho tạo dòng thứ hai là đủ để trở lại cách chồng hạng.

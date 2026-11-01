@@ -33,9 +33,18 @@ export interface MyBilling {
     periodEnd: string | null;
     cancelAtPeriodEnd: boolean;
     subscriptionId: string | null;
+    source: "payment" | "admin_grant" | null;
     valuationCredits: number;
     notices: BillingNotice[];
     orders: OrderView[];
+}
+
+export interface AdminUserHit {
+    userId: string;
+    email: string;
+    displayName: string;
+    role: string;
+    plan: string;
 }
 
 export interface RefundView {
@@ -76,6 +85,10 @@ export function getMyBilling(): Promise<MyBilling> {
 
 export function cancelSubscription(id: string): Promise<{ id: string }> {
     return apiRequest(`/me/billing/subscriptions/${id}/cancel`, { method: "POST" });
+}
+
+export function resumeSubscription(id: string): Promise<{ id: string }> {
+    return apiRequest(`/me/billing/subscriptions/${id}/resume`, { method: "POST" });
 }
 
 export function markNoticeRead(id: string): Promise<void> {
@@ -119,6 +132,24 @@ export function revokeSubscription(id: string, reason: string) {
     return apiRequest(`/admin/billing/subscriptions/${id}/revoke`, {
         method: "POST",
         body: JSON.stringify({ reason }),
+    });
+}
+
+export function searchUsers(query: string): Promise<{ items: AdminUserHit[]; total: number }> {
+    return apiRequest(`/admin/users?query=${encodeURIComponent(query)}&pageSize=10`);
+}
+
+export function adminUserBilling(userId: string): Promise<MyBilling> {
+    return apiRequest<MyBilling>(`/admin/billing/users/${userId}`);
+}
+
+export function grantSubscription(
+    userId: string,
+    input: { plan: "unlimited" | "valued"; periodEnd: string; reason: string },
+) {
+    return apiRequest(`/admin/users/${userId}/subscriptions`, {
+        method: "POST",
+        body: JSON.stringify(input),
     });
 }
 

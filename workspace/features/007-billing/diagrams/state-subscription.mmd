@@ -1,14 +1,17 @@
 stateDiagram-v2
-  [*] --> active: Thanh toán paid hoặc admin cấp
-  active --> active: Gia hạn bằng đơn mới, period_end nối tiếp nếu cùng hạng và chưa hết
+  [*] --> active: Thanh toán paid hoặc admin cấp khi đang miễn phí
+  active --> active: Cùng hạng, period_end nối trên đúng dòng này
+  active --> replaced: Lên hạng, ended_at = lúc trả, rồi mở dòng mới
   active --> canceled: Người dùng hủy, ended_at trống, còn dùng đến period_end
+  canceled --> active: Rút lại hủy trước period_end
   canceled --> expired: Đến period_end
   active --> expired: Đến period_end mà không gia hạn
-  active --> revoked: Admin thu hồi, ended_at = now
-  canceled --> revoked: Admin thu hồi phần còn lại
+  active --> revoked: Admin kết thúc, ended_at = now
+  canceled --> revoked: Admin kết thúc phần còn lại
+  replaced --> [*]
   revoked --> [*]
   expired --> [*]
   note right of active
-    Hạng hiệu lực lấy bản còn hạn cao nhất
-    unlimited < valued, theo 004-rbac
+    Một người chỉ một dòng active hoặc canceled với ended_at trống
+    Lượt định giá lẻ không chiếm chỗ này
   end note

@@ -115,7 +115,7 @@ paths:
       - { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
     post:
       tags: [admin]
-      summary: Cấp gói thủ công (step-up)
+      summary: Cấp gói thủ công khi người đó đang miễn phí (step-up)
       x-permission: subscription:grant
       requestBody:
         required: true
@@ -130,8 +130,9 @@ paths:
                 reason: { type: string, minLength: 5, maxLength: 255 }
               additionalProperties: false
       responses:
-        "201": { description: Đã cấp }
+        "201": { description: Đã cấp đúng một dòng đang mở }
         "403": { $ref: "#/components/responses/Error" }
+        "409": { description: Đã có gói chưa kết thúc. Kết thúc dòng cũ trước khi cấp. }
         "422": { $ref: "#/components/responses/Error" }
   /admin/users/{userId}/subscriptions/{subscriptionId}:
     parameters:

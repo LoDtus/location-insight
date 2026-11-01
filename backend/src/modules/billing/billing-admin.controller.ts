@@ -54,6 +54,15 @@ export class BillingAdminController {
   }
 
   @RequirePermission('admin:access')
+  @Get('users/:userId')
+  userBilling(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Req() request: RequestWithPrincipal,
+  ) {
+    return this.admin.userBilling(this.actor(request), userId);
+  }
+
+  @RequirePermission('admin:access')
   @Post('subscriptions/:id/revoke')
   revoke(
     @Param('id', ParseUUIDPipe) id: string,

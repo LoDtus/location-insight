@@ -35,7 +35,7 @@ Một file cấu hình cứng ở backend quyết định ba vai trò (`guest`, 
 - **FR-02 (Quyền hiệu lực):** guest, user, admin tính theo công thức ở policy-config mục 1; user cộng quyền theo gói; admin hưởng gói `valued`.
 - **FR-03 (Mặc định từ chối):** route phải có đúng một trong `@Public`, `@RequirePermission`, `@AuthenticatedOnly`; thiếu thì ứng dụng không khởi động; `PermissionsGuard` từ chối nếu thiếu metadata.
 - **FR-04 (Nguồn quyền):** `role`, `status`, `plan`, `planUntil` đọc từ `cache:authz:{userId}`, nạp từ DB khi thiếu; JWT không mang quyền.
-- **FR-05 (Gói hiệu lực lười):** `plan` hết hạn tự tính là `free` khi `planUntil` đã qua; gói hiệu lực = gói cao nhất còn hạn.
+- **FR-05 (Gói hiệu lực lười):** `plan` hết hạn tự tính là `free` khi `planUntil` đã qua. Thanh toán bảo đảm tối đa một dòng đang mở. Nếu dữ liệu cũ còn nhiều dòng, gói hiệu lực vẫn là gói cao nhất còn hạn.
 - **FR-06 (Hạn mức phân tích):** `@Quota('analysisDaily')`; Lua `reserve` nguyên tử; giữ chỗ theo `requestId`; `release` hoàn lượt đúng một lần khi lỗi; reset 00:00 giờ Việt Nam; nạp lại từ lịch sử khi mất khóa.
 - **FR-07 (Giới hạn số lượng):** `savedPlaces`, `activeListings` kiểm tra khi tạo mới, đếm trong DB; vượt thì `409 limit_reached`; hạ gói không xóa dữ liệu.
 - **FR-08 (Quy tắc chủ sở hữu):** `RESOURCE_RULES` khai báo trường chủ, quyền thay thế, mã từ chối (403 cho tài nguyên công khai, 404 cho riêng tư).
@@ -126,10 +126,11 @@ Một file cấu hình cứng ở backend quyết định ba vai trò (`guest`, 
 
 ## Câu hỏi mở (Open Questions) <!-- key: open_questions -->
 
-- Q1–Q5 trong [rbac-idea.md](rbac-idea.md): bảng giá và hạn mức thật, cách tính "so sánh", dùng thử cho khách, mua chồng gói, liên hệ người đăng.
+- Q1–Q3 và Q5 trong [rbac-idea.md](rbac-idea.md) vẫn mở. Q4 đã chốt: một gói đang mở, xem `007-billing/research.md` Bản ghi quyết định 4.
 - Có cần thêm tiền tố `quota:` vào `.cursor/rules/naming.md` (Redis) không? (Đề xuất: có.)
 - Khi hạ gói, dữ liệu vượt giới hạn (ví dụ 150 địa điểm đã lưu, còn giới hạn 20) hiển thị thế nào? (Đề xuất: giữ xem được, chặn thêm.)
 
 ## Nhật ký cập nhật <!-- key: update_log -->
 
 - 26/10/2026: tạo đặc tả đầu tiên; các quyết định 1–6 ở `research.md`; số liệu hạn mức dựa trên trang giá minh họa của landing.
+- 01/11/2026: Gói đang mở là một dòng mỗi người. Cách lấy hạng cao nhất chỉ còn là lưới an toàn cho dữ liệu cũ.

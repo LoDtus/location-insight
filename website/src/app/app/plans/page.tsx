@@ -9,6 +9,7 @@ import { AuthApiError } from "@/features/auth/auth.api";
 import {
     ORDER_STATUS,
     cancelSubscription,
+    resumeSubscription,
     formatVnd,
     getMyBilling,
     markNoticeRead,
@@ -65,12 +66,37 @@ export function PlanScreen({ root }: { root: ShellRoot }) {
                             {billing.periodEnd
                                 ? `Còn dùng đến ${new Date(billing.periodEnd).toLocaleDateString("vi-VN")}. Không tự gia hạn.`
                                 : "Bạn đang dùng hạn mức miễn phí."}
+                            {billing.source === "admin_grant" ? " Gói này do quản trị cấp." : ""}
                             {billing.cancelAtPeriodEnd ? " Đã hủy, quyền giữ đến hết hạn đã trả." : ""}
                         </p>
                         <p className="m-0 text-sm">Lượt định giá lẻ còn {billing.valuationCredits}.</p>
                         <Link className={AUTH_BUTTON_CLASS} href={`${root}/payments`}>
-                            Gia hạn hoặc mua thêm
+                            {billing.effectivePlan === "free"
+                                ? "Mua gói"
+                                : billing.effectivePlan === "unlimited"
+                                  ? "Gia hạn hoặc nâng lên Có định giá"
+                                  : "Gia hạn gói"}
                         </Link>
+                        {billing.cancelAtPeriodEnd && billing.subscriptionId ? (
+                            <button
+                                className={AUTH_BUTTON_CLASS}
+                                type="button"
+                                onClick={() => {
+                                    if (!billing.subscriptionId) return;
+                                    void resumeSubscription(billing.subscriptionId)
+                                        .then(() => load())
+                                        .catch((error: unknown) => {
+                                            setMessage(
+                                                error instanceof AuthApiError
+                                                    ? error.message
+                                                    : "Chưa rút lại được lệnh hủy.",
+                                            );
+                                        });
+                                }}
+                            >
+                                Rút lại lệnh hủy
+                            </button>
+                        ) : null}
                         {!billing.cancelAtPeriodEnd && billing.subscriptionId ? (
                             <button
                                 className={AUTH_BUTTON_CLASS}

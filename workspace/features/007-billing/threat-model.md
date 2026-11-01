@@ -16,7 +16,7 @@ Phương pháp: STRIDE theo `02-planning-design/06-threat-modeling.md`. Mức **
 | `POST /billing/sepay/webhook` | SePay, hoặc kẻ biết URL | Không có JWT |
 | `POST /billing/orders` | Người đã đăng nhập | Tạo đơn ảo để dồn DB |
 | `GET /billing/orders/{id}` | Chủ đơn | IDOR nếu quên lọc `user_id` |
-| `/admin/billing/*` | Admin | Thu hồi và hoàn là chiều ghi tiền và quyền |
+| `/admin/billing/*` | Admin | Xem gói của một người, thu hồi và hoàn là chiều đọc dữ liệu thanh toán và ghi quyền |
 | URL ảnh `vietqr.app` | Trình duyệt người trả | Chỉ là ảnh, không phải bằng chứng đã trả |
 | Trang chờ | Người giữ phiên | Poll trạng thái |
 
@@ -27,6 +27,7 @@ Phương pháp: STRIDE theo `02-planning-design/06-threat-modeling.md`. Mức **
 | S1 | Spoofing | Gửi webhook giả để tự mở gói | Cao | `Authorization: Apikey`. Production bắt HMAC-SHA256 trên raw body. So `accountNumber` với cấu hình | Thiếu khóa, sai khóa, sửa body sau khi ký |
 | S2 | Spoofing | Đoán mã `DT` + số tăng để gắn tiền người khác | Cao | 8 hex từ `crypto.randomBytes`, không dùng chuỗi tăng | Mã tuần tự bị từ chối ở lúc tạo |
 | T1 | Tampering | Replay cùng `id` để cộng hai lần | Cao | `sepay_id` unique, trong transaction với ghi gói | Hai request song song chỉ một dòng subscription |
+| T4 | Tampering | Hai đơn cùng lúc tạo hai gói đang mở | Cao | Khóa theo `user_id` trong transaction và chỉ mục một dòng `ended_at` trống | Hai webhook song song chỉ còn một dòng đang mở |
 | T2 | Tampering | Sửa `amount` trên client lúc tạo đơn | Cao | Server đọc catalog, bỏ số tiền client gửi | Body có `amountVnd: 1` vẫn ra 60000 |
 | T3 | Tampering | Kích hoạt khi chuyển thiếu | Cao | `transferAmount >= amount_vnd` trong cùng câu cập nhật có `status = pending` | 59999 không thành `paid` |
 | R1 | Repudiation | Admin chối đã thu hồi hoặc đã duyệt hoàn | Cao | Ghi `admin_audit_logs` của `004-rbac` với lý do bắt buộc | Thiếu reason thì 400 |

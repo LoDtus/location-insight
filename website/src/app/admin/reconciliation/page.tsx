@@ -9,20 +9,37 @@ import {
     ORDER_STATUS,
     adminOrders,
     adminRefunds,
+    adminUserBilling,
     decideRefund,
     formatVnd,
+    grantSubscription,
     markRefundPaid,
     resolveOrder,
     revokeSubscription,
+    searchUsers,
+    type AdminUserHit,
+    type MyBilling,
     type OrderView,
     type RefundView,
 } from "@/features/billing/billing.api";
+
+const PLAN_NAME = {
+    free: "Miễn phí",
+    unlimited: "Không giới hạn lượt",
+    valued: "Có định giá",
+} as const;
 
 export default function Page() {
     const [orders, setOrders] = useState<OrderView[]>([]);
     const [refunds, setRefunds] = useState<RefundView[]>([]);
     const [reason, setReason] = useState("");
     const [message, setMessage] = useState("");
+    const [lookup, setLookup] = useState("");
+    const [people, setPeople] = useState<AdminUserHit[]>([]);
+    const [selectedId, setSelectedId] = useState("");
+    const [person, setPerson] = useState<MyBilling | null>(null);
+    const [grantPlan, setGrantPlan] = useState<"unlimited" | "valued">("unlimited");
+    const [grantUntil, setGrantUntil] = useState("");
 
     async function load(): Promise<void> {
         try {
@@ -54,17 +71,19 @@ export default function Page() {
         };
     }, []);
 
-    async function run(action: () => Promise<unknown>): Promise<void> {
+    async function run(action: () => Promise<unknown>): Promise<boolean> {
         if (reason.trim().length < 3) {
             setMessage("Nhập lý do ít nhất 3 ký tự trước khi xác nhận.");
-            return;
+            return false;
         }
         setMessage("");
         try {
             await action();
             await load();
+            return true;
         } catch (error) {
             setMessage(error instanceof AuthApiError ? error.message : "Thao tác chưa xong.");
+            return false;
         }
     }
 
@@ -165,24 +184,151 @@ export default function Page() {
                     ))}
                 </ul>
             </section>
-            <section>
-                <h2 className="text-lg font-semibold">Thu hồi gói</h2>
+            <section className="flex max-w-xl flex-col gap-4">
+                <h2 className="m-0 text-lg font-semibold">Gói của một người</h2>
                 <form
-                    className="flex max-w-md flex-col gap-3"
+                    className="flex flex-col gap-3"
                     onSubmit={(event) => {
                         event.preventDefault();
-                        const id = String(new FormData(event.currentTarget).get("id") || "");
-                        void run(() => revokeSubscription(id, reason));
+                        const term = lookup.trim();
+                        if (term.length < 2) {
+                            setMessage("Nhập ít nhất 2 ký tự email hoặc tên.");
+                            return;
+                        }
+                        setMessage("");
+                        void searchUsers(term)
+                            .then((result) => {
+                                setPeople(result.items.filter((item) => item.role === "user"));
+                                setSelectedId("");
+                                setPerson(null);
+                            })
+                            .catch((error: unknown) => {
+                                setMessage(
+                                    error instanceof AuthApiError ? error.message : "Chưa tìm được người dùng.",
+                                );
+                            });
                     }}
                 >
                     <label className="flex flex-col gap-1 text-sm">
-                        Mã gói
-                        <input className={AUTH_FIELD_CLASS} name="id" required />
+                        Email hoặc tên
+                        <input
+                            className={AUTH_FIELD_CLASS}
+                            value={lookup}
+                            onChange={(event) => setLookup(event.target.value)}
+                        />
                     </label>
                     <button className={AUTH_BUTTON_CLASS} type="submit">
-                        Thu hồi ngay
+                        Tìm
                     </button>
                 </form>
+                {people.length === 0 ? <p className="m-0 text-sm">Chưa chọn người dùng.</p> : null}
+                <ul className="m-0 flex list-none flex-col gap-2 p-0">
+                    {people.map((item) => (
+                        <li key={item.userId}>
+                            <button
+                                className={AUTH_BUTTON_CLASS}
+                                type="button"
+                                onClick={() => {
+                                    setSelectedId(item.userId);
+                                    setMessage("");
+                                    void adminUserBilling(item.userId)
+                                        .then(setPerson)
+                                        .catch((error: unknown) => {
+                                            setPerson(null);
+                                            setMessage(
+                                                error instanceof AuthApiError
+                                                    ? error.message
+                                                    : "Chưa xem được gói.",
+                                            );
+                                        });
+                                }}
+                            >
+                                {item.displayName} · {item.email}
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+                {person && selectedId ? (
+                    <div className="border border-current p-4 text-sm">
+                        <p className="m-0">
+                            {PLAN_NAME[person.effectivePlan]}
+                            {person.periodEnd
+                                ? ` đến ${new Date(person.periodEnd).toLocaleDateString("vi-VN")}`
+                                : ""}
+                            {person.cancelAtPeriodEnd ? ". Đã đặt hủy cuối kỳ" : ""}
+                            {person.source === "admin_grant" ? ". Do quản trị cấp" : ""}
+                        </p>
+                        {person.subscriptionId ? (
+                            <button
+                                className={AUTH_BUTTON_CLASS}
+                                type="button"
+                                onClick={() => {
+                                    const id = person.subscriptionId;
+                                    if (!id) return;
+                                    void run(() => revokeSubscription(id, reason)).then((ok) => {
+                                        if (!ok) return;
+                                        void adminUserBilling(selectedId).then(setPerson);
+                                    });
+                                }}
+                            >
+                                Thu hồi ngay
+                            </button>
+                        ) : (
+                            <form
+                                className="mt-3 flex flex-col gap-3"
+                                onSubmit={(event) => {
+                                    event.preventDefault();
+                                    if (reason.trim().length < 5) {
+                                        setMessage("Lý do cấp gói cần ít nhất 5 ký tự.");
+                                        return;
+                                    }
+                                    if (!grantUntil) {
+                                        setMessage("Chọn ngày hết hạn.");
+                                        return;
+                                    }
+                                    const periodEnd = new Date(`${grantUntil}T23:59:59+07:00`).toISOString();
+                                    void run(() =>
+                                        grantSubscription(selectedId, {
+                                            plan: grantPlan,
+                                            periodEnd,
+                                            reason,
+                                        }),
+                                    ).then((ok) => {
+                                        if (!ok) return;
+                                        void adminUserBilling(selectedId).then(setPerson);
+                                    });
+                                }}
+                            >
+                                <label className="flex flex-col gap-1">
+                                    Gói cấp
+                                    <select
+                                        className={AUTH_FIELD_CLASS}
+                                        value={grantPlan}
+                                        onChange={(event) =>
+                                            setGrantPlan(event.target.value as "unlimited" | "valued")
+                                        }
+                                    >
+                                        <option value="unlimited">Không giới hạn lượt</option>
+                                        <option value="valued">Có định giá</option>
+                                    </select>
+                                </label>
+                                <label className="flex flex-col gap-1">
+                                    Hết hạn
+                                    <input
+                                        className={AUTH_FIELD_CLASS}
+                                        type="date"
+                                        value={grantUntil}
+                                        onChange={(event) => setGrantUntil(event.target.value)}
+                                        required
+                                    />
+                                </label>
+                                <button className={AUTH_BUTTON_CLASS} type="submit">
+                                    Cấp gói
+                                </button>
+                            </form>
+                        )}
+                    </div>
+                ) : null}
             </section>
         </main>
     );

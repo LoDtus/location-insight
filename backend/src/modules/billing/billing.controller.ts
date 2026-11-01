@@ -81,6 +81,15 @@ export class BillingController {
   }
 
   @AuthenticatedOnly()
+  @Post('me/billing/subscriptions/:id/resume')
+  resumeSubscription(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: RequestWithPrincipal,
+  ) {
+    return this.billing.resumeSubscription(this.userId(request), id);
+  }
+
+  @AuthenticatedOnly()
   @Post('me/billing/notices/:id/read')
   @HttpCode(HttpStatus.NO_CONTENT)
   readNotice(

@@ -1,6 +1,6 @@
 import { HttpStatus, Inject, Injectable, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, IsNull, Repository } from 'typeorm';
+import { DataSource, In, IsNull, Repository } from 'typeorm';
 import { BusinessException } from '../../common/exceptions/business.exception.js';
 import { ErrorCode } from '../../shared/constants/error-code.constant.js';
 import { SessionRevokeReason } from '../auth/entities/auth-session.entity.js';
@@ -17,6 +17,7 @@ import {
   SubscriptionStatus,
 } from './entities/subscription.entity.js';
 import { PolicyService } from './policy.service.js';
+import { GRANT_BLOCKED_MESSAGE } from './subscription-policy.js';
 import { QuotaService } from './quota.service.js';
 
 const MAX_GRANT_MS = 400 * 24 * 60 * 60 * 1000;
@@ -158,20 +159,46 @@ export class AdminUsersService {
         HttpStatus.UNPROCESSABLE_ENTITY,
       );
     }
-    const row = await this.subscriptions.save(
-      this.subscriptions.create({
-        userId: user.id,
-        plan: input.plan as SubscriptionEntity['plan'],
-        status: SubscriptionStatus.ACTIVE,
-        source: SubscriptionSource.ADMIN_GRANT,
-        periodStart: new Date(),
-        periodEnd,
-        endedAt: null,
-        paymentOrderId: null,
-        grantedBy: actor.userId,
-        reason: input.reason,
-      }),
-    );
+    const row = await this.dataSource.transaction(async (manager) => {
+      await manager.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [
+        user.id,
+      ]);
+      const open = await manager.find(SubscriptionEntity, {
+        where: {
+          userId: user.id,
+          endedAt: IsNull(),
+          status: In([SubscriptionStatus.ACTIVE, SubscriptionStatus.CANCELED]),
+        },
+        lock: { mode: 'pessimistic_write' },
+      });
+      const now = new Date();
+      if (open.some((item) => item.periodEnd.getTime() > now.getTime())) {
+        throw new BusinessException(
+          ErrorCode.CONFLICT,
+          GRANT_BLOCKED_MESSAGE,
+          null,
+          HttpStatus.CONFLICT,
+        );
+      }
+      for (const item of open) {
+        item.status = SubscriptionStatus.EXPIRED;
+        await manager.save(item);
+      }
+      return manager.save(
+        manager.create(SubscriptionEntity, {
+          userId: user.id,
+          plan: input.plan as SubscriptionEntity['plan'],
+          status: SubscriptionStatus.ACTIVE,
+          source: SubscriptionSource.ADMIN_GRANT,
+          periodStart: new Date(),
+          periodEnd,
+          endedAt: null,
+          paymentOrderId: null,
+          grantedBy: actor.userId,
+          reason: input.reason,
+        }),
+      );
+    });
     await this.authz.invalidate(user.id);
     await this.audit(
       actor,

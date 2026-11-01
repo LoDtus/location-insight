@@ -21,6 +21,7 @@ export interface DiscussionPost {
     authorId: string;
     authorName: string;
     authorUsername: string | null;
+    authorAvatarUrl: string | null;
     topicId: string;
     topicSlug: string;
     topicName: string;
@@ -95,8 +96,10 @@ export function createPost(input: {
 
 export function getThread(
     id: string,
+    cursor?: string,
 ): Promise<{ post: DiscussionPost; replies: DiscussionPost[]; nextCursor: string | null }> {
-    return apiRequest(`/discussions/posts/${id}`);
+    const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+    return apiRequest(`/discussions/posts/${id}${query}`);
 }
 
 export function replyToPost(

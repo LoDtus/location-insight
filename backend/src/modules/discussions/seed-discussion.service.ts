@@ -34,7 +34,10 @@ export class SeedDiscussionService implements OnModuleInit {
   async onModuleInit(): Promise<void> {
     if (process.env.NODE_ENV === 'production') return;
     const existing = await this.topics.findOne({ where: { slug: 'ho-tay' } });
-    if (existing) return;
+    if (existing) {
+      await this.extraFeed();
+      return;
+    }
 
     const people = await this.users.find({
       where: {
@@ -139,6 +142,58 @@ export class SeedDiscussionService implements OnModuleInit {
       }),
     );
     this.logger.log('Đã tạo chủ đề và bài mẫu cho diễn đàn.');
+    await this.extraFeed();
+  }
+
+  private async extraFeed(): Promise<void> {
+    const people = await this.users.find({
+      where: {
+        email: In([
+          'user@location-insight.local',
+          'lan-anh@location-insight.local',
+          'minh-duc@location-insight.local',
+        ]),
+      },
+    });
+    const byEmail = new Map(people.map((user) => [user.email, user]));
+    const topics = await this.topics.find({
+      where: { slug: In(['ho-tay', 'gia-nha', 'ngo-cu']) },
+    });
+    const bySlug = new Map(topics.map((topic) => [topic.slug, topic]));
+    const samples = [
+      ['user@location-insight.local', 'ho-tay', 'Sáng nay hồ Tây gió mạnh, đi bộ phía đường Thanh Niên nên mặc thêm áo.'],
+      ['lan-anh@location-insight.local', 'gia-nha', 'Mình vừa xem một căn gần chợ. Giá chào và giá trang đang lệch khoảng một phần mười.'],
+      ['minh-duc@location-insight.local', 'ngo-cu', 'Ngõ này xe máy tránh nhau được, ô tô thì phải quay đầu ở đầu ngõ.'],
+      ['user@location-insight.local', 'gia-nha', 'Hỏi chủ nhà xem giá đã gồm thuế và phí môi giới chưa trước khi đặt cọc.'],
+      ['lan-anh@location-insight.local', 'ho-tay', 'Cuối tuần quán cà phê sát hồ đông. Nếu cần yên thì đi sớm.'],
+      ['minh-duc@location-insight.local', 'gia-nha', 'Căn hướng tây nóng buổi chiều. Nên xem nhà lúc 3 giờ nếu ở tầng thấp.'],
+      ['user@location-insight.local', 'ngo-cu', 'Đèn ngõ tối sau 9 giờ. Người đi một mình nên chọn lối ra đường lớn.'],
+      ['lan-anh@location-insight.local', 'ngo-cu', 'Nhà cuối ngõ yên hơn, nhưng mùa mưa nước rút chậm hơn mặt phố.'],
+      ['minh-duc@location-insight.local', 'ho-tay', 'Bãi xe công cộng phía Quảng An còn chỗ vào buổi trưa ngày thường.'],
+      ['user@location-insight.local', 'gia-nha', 'So giá theo mét vuông trong cùng một ngõ sẽ dễ hơn so với cả quận.'],
+      ['lan-anh@location-insight.local', 'gia-nha', 'Tin rao ghi "sổ đỏ" thì nên hỏi lại sổ đứng tên ai trước khi đi xem.'],
+      ['minh-duc@location-insight.local', 'ho-tay', 'Đường ven hồ đang hạn chế một chiều vào giờ tan tầm. Đi vòng sẽ lâu hơn.'],
+    ] as const;
+    for (const [email, slug, body] of samples) {
+      const author = byEmail.get(email);
+      const topic = bySlug.get(slug);
+      if (!author || !topic) continue;
+      const found = await this.posts.findOne({ where: { body } });
+      if (found) continue;
+      await this.posts.save(
+        this.posts.create({
+          authorId: author.id,
+          topicId: topic.id,
+          rootId: null,
+          parentId: null,
+          kind: 'note',
+          body,
+          status: 'visible',
+          replyCount: 0,
+          likeCount: 0,
+        }),
+      );
+    }
   }
 
   private async attachJpeg(authorId: string, postId: string): Promise<void> {

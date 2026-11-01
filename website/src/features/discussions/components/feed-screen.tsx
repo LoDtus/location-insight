@@ -1,99 +1,108 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState, type JSX } from "react";
 
-import {
-    AUTH_BUTTON_CLASS,
-    AUTH_FIELD_CLASS,
-    AUTH_FORM_CLASS,
-    AUTH_LABEL_CLASS,
-    AUTH_TITLE_CLASS,
-} from "@/app/auth/form-class";
 import { AuthApiError } from "@/features/auth/auth.api";
+import { useAuth } from "@/features/auth/use-auth";
 import {
     createPost,
     createTopic,
+    deletePost,
+    likePost,
     listPosts,
     listTopics,
+    reportPost,
     slugifyTopic,
     topicFeed,
+    unlikePost,
     uploadDiscussionFile,
     type DiscussionPost,
     type DiscussionTopic,
 } from "@/features/discussions/discussions.api";
+import { PostCard, readSavedPosts, writeSavedPosts } from "@/features/discussions/components/post-card";
+import { PostComposer } from "@/features/discussions/components/post-composer";
+import { getConfirmModal } from "@/shared/utils/confirm.utils";
 
-const KIND_LABEL = {
-    question: "Câu hỏi",
-    note: "Bài ngắn",
-    reply: "Trả lời",
-} as const;
-
-export function FeedScreen() {
+export function FeedScreen(): JSX.Element {
+    const auth = useAuth();
+    const router = useRouter();
+    const scroller = useRef<HTMLElement>(null);
+    const sentinel = useRef<HTMLDivElement>(null);
+    const loadingMore = useRef(false);
     const [topics, setTopics] = useState<DiscussionTopic[]>([]);
     const [posts, setPosts] = useState<DiscussionPost[]>([]);
     const [cursor, setCursor] = useState<string | null>(null);
+    const [filter, setFilter] = useState("");
     const [topicSlug, setTopicSlug] = useState("");
-    const [kind, setKind] = useState<"question" | "note">("question");
+    const [newTopic, setNewTopic] = useState("");
     const [body, setBody] = useState("");
     const [files, setFiles] = useState<File[]>([]);
-    const [newName, setNewName] = useState("");
-    const [filter, setFilter] = useState("");
+    const [quote, setQuote] = useState<DiscussionPost | null>(null);
+    const [saved, setSaved] = useState<string[]>([]);
     const [message, setMessage] = useState("");
     const [pending, setPending] = useState(false);
+    const [loading, setLoading] = useState(true);
 
-    async function load(nextFilter = filter): Promise<void> {
+    const loadFirst = useCallback(async (nextFilter: string): Promise<void> => {
         const [topicPage, postPage] = await Promise.all([
             listTopics(),
             nextFilter ? topicFeed(nextFilter) : listPosts(),
         ]);
-        setTopics(topicPage.items);
+        setTopics(topicPage.items.filter((topic) => topic.status === "open"));
         setPosts(postPage.items);
         setCursor(postPage.nextCursor);
-        if (!topicSlug && topicPage.items[0]) setTopicSlug(topicPage.items[0].slug);
-    }
+        setTopicSlug((current) => current || topicPage.items.find((topic) => topic.status === "open")?.slug || "");
+    }, []);
 
     useEffect(() => {
+        setSaved(readSavedPosts());
         let active = true;
-        void load()
+        void loadFirst("")
             .catch((error: unknown) => {
                 if (!active) return;
                 setMessage(error instanceof AuthApiError ? error.message : "Chưa tải được diễn đàn.");
+            })
+            .finally(() => {
+                if (active) setLoading(false);
             });
         return () => {
             active = false;
         };
-        // The first load uses the empty filter.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [loadFirst]);
 
-    async function onCreateTopic(event: FormEvent<HTMLFormElement>): Promise<void> {
-        event.preventDefault();
-        const slug = slugifyTopic(newName);
-        if (slug.length < 3) {
-            setMessage("Tên chủ đề cần ra được slug ít nhất 3 ký tự.");
-            return;
-        }
-        setPending(true);
-        setMessage("");
+    const loadMore = useCallback(async (): Promise<void> => {
+        if (!cursor || loadingMore.current) return;
+        loadingMore.current = true;
         try {
-            const topic = await createTopic({ name: newName.trim(), slug });
-            setNewName("");
-            setTopicSlug(topic.slug);
-            await load();
+            const page = filter ? await topicFeed(filter, cursor) : await listPosts(cursor);
+            setPosts((current) => {
+                const seen = new Set(current.map((item) => item.id));
+                return [...current, ...page.items.filter((item) => !seen.has(item.id))];
+            });
+            setCursor(page.nextCursor);
         } catch (error) {
-            setMessage(error instanceof AuthApiError ? error.message : "Chưa tạo được chủ đề.");
+            setMessage(error instanceof AuthApiError ? error.message : "Chưa tải thêm được.");
         } finally {
-            setPending(false);
+            loadingMore.current = false;
         }
-    }
+    }, [cursor, filter]);
 
-    async function onPost(event: FormEvent<HTMLFormElement>): Promise<void> {
-        event.preventDefault();
-        if (!topicSlug) {
-            setMessage("Hãy chọn hoặc tạo một chủ đề.");
-            return;
-        }
+    useEffect(() => {
+        const root = scroller.current;
+        const target = sentinel.current;
+        if (!root || !target || !cursor) return;
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries.some((entry) => entry.isIntersecting)) void loadMore();
+            },
+            { root, rootMargin: "240px" },
+        );
+        observer.observe(target);
+        return () => observer.disconnect();
+    }, [cursor, loadMore]);
+
+    async function publish(): Promise<void> {
         const images = files.filter((file) => file.type.startsWith("image/"));
         const videos = files.filter((file) => file.type === "video/mp4");
         if (videos.length > 1 || (videos.length > 0 && images.length > 0) || images.length > 4) {
@@ -103,14 +112,34 @@ export function FeedScreen() {
         setPending(true);
         setMessage("");
         try {
-            const mediaIds: string[] = [];
-            for (const file of files) {
-                mediaIds.push(await uploadDiscussionFile(file));
+            let slug = topicSlug;
+            const named = newTopic.trim();
+            if (named) {
+                const nextSlug = slugifyTopic(named);
+                if (nextSlug.length < 3) {
+                    setMessage("Tên chủ đề cần ra được slug ít nhất 3 ký tự.");
+                    return;
+                }
+                const topic = await createTopic({ name: named, slug: nextSlug });
+                slug = topic.slug;
+                setTopics((current) => [topic, ...current]);
+                setTopicSlug(topic.slug);
+                setNewTopic("");
             }
-            await createPost({ topicSlug, kind, body, mediaIds });
+            if (!slug) {
+                setMessage("Hãy chọn hoặc tạo một chủ đề.");
+                return;
+            }
+            const text = quote
+                ? `${body.trim()}\n\nTrích ${quote.authorName}: ${quote.body}`.trim()
+                : body.trim();
+            const mediaIds: string[] = [];
+            for (const file of files) mediaIds.push(await uploadDiscussionFile(file));
+            const post = await createPost({ topicSlug: slug, kind: "note", body: text, mediaIds });
             setBody("");
             setFiles([]);
-            await load();
+            setQuote(null);
+            if (!filter || filter === slug) setPosts((current) => [post, ...current]);
         } catch (error) {
             setMessage(error instanceof AuthApiError ? error.message : "Chưa đăng được bài.");
         } finally {
@@ -118,168 +147,155 @@ export function FeedScreen() {
         }
     }
 
+    async function toggleLike(post: DiscussionPost): Promise<void> {
+        const next = post.likedByMe ? await unlikePost(post.id) : await likePost(post.id);
+        setPosts((current) =>
+            current.map((item) =>
+                item.id === post.id ? { ...item, likeCount: next.likeCount, likedByMe: !post.likedByMe } : item,
+            ),
+        );
+    }
+
+    async function repost(post: DiscussionPost): Promise<void> {
+        const created = await createPost({
+            topicSlug: post.topicSlug,
+            kind: "note",
+            body: `Đăng lại từ @${post.authorUsername ?? post.authorName}:\n${post.body}`,
+        });
+        if (!filter || filter === post.topicSlug) setPosts((current) => [created, ...current]);
+        setMessage("Đã đăng lại.");
+    }
+
+    function toggleSaved(id: string): void {
+        const next = saved.includes(id) ? saved.filter((item) => item !== id) : [id, ...saved];
+        setSaved(next);
+        writeSavedPosts(next);
+        setMessage(next.includes(id) ? "Đã lưu. Chỉ mình bạn thấy bài đã lưu trên trình duyệt này." : "Đã bỏ lưu.");
+    }
+
+    async function share(post: DiscussionPost): Promise<void> {
+        const url = `${window.location.origin}/app/discussions/${post.id}`;
+        await navigator.clipboard.writeText(url);
+        setMessage("Đã sao chép liên kết.");
+    }
+
     return (
-        <main className="box-border flex flex-col gap-8 px-4 py-8 sm:px-8">
-            <section className={AUTH_FORM_CLASS}>
-                <h1 className={AUTH_TITLE_CLASS}>Hỏi về một khu</h1>
-                <p className="m-0 text-sm leading-relaxed">
-                    Đăng một câu hỏi hoặc một bài ngắn trong một chủ đề. Người khác trả lời bên dưới bài đó.
-                </p>
-                {message ? (
-                    <p role="alert" className="m-0 text-sm">
-                        {message}
-                    </p>
-                ) : null}
-                <form className="flex flex-col gap-3" onSubmit={(event) => void onCreateTopic(event)}>
-                    <label className={AUTH_LABEL_CLASS}>
-                        Chủ đề mới
-                        <input
-                            className={AUTH_FIELD_CLASS}
-                            value={newName}
-                            maxLength={80}
-                            onChange={(event) => setNewName(event.target.value)}
-                        />
-                    </label>
-                    <button className={AUTH_BUTTON_CLASS} type="submit" disabled={pending}>
-                        Tạo chủ đề
-                    </button>
-                </form>
-                <form className="flex flex-col gap-3" onSubmit={(event) => void onPost(event)}>
-                    <label className={AUTH_LABEL_CLASS}>
-                        Chủ đề
-                        <select
-                            className={AUTH_FIELD_CLASS}
-                            value={topicSlug}
-                            onChange={(event) => setTopicSlug(event.target.value)}
-                        >
-                            <option value="">Chọn chủ đề</option>
-                            {topics.map((topic) => (
-                                <option key={topic.id} value={topic.slug}>
-                                    {topic.name}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
-                    <label className={AUTH_LABEL_CLASS}>
-                        Loại
-                        <select
-                            className={AUTH_FIELD_CLASS}
-                            value={kind}
-                            onChange={(event) => setKind(event.target.value as "question" | "note")}
-                        >
-                            <option value="question">Câu hỏi</option>
-                            <option value="note">Bài ngắn</option>
-                        </select>
-                    </label>
-                    <label className={AUTH_LABEL_CLASS}>
-                        Nội dung
-                        <textarea
-                            className={AUTH_FIELD_CLASS}
-                            value={body}
-                            maxLength={2000}
-                            required
-                            onChange={(event) => setBody(event.target.value)}
-                        />
-                    </label>
-                    <label className={AUTH_LABEL_CLASS}>
-                        Ảnh hoặc một video
-                        <input
-                            className={AUTH_FIELD_CLASS}
-                            type="file"
-                            accept="image/jpeg,image/png,image/webp,video/mp4"
-                            multiple
-                            onChange={(event) => setFiles(Array.from(event.target.files ?? []))}
-                        />
-                    </label>
-                    <p className="m-0 text-sm">Tối đa 4 ảnh, hoặc một video. Không đăng cả hai.</p>
-                    <button className={AUTH_BUTTON_CLASS} type="submit" disabled={pending}>
-                        {pending ? "Đang đăng" : "Đăng"}
-                    </button>
-                </form>
-            </section>
-            <nav className="flex flex-wrap gap-2" aria-label="Chủ đề">
-                <button
-                    className="min-h-11 border border-current px-3 font-semibold"
-                    type="button"
-                    aria-current={filter === "" ? "page" : undefined}
-                    onClick={() => {
-                        setFilter("");
-                        void load("").catch((error: unknown) => {
-                            setMessage(error instanceof AuthApiError ? error.message : "Chưa tải được.");
-                        });
-                    }}
-                >
-                    Mới nhất
-                </button>
-                {topics.map((topic) => (
-                    <button
-                        key={topic.id}
-                        className="min-h-11 border border-current px-3 font-semibold"
-                        type="button"
-                        aria-current={filter === topic.slug ? "page" : undefined}
+        <main ref={scroller} className="h-full overflow-auto bg-cream">
+            <div className="mx-auto min-h-full w-full max-w-[640px] border-x border-charcoal/10 bg-white">
+                <div className="sticky top-0 z-10 flex gap-2 overflow-x-auto border-b border-charcoal/10 bg-white px-4 py-3">
+                    <TopicTab
+                        label="Mới nhất"
+                        current={filter === ""}
                         onClick={() => {
-                            setFilter(topic.slug);
-                            void load(topic.slug).catch((error: unknown) => {
+                            setFilter("");
+                            void loadFirst("").catch((error: unknown) => {
                                 setMessage(error instanceof AuthApiError ? error.message : "Chưa tải được.");
                             });
                         }}
-                    >
-                        {topic.name}
-                    </button>
-                ))}
-            </nav>
-            {posts.length === 0 ? (
-                <p className="m-0 text-sm">Chủ đề này chưa có câu hỏi. Hãy đăng câu hỏi đầu tiên ở ô phía trên.</p>
-            ) : (
-                <ol className="m-0 flex list-none flex-col gap-6 p-0">
+                    />
+                    {topics.map((topic) => (
+                        <TopicTab
+                            key={topic.id}
+                            label={topic.name}
+                            current={filter === topic.slug}
+                            onClick={() => {
+                                setFilter(topic.slug);
+                                void loadFirst(topic.slug).catch((error: unknown) => {
+                                    setMessage(error instanceof AuthApiError ? error.message : "Chưa tải được.");
+                                });
+                            }}
+                        />
+                    ))}
+                </div>
+                <PostComposer
+                    displayName={auth.user?.displayName ?? "Bạn"}
+                    avatarUrl={auth.user?.avatarUrl}
+                    placeholder="Có gì mới?"
+                    body={body}
+                    onBody={setBody}
+                    topics={topics}
+                    topicSlug={topicSlug}
+                    onTopic={setTopicSlug}
+                    newTopic={newTopic}
+                    onNewTopic={setNewTopic}
+                    files={files}
+                    onFiles={setFiles}
+                    pending={pending}
+                    quote={quote ? { author: quote.authorName, body: quote.body } : null}
+                    onClearQuote={() => setQuote(null)}
+                    onSubmit={() => void publish()}
+                />
+                {message ? (
+                    <p role="status" className="m-0 border-t border-charcoal/10 px-4 py-3 text-sm">
+                        {message}
+                    </p>
+                ) : null}
+                {loading ? <p className="m-0 px-4 py-8 text-sm">Đang tải diễn đàn.</p> : null}
+                {!loading && posts.length === 0 ? (
+                    <p className="m-0 px-4 py-8 text-sm">Chưa có bài trong mục này. Hãy viết điều bạn đang thắc mắc.</p>
+                ) : null}
+                <ol className="m-0 list-none p-0">
                     {posts.map((post) => (
-                        <li key={post.id} className="border-t border-current pt-4">
-                            <p className="m-0 text-sm">
-                                {post.authorName} · {post.topicName} · {KIND_LABEL[post.kind]} ·{" "}
-                                {new Date(post.createdAt).toLocaleDateString("vi-VN")}
-                            </p>
-                            <h2 className="mt-1 mb-0 text-lg font-semibold">
-                                <Link href={`/app/discussions/${post.id}`}>{post.body.slice(0, 80)}</Link>
-                            </h2>
-                            <p className="mt-2 mb-0 text-sm leading-relaxed">{post.body}</p>
-                            {post.media[0] ? <MediaItem media={post.media[0]} /> : null}
-                            <p className="mt-2 mb-0 text-sm">
-                                {post.replyCount} trả lời · {post.likeCount} lượt thích
-                            </p>
+                        <li key={post.id} className="border-t border-charcoal/10">
+                            <PostCard
+                                post={post}
+                                connected={false}
+                                saved={saved.includes(post.id)}
+                                mine={auth.user?.userId === post.authorId}
+                                onLike={() => void toggleLike(post).catch(() => setMessage("Chưa thích được."))}
+                                onReply={() => router.push(`/app/discussions/${post.id}`)}
+                                onRepost={() => void repost(post).catch(() => setMessage("Chưa đăng lại được."))}
+                                onQuote={() => {
+                                    setQuote(post);
+                                    scroller.current?.scrollTo({ top: 0 });
+                                }}
+                                onShare={() => void share(post).catch(() => setMessage("Chưa sao chép được liên kết."))}
+                                onSave={() => toggleSaved(post.id)}
+                                onDelete={() => {
+                                    void getConfirmModal({
+                                        title: "Xóa bài",
+                                        content: "Bài này sẽ không còn hiện trên diễn đàn.",
+                                        okText: "Xóa",
+                                        cancelText: "Huỷ",
+                                    }).then((accepted) => {
+                                        if (!accepted) return;
+                                        void deletePost(post.id)
+                                            .then(() => setPosts((current) => current.filter((item) => item.id !== post.id)))
+                                            .catch(() => setMessage("Chưa xóa được."));
+                                    });
+                                }}
+                                onReport={(reason) => {
+                                    void reportPost(post.id, reason)
+                                        .then(() => setMessage("Đã gửi báo cáo."))
+                                        .catch(() => setMessage("Chưa báo cáo được."));
+                                }}
+                            />
                         </li>
                     ))}
                 </ol>
-            )}
-            {cursor ? (
-                <button
-                    className="min-h-11 w-fit border border-current px-3 font-semibold"
-                    type="button"
-                    onClick={() => {
-                        const request = filter ? topicFeed(filter, cursor) : listPosts(cursor);
-                        void request
-                            .then((page) => {
-                                setPosts((current) => [...current, ...page.items]);
-                                setCursor(page.nextCursor);
-                            })
-                            .catch((error: unknown) => {
-                                setMessage(error instanceof AuthApiError ? error.message : "Chưa tải thêm được.");
-                            });
-                    }}
-                >
-                    Tải thêm
-                </button>
-            ) : null}
+                <div ref={sentinel} className="h-16" />
+            </div>
         </main>
     );
 }
 
-function MediaItem({ media }: { media: DiscussionPost["media"][number] }) {
-    if (media.kind === "video") {
-        return <video className="mt-3 max-h-80 w-full" controls src={media.url} />;
-    }
+function TopicTab({
+    label,
+    current,
+    onClick,
+}: {
+    label: string;
+    current: boolean;
+    onClick: () => void;
+}): JSX.Element {
     return (
-        // Signed URLs are temporary and not known at build time.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img className="mt-3 max-h-80 w-full object-cover" src={media.url} alt="" />
+        <button
+            type="button"
+            className={`min-h-11 shrink-0 rounded-full px-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green ${current ? "bg-green text-cream" : "text-charcoal hover:bg-cream"}`}
+            aria-current={current ? "page" : undefined}
+            onClick={onClick}
+        >
+            {label}
+        </button>
     );
 }

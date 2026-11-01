@@ -32,6 +32,7 @@ import {
 } from './entities/discussion-topic.entity.js';
 
 const PAGE = 20;
+const FEED_PAGE = 6;
 const IMAGE_MAX = 8 * 1024 * 1024;
 const VIDEO_MAX = 50 * 1024 * 1024;
 const CLEANUP_MS = 7 * 24 * 60 * 60 * 1000;
@@ -54,6 +55,7 @@ export interface PostView {
   authorId: string;
   authorName: string;
   authorUsername: string | null;
+  authorAvatarUrl: string | null;
   topicId: string;
   topicSlug: string;
   topicName: string;
@@ -498,7 +500,7 @@ export class DiscussionsService {
       .andWhere('post.status = :status', { status: 'visible' })
       .orderBy('post.createdAt', 'DESC')
       .addOrderBy('post.id', 'DESC')
-      .take(PAGE + 1);
+      .take(FEED_PAGE + 1);
     if (topicId) qb.andWhere('post.topicId = :topicId', { topicId });
     const point = readCursor(cursor);
     if (point) {
@@ -508,8 +510,8 @@ export class DiscussionsService {
       );
     }
     const rows = await qb.getMany();
-    const hasMore = rows.length > PAGE;
-    const slice = hasMore ? rows.slice(0, PAGE) : rows;
+    const hasMore = rows.length > FEED_PAGE;
+    const slice = hasMore ? rows.slice(0, FEED_PAGE) : rows;
     const last = slice.at(-1);
     return {
       items: await this.present(slice, viewerId),
@@ -565,6 +567,7 @@ export class DiscussionsService {
           authorId: post.authorId,
           authorName: author?.displayName ?? 'Người dùng',
           authorUsername: author?.username ?? null,
+          authorAvatarUrl: author?.avatarUrl ?? null,
           topicId: post.topicId,
           topicSlug: topic?.slug ?? '',
           topicName: topic?.name ?? '',

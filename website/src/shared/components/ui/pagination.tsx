@@ -16,12 +16,20 @@ export interface PaginationLabels {
     page: string;
 }
 
+interface PaginationSizeControl {
+    label: string;
+    value: number;
+    options: readonly number[];
+    onChange: (value: number) => void;
+}
+
 interface PaginationProps {
     currentPage: number;
     totalPages: number;
     onPageChange: (page: number) => void;
     labels: PaginationLabels;
     mode?: "long" | "short";
+    sizeControl?: PaginationSizeControl;
 }
 
 const CONTROL_CLASS =
@@ -85,15 +93,41 @@ function getLongPages(currentPage: number, totalPages: number): (number | "...")
     ];
 }
 
+function SizeSelect({ control }: { control: PaginationSizeControl }) {
+    return (
+        <label className="inline-flex min-h-11 items-center gap-2 text-sm">
+            {control.label}
+            <select
+                className="box-border min-h-11 rounded-full border border-charcoal/20 bg-white px-3 text-sm text-charcoal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
+                value={control.value}
+                aria-label={control.label}
+                onChange={(event) => control.onChange(Number(event.target.value))}
+            >
+                {control.options.map((option) => (
+                    <option key={option} value={option}>
+                        {option}
+                    </option>
+                ))}
+            </select>
+        </label>
+    );
+}
+
 export default function Pagination({
     currentPage,
     totalPages,
     onPageChange,
     labels,
     mode = "long",
+    sizeControl,
 }: PaginationProps) {
     if (totalPages <= 1) {
-        return null;
+        if (!sizeControl) return null;
+        return (
+            <nav aria-label={labels.nav} className="flex flex-wrap items-center justify-center gap-2">
+                <SizeSelect control={sizeControl} />
+            </nav>
+        );
     }
 
     if (mode === "short") {
@@ -103,6 +137,7 @@ export default function Pagination({
 
         return (
             <nav aria-label={labels.nav} className="flex flex-wrap items-center justify-center gap-2">
+                {sizeControl ? <SizeSelect control={sizeControl} /> : null}
                 {showFirst ? (
                     <button
                         type="button"
@@ -140,6 +175,7 @@ export default function Pagination({
 
     return (
         <nav aria-label={labels.nav} className="flex flex-wrap items-center justify-center gap-2">
+            {sizeControl ? <SizeSelect control={sizeControl} /> : null}
             {currentPage > 1 ? (
                 <button
                     type="button"

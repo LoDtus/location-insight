@@ -24,10 +24,15 @@ import {
 import { ArticleEntity } from './entities/article.entity.js';
 
 const PUBLIC_PAGE_SIZE = 6;
+const ADMIN_PAGE_SIZES = [10, 20, 50] as const;
 const ADMIN_PAGE_SIZE = 10;
 const ADMIN_STATUSES = ['draft', 'scheduled', 'published', 'hidden', 'deleted'] as const;
 const FREQUENCY_PATTERN = { day: 'YYYY-MM-DD', month: 'YYYY-MM', year: 'YYYY' } as const;
 const FREQUENCY_LIMIT = { day: 366, month: 60, year: 30 } as const;
+
+function adminPageSize(value: number | undefined): number {
+  return value !== undefined && (ADMIN_PAGE_SIZES as readonly number[]).includes(value) ? value : ADMIN_PAGE_SIZE;
+}
 
 export type ArticlePublicView = {
   slug: string;
@@ -94,23 +99,25 @@ export class ArticlesService {
 
   async listAdmin(query: ArticleListQueryDto) {
     const page = query.page ?? 1;
+    const pageSize = adminPageSize(query.pageSize);
     const qb = this.articles.createQueryBuilder('article');
     this.applyAdminStatus(qb, query.status);
     this.applySearch(qb, query.q);
     this.applyAdminSort(qb, query.sort);
-    qb.take(ADMIN_PAGE_SIZE).skip((page - 1) * ADMIN_PAGE_SIZE);
+    qb.take(pageSize).skip((page - 1) * pageSize);
     const [rows, total] = await qb.getManyAndCount();
     const counts = await this.counts();
     return {
       items: rows.map((row) => this.toAdmin(row)),
       page,
-      pageSize: ADMIN_PAGE_SIZE,
+      pageSize,
       total,
       counts,
     };
   }
 
   async adminPosition(query: ArticlePositionQueryDto): Promise<{ found: boolean; page: number; index: number }> {
+    const pageSize = adminPageSize(query.pageSize);
     const article = await this.articles.findOne({ where: { id: query.id }, withDeleted: true });
     if (!article) return { found: false, page: 1, index: 0 };
     const visible = this.articles.createQueryBuilder('article').where('article.id = :id', { id: article.id });
@@ -124,8 +131,8 @@ export class ArticlesService {
     const count = await before.getCount();
     return {
       found: true,
-      page: Math.floor(count / ADMIN_PAGE_SIZE) + 1,
-      index: count % ADMIN_PAGE_SIZE,
+      page: Math.floor(count / pageSize) + 1,
+      index: count % pageSize,
     };
   }
 

@@ -65,12 +65,14 @@ export function listAdminArticles(query: {
     status?: string;
     sort?: string;
     page?: number;
+    pageSize?: number;
 }): Promise<AdminArticleList> {
     const params = new URLSearchParams();
     if (query.q) params.set("q", query.q);
     if (query.status) params.set("status", query.status);
     if (query.sort) params.set("sort", query.sort);
     if (query.page && query.page > 1) params.set("page", String(query.page));
+    if (query.pageSize) params.set("pageSize", String(query.pageSize));
     const suffix = params.toString();
     return apiRequest<AdminArticleList>(`/admin/blogs${suffix ? `?${suffix}` : ""}`);
 }
@@ -80,11 +82,13 @@ export function locateAdminArticle(query: {
     q?: string;
     status?: string;
     sort?: string;
+    pageSize?: number;
 }): Promise<{ found: boolean; page: number; index: number }> {
     const params = new URLSearchParams({ id: query.id });
     if (query.q) params.set("q", query.q);
     if (query.status) params.set("status", query.status);
     if (query.sort) params.set("sort", query.sort);
+    if (query.pageSize) params.set("pageSize", String(query.pageSize));
     return apiRequest(`/admin/blogs/position?${params}`);
 }
 

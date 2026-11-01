@@ -71,9 +71,15 @@ function parsePage(raw: string | null): number {
     return Number.isInteger(page) && page > 0 ? page : 1;
 }
 
-function listSearch(input: { page: number; q: string; statuses: StatusFilter[]; sort: ArticleSort; focus?: string }): string {
+function parsePageSize(raw: string | null): number {
+    const size = Number(raw);
+    return size === 10 || size === 20 || size === 50 ? size : 10;
+}
+
+function listSearch(input: { page: number; pageSize: number; q: string; statuses: StatusFilter[]; sort: ArticleSort; focus?: string }): string {
     const params = new URLSearchParams();
     params.set("page", String(input.page));
+    params.set("pageSize", String(input.pageSize));
     params.set("sort", input.sort);
     if (input.statuses.length > 0) params.set("status", input.statuses.join(","));
     const q = input.q.trim();
@@ -114,6 +120,7 @@ export default function ArticleAdminList() {
     const [statuses, setStatuses] = useState<StatusFilter[]>(() => parseStatuses(search.get("status")));
     const [sort, setSort] = useState<ArticleSort>(() => parseSort(search.get("sort")));
     const [page, setPage] = useState(() => parsePage(search.get("page")));
+    const [pageSize, setPageSize] = useState(() => parsePageSize(search.get("pageSize")));
     const [list, setList] = useState<AdminArticleList | null>(null);
     const [message, setMessage] = useState("");
     const [selected, setSelected] = useState<string[]>([]);
@@ -125,8 +132,8 @@ export default function ArticleAdminList() {
     const [highlightId, setHighlightId] = useState<string | null>(() => (focusFromUrl && ARTICLE_ID.test(focusFromUrl) ? focusFromUrl : null));
     const [anchorReady, setAnchorReady] = useState(() => !(focusFromUrl && ARTICLE_ID.test(focusFromUrl)));
     const [placed, setPlaced] = useState(() => !(focusFromUrl && ARTICLE_ID.test(focusFromUrl)));
-    const listContext = useRef({ page: 1, q: "", statuses: [] as StatusFilter[], sort: DEFAULT_SORT as ArticleSort });
-    listContext.current = { page, q: query, statuses, sort };
+    const listContext = useRef({ page: 1, pageSize: 10, q: "", statuses: [] as StatusFilter[], sort: DEFAULT_SORT as ArticleSort });
+    listContext.current = { page, pageSize, q: query, statuses, sort };
 
     useEffect(() => {
         const focus = search.get("focus");
@@ -140,6 +147,7 @@ export default function ArticleAdminList() {
             q,
             status,
             sort: activeSort === DEFAULT_SORT ? undefined : activeSort,
+            pageSize: parsePageSize(search.get("pageSize")),
         })
             .then((place) => {
                 if (!active) return;
@@ -174,6 +182,7 @@ export default function ArticleAdminList() {
                 status: statuses.join(","),
                 sort: sort === DEFAULT_SORT ? undefined : sort,
                 page,
+                pageSize,
             })
                 .then((next) => {
                     if (!active) return;
@@ -190,15 +199,15 @@ export default function ArticleAdminList() {
             active = false;
             window.clearTimeout(handle);
         };
-    }, [anchorReady, query, statuses, sort, page, reloadKey]);
+    }, [anchorReady, query, statuses, sort, page, pageSize, reloadKey]);
 
     useLayoutEffect(() => {
         if (placed || !highlightId || !list?.items.some((item) => item.id === highlightId)) return;
         if (!scrollRowIntoPane(highlightId)) return;
-        const next = listSearch({ page, q: query, statuses, sort });
+        const next = listSearch({ page, pageSize, q: query, statuses, sort });
         window.history.replaceState(window.history.state, "", `/admin/blogs?${next}`);
         setPlaced(true);
-    }, [placed, highlightId, list, page, query, statuses, sort]);
+    }, [placed, highlightId, list, page, pageSize, query, statuses, sort]);
 
     useEffect(() => {
         if (!anchorReady || !list || placed || !highlightId) return;
@@ -208,10 +217,10 @@ export default function ArticleAdminList() {
 
     useEffect(() => {
         if (!placed) return;
-        const next = listSearch({ page, q: query, statuses, sort });
+        const next = listSearch({ page, pageSize, q: query, statuses, sort });
         if (window.location.search === `?${next}`) return;
         router.replace(`/admin/blogs?${next}`, { scroll: false });
-    }, [placed, page, query, statuses, sort, router]);
+    }, [placed, page, pageSize, query, statuses, sort, router]);
 
     useEffect(() => {
         let active = true;
@@ -577,12 +586,19 @@ export default function ArticleAdminList() {
                         })}
                         pagination={{
                             current: page,
-                            pageSize: list?.pageSize ?? 10,
+                            pageSize,
                             total: list?.total ?? 0,
-                            showSizeChanger: false,
+                            showSizeChanger: true,
+                            pageSizeOptions: ["10", "20", "50"],
+                            locale: { items_per_page: "/ trang" },
                             size: "large",
-                            onChange: (next) => {
+                            onChange: (next, size) => {
                                 setHighlightId(null);
+                                if (size !== pageSize) {
+                                    setPageSize(size);
+                                    setPage(1);
+                                    return;
+                                }
                                 setPage(next);
                             },
                         }}

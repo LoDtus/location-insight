@@ -165,6 +165,12 @@ export class ArticleListQueryDto {
   @Min(1)
   @Max(100)
   page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @IsIn([10, 20, 50])
+  pageSize?: number;
 }
 
 export class ArticlePositionQueryDto extends ArticleListQueryDto {

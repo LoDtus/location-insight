@@ -486,13 +486,63 @@ const RAW = [
     },
 ] as const;
 
+const EXTRA_PLACES: ReadonlyArray<{ street: string; district: District }> = [
+    { street: "Hàng Ngang", district: "Hoàn Kiếm" },
+    { street: "Phan Đình Phùng", district: "Ba Đình" },
+    { street: "Tôn Đức Thắng", district: "Đống Đa" },
+    { street: "Bà Triệu", district: "Hai Bà Trưng" },
+    { street: "Duy Tân", district: "Cầu Giấy" },
+    { street: "Quảng Khánh", district: "Tây Hồ" },
+    { street: "Ngọc Thụy", district: "Long Biên" },
+    { street: "Giáp Bát", district: "Hoàng Mai" },
+    { street: "Mễ Trì", district: "Nam Từ Liêm" },
+    { street: "Cổ Nhuế", district: "Bắc Từ Liêm" },
+    { street: "Nguyên Khê", district: "Đông Anh" },
+    { street: "An Khánh", district: "Hoài Đức" },
+];
+
+const EXTRA_KIND_TITLE: Record<ListingKind, string> = {
+    "can-ho": "Căn hộ",
+    "nha-pho": "Nhà phố",
+    "biet-thu": "Biệt thự",
+    dat: "Đất",
+};
+
+function extraListings(): Array<Omit<Listing, "watchers" | "images">> {
+    return EXTRA_PLACES.flatMap((place, placeIndex) =>
+        [0, 1, 2].map((copy) => {
+            const index = placeIndex * 3 + copy;
+            const kind = LISTING_KINDS[index % LISTING_KINDS.length];
+            const purpose: ListingPurpose = index % 4 === 0 ? "thue" : "ban";
+            const serial = index + 1;
+            const day = String((index % 27) + 1).padStart(2, "0");
+            const month = index % 2 === 0 ? "09" : "10";
+            return {
+                id: `019a2b11-${serial.toString(16).padStart(4, "0")}-7000-8000-000000000001`,
+                slug: `tin-mau-${serial}`,
+                title: `${EXTRA_KIND_TITLE[kind]} ${place.street}${copy === 0 ? "" : ` ${copy + 1}`}`,
+                location: `${place.street}, ${place.district}`,
+                district: place.district,
+                purpose,
+                kind,
+                priceVnd: purpose === "thue" ? 7_000_000 + serial * 900_000 : 2_150_000_000 + serial * 280_000_000,
+                areaM2: 32 + (serial % 18) * 6,
+                beds: kind === "dat" ? 0 : 1 + (serial % 4),
+                living: kind === "dat" ? 0 : 1,
+                baths: kind === "dat" ? 0 : 1 + (serial % 3),
+                updatedAt: `2026-${month}-${day}`,
+            };
+        }),
+    );
+}
+
 const WATCHERS = [
     128, 24, 41, 12, 96, 33, 19, 15, 28, 9, 7, 84, 22, 11, 37, 18, 44, 6, 31, 21, 8, 52, 14, 5, 27, 16, 39, 48,
 ];
 
-export const LISTINGS: Listing[] = RAW.map((item, index) => ({
+export const LISTINGS: Listing[] = [...RAW, ...extraListings()].map((item, index) => ({
     ...item,
-    watchers: WATCHERS[index] ?? 0,
+    watchers: WATCHERS[index] ?? ((index * 13) % 80) + 4,
     images: [0, 1, 2].map(
         (offset) => LISTING_IMAGES[(index + offset) % LISTING_IMAGES.length],
     ),

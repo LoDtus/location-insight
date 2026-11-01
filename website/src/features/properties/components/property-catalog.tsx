@@ -28,7 +28,8 @@ import { readDrafts } from "@/features/properties/property-drafts";
 import Pagination from "@/shared/components/ui/pagination";
 import { useLocale } from "@/shared/hooks/useLocale";
 
-const PAGE_SIZE = 9;
+const PAGE_ROW_OPTIONS = [5, 10, 20] as const;
+const DEFAULT_ROWS = 10;
 const INTEREST_KEY = "property-interest";
 
 const FIELD_CLASS =
@@ -77,6 +78,18 @@ function readDistrict(value: string | null): string {
     return "";
 }
 
+function readRows(value: string | null): number {
+    const rows = Number(value);
+    return (PAGE_ROW_OPTIONS as readonly number[]).includes(rows) ? rows : DEFAULT_ROWS;
+}
+
+function columnsForWidth(width: number): number {
+    if (width >= 1100) return 5;
+    if (width >= 760) return 3;
+    if (width >= 520) return 2;
+    return 1;
+}
+
 function readPrice(value: string | null, purpose: "" | ListingPurpose): string {
     if (!purpose || !value) return "";
     const ranges = purpose === "thue" ? RENT_PRICE_RANGES : SALE_PRICE_RANGES;
@@ -92,6 +105,7 @@ function toCanonical(source: URLSearchParams, totalPages: number): URLSearchPara
     next.set("district", readDistrict(source.get("district")));
     next.set("price", readPrice(source.get("price"), purpose));
     next.set("sort", readSort(source.get("sort")));
+    next.set("rows", String(readRows(source.get("rows"))));
     const page = Math.min(readPage(source.get("page")), Math.max(1, totalPages));
     next.set("page", String(page));
     next.set("watch", source.get("watch") === "1" ? "1" : "0");
@@ -136,6 +150,7 @@ export default function PropertyCatalog({ root }: { root: ShellRoot }): JSX.Elem
     const district = readDistrict(params.get("district"));
     const price = readPrice(params.get("price"), purpose);
     const sort = readSort(params.get("sort"));
+    const rows = readRows(params.get("rows"));
     const page = readPage(params.get("page"));
     const watch = params.get("watch") === "1";
     const [draft, setDraft] = useState(query);
@@ -144,6 +159,8 @@ export default function PropertyCatalog({ root }: { root: ShellRoot }): JSX.Elem
     const [drafts, setDrafts] = useState<Listing[]>([]);
     const [storedReady, setStoredReady] = useState(false);
     const [filtersOpen, setFiltersOpen] = useState(false);
+    const [columns, setColumns] = useState(5);
+    const gridHost = useRef<HTMLDivElement>(null);
     const searchTimer = useRef<number | null>(null);
     const closeFiltersRef = useRef<HTMLButtonElement>(null);
     const surfaceClass = root === "/admin" ? "bg-white" : "bg-cream";
@@ -154,6 +171,7 @@ export default function PropertyCatalog({ root }: { root: ShellRoot }): JSX.Elem
     }
 
     const listings = [...drafts, ...LISTINGS];
+    const pageSize = rows * columns;
     const needle = fold(query);
     const results = listings
         .filter((listing) => {
@@ -167,8 +185,18 @@ export default function PropertyCatalog({ root }: { root: ShellRoot }): JSX.Elem
         })
         .sort((left, right) => compareListings(left, right, sort));
 
-    const totalPages = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
+    const totalPages = Math.max(1, Math.ceil(results.length / pageSize));
     const currentPage = Math.min(page, totalPages);
+
+    useEffect(() => {
+        const node = gridHost.current;
+        if (!node) return;
+        const measure = (): void => setColumns(columnsForWidth(node.clientWidth));
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(node);
+        return () => observer.disconnect();
+    }, []);
 
     useEffect(() => {
         setInterest(readInterest());
@@ -247,7 +275,7 @@ export default function PropertyCatalog({ root }: { root: ShellRoot }): JSX.Elem
         });
     }
 
-    const pageItems = results.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+    const pageItems = results.slice((currentPage - 1) * pageSize, currentPage * pageSize);
     const priceRanges = purpose === "thue" ? RENT_PRICE_RANGES : SALE_PRICE_RANGES;
     const priceLabels: Record<string, string> = purpose === "thue"
         ? { "under-10": text("Dưới 10 triệu", "Under 10 million"), "10-20": text("10–20 triệu", "10–20 million"), "20-40": text("20–40 triệu", "20–40 million"), "over-40": text("Trên 40 triệu", "Over 40 million") }
@@ -451,7 +479,7 @@ export default function PropertyCatalog({ root }: { root: ShellRoot }): JSX.Elem
             ) : null}
 
             {pageItems.length === 0 ? (
-                <div className="mt-8 rounded-2xl border border-charcoal/15 bg-white px-4 py-10 text-center">
+                <div ref={gridHost} className="mt-8 rounded-2xl border border-charcoal/15 bg-white px-4 py-10 text-center">
                     <p className="m-0 text-base font-semibold">{text("Không có nhà đất khớp bộ lọc.", "No listings match these filters.")}</p>
                     <button
                         type="button"
@@ -462,7 +490,11 @@ export default function PropertyCatalog({ root }: { root: ShellRoot }): JSX.Elem
                     </button>
                 </div>
             ) : (
-                <ul className="m-0 mt-6 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 xl:grid-cols-3">
+                <div ref={gridHost}>
+                <ul
+                    className="m-0 mt-6 grid list-none gap-4 p-0"
+                    style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+                >
                     {pageItems.map((listing) => (
                         <li key={listing.id} className="min-w-0">
                             <PropertyCard
@@ -476,15 +508,18 @@ export default function PropertyCatalog({ root }: { root: ShellRoot }): JSX.Elem
                         </li>
                     ))}
                 </ul>
-            )}
-
-            {totalPages > 1 ? (
                 <div className="mt-6 flex justify-center">
                     <Pagination
                         currentPage={currentPage}
                         totalPages={totalPages}
                         mode="short"
                         onPageChange={(next) => commit({ page: String(next) }, false)}
+                        sizeControl={{
+                            label: text("Số dòng", "Rows"),
+                            value: rows,
+                            options: PAGE_ROW_OPTIONS,
+                            onChange: (next) => commit({ rows: String(next) }),
+                        }}
                         labels={{
                             nav: text("Phân trang", "Pagination"),
                             previous: text("Trang trước", "Previous page"),
@@ -495,7 +530,8 @@ export default function PropertyCatalog({ root }: { root: ShellRoot }): JSX.Elem
                         }}
                     />
                 </div>
-            ) : null}
+                </div>
+            )}
         </main>
     );
 }

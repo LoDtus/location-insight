@@ -5,7 +5,7 @@ import viVN from "antd/locale/vi_VN";
 import dayjs from "dayjs";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { AuthApiError } from "@/features/auth/auth.api";
 import {
@@ -14,6 +14,7 @@ import {
     hideAdminArticle,
     listAdminArticles,
     listPublishedFrequency,
+    locateAdminArticle,
     type AdminArticle,
     type AdminArticleList,
     type FrequencyGrain,
@@ -40,6 +41,15 @@ const SORT_OPTIONS = [
 type StatusFilter = (typeof STATUS_OPTIONS)[number]["id"];
 type ArticleSort = (typeof SORT_OPTIONS)[number]["id"];
 
+const BLOG_RETURN_KEY = "admin-blogs-return";
+
+type BlogReturn = {
+    id: string;
+    q: string;
+    status: string;
+    sort: string;
+};
+
 const DEFAULT_SORT: ArticleSort = "updated_desc";
 
 const WHEN = new Intl.DateTimeFormat("vi-VN", {
@@ -49,6 +59,23 @@ const WHEN = new Intl.DateTimeFormat("vi-VN", {
     hour: "2-digit",
     minute: "2-digit",
 });
+
+function parseBlogReturn(raw: string | null): (BlogReturn & { statuses: StatusFilter[] }) | null {
+    if (!raw) return null;
+    try {
+        const parsed = JSON.parse(raw) as Partial<BlogReturn>;
+        if (!parsed.id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(parsed.id)) return null;
+        const allowed = new Set<string>(STATUS_OPTIONS.map((option) => option.id));
+        const statuses = (parsed.status ?? "")
+            .split(",")
+            .map((item) => item.trim())
+            .filter((item): item is StatusFilter => allowed.has(item));
+        const sort = SORT_OPTIONS.some((option) => option.id === parsed.sort) ? (parsed.sort as ArticleSort) : DEFAULT_SORT;
+        return { id: parsed.id, q: parsed.q ?? "", status: statuses.join(","), sort, statuses };
+    } catch {
+        return null;
+    }
+}
 
 function formatWhen(iso: string | null): string {
     if (!iso) return "—";
@@ -76,8 +103,52 @@ export default function ArticleAdminList() {
     const [range, setRange] = useState(() => defaultFrequencyRange("month"));
     const [frequency, setFrequency] = useState<PublishedFrequency | null>(null);
     const [frequencyMessage, setFrequencyMessage] = useState("");
+    const [boot, setBoot] = useState<"pending" | "ready">("pending");
+    const [highlightId, setHighlightId] = useState<string | null>(null);
+    const listContext = useRef({ q: "", status: "", sort: "" });
+    const scrolledId = useRef<string | null>(null);
+    listContext.current = {
+        q: query.trim(),
+        status: statuses.join(","),
+        sort: sort === DEFAULT_SORT ? "" : sort,
+    };
 
     useEffect(() => {
+        const focus = parseBlogReturn(sessionStorage.getItem(BLOG_RETURN_KEY));
+        if (!focus) {
+            setBoot("ready");
+            return;
+        }
+        setQuery(focus.q);
+        setStatuses(focus.statuses);
+        setSort(focus.sort);
+        let active = true;
+        void locateAdminArticle({
+            id: focus.id,
+            q: focus.q,
+            status: focus.status,
+            sort: focus.sort === DEFAULT_SORT ? undefined : focus.sort,
+        })
+            .then((place) => {
+                if (!active) return;
+                if (place.found) {
+                    setPage(place.page);
+                    setHighlightId(focus.id);
+                }
+            })
+            .catch(() => undefined)
+            .finally(() => {
+                if (!active) return;
+                sessionStorage.removeItem(BLOG_RETURN_KEY);
+                setBoot("ready");
+            });
+        return () => {
+            active = false;
+        };
+    }, []);
+
+    useEffect(() => {
+        if (boot !== "ready") return;
         let active = true;
         const handle = window.setTimeout(() => {
             void listAdminArticles({
@@ -100,7 +171,16 @@ export default function ArticleAdminList() {
             active = false;
             window.clearTimeout(handle);
         };
-    }, [query, statuses, sort, page, reloadKey]);
+    }, [boot, query, statuses, sort, page, reloadKey]);
+
+    useEffect(() => {
+        if (!highlightId || !list?.items.some((item) => item.id === highlightId)) return;
+        if (scrolledId.current === highlightId) return;
+        const row = document.querySelector(`tr[data-row-key="${highlightId}"]`);
+        if (!row) return;
+        row.scrollIntoView({ block: "center", inline: "nearest" });
+        scrolledId.current = highlightId;
+    }, [highlightId, list]);
 
     useEffect(() => {
         let active = true;
@@ -214,7 +294,9 @@ export default function ArticleAdminList() {
             okText: "Sửa",
             cancelText: "Hủy",
         });
-        if (accepted) router.push(`/admin/blogs/${article.id}`);
+        if (!accepted) return;
+        sessionStorage.setItem(BLOG_RETURN_KEY, JSON.stringify({ id: article.id, ...listContext.current }));
+        router.push(`/admin/blogs/${article.id}`);
     }
 
     async function hideArticle(article: AdminArticle): Promise<void> {
@@ -438,7 +520,8 @@ export default function ArticleAdminList() {
                         size="middle"
                         columns={columns}
                         dataSource={items}
-                        loading={!list}
+                        loading={boot !== "ready" || !list}
+                        rowClassName={(article) => (article.id === highlightId ? "[&>td]:!bg-[#f3f4f6]" : "")}
                         locale={{ emptyText: "Không có bài trong bộ lọc này." }}
                         scroll={{ x: 1200 }}
                         rowSelection={{
@@ -451,6 +534,7 @@ export default function ArticleAdminList() {
                                 const target = event.target;
                                 if (!(target instanceof Element)) return;
                                 if (target.closest("button, a, input, label, .ant-checkbox, .ant-table-selection-column")) return;
+                                sessionStorage.setItem(BLOG_RETURN_KEY, JSON.stringify({ id: article.id, ...listContext.current }));
                                 router.push(`/bai-viet/${article.slug}`);
                             },
                         })}

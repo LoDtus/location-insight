@@ -17,6 +17,7 @@ import {
 import {
   ArticleFrequencyQueryDto,
   ArticleListQueryDto,
+  ArticlePositionQueryDto,
   ArticleWriteDto,
   IngestArticleDto,
 } from './dto/article.dto.js';
@@ -106,6 +107,25 @@ export class ArticlesService {
       pageSize: ADMIN_PAGE_SIZE,
       total,
       counts,
+    };
+  }
+
+  async adminPosition(query: ArticlePositionQueryDto): Promise<{ found: boolean; page: number; index: number }> {
+    const article = await this.articles.findOne({ where: { id: query.id }, withDeleted: true });
+    if (!article) return { found: false, page: 1, index: 0 };
+    const visible = this.articles.createQueryBuilder('article').where('article.id = :id', { id: article.id });
+    this.applyAdminStatus(visible, query.status);
+    this.applySearch(visible, query.q);
+    if (!(await visible.getCount())) return { found: false, page: 1, index: 0 };
+    const before = this.articles.createQueryBuilder('article');
+    this.applyAdminStatus(before, query.status);
+    this.applySearch(before, query.q);
+    this.applyRowsBefore(before, article, query.sort);
+    const count = await before.getCount();
+    return {
+      found: true,
+      page: Math.floor(count / ADMIN_PAGE_SIZE) + 1,
+      index: count % ADMIN_PAGE_SIZE,
     };
   }
 
@@ -274,22 +294,78 @@ export class ArticlesService {
     sort: ArticleListQueryDto['sort'],
   ): void {
     if (sort === 'updated_asc') {
-      qb.orderBy('article.updatedAt', 'ASC');
+      qb.orderBy('article.updatedAt', 'ASC').addOrderBy('article.id', 'ASC');
       return;
     }
     if (sort === 'published_desc') {
-      qb.orderBy('article.publishedAt', 'DESC', 'NULLS LAST');
+      qb.orderBy('article.publishedAt', 'DESC', 'NULLS LAST').addOrderBy('article.id', 'DESC');
       return;
     }
     if (sort === 'published_asc') {
-      qb.orderBy('article.publishedAt', 'ASC', 'NULLS LAST');
+      qb.orderBy('article.publishedAt', 'ASC', 'NULLS LAST').addOrderBy('article.id', 'ASC');
       return;
     }
     if (sort === 'title') {
-      qb.orderBy('article.title', 'ASC');
+      qb.orderBy('article.title', 'ASC').addOrderBy('article.id', 'ASC');
       return;
     }
-    qb.orderBy('article.updatedAt', 'DESC');
+    qb.orderBy('article.updatedAt', 'DESC').addOrderBy('article.id', 'DESC');
+  }
+
+  private applyRowsBefore(
+    qb: ReturnType<ArticlesService['visibleQuery']>,
+    article: ArticleEntity,
+    sort: ArticleListQueryDto['sort'],
+  ): void {
+    if (sort === 'updated_asc') {
+      this.applyInstantBefore(qb, article.id, 'updated_at', 'ASC');
+      return;
+    }
+    if (sort === 'published_desc') {
+      this.applyPublishedBefore(qb, article, 'DESC');
+      return;
+    }
+    if (sort === 'published_asc') {
+      this.applyPublishedBefore(qb, article, 'ASC');
+      return;
+    }
+    if (sort === 'title') {
+      qb.andWhere('(article.title < :title OR (article.title = :title AND article.id < :id))', {
+        title: article.title,
+        id: article.id,
+      });
+      return;
+    }
+    this.applyInstantBefore(qb, article.id, 'updated_at', 'DESC');
+  }
+
+  private applyInstantBefore(
+    qb: ReturnType<ArticlesService['visibleQuery']>,
+    id: string,
+    column: 'updated_at' | 'published_at',
+    direction: 'ASC' | 'DESC',
+  ): void {
+    const op = direction === 'DESC' ? '>' : '<';
+    qb.andWhere(
+      `(article.${column} ${op} (SELECT ${column} FROM articles WHERE id = :id) OR (article.${column} = (SELECT ${column} FROM articles WHERE id = :id) AND article.id ${op} :id))`,
+      { id },
+    );
+  }
+
+  private applyPublishedBefore(
+    qb: ReturnType<ArticlesService['visibleQuery']>,
+    article: ArticleEntity,
+    direction: 'ASC' | 'DESC',
+  ): void {
+    if (!article.publishedAt) {
+      const op = direction === 'DESC' ? '>' : '<';
+      qb.andWhere(
+        `(article.published_at IS NOT NULL OR (article.published_at IS NULL AND article.id ${op} :id))`,
+        { id: article.id },
+      );
+      return;
+    }
+    this.applyInstantBefore(qb, article.id, 'published_at', direction);
   }
 
   private applySearch(

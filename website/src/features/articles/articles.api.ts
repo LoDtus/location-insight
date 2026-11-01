@@ -75,6 +75,19 @@ export function listAdminArticles(query: {
     return apiRequest<AdminArticleList>(`/admin/blogs${suffix ? `?${suffix}` : ""}`);
 }
 
+export function locateAdminArticle(query: {
+    id: string;
+    q?: string;
+    status?: string;
+    sort?: string;
+}): Promise<{ found: boolean; page: number; index: number }> {
+    const params = new URLSearchParams({ id: query.id });
+    if (query.q) params.set("q", query.q);
+    if (query.status) params.set("status", query.status);
+    if (query.sort) params.set("sort", query.sort);
+    return apiRequest(`/admin/blogs/position?${params}`);
+}
+
 export function listPublishedFrequency(query: {
     grain: FrequencyGrain;
     from: string;

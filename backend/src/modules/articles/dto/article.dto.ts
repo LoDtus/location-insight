@@ -3,6 +3,7 @@ import {
   IsIn,
   IsInt,
   IsISO8601,
+  IsUUID,
   Matches,
   IsOptional,
   IsString,
@@ -164,6 +165,11 @@ export class ArticleListQueryDto {
   @Min(1)
   @Max(100)
   page?: number;
+}
+
+export class ArticlePositionQueryDto extends ArticleListQueryDto {
+  @IsUUID()
+  id: string;
 }
 
 export class ArticleFrequencyQueryDto {

@@ -122,6 +122,7 @@ export default function ArticleEditor({ article }: { article: AdminArticle | nul
         setPending(true);
         try {
             await deleteAdminArticle(article.id);
+            sessionStorage.removeItem("admin-blogs-return");
             router.push("/admin/blogs?status=deleted");
         } catch (error) {
             setMessage(error instanceof AuthApiError ? error.message : "Chưa bỏ được bài.");

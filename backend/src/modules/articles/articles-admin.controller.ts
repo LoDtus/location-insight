@@ -16,6 +16,7 @@ import { ArticlesService } from './articles.service.js';
 import {
   ArticleFrequencyQueryDto,
   ArticleListQueryDto,
+  ArticlePositionQueryDto,
   ArticleWriteDto,
   IngestArticleDto,
 } from './dto/article.dto.js';
@@ -28,6 +29,12 @@ export class ArticlesAdminController {
   @Get()
   list(@Query() query: ArticleListQueryDto) {
     return this.articles.listAdmin(query);
+  }
+
+  @RequirePermission('admin:access')
+  @Get('position')
+  position(@Query() query: ArticlePositionQueryDto) {
+    return this.articles.adminPosition(query);
   }
 
   @RequirePermission('admin:access')

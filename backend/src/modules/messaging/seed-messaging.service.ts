@@ -9,7 +9,7 @@ import { ConversationEntity } from './entities/conversation.entity.js';
 import { MessageReactionEntity } from './entities/message-reaction.entity.js';
 import { MessageEntity } from './entities/message.entity.js';
 import { directKey, previewFor, UNSENT_PREVIEW } from './messaging-rules.js';
-import { SEED_CONVERSATIONS, Side } from './seed.config.js';
+import { SEED_ADMIN_CONVERSATIONS, SEED_CONVERSATIONS, SeedConversation, Side } from './seed.config.js';
 
 /** Hội thoại mẫu cho môi trường dev: chạy một lần, bỏ qua nếu đã có hội thoại giữa hai tài khoản mẫu. */
 @Injectable()
@@ -38,7 +38,8 @@ export class SeedMessagingService implements OnApplicationBootstrap {
   }
 
   private async seed(): Promise<void> {
-    const emails = [...new Set(SEED_CONVERSATIONS.flatMap((item) => [item.a, item.b]))];
+    const all = [...SEED_CONVERSATIONS, ...SEED_ADMIN_CONVERSATIONS];
+    const emails = [...new Set(all.flatMap((item) => [item.a, item.b]))];
     const people = await this.users.find({ where: { email: In(emails) } });
     const byEmail = new Map(people.map((user) => [user.email, user]));
     const post = await this.posts.findOne({
@@ -47,7 +48,7 @@ export class SeedMessagingService implements OnApplicationBootstrap {
     });
 
     let created = 0;
-    for (const spec of SEED_CONVERSATIONS) {
+    for (const spec of all) {
       const a = byEmail.get(spec.a);
       const b = byEmail.get(spec.b);
       if (!a || !b) continue;
@@ -60,7 +61,7 @@ export class SeedMessagingService implements OnApplicationBootstrap {
   }
 
   private async createConversation(
-    spec: (typeof SEED_CONVERSATIONS)[number],
+    spec: SeedConversation,
     aId: string,
     bId: string,
     key: string,

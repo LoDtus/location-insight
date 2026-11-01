@@ -106,3 +106,69 @@ export const SEED_CONVERSATIONS: SeedConversation[] = [
     ],
   },
 ];
+
+// Hội thoại của tài khoản quản trị (xem ở /admin/messages).
+const ADMIN = 'admin@location-insight.local';
+
+export const SEED_ADMIN_CONVERSATIONS: SeedConversation[] = [
+  {
+    a: 'user@location-insight.local',
+    b: ADMIN,
+    unread: { b: 2 },
+    messages: [
+      { from: 'a', ago: 2 * D + 3 * H, text: 'Chào quản trị viên, bài của mình ở diễn đàn bị ẩn mà mình không rõ lý do. Bạn xem giúp mình được không?' },
+      { from: 'b', ago: 2 * D + 2 * H, text: 'Chào bạn. Mình đã kiểm tra: bài có chứa số điện thoại cá nhân nên bị ẩn theo quy định. Bạn có thể đăng lại sau khi bỏ số.' },
+      { from: 'a', ago: 2 * D + 1 * H, text: 'À mình hiểu rồi, cảm ơn bạn đã giải thích.', reactions: [['b', '👍']] },
+      { from: 'a', ago: 5 * H, text: 'Mình đã đăng lại bài, bạn xem giúp xem đã đúng chưa nhé.' },
+      { from: 'a', ago: 5 * H - 2, text: 'Link bài: https://example.com/feed/bai-moi', reply: 4 },
+    ],
+  },
+  {
+    a: 'thu-ha@location-insight.local',
+    b: ADMIN,
+    state: 'pending',
+    unread: { b: 1 },
+    messages: [
+      { from: 'a', ago: 4 * H, text: 'Chào anh/chị, em muốn hỏi gói định giá có dùng thử miễn phí không ạ? Em đã thử 3 lượt phân tích.' },
+    ],
+  },
+  {
+    a: ADMIN,
+    b: 'lan-anh@location-insight.local',
+    messages: [
+      { from: 'b', ago: 3 * D + 6 * H, text: 'Chào admin, mình muốn đề xuất thêm chủ đề "Căn hộ chung cư" cho diễn đàn.' },
+      { from: 'a', ago: 3 * D + 5 * H, text: 'Cảm ơn Lan Anh. Ý tưởng hay, mình sẽ trao đổi với nhóm và báo lại bạn.' },
+      { from: 'a', ago: 3 * D + 5 * H - 1, share: true },
+      { from: 'b', ago: 3 * D + 4 * H, text: 'Mình thấy bài này đang hỏi đúng chủ đề đó đó ạ.', reply: 3, reactions: [['a', '❤️']] },
+      { from: 'a', ago: 1 * D, text: 'Đã mở chủ đề mới rồi, bạn vào thử nhé!' },
+      { from: 'b', ago: 1 * D - 30, text: 'Tuyệt vời, cảm ơn admin 🙏' },
+    ],
+  },
+  {
+    a: ADMIN,
+    b: 'duc-anh@location-insight.local',
+    state: 'pending',
+    messages: [
+      { from: 'a', ago: 1 * D + 2 * H, text: 'Chào Đức Anh, mình là quản trị viên. Bạn vừa báo lỗi định giá, mình cần thêm ảnh chụp màn hình để kiểm tra, bạn gửi giúp nhé.' },
+    ],
+  },
+  {
+    a: 'ha-my@location-insight.local',
+    b: ADMIN,
+    mutedBy: 'b',
+    messages: [
+      { from: 'a', ago: 8 * D, text: 'Chào admin, mình không đăng nhập được bằng Google từ hôm qua.' },
+      { from: 'b', ago: 8 * D - 60, text: 'Chào Hà My, bạn thử đăng nhập lại bằng email và mật khẩu, hoặc dùng chức năng quên mật khẩu nhé.' },
+      { from: 'a', ago: 8 * D - 90, text: 'Được rồi ạ, em cảm ơn.' },
+    ],
+  },
+  {
+    a: 'quoc-bao@location-insight.local',
+    b: ADMIN,
+    unread: { b: 2 },
+    messages: [
+      { from: 'a', ago: 90, text: 'Admin ơi, mình thấy một tin rao có dấu hiệu giả mạo ảnh, mình nên báo ở đâu?' },
+      { from: 'a', ago: 85, text: 'Tin ở khu Mỹ Đình, giá thấp hơn thị trường khá nhiều.' },
+    ],
+  },
+];

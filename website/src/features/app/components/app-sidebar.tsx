@@ -9,6 +9,7 @@ import {
     MessagesSquare,
     Newspaper,
     PanelLeftClose,
+    MessageSquareHeart,
     PanelLeftOpen,
     Send,
     ShieldAlert,
@@ -22,6 +23,7 @@ import { useEffect, useRef, useState, type JSX } from "react";
 
 import { logout } from "@/features/auth/auth.api";
 import { useAuth } from "@/features/auth/use-auth";
+import { useFeedbackBadge } from "@/features/feedback/use-feedback-badge";
 import { useUnreadBadge } from "@/features/messaging/messaging-provider";
 import { useLocale } from "@/shared/hooks/useLocale";
 
@@ -66,6 +68,7 @@ export default function AppSidebar({
     const { locale } = useLocale();
     const auth = useAuth();
     const unread = useUnreadBadge();
+    const feedbackBadge = useFeedbackBadge(surface);
     const [collapsed, setCollapsed] = useState(false);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [signingOut, setSigningOut] = useState(false);
@@ -133,6 +136,13 @@ export default function AppSidebar({
                       badge: unread,
                   },
                   {
+                      kind: "item",
+                      href: "/admin/feedback",
+                      icon: MessageSquareHeart,
+                      label: vi ? "Góp ý" : "Feedback",
+                      badge: feedbackBadge,
+                  },
+                  {
                       kind: "divider",
                       id: "admin",
                       label: vi ? "Quản trị" : "Admin",
@@ -181,6 +191,13 @@ export default function AppSidebar({
                       icon: Send,
                       label: vi ? "Tin nhắn" : "Messages",
                       badge: unread,
+                  },
+                  {
+                      kind: "item",
+                      href: "/app/feedback",
+                      icon: MessageSquareHeart,
+                      label: vi ? "Góp ý" : "Feedback",
+                      badge: feedbackBadge,
                   },
                   {
                       kind: "item",

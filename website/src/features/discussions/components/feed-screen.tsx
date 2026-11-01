@@ -174,7 +174,7 @@ export function FeedScreen(): JSX.Element {
     }
 
     async function share(post: DiscussionPost): Promise<void> {
-        const url = `${window.location.origin}/app/discussions/${post.id}`;
+        const url = `${window.location.origin}/app/feed/${post.id}`;
         await navigator.clipboard.writeText(url);
         setMessage("Đã sao chép liên kết.");
     }
@@ -243,7 +243,7 @@ export function FeedScreen(): JSX.Element {
                                 saved={saved.includes(post.id)}
                                 mine={auth.user?.userId === post.authorId}
                                 onLike={() => void toggleLike(post).catch(() => setMessage("Chưa thích được."))}
-                                onReply={() => router.push(`/app/discussions/${post.id}`)}
+                                onReply={() => router.push(`/app/feed/${post.id}`)}
                                 onRepost={() => void repost(post).catch(() => setMessage("Chưa đăng lại được."))}
                                 onQuote={() => {
                                     setQuote(post);

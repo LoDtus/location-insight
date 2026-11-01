@@ -93,7 +93,7 @@ export function PostCard({
             <div className="min-w-0 flex-1">
                 <header className="flex items-start gap-2">
                     <p className="m-0 min-w-0 flex-1 text-sm">
-                        <Link href={`/app/discussions/${post.id}`} className="font-semibold text-inherit no-underline">
+                        <Link href={`/app/feed/${post.id}`} className="font-semibold text-inherit no-underline">
                             {post.authorName}
                         </Link>
                         {post.authorUsername ? (
@@ -154,7 +154,7 @@ export function PostCard({
                         ) : null}
                     </div>
                 </header>
-                <Link href={`/app/discussions/${post.id}`} className="mt-1 block text-inherit no-underline">
+                <Link href={`/app/feed/${post.id}`} className="mt-1 block text-inherit no-underline">
                     {post.topicName ? (
                         <p className="m-0 text-sm font-semibold text-green">Chủ đề: {post.topicName}</p>
                     ) : null}

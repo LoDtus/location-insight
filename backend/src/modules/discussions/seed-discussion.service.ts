@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { v7 as uuidv7 } from 'uuid';
 import { StorageService } from '../../integrations/storage/storage.service.js';
+import { SEED_ARTICLES } from '../articles/seed.config.js';
 import { UserEntity } from '../auth/entities/user.entity.js';
 import { DiscussionLikeEntity } from './entities/discussion-like.entity.js';
 import { DiscussionMediaEntity } from './entities/discussion-media.entity.js';
@@ -36,6 +37,7 @@ export class SeedDiscussionService implements OnModuleInit {
     const existing = await this.topics.findOne({ where: { slug: 'ho-tay' } });
     if (existing) {
       await this.extraFeed();
+      await this.articleFeed();
       return;
     }
 
@@ -143,6 +145,7 @@ export class SeedDiscussionService implements OnModuleInit {
     );
     this.logger.log('Đã tạo chủ đề và bài mẫu cho diễn đàn.');
     await this.extraFeed();
+    await this.articleFeed();
   }
 
   private async extraFeed(): Promise<void> {
@@ -178,6 +181,38 @@ export class SeedDiscussionService implements OnModuleInit {
       const author = byEmail.get(email);
       const topic = bySlug.get(slug);
       if (!author || !topic) continue;
+      const found = await this.posts.findOne({ where: { body } });
+      if (found) continue;
+      await this.posts.save(
+        this.posts.create({
+          authorId: author.id,
+          topicId: topic.id,
+          rootId: null,
+          parentId: null,
+          kind: 'note',
+          body,
+          status: 'visible',
+          replyCount: 0,
+          likeCount: 0,
+        }),
+      );
+    }
+  }
+
+  private async articleFeed(): Promise<void> {
+    const author = await this.users.findOne({
+      where: { email: 'admin@location-insight.local' },
+    });
+    const topics = await this.topics.find({
+      where: { slug: In(['ho-tay', 'gia-nha']) },
+    });
+    const bySlug = new Map(topics.map((topic) => [topic.slug, topic]));
+    if (!author || bySlug.size === 0) return;
+    for (const article of SEED_ARTICLES) {
+      const topicSlug = article.topic === 'gia' || article.topic === 'du-lieu' ? 'gia-nha' : 'ho-tay';
+      const topic = bySlug.get(topicSlug);
+      if (!topic) continue;
+      const body = `${article.title}\n\n${article.lede}`.slice(0, 2000);
       const found = await this.posts.findOne({ where: { body } });
       if (found) continue;
       await this.posts.save(

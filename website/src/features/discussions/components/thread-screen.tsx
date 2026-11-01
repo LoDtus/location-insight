@@ -108,7 +108,7 @@ export function ThreadScreen({ id }: { id: string }): JSX.Element {
     }
 
     async function share(target: DiscussionPost): Promise<void> {
-        await navigator.clipboard.writeText(`${window.location.origin}/app/discussions/${target.id}`);
+        await navigator.clipboard.writeText(`${window.location.origin}/app/feed/${target.id}`);
         setMessage("Đã sao chép liên kết.");
     }
 
@@ -145,7 +145,7 @@ export function ThreadScreen({ id }: { id: string }): JSX.Element {
         <main ref={scroller} className="h-full overflow-auto bg-cream">
             <div className="mx-auto min-h-full w-full max-w-[640px] border-x border-charcoal/10 bg-white">
                 <p className="m-0 border-b border-charcoal/10 px-4 py-3 text-sm">
-                    <Link href="/app/discussions" className="font-semibold text-green no-underline">
+                    <Link href="/app/feed" className="font-semibold text-green no-underline">
                         Diễn đàn
                     </Link>
                 </p>
@@ -189,7 +189,7 @@ export function ThreadScreen({ id }: { id: string }): JSX.Element {
                                         if (!accepted) return;
                                         void deletePost(item.id)
                                             .then(() => {
-                                                if (item.id === post.id) router.push("/app/discussions");
+                                                if (item.id === post.id) router.push("/app/feed");
                                                 else void load();
                                             })
                                             .catch(() => setMessage("Chưa xóa được."));

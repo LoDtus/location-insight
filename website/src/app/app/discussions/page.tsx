@@ -1,7 +1,5 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { FeedScreen } from "@/features/discussions/components/feed-screen";
-
-export default function Page() {
-    return <FeedScreen />;
+export default function Page(): never {
+    redirect("/app/feed");
 }

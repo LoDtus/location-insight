@@ -115,7 +115,7 @@ export function ProfileForumPost({ root }: { root: ShellRoot }): JSX.Element {
                 <p role={message.startsWith("Đã ") ? "status" : "alert"} className="m-0 border-t border-charcoal/10 px-4 py-3 text-sm">
                     {message}{" "}
                     {postedId && root === "/app" ? (
-                        <Link href={`/app/discussions/${postedId}`} className="font-semibold underline underline-offset-4">
+                        <Link href={`/app/feed/${postedId}`} className="font-semibold underline underline-offset-4">
                             Xem bài vừa đăng
                         </Link>
                     ) : null}

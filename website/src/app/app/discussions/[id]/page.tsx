@@ -1,10 +1,10 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { useParams } from "next/navigation";
+type PageProps = {
+    params: Promise<{ id: string }>;
+};
 
-import { ThreadScreen } from "@/features/discussions/components/thread-screen";
-
-export default function Page() {
-    const params = useParams<{ id: string }>();
-    return <ThreadScreen id={params.id} />;
+export default async function Page({ params }: PageProps): Promise<never> {
+    const { id } = await params;
+    redirect(`/app/feed/${id}`);
 }

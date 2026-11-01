@@ -58,9 +58,12 @@ export function createTopic(input: {
     });
 }
 
-export function listPosts(cursor?: string): Promise<DiscussionPage<DiscussionPost>> {
-    const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
-    return apiRequest(`/discussions/posts${query}`);
+export function listPosts(cursor?: string, scope?: "following"): Promise<DiscussionPage<DiscussionPost>> {
+    const params = new URLSearchParams();
+    if (cursor) params.set("cursor", cursor);
+    if (scope) params.set("scope", scope);
+    const query = params.toString();
+    return apiRequest(`/discussions/posts${query ? `?${query}` : ""}`);
 }
 
 export function listAuthorPosts(username: string, cursor?: string): Promise<DiscussionPage<DiscussionPost>> {

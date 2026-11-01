@@ -35,6 +35,7 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
     const [posts, setPosts] = useState<DiscussionPost[]>([]);
     const [cursor, setCursor] = useState<string | null>(null);
     const [filter, setFilter] = useState("");
+    const [scope, setScope] = useState<"all" | "following">("all");
     const [topicSlug, setTopicSlug] = useState("");
     const [newTopic, setNewTopic] = useState("");
     const [body, setBody] = useState("");
@@ -46,10 +47,10 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
     const [pending, setPending] = useState(false);
     const [loading, setLoading] = useState(true);
 
-    const loadFirst = useCallback(async (nextFilter: string): Promise<void> => {
+    const loadFirst = useCallback(async (nextFilter: string, nextScope: "all" | "following" = "all"): Promise<void> => {
         const [topicPage, postPage] = await Promise.all([
             listTopics(),
-            nextFilter ? topicFeed(nextFilter) : listPosts(),
+            nextScope === "following" ? listPosts(undefined, "following") : nextFilter ? topicFeed(nextFilter) : listPosts(),
         ]);
         setTopics(topicPage.items.filter((topic) => topic.status === "open"));
         setPosts(postPage.items);
@@ -77,7 +78,12 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
         if (!cursor || loadingMore.current) return;
         loadingMore.current = true;
         try {
-            const page = filter ? await topicFeed(filter, cursor) : await listPosts(cursor);
+            const page =
+                scope === "following"
+                    ? await listPosts(cursor, "following")
+                    : filter
+                      ? await topicFeed(filter, cursor)
+                      : await listPosts(cursor);
             setPosts((current) => {
                 const seen = new Set(current.map((item) => item.id));
                 return [...current, ...page.items.filter((item) => !seen.has(item.id))];
@@ -88,7 +94,7 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
         } finally {
             loadingMore.current = false;
         }
-    }, [cursor, filter]);
+    }, [cursor, filter, scope]);
 
     useEffect(() => {
         const root = scroller.current;
@@ -181,10 +187,22 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
                 <div className="sticky top-0 z-10 flex gap-2 overflow-x-auto border-b border-charcoal/10 bg-white px-4 py-3">
                     <TopicTab
                         label="Mới nhất"
-                        current={filter === ""}
+                        current={filter === "" && scope === "all"}
                         onClick={() => {
                             setFilter("");
+                            setScope("all");
                             void loadFirst("").catch((error: unknown) => {
+                                setMessage(error instanceof AuthApiError ? error.message : "Chưa tải được.");
+                            });
+                        }}
+                    />
+                    <TopicTab
+                        label="Đang theo dõi"
+                        current={scope === "following"}
+                        onClick={() => {
+                            setFilter("");
+                            setScope("following");
+                            void loadFirst("", "following").catch((error: unknown) => {
                                 setMessage(error instanceof AuthApiError ? error.message : "Chưa tải được.");
                             });
                         }}
@@ -193,9 +211,10 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
                         <TopicTab
                             key={topic.id}
                             label={topic.name}
-                            current={filter === topic.slug}
+                            current={filter === topic.slug && scope === "all"}
                             onClick={() => {
                                 setFilter(topic.slug);
+                                setScope("all");
                                 void loadFirst(topic.slug).catch((error: unknown) => {
                                     setMessage(error instanceof AuthApiError ? error.message : "Chưa tải được.");
                                 });
@@ -228,7 +247,7 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
                 ) : null}
                 {loading ? <p className="m-0 px-4 py-8 text-sm">Đang tải diễn đàn.</p> : null}
                 {!loading && posts.length === 0 ? (
-                    <p className="m-0 px-4 py-8 text-sm">Chưa có bài trong mục này. Hãy viết điều bạn đang thắc mắc.</p>
+                    <p className="m-0 px-4 py-8 text-sm">{scope === "following" ? "Hãy theo dõi vài người để thấy bài của họ ở đây." : "Chưa có bài trong mục này. Hãy viết điều bạn đang thắc mắc."}</p>
                 ) : null}
                 <ol className="m-0 list-none p-0">
                     {posts.map((post) => (

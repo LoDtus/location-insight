@@ -10,7 +10,7 @@ import {
     UserRound,
 } from "lucide-react";
 import Link from "next/link";
-import { MessageButton } from "@/features/messaging/components/message-button";
+import { FollowSummary } from "@/features/follow/components/follow-summary";
 import { useEffect, useState, type FormEvent, type JSX } from "react";
 
 import { AUTH_BUTTON_CLASS, AUTH_FIELD_CLASS } from "@/app/auth/form-class";
@@ -197,9 +197,6 @@ export default function ProfileScreen({
                                     @{profile.username ?? "chưa-có-username"}
                                 </p>
                             </div>
-                            {!own ? (
-                                <MessageButton userId={profile.userId} root={root === "/admin" ? "/admin" : "/app"} />
-                            ) : null}
                             {own && !editing ? (
                                 <button
                                     type="button"
@@ -211,6 +208,8 @@ export default function ProfileScreen({
                                 </button>
                             ) : null}
                         </div>
+
+                        <FollowSummary userId={profile.userId} root={root === "/admin" ? "/admin" : "/app"} own={own} />
 
                         <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-sm text-charcoal/75">
                             {own && profile.email ? (

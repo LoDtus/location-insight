@@ -49,13 +49,15 @@ function text(messages: Record<string, unknown>, key: string): string {
 export default function ListingDetail({
     id,
     surface = "public",
+    listing: provided,
 }: {
     id: string;
     surface?: "public" | "app" | "admin";
+    listing?: Listing;
 }) {
     const { locale } = useLocale();
     const messages = useLocaleMessages("landing");
-    const listing = getListingByParam(id);
+    const listing = provided ?? getListingByParam(id);
     const [saved, setSaved] = useState(false);
     const [revealed, setRevealed] = useState(false);
     const [descriptionOpen, setDescriptionOpen] = useState(false);

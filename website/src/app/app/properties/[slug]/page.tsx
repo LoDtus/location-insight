@@ -1,5 +1,4 @@
-import { notFound } from "next/navigation";
-
+import DraftListingDetail from "@/features/properties/components/draft-listing-detail";
 import ListingDetail from "@/features/landing-page/components/listing-detail";
 import { getListingByParam } from "@/features/landing-page/data/listings";
 
@@ -10,8 +9,8 @@ type PageProps = {
 export default async function Page({ params }: PageProps) {
     const { slug } = await params;
     const listing = getListingByParam(slug);
-    if (!listing || listing.purpose !== "ban") {
-        notFound();
+    if (!listing) {
+        return <DraftListingDetail slug={slug} surface="app" />;
     }
 
     return <ListingDetail id={slug} surface="app" />;

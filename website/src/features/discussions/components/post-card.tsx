@@ -53,7 +53,6 @@ export function PostCard({
     onShare,
     onSave,
     onDelete,
-    onReport,
 }: {
     post: DiscussionPost;
     root: ShellRoot;
@@ -67,11 +66,9 @@ export function PostCard({
     onShare: () => void;
     onSave: () => void;
     onDelete: () => void;
-    onReport: (reason: string) => void;
 }): JSX.Element {
     const [menu, setMenu] = useState(false);
     const [repostMenu, setRepostMenu] = useState(false);
-    const [report, setReport] = useState("");
     const rootRef = useRef<HTMLElement>(null);
 
     useEffect(() => {
@@ -107,54 +104,29 @@ export function PostCard({
                         <span className="text-charcoal/55"> · {relativeTime(post.createdAt)}</span>
                     </p>
                     <div className="relative">
-                        <button
-                            type="button"
-                            className="inline-flex size-11 items-center justify-center rounded-full text-charcoal/70 hover:bg-green/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
-                            aria-expanded={menu}
-                            aria-label="Thêm lựa chọn"
-                            onClick={() => setMenu((current) => !current)}
-                        >
-                            <MoreHorizontal className="size-5" aria-hidden="true" />
-                        </button>
-                        {menu ? (
+                        {mine ? (
+                            <button
+                                type="button"
+                                className="inline-flex size-11 items-center justify-center rounded-full text-charcoal/70 hover:bg-green/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
+                                aria-expanded={menu}
+                                aria-label="Thêm lựa chọn"
+                                onClick={() => setMenu((current) => !current)}
+                            >
+                                <MoreHorizontal className="size-5" aria-hidden="true" />
+                            </button>
+                        ) : null}
+                        {menu && mine ? (
                             <div className="absolute right-0 z-20 w-56 rounded-2xl border border-charcoal/10 bg-white p-2 shadow-sm">
-                                {mine ? (
-                                    <button
-                                        type="button"
-                                        className="flex min-h-11 w-full items-center rounded-xl px-3 text-left text-sm font-semibold hover:bg-cream"
-                                        onClick={() => {
-                                            setMenu(false);
-                                            onDelete();
-                                        }}
-                                    >
-                                        Xóa bài
-                                    </button>
-                                ) : (
-                                    <form
-                                        className="flex flex-col gap-2 p-1"
-                                        onSubmit={(event) => {
-                                            event.preventDefault();
-                                            onReport(report);
-                                            setReport("");
-                                            setMenu(false);
-                                        }}
-                                    >
-                                        <label className="text-sm font-semibold">
-                                            Báo cáo
-                                            <input
-                                                className="mt-1 min-h-11 w-full rounded-xl border border-charcoal/15 px-3 text-sm font-normal"
-                                                value={report}
-                                                minLength={5}
-                                                maxLength={500}
-                                                required
-                                                onChange={(event) => setReport(event.target.value)}
-                                            />
-                                        </label>
-                                        <button type="submit" className="min-h-11 rounded-xl font-semibold text-green">
-                                            Gửi báo cáo
-                                        </button>
-                                    </form>
-                                )}
+                                <button
+                                    type="button"
+                                    className="flex min-h-11 w-full items-center rounded-xl px-3 text-left text-sm font-semibold hover:bg-cream"
+                                    onClick={() => {
+                                        setMenu(false);
+                                        onDelete();
+                                    }}
+                                >
+                                    Xóa bài
+                                </button>
                             </div>
                         ) : null}
                     </div>

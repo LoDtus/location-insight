@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type JSX } from "react";
 
@@ -14,7 +13,6 @@ import {
     likePost,
     listPosts,
     listTopics,
-    reportPost,
     slugifyTopic,
     topicFeed,
     unlikePost,
@@ -195,14 +193,6 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
                             });
                         }}
                     />
-                    {root === "/admin" ? (
-                        <Link
-                            href="/admin/feed/reports"
-                            className="inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-sm font-semibold text-green no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
-                        >
-                            Duyệt báo cáo
-                        </Link>
-                    ) : null}
                     {topics.map((topic) => (
                         <TopicTab
                             key={topic.id}
@@ -274,11 +264,6 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
                                             .then(() => setPosts((current) => current.filter((item) => item.id !== post.id)))
                                             .catch(() => setMessage("Chưa xóa được."));
                                     });
-                                }}
-                                onReport={(reason) => {
-                                    void reportPost(post.id, reason)
-                                        .then(() => setMessage("Đã gửi báo cáo."))
-                                        .catch(() => setMessage("Chưa báo cáo được."));
                                 }}
                             />
                         </li>

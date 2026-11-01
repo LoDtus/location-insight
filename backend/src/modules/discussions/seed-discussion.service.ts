@@ -8,7 +8,6 @@ import { UserEntity } from '../auth/entities/user.entity.js';
 import { DiscussionLikeEntity } from './entities/discussion-like.entity.js';
 import { DiscussionMediaEntity } from './entities/discussion-media.entity.js';
 import { DiscussionPostEntity } from './entities/discussion-post.entity.js';
-import { DiscussionReportEntity } from './entities/discussion-report.entity.js';
 import { DiscussionTopicEntity } from './entities/discussion-topic.entity.js';
 import { SEED_JPEG, SEED_TOPICS } from './seed.config.js';
 
@@ -28,8 +27,6 @@ export class SeedDiscussionService implements OnModuleInit {
     private readonly media: Repository<DiscussionMediaEntity>,
     @InjectRepository(DiscussionLikeEntity)
     private readonly likes: Repository<DiscussionLikeEntity>,
-    @InjectRepository(DiscussionReportEntity)
-    private readonly reports: Repository<DiscussionReportEntity>,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -107,14 +104,6 @@ export class SeedDiscussionService implements OnModuleInit {
     );
     await this.likes.save(
       this.likes.create({ postId: question.id, userId: lan.id }),
-    );
-    await this.reports.save(
-      this.reports.create({
-        postId: question.id,
-        reporterId: minh.id,
-        reason: 'Báo cáo mẫu để màn duyệt có một dòng đang mở.',
-        status: 'open',
-      }),
     );
 
     const note = await this.posts.save(

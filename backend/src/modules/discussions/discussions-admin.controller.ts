@@ -1,7 +1,6 @@
 import {
   Body,
   Controller,
-  Get,
   Param,
   ParseUUIDPipe,
   Post,
@@ -17,12 +16,6 @@ import { HidePostDto, ReasonStatusDto } from './dto/discussion.dto.js';
 @Controller('admin/discussions')
 export class DiscussionsAdminController {
   constructor(private readonly discussions: DiscussionsService) {}
-
-  @RequirePermission('discussion:moderate')
-  @Get('reports')
-  reports() {
-    return this.discussions.listReports();
-  }
 
   @RequirePermission('discussion:moderate')
   @Post('topics/:id/status')

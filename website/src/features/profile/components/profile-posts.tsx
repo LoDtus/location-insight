@@ -12,7 +12,6 @@ import {
     deletePost,
     likePost,
     listAuthorPosts,
-    reportPost,
     unlikePost,
     type DiscussionPost,
 } from "@/features/discussions/discussions.api";
@@ -120,11 +119,6 @@ export function ProfilePosts({
                                         .then(() => setPosts((current) => current.filter((item) => item.id !== post.id)))
                                         .catch(() => setMessage("Chưa xóa được."));
                                 });
-                            }}
-                            onReport={(reason) => {
-                                void reportPost(post.id, reason)
-                                    .then(() => setMessage("Đã gửi báo cáo."))
-                                    .catch(() => setMessage("Chưa báo cáo được."));
                             }}
                         />
                     </li>

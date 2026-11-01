@@ -5,7 +5,6 @@ import {
     Bed,
     Copy,
     ExternalLink,
-    Flag,
     Heart,
     Info,
     MapPin,
@@ -65,9 +64,7 @@ export default function ListingDetail({
     const [zoom, setZoom] = useState(1);
     const [analyzed, setAnalyzed] = useState(false);
     const [photoIndex, setPhotoIndex] = useState(0);
-    const [reportSent, setReportSent] = useState(false);
     const lightbox = useRef<HTMLDialogElement>(null);
-    const report = useRef<HTMLDialogElement>(null);
 
     if (!listing) {
         return null;
@@ -668,14 +665,6 @@ export default function ListingDetail({
                             {" · "}
                             {fill(text(messages, "code"), { code })}
                         </p>
-                        <button
-                            type="button"
-                            onClick={() => report.current?.showModal()}
-                            className="mt-2 inline-flex min-h-11 items-center gap-1 bg-transparent p-0 text-sm underline underline-offset-[3px]"
-                        >
-                            <Flag size={16} aria-hidden="true" />
-                            {text(messages, "report")}
-                        </button>
                     </div>
                     <p className="m-0 mt-3 text-sm text-charcoal/60">
                         {text(messages, "disclaimer")}
@@ -753,79 +742,6 @@ export default function ListingDetail({
                         {text(messages, "nextPhoto")}
                     </button>
                 </div>
-            </dialog>
-
-            <dialog
-                ref={report}
-                aria-labelledby="bao-cao"
-                className="m-auto w-[min(480px,calc(100%-2rem))] rounded-2xl border border-charcoal/15 bg-white p-6 backdrop:bg-charcoal/60"
-            >
-                <form
-                    method="dialog"
-                    className="grid gap-3"
-                    onSubmit={() => setReportSent(true)}
-                >
-                    <div className="flex items-center justify-between">
-                        <h2 id="bao-cao" className="m-0 text-[22px] font-semibold">
-                            {text(messages, "reportTitle")}
-                        </h2>
-                        <button
-                            type="button"
-                            aria-label={text(messages, "close")}
-                            onClick={() => report.current?.close()}
-                            className="inline-flex size-11 items-center justify-center rounded-full border border-charcoal/30 bg-white"
-                        >
-                            <X size={18} aria-hidden="true" />
-                        </button>
-                    </div>
-                    <fieldset className="m-0 grid gap-2 border-0 p-0">
-                        <legend className="p-0 text-sm text-charcoal/60">
-                            {text(messages, "reportReason")}
-                        </legend>
-                        {(
-                            [
-                                "reportPrice",
-                                "reportSold",
-                                "reportPhoto",
-                                "reportFraud",
-                                "reportOther",
-                            ] as const
-                        ).map((key, index) => (
-                            <label key={key} className="inline-flex min-h-11 items-center gap-2">
-                                <input
-                                    type="radio"
-                                    name="reason"
-                                    defaultChecked={index === 0}
-                                />
-                                {text(messages, key)}
-                            </label>
-                        ))}
-                    </fieldset>
-                    <label className="grid gap-1 text-sm text-charcoal/60">
-                        {text(messages, "reportNote")}
-                        <textarea className="min-h-20 rounded-xl border border-charcoal/30 p-3 text-base text-charcoal" />
-                    </label>
-                    {reportSent ? (
-                        <p className="m-0 text-sm" role="status">
-                            {text(messages, "reportSent")}
-                        </p>
-                    ) : null}
-                    <div className="flex justify-end gap-2">
-                        <button
-                            type="button"
-                            onClick={() => report.current?.close()}
-                            className="inline-flex min-h-11 items-center rounded-full border border-charcoal/30 bg-white px-4"
-                        >
-                            {text(messages, "reportCancel")}
-                        </button>
-                        <button
-                            type="submit"
-                            className="inline-flex min-h-11 items-center rounded-full bg-green px-4 text-cream"
-                        >
-                            {text(messages, "reportSend")}
-                        </button>
-                    </div>
-                </form>
             </dialog>
         </div>
     );

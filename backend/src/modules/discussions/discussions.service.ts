@@ -25,7 +25,6 @@ import {
   DiscussionPostEntity,
   PostStatus,
 } from './entities/discussion-post.entity.js';
-import { DiscussionReportEntity } from './entities/discussion-report.entity.js';
 import {
   DiscussionTopicEntity,
   TopicStatus,
@@ -85,8 +84,6 @@ export class DiscussionsService {
     private readonly media: Repository<DiscussionMediaEntity>,
     @InjectRepository(DiscussionLikeEntity)
     private readonly likes: Repository<DiscussionLikeEntity>,
-    @InjectRepository(DiscussionReportEntity)
-    private readonly reports: Repository<DiscussionReportEntity>,
     @InjectRepository(UserEntity)
     private readonly users: Repository<UserEntity>,
     @InjectRepository(AdminAuditLogEntity)
@@ -284,32 +281,6 @@ export class DiscussionsService {
     return this.setLike(userId, id, false);
   }
 
-  async report(userId: string, id: string, reason: string) {
-    const post = await this.posts.findOne({ where: { id, status: 'visible' } });
-    if (!post) this.missing('Không tìm thấy bài.');
-    try {
-      const saved = await this.reports.save(
-        this.reports.create({
-          postId: post.id,
-          reporterId: userId,
-          reason: plainText(reason),
-          status: 'open',
-        }),
-      );
-      return { id: saved.id };
-    } catch (error) {
-      if (isUnique(error)) {
-        throw new BusinessException(
-          ErrorCode.CONFLICT,
-          'Bạn đã báo cáo bài này.',
-          null,
-          HttpStatus.CONFLICT,
-        );
-      }
-      throw error;
-    }
-  }
-
   async setTopicStatus(
     actor: Principal,
     id: string,
@@ -353,51 +324,9 @@ export class DiscussionsService {
       }
       post.status = next;
       await manager.save(post);
-      if (hidden) {
-        await manager.update(
-          DiscussionReportEntity,
-          { postId: post.id, status: 'open' },
-          { status: 'resolved' },
-        );
-      }
     });
     await this.audit(actor, 'discussion_post_hide', id, reason, ip, { hidden });
     return { id, hidden };
-  }
-
-  async listReports() {
-    const rows = await this.reports.find({
-      where: { status: 'open' },
-      order: { createdAt: 'DESC' },
-      take: 50,
-    });
-    const postIds = rows.map((row) => row.postId);
-    const reporterIds = rows.map((row) => row.reporterId);
-    const posts = postIds.length
-      ? await this.posts.find({ where: { id: In(postIds) }, withDeleted: true })
-      : [];
-    const topicIds = [...new Set(posts.map((post) => post.topicId))];
-    const topics = topicIds.length
-      ? await this.topics.find({ where: { id: In(topicIds) } })
-      : [];
-    const people = reporterIds.length
-      ? await this.users.find({ where: { id: In(reporterIds) } })
-      : [];
-    return rows.map((row) => {
-      const post = posts.find((item) => item.id === row.postId);
-      const topic = topics.find((item) => item.id === post?.topicId);
-      const reporter = people.find((item) => item.id === row.reporterId);
-      return {
-        id: row.id,
-        postId: row.postId,
-        topicId: topic?.id ?? null,
-        topicName: topic?.name ?? '',
-        body: post?.body ?? '',
-        reason: row.reason,
-        reporterName: reporter?.displayName ?? '',
-        createdAt: row.createdAt,
-      };
-    });
   }
 
   async prepareMedia(userId: string, input: CreateMediaDto) {

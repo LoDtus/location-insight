@@ -42,17 +42,6 @@ export interface DiscussionPage<T> {
     nextCursor: string | null;
 }
 
-export interface DiscussionReport {
-    id: string;
-    postId: string;
-    topicId: string | null;
-    topicName: string;
-    body: string;
-    reason: string;
-    reporterName: string;
-    createdAt: string;
-}
-
 export function listTopics(cursor?: string): Promise<DiscussionPage<DiscussionTopic>> {
     const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
     return apiRequest(`/discussions/topics${query}`);
@@ -129,35 +118,6 @@ export function likePost(id: string): Promise<{ likeCount: number }> {
 
 export function unlikePost(id: string): Promise<{ likeCount: number }> {
     return apiRequest(`/discussions/posts/${id}/likes`, { method: "DELETE" });
-}
-
-export function reportPost(id: string, reason: string): Promise<{ id: string }> {
-    return apiRequest(`/discussions/posts/${id}/reports`, {
-        method: "POST",
-        body: JSON.stringify({ reason }),
-    });
-}
-
-export function listReports(): Promise<DiscussionReport[]> {
-    return apiRequest("/admin/discussions/reports");
-}
-
-export function hidePost(id: string, hidden: boolean, reason: string) {
-    return apiRequest(`/admin/discussions/posts/${id}/hide`, {
-        method: "POST",
-        body: JSON.stringify({ hidden, reason }),
-    });
-}
-
-export function setTopicStatus(
-    id: string,
-    status: "open" | "locked" | "hidden",
-    reason: string,
-) {
-    return apiRequest(`/admin/discussions/topics/${id}/status`, {
-        method: "POST",
-        body: JSON.stringify({ status, reason }),
-    });
 }
 
 export async function uploadDiscussionFile(file: File): Promise<string> {

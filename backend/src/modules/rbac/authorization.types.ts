@@ -31,7 +31,6 @@ export type Permission =
   | 'listing:update'
   | 'listing:delete'
   | 'listing:contact:reveal'
-  | 'listing:report'
   | 'comment:create'
   | 'comment:delete'
   | 'discussion:read'
@@ -45,7 +44,6 @@ export type Permission =
   | 'credit:grant'
   | 'quota:reset'
   | 'listing:moderate'
-  | 'report:review'
   | 'article:manage'
   | 'discussion:moderate'
   | 'audit:read';

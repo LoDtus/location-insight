@@ -13,7 +13,6 @@ import {
     getThread,
     likePost,
     replyToPost,
-    reportPost,
     unlikePost,
     uploadDiscussionFile,
     type DiscussionPost,
@@ -196,11 +195,6 @@ export function ThreadScreen({ id, root }: { id: string; root: ShellRoot }): JSX
                                             })
                                             .catch(() => setMessage("Chưa xóa được."));
                                     });
-                                }}
-                                onReport={(reason) => {
-                                    void reportPost(item.id, reason)
-                                        .then(() => setMessage("Đã gửi báo cáo."))
-                                        .catch(() => setMessage("Chưa báo cáo được."));
                                 }}
                             />
                         </li>

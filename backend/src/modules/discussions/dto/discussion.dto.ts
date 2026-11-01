@@ -84,13 +84,6 @@ export class CreateReplyDto {
   mediaIds?: string[];
 }
 
-export class ReportDto {
-  @IsString()
-  @MinLength(5)
-  @MaxLength(500)
-  reason: string;
-}
-
 export class ReasonStatusDto {
   @IsIn(['open', 'locked', 'hidden'])
   status: 'open' | 'locked' | 'hidden';

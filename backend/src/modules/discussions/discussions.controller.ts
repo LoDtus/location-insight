@@ -20,7 +20,6 @@ import {
   CreateReplyDto,
   CreateTopicDto,
   CursorQueryDto,
-  ReportDto,
 } from './dto/discussion.dto.js';
 
 @Controller('discussions')
@@ -123,16 +122,6 @@ export class DiscussionsController {
     @Req() request: RequestWithPrincipal,
   ) {
     return this.discussions.unlike(this.userId(request), id);
-  }
-
-  @RequirePermission('discussion:write')
-  @Post('posts/:id/reports')
-  report(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: ReportDto,
-    @Req() request: RequestWithPrincipal,
-  ) {
-    return this.discussions.report(this.userId(request), id, body.reason);
   }
 
   @RequirePermission('discussion:write')

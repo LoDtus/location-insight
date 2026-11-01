@@ -14,6 +14,7 @@ import { RequirePermission } from '../../common/decorators/access.decorator.js';
 import type { RequestWithPrincipal } from '../auth/auth.guard.js';
 import { ArticlesService } from './articles.service.js';
 import {
+  ArticleFrequencyQueryDto,
   ArticleListQueryDto,
   ArticleWriteDto,
   IngestArticleDto,
@@ -27,6 +28,12 @@ export class ArticlesAdminController {
   @Get()
   list(@Query() query: ArticleListQueryDto) {
     return this.articles.listAdmin(query);
+  }
+
+  @RequirePermission('admin:access')
+  @Get('frequency')
+  frequency(@Query() query: ArticleFrequencyQueryDto) {
+    return this.articles.publishedFrequency(query);
   }
 
   @RequirePermission('admin:access')

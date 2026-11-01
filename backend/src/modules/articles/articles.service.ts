@@ -15,6 +15,7 @@ import {
   type ArticleStatus,
 } from './article-rules.js';
 import {
+  ArticleFrequencyQueryDto,
   ArticleListQueryDto,
   ArticleWriteDto,
   IngestArticleDto,
@@ -23,6 +24,9 @@ import { ArticleEntity } from './entities/article.entity.js';
 
 const PUBLIC_PAGE_SIZE = 6;
 const ADMIN_PAGE_SIZE = 10;
+const ADMIN_STATUSES = ['draft', 'scheduled', 'published', 'hidden', 'deleted'] as const;
+const FREQUENCY_PATTERN = { day: 'YYYY-MM-DD', month: 'YYYY-MM', year: 'YYYY' } as const;
+const FREQUENCY_LIMIT = { day: 366, month: 60, year: 30 } as const;
 
 export type ArticlePublicView = {
   slug: string;
@@ -67,7 +71,8 @@ export class ArticlesService {
     if (query.topic && isArticleTopic(query.topic)) {
       qb.andWhere('article.topic = :topic', { topic: query.topic });
     }
-    this.applySort(qb, query.sort ?? 'moi');
+    const publicSort = query.sort === 'cu' || query.sort === 'ten' ? query.sort : 'moi';
+    this.applySort(qb, publicSort);
     qb.take(PUBLIC_PAGE_SIZE).skip((page - 1) * PUBLIC_PAGE_SIZE);
     const [rows, total] = await qb.getManyAndCount();
     return {
@@ -89,13 +94,9 @@ export class ArticlesService {
   async listAdmin(query: ArticleListQueryDto) {
     const page = query.page ?? 1;
     const qb = this.articles.createQueryBuilder('article');
-    if (query.status === 'deleted') {
-      qb.withDeleted().where('article.deletedAt IS NOT NULL');
-    } else if (query.status) {
-      qb.where('article.status = :status', { status: query.status });
-    }
+    this.applyAdminStatus(qb, query.status);
     this.applySearch(qb, query.q);
-    qb.orderBy('article.updatedAt', 'DESC');
+    this.applyAdminSort(qb, query.sort);
     qb.take(ADMIN_PAGE_SIZE).skip((page - 1) * ADMIN_PAGE_SIZE);
     const [rows, total] = await qb.getManyAndCount();
     const counts = await this.counts();
@@ -242,6 +243,55 @@ export class ArticlesService {
       );
   }
 
+  private applyAdminStatus(
+    qb: ReturnType<ArticlesService['visibleQuery']>,
+    raw: string | undefined,
+  ): void {
+    const selected = (raw ?? '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter((item) => ADMIN_STATUSES.includes(item as (typeof ADMIN_STATUSES)[number]));
+    const wantDeleted = selected.includes('deleted');
+    const live = selected.filter((item) => item !== 'deleted');
+    if (!selected.length) return;
+    if (wantDeleted) qb.withDeleted();
+    if (wantDeleted && !live.length) {
+      qb.andWhere('article.deletedAt IS NOT NULL');
+      return;
+    }
+    if (wantDeleted) {
+      qb.andWhere(
+        '(article.deletedAt IS NOT NULL OR (article.deletedAt IS NULL AND article.status IN (:...live)))',
+        { live },
+      );
+      return;
+    }
+    qb.andWhere('article.status IN (:...live)', { live });
+  }
+
+  private applyAdminSort(
+    qb: ReturnType<ArticlesService['visibleQuery']>,
+    sort: ArticleListQueryDto['sort'],
+  ): void {
+    if (sort === 'updated_asc') {
+      qb.orderBy('article.updatedAt', 'ASC');
+      return;
+    }
+    if (sort === 'published_desc') {
+      qb.orderBy('article.publishedAt', 'DESC', 'NULLS LAST');
+      return;
+    }
+    if (sort === 'published_asc') {
+      qb.orderBy('article.publishedAt', 'ASC', 'NULLS LAST');
+      return;
+    }
+    if (sort === 'title') {
+      qb.orderBy('article.title', 'ASC');
+      return;
+    }
+    qb.orderBy('article.updatedAt', 'DESC');
+  }
+
   private applySearch(
     qb: ReturnType<ArticlesService['visibleQuery']>,
     query: string | undefined,
@@ -281,6 +331,60 @@ export class ArticlesService {
     };
     for (const row of rows) counts[row.status] = Number(row.count);
     return counts;
+  }
+
+  async publishedFrequency(query: ArticleFrequencyQueryDto): Promise<{
+    grain: ArticleFrequencyQueryDto['grain'];
+    from: string;
+    to: string;
+    total: number;
+    points: { bucket: string; count: number }[];
+  }> {
+    this.assertFrequencyRange(query);
+    const pattern = FREQUENCY_PATTERN[query.grain];
+    const rows = await this.articles.query<{ bucket: string; count: string }[]>(
+      `SELECT to_char(date_trunc($1, published_at AT TIME ZONE 'Asia/Ho_Chi_Minh'), $2) AS bucket,
+              COUNT(*)::int AS count
+       FROM articles
+       WHERE deleted_at IS NULL
+         AND status = 'published'
+         AND published_at IS NOT NULL
+         AND published_at >= $3
+         AND published_at < $4
+       GROUP BY 1
+       ORDER BY 1`,
+      [query.grain, pattern, zonedStart(query.grain, query.from), zonedStart(query.grain, nextBucket(query.grain, query.to))],
+    );
+    const found = new Map(rows.map((row) => [row.bucket, Number(row.count)]));
+    const points: { bucket: string; count: number }[] = [];
+    let cursor = query.from;
+    while (cursor <= query.to && points.length < 400) {
+      points.push({ bucket: cursor, count: found.get(cursor) ?? 0 });
+      cursor = nextBucket(query.grain, cursor);
+    }
+    return {
+      grain: query.grain,
+      from: query.from,
+      to: query.to,
+      total: points.reduce((sum, point) => sum + point.count, 0),
+      points,
+    };
+  }
+
+  private assertFrequencyRange(query: ArticleFrequencyQueryDto): void {
+    const pattern = query.grain === 'day' ? /^\d{4}-\d{2}-\d{2}$/ : query.grain === 'month' ? /^\d{4}-\d{2}$/ : /^\d{4}$/;
+    if (!pattern.test(query.from) || !pattern.test(query.to) || query.from > query.to) {
+      throw new BusinessException(ErrorCode.VALIDATION_ERROR, 'Khoảng thời gian không hợp lệ.');
+    }
+    let steps = 1;
+    let cursor = query.from;
+    while (cursor < query.to) {
+      cursor = nextBucket(query.grain, cursor);
+      steps += 1;
+      if (steps > FREQUENCY_LIMIT[query.grain]) {
+        throw new BusinessException(ErrorCode.VALIDATION_ERROR, 'Khoảng thời gian quá dài.');
+      }
+    }
   }
 
   private draftFrom(dto: ArticleWriteDto): ArticleDraft {
@@ -365,6 +469,24 @@ export class ArticlesService {
       deletedAt: row.deletedAt,
     };
   }
+}
+
+function zonedStart(grain: ArticleFrequencyQueryDto['grain'], key: string): Date {
+  if (grain === 'year') return new Date(`${key}-01-01T00:00:00+07:00`);
+  if (grain === 'month') return new Date(`${key}-01T00:00:00+07:00`);
+  return new Date(`${key}T00:00:00+07:00`);
+}
+
+function nextBucket(grain: ArticleFrequencyQueryDto['grain'], key: string): string {
+  if (grain === 'year') return String(Number(key) + 1);
+  if (grain === 'month') {
+    const [year, month] = key.split('-').map(Number);
+    if (month === 12) return `${year + 1}-01`;
+    return `${year}-${String(month + 1).padStart(2, '0')}`;
+  }
+  const date = new Date(`${key}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
 }
 
 function isUniqueViolation(error: unknown): boolean {

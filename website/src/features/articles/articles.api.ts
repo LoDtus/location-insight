@@ -30,6 +30,16 @@ export type AdminArticleList = {
     counts: Record<ArticleStatus, number>;
 };
 
+export type FrequencyGrain = "day" | "month" | "year";
+
+export type PublishedFrequency = {
+    grain: FrequencyGrain;
+    from: string;
+    to: string;
+    total: number;
+    points: { bucket: string; count: number }[];
+};
+
 export type ArticleWrite = {
     title: string;
     slug: string;
@@ -50,13 +60,28 @@ export const ARTICLE_STATUS_LABEL: Record<ArticleStatus, string> = {
     hidden: "Ẩn",
 };
 
-export function listAdminArticles(query: { q?: string; status?: string; page?: number }): Promise<AdminArticleList> {
+export function listAdminArticles(query: {
+    q?: string;
+    status?: string;
+    sort?: string;
+    page?: number;
+}): Promise<AdminArticleList> {
     const params = new URLSearchParams();
     if (query.q) params.set("q", query.q);
     if (query.status) params.set("status", query.status);
+    if (query.sort) params.set("sort", query.sort);
     if (query.page && query.page > 1) params.set("page", String(query.page));
     const suffix = params.toString();
     return apiRequest<AdminArticleList>(`/admin/blogs${suffix ? `?${suffix}` : ""}`);
+}
+
+export function listPublishedFrequency(query: {
+    grain: FrequencyGrain;
+    from: string;
+    to: string;
+}): Promise<PublishedFrequency> {
+    const params = new URLSearchParams(query);
+    return apiRequest<PublishedFrequency>(`/admin/blogs/frequency?${params}`);
 }
 
 export function getAdminArticle(id: string): Promise<AdminArticle> {

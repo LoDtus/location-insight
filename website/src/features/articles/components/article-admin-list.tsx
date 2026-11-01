@@ -1,32 +1,46 @@
 "use client";
 
-import { Button, ConfigProvider, Table, Tag, type TableColumnsType } from "antd";
+import { Button, Checkbox, ConfigProvider, DatePicker, Dropdown, Input, Table, Tag, type TableColumnsType } from "antd";
 import viVN from "antd/locale/vi_VN";
+import dayjs from "dayjs";
 import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
-import { AUTH_FIELD_CLASS } from "@/app/auth/form-class";
 import { AuthApiError } from "@/features/auth/auth.api";
 import {
     ARTICLE_STATUS_LABEL,
     deleteAdminArticle,
     hideAdminArticle,
     listAdminArticles,
+    listPublishedFrequency,
     type AdminArticle,
     type AdminArticleList,
+    type FrequencyGrain,
+    type PublishedFrequency,
 } from "@/features/articles/articles.api";
 import { getConfirmModal } from "@/shared/utils/confirm.utils";
 
-const FILTERS = [
-    { id: "", label: "Đang dùng" },
+const STATUS_OPTIONS = [
     { id: "draft", label: "Nháp" },
     { id: "scheduled", label: "Đã lên lịch" },
     { id: "published", label: "Đã đăng" },
     { id: "hidden", label: "Ẩn" },
     { id: "deleted", label: "Đã xoá" },
 ] as const;
+
+const SORT_OPTIONS = [
+    { id: "updated_desc", label: "Cập nhật mới nhất" },
+    { id: "updated_asc", label: "Cập nhật cũ nhất" },
+    { id: "published_desc", label: "Đăng mới nhất" },
+    { id: "published_asc", label: "Đăng cũ nhất" },
+    { id: "title", label: "Tiêu đề A-Z" },
+] as const;
+
+type StatusFilter = (typeof STATUS_OPTIONS)[number]["id"];
+type ArticleSort = (typeof SORT_OPTIONS)[number]["id"];
+
+const DEFAULT_SORT: ArticleSort = "updated_desc";
 
 const WHEN = new Intl.DateTimeFormat("vi-VN", {
     day: "2-digit",
@@ -51,17 +65,27 @@ function statusText(article: AdminArticle): string {
 export default function ArticleAdminList() {
     const router = useRouter();
     const [query, setQuery] = useState("");
-    const [status, setStatus] = useState("");
+    const [statuses, setStatuses] = useState<StatusFilter[]>([]);
+    const [sort, setSort] = useState<ArticleSort>(DEFAULT_SORT);
     const [page, setPage] = useState(1);
     const [list, setList] = useState<AdminArticleList | null>(null);
     const [message, setMessage] = useState("");
     const [selected, setSelected] = useState<string[]>([]);
     const [reloadKey, setReloadKey] = useState(0);
+    const [grain, setGrain] = useState<FrequencyGrain>("month");
+    const [range, setRange] = useState(() => defaultFrequencyRange("month"));
+    const [frequency, setFrequency] = useState<PublishedFrequency | null>(null);
+    const [frequencyMessage, setFrequencyMessage] = useState("");
 
     useEffect(() => {
         let active = true;
         const handle = window.setTimeout(() => {
-            void listAdminArticles({ q: query.trim(), status, page })
+            void listAdminArticles({
+                q: query.trim(),
+                status: statuses.join(","),
+                sort: sort === DEFAULT_SORT ? undefined : sort,
+                page,
+            })
                 .then((next) => {
                     if (!active) return;
                     setList(next);
@@ -76,7 +100,25 @@ export default function ArticleAdminList() {
             active = false;
             window.clearTimeout(handle);
         };
-    }, [query, status, page, reloadKey]);
+    }, [query, statuses, sort, page, reloadKey]);
+
+    useEffect(() => {
+        let active = true;
+        void listPublishedFrequency({ grain, from: range.from, to: range.to })
+            .then((next) => {
+                if (!active) return;
+                setFrequency(next);
+                setFrequencyMessage("");
+            })
+            .catch((error: unknown) => {
+                if (!active) return;
+                setFrequency(null);
+                setFrequencyMessage(error instanceof AuthApiError ? error.message : "Chưa tải được tần suất đăng.");
+            });
+        return () => {
+            active = false;
+        };
+    }, [grain, range, reloadKey]);
 
     const items = list?.items ?? [];
 
@@ -121,18 +163,18 @@ export default function ArticleAdminList() {
             {
                 title: "Hành động",
                 key: "actions",
-                width: 180,
+                width: 280,
                 render: (_, article) => {
                     const deleted = Boolean(article.deletedAt);
                     return (
-                        <div className="flex flex-nowrap items-center">
-                            <Button type="link" size="small" onClick={() => void editArticle(article)}>
+                        <div className="flex flex-nowrap items-center gap-2">
+                            <Button type="primary" onClick={() => void editArticle(article)}>
                                 Sửa
                             </Button>
-                            <Button type="link" size="small" disabled={deleted || article.status === "hidden"} onClick={() => void hideArticle(article)}>
+                            <Button disabled={deleted || article.status === "hidden"} onClick={() => void hideArticle(article)}>
                                 Ẩn
                             </Button>
-                            <Button type="link" size="small" disabled={deleted} onClick={() => void removeArticle(article)}>
+                            <Button type="primary" danger disabled={deleted} onClick={() => void removeArticle(article)}>
                                 Xóa
                             </Button>
                         </div>
@@ -188,92 +230,326 @@ export default function ArticleAdminList() {
     }
 
     return (
+        <ConfigProvider
+            locale={viVN}
+            theme={{
+                token: {
+                    colorPrimary: "#026a4e",
+                    colorBgContainer: "#ffffff",
+                    borderRadius: 6,
+                },
+                components: {
+                    Table: {
+                        rowSelectedBg: "#f3f4f6",
+                        rowSelectedHoverBg: "#eceff1",
+                    },
+                    Pagination: {
+                        itemSizeLG: 44,
+                    },
+                },
+            }}
+        >
         <main className="box-border flex flex-col gap-6 px-4 py-8 sm:px-8">
-            <header className="flex flex-wrap items-end justify-between gap-3">
-                <div>
-                    <h1 className="m-0 text-2xl font-semibold">Bài viết</h1>
-                    <p className="mt-1 mb-0 text-sm">
-                        <Link href="/admin/reconciliation" className="underline underline-offset-4">
-                            Đối soát thanh toán
-                        </Link>
-                    </p>
-                </div>
-                <Link href="/admin/blogs/new" className="inline-flex min-h-11 items-center border border-current px-4 font-semibold">
-                    Viết bài
-                </Link>
+            <header className="flex flex-wrap items-center justify-between gap-3">
+                <h1 className="m-0 text-2xl font-semibold">Bài viết</h1>
+                <Button type="primary" href="/admin/blogs/new" className="min-h-11">
+                    Thêm bài viết mới
+                </Button>
             </header>
-            {list ? (
+            <section aria-label="Số bài theo trạng thái" className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                {STATUS_OPTIONS.filter((option) => option.id !== "deleted").map((option) => {
+                    const active = statuses.length === 1 && statuses[0] === option.id;
+                    return (
+                        <button
+                            key={option.id}
+                            type="button"
+                            aria-pressed={active}
+                            className={`rounded-md border bg-white px-4 py-3 text-left ${active ? "border-green" : "border-[#d9d9d9]"}`}
+                            onClick={() => {
+                                setStatuses(active ? [] : [option.id]);
+                                setPage(1);
+                            }}
+                        >
+                            <span className="block text-sm">{option.label}</span>
+                            <span className="mt-1 block text-2xl tabular-nums">
+                                {list ? list.counts[option.id as "draft" | "scheduled" | "published" | "hidden"] : "—"}
+                            </span>
+                        </button>
+                    );
+                })}
+            </section>
+            <section aria-label="Tần suất bài đã đăng" className="flex flex-col gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <h2 className="m-0 text-lg font-semibold">Số bài đã đăng</h2>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {FREQUENCY_GRAINS.map((option) => (
+                            <Button
+                                key={option.id}
+                                type={grain === option.id ? "primary" : "default"}
+                                className="min-h-11"
+                                onClick={() => {
+                                    setGrain(option.id);
+                                    setRange(defaultFrequencyRange(option.id));
+                                }}
+                            >
+                                {option.label}
+                            </Button>
+                        ))}
+                        <DatePicker.RangePicker
+                            key={grain}
+                            size="large"
+                            allowClear={false}
+                            picker={grain === "day" ? "date" : grain}
+                            value={[dayjs(range.from), dayjs(range.to)]}
+                            onChange={(values) => {
+                                const next = values?.[0];
+                                const end = values?.[1];
+                                if (!next || !end) return;
+                                const format = grain === "day" ? "YYYY-MM-DD" : grain === "month" ? "YYYY-MM" : "YYYY";
+                                setRange({ from: next.format(format), to: end.format(format) });
+                            }}
+                        />
+                    </div>
+                </div>
                 <p className="m-0 text-sm">
-                    {list.counts.draft} nháp · {list.counts.scheduled} đã lên lịch · {list.counts.published} đã đăng · {list.counts.hidden} ẩn
+                    {frequency
+                        ? `${frequency.total} bài từ ${formatBucket(frequency.grain, frequency.from)} đến ${formatBucket(frequency.grain, frequency.to)}`
+                        : "Đang tải tần suất đăng."}
                 </p>
+                {frequencyMessage ? (
+                    <p role="alert" className="m-0 text-sm">
+                        {frequencyMessage}
+                    </p>
+                ) : (
+                    <FrequencyChart grain={frequency?.grain ?? grain} points={frequency?.points ?? []} />
+                )}
+            </section>
+            <div className="flex flex-wrap items-center gap-2">
+                <Input
+                    allowClear
+                    aria-label="Tìm bài"
+                    placeholder="Tìm bài"
+                    className="min-w-48 flex-1"
+                    value={query}
+                    onChange={(event) => {
+                        setQuery(event.target.value);
+                        setPage(1);
+                    }}
+                />
+                <Dropdown
+                    trigger={["click"]}
+                    popupRender={() => (
+                        <div className="flex flex-col gap-2 rounded-md border border-charcoal/15 bg-white p-3 shadow-sm">
+                            {STATUS_OPTIONS.map((option) => (
+                                <Checkbox
+                                    key={option.id}
+                                    checked={statuses.includes(option.id)}
+                                    onChange={(event) => {
+                                        setStatuses((current) =>
+                                            event.target.checked
+                                                ? [...current, option.id]
+                                                : current.filter((item) => item !== option.id),
+                                        );
+                                        setPage(1);
+                                    }}
+                                >
+                                    {option.label}
+                                </Checkbox>
+                            ))}
+                        </div>
+                    )}
+                >
+                    <Button className="min-h-11">Trạng thái</Button>
+                </Dropdown>
+                <Dropdown
+                    trigger={["click"]}
+                    menu={{
+                        selectable: true,
+                        selectedKeys: [sort],
+                        items: SORT_OPTIONS.map((option) => ({ key: option.id, label: option.label })),
+                        onClick: ({ key }) => {
+                            setSort(key as ArticleSort);
+                            setPage(1);
+                        },
+                    }}
+                >
+                    <Button className="min-h-11">Sắp xếp</Button>
+                </Dropdown>
+            </div>
+            {statuses.length > 0 || sort !== DEFAULT_SORT ? (
+                <div className="flex flex-wrap gap-2" aria-label="Điều kiện đang áp dụng">
+                    {statuses.map((statusId) => (
+                        <Tag
+                            key={statusId}
+                            closable
+                            className="m-0 inline-flex min-h-8 items-center"
+                            onClose={(event) => {
+                                event.preventDefault();
+                                setStatuses((current) => current.filter((item) => item !== statusId));
+                                setPage(1);
+                            }}
+                        >
+                            {STATUS_OPTIONS.find((option) => option.id === statusId)?.label}
+                        </Tag>
+                    ))}
+                    {sort !== DEFAULT_SORT ? (
+                        <Tag
+                            closable
+                            className="m-0 inline-flex min-h-8 items-center"
+                            onClose={(event) => {
+                                event.preventDefault();
+                                setSort(DEFAULT_SORT);
+                                setPage(1);
+                            }}
+                        >
+                            {SORT_OPTIONS.find((option) => option.id === sort)?.label}
+                        </Tag>
+                    ) : null}
+                </div>
             ) : null}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
-                    Tìm bài
-                    <input
-                        className={AUTH_FIELD_CLASS}
-                        value={query}
-                        onChange={(event) => {
-                            setQuery(event.target.value);
-                            setPage(1);
-                        }}
-                    />
-                </label>
-            </div>
-            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Trạng thái">
-                {FILTERS.map((filter) => (
-                    <button
-                        key={filter.id || "all"}
-                        type="button"
-                        role="radio"
-                        aria-checked={status === filter.id}
-                        className={`inline-flex min-h-11 items-center border border-current px-3 text-sm ${status === filter.id ? "font-semibold underline" : ""}`}
-                        onClick={() => {
-                            setStatus(filter.id);
-                            setPage(1);
-                        }}
-                    >
-                        {filter.label}
-                    </button>
-                ))}
-            </div>
             {message ? (
                 <p role="alert" className="m-0 text-sm">
                     {message}
                 </p>
             ) : null}
-            <ConfigProvider
-                locale={viVN}
-                theme={{
-                    token: {
-                        colorPrimary: "#026a4e",
-                        colorBgContainer: "#ffffff",
-                        borderRadius: 8,
-                    },
-                }}
-            >
-                <Table<AdminArticle>
-                    rowKey="id"
-                    size="middle"
-                    columns={columns}
-                    dataSource={items}
-                    loading={!list}
-                    locale={{ emptyText: "Không có bài trong bộ lọc này." }}
-                    scroll={{ x: 1100 }}
-                    rowSelection={{
-                        selectedRowKeys: selected,
-                        onChange: (keys) => setSelected(keys.map(String)),
-                    }}
-                    pagination={{
-                        current: page,
-                        pageSize: list?.pageSize ?? 10,
-                        total: list?.total ?? 0,
-                        showSizeChanger: false,
-                        onChange: setPage,
-                    }}
-                />
-            </ConfigProvider>
+                <div className="overflow-hidden rounded-md border border-[#d9d9d9] bg-white">
+                    <Table<AdminArticle>
+                        rowKey="id"
+                        size="middle"
+                        columns={columns}
+                        dataSource={items}
+                        loading={!list}
+                        locale={{ emptyText: "Không có bài trong bộ lọc này." }}
+                        scroll={{ x: 1200 }}
+                        rowSelection={{
+                            selectedRowKeys: selected,
+                            onChange: (keys) => setSelected(keys.map(String)),
+                        }}
+                        pagination={{
+                            current: page,
+                            pageSize: list?.pageSize ?? 10,
+                            total: list?.total ?? 0,
+                            showSizeChanger: false,
+                            size: "large",
+                            onChange: setPage,
+                        }}
+                    />
+                </div>
         </main>
+        </ConfigProvider>
+    );
+}
+
+const FREQUENCY_GRAINS: { id: FrequencyGrain; label: string }[] = [
+    { id: "day", label: "Theo ngày" },
+    { id: "month", label: "Theo tháng" },
+    { id: "year", label: "Theo năm" },
+];
+
+function defaultFrequencyRange(grain: FrequencyGrain): { from: string; to: string } {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Ho_Chi_Minh",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).format(new Date());
+    const [year, month, day] = parts.split("-").map(Number);
+    if (grain === "year") return { from: String(year - 4), to: String(year) };
+    if (grain === "month") {
+        const start = new Date(Date.UTC(year, month - 1 - 11, 1));
+        return {
+            from: `${start.getUTCFullYear()}-${String(start.getUTCMonth() + 1).padStart(2, "0")}`,
+            to: `${year}-${String(month).padStart(2, "0")}`,
+        };
+    }
+    const end = new Date(Date.UTC(year, month - 1, day));
+    const start = new Date(end);
+    start.setUTCDate(start.getUTCDate() - 29);
+    return { from: start.toISOString().slice(0, 10), to: end.toISOString().slice(0, 10) };
+}
+
+function axisLabel(grain: FrequencyGrain, bucket: string): string {
+    if (grain === "year") return bucket;
+    if (grain === "month") return formatBucket(grain, bucket);
+    const [, month, day] = bucket.split("-");
+    return `${day}/${month}`;
+}
+
+function formatBucket(grain: FrequencyGrain, bucket: string): string {
+    if (grain === "year") return bucket;
+    if (grain === "month") {
+        const [year, month] = bucket.split("-");
+        return `${month}/${year}`;
+    }
+    const [year, month, day] = bucket.split("-");
+    return `${day}/${month}/${year}`;
+}
+
+function FrequencyChart({ grain, points }: { grain: FrequencyGrain; points: { bucket: string; count: number }[] }) {
+    if (!points.length) {
+        return <p className="m-0 text-sm">Không có bài đã đăng trong khoảng này.</p>;
+    }
+    const max = Math.max(1, ...points.map((point) => point.count));
+    const width = 720;
+    const height = 280;
+    const pad = { left: 36, right: 8, top: 12, bottom: 40 };
+    const innerW = width - pad.left - pad.right;
+    const innerH = height - pad.top - pad.bottom;
+    const slot = innerW / points.length;
+    const barW = Math.max(2, slot * 0.62);
+    const ticks = [...new Set([0, Math.ceil(max / 2), max])];
+    const labelStep = points.length > 16 ? Math.ceil(points.length / 8) : 1;
+    return (
+        <div className="overflow-x-auto">
+            <svg role="img" aria-label="Biểu đồ số bài đã đăng" viewBox={`0 0 ${width} ${height}`} className="h-[280px] w-full min-w-[480px]">
+                {ticks.map((tick) => {
+                    const y = pad.top + innerH - (tick / max) * innerH;
+                    return (
+                        <g key={tick}>
+                            <line x1={pad.left} x2={width - pad.right} y1={y} y2={y} stroke="#d9d9d9" />
+                            <text x={pad.left - 8} y={y + 4} textAnchor="end" fontSize="12" fill="#101111">
+                                {tick}
+                            </text>
+                        </g>
+                    );
+                })}
+                {points.map((point, index) => {
+                    const barH = (point.count / max) * innerH;
+                    const x = pad.left + index * slot + (slot - barW) / 2;
+                    const y = pad.top + innerH - barH;
+                    const showLabel = index % labelStep === 0 || index === points.length - 1;
+                    return (
+                        <g key={point.bucket}>
+                            <rect x={x} y={point.count === 0 ? pad.top + innerH - 1 : y} width={barW} height={Math.max(point.count === 0 ? 1 : barH, 1)} fill="#026a4e">
+                                <title>{`${formatBucket(grain, point.bucket)}: ${point.count} bài`}</title>
+                            </rect>
+                            {showLabel ? (
+                                <text x={x + barW / 2} y={height - 12} textAnchor="middle" fontSize="12" fill="#101111">
+                                    {axisLabel(grain, point.bucket)}
+                                </text>
+                            ) : null}
+                        </g>
+                    );
+                })}
+            </svg>
+            <table className="sr-only">
+                <caption>Số bài đã đăng theo {grain === "day" ? "ngày" : grain === "month" ? "tháng" : "năm"}</caption>
+                <thead>
+                    <tr>
+                        <th>Mốc</th>
+                        <th>Số bài</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {points.map((point) => (
+                        <tr key={point.bucket}>
+                            <td>{formatBucket(grain, point.bucket)}</td>
+                            <td>{point.count}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
     );
 }
 

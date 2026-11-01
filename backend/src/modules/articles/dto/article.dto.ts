@@ -3,6 +3,7 @@ import {
   IsIn,
   IsInt,
   IsISO8601,
+  Matches,
   IsOptional,
   IsString,
   Max,
@@ -132,12 +133,30 @@ export class ArticleListQueryDto {
   topic?: string;
 
   @IsOptional()
-  @IsIn(['moi', 'cu', 'ten'])
-  sort?: 'moi' | 'cu' | 'ten';
+  @IsIn([
+    'moi',
+    'cu',
+    'ten',
+    'updated_desc',
+    'updated_asc',
+    'published_desc',
+    'published_asc',
+    'title',
+  ])
+  sort?:
+    | 'moi'
+    | 'cu'
+    | 'ten'
+    | 'updated_desc'
+    | 'updated_asc'
+    | 'published_desc'
+    | 'published_asc'
+    | 'title';
 
   @IsOptional()
-  @IsIn(['draft', 'scheduled', 'published', 'hidden', 'deleted'])
-  status?: 'draft' | 'scheduled' | 'published' | 'hidden' | 'deleted';
+  @IsString()
+  @MaxLength(80)
+  status?: string;
 
   @IsOptional()
   @Type(() => Number)
@@ -145,4 +164,17 @@ export class ArticleListQueryDto {
   @Min(1)
   @Max(100)
   page?: number;
+}
+
+export class ArticleFrequencyQueryDto {
+  @IsIn(['day', 'month', 'year'])
+  grain: 'day' | 'month' | 'year';
+
+  @IsString()
+  @Matches(/^\d{4}(-\d{2}(-\d{2})?)?$/)
+  from: string;
+
+  @IsString()
+  @Matches(/^\d{4}(-\d{2}(-\d{2})?)?$/)
+  to: string;
 }

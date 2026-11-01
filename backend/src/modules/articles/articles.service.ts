@@ -22,7 +22,7 @@ import {
 import { ArticleEntity } from './entities/article.entity.js';
 
 const PUBLIC_PAGE_SIZE = 6;
-const ADMIN_PAGE_SIZE = 20;
+const ADMIN_PAGE_SIZE = 10;
 
 export type ArticlePublicView = {
   slug: string;
@@ -202,6 +202,14 @@ export class ArticlesService {
     }
   }
 
+  async hide(id: string): Promise<ArticleAdminView> {
+    const current = await this.articles.findOne({ where: { id } });
+    if (!current) throw new NotFoundException('Không có bài này.');
+    current.status = 'hidden';
+    const saved = await this.articles.save(current);
+    return this.toAdmin(saved);
+  }
+
   async remove(id: string): Promise<{ id: string }> {
     const current = await this.articles.findOne({ where: { id } });
     if (!current) throw new NotFoundException('Không có bài này.');
@@ -265,7 +273,12 @@ export class ArticlesService {
       .addSelect('COUNT(*)', 'count')
       .groupBy('article.status')
       .getRawMany<{ status: ArticleStatus; count: string }>();
-    const counts: Record<ArticleStatus, number> = { draft: 0, scheduled: 0, published: 0 };
+    const counts: Record<ArticleStatus, number> = {
+      draft: 0,
+      scheduled: 0,
+      published: 0,
+      hidden: 0,
+    };
     for (const row of rows) counts[row.status] = Number(row.count);
     return counts;
   }

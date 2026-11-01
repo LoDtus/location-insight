@@ -136,8 +136,8 @@ export class ArticleListQueryDto {
   sort?: 'moi' | 'cu' | 'ten';
 
   @IsOptional()
-  @IsIn(['draft', 'scheduled', 'published', 'deleted'])
-  status?: 'draft' | 'scheduled' | 'published' | 'deleted';
+  @IsIn(['draft', 'scheduled', 'published', 'hidden', 'deleted'])
+  status?: 'draft' | 'scheduled' | 'published' | 'hidden' | 'deleted';
 
   @IsOptional()
   @Type(() => Number)

@@ -181,7 +181,7 @@ export default function AppSidebar({
 
     return (
         <aside
-            className={`flex h-full shrink-0 flex-col border-r border-charcoal/15 bg-cream transition-[width] duration-200 motion-reduce:transition-none ${collapsed ? "w-[72px]" : "w-[272px]"}`}
+            className={`flex h-full shrink-0 flex-col border-r border-charcoal/15 transition-[width] duration-200 motion-reduce:transition-none ${surface === "admin" ? "bg-white" : "bg-cream"} ${collapsed ? "w-[72px]" : "w-[272px]"}`}
         >
             <div
                 className={`flex h-[76px] items-center border-b border-charcoal/15 ${collapsed ? "justify-center px-3" : "gap-3 px-4"}`}

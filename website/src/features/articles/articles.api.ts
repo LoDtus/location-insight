@@ -1,7 +1,7 @@
 import { apiRequest } from "@/features/auth/auth.api";
 import { ARTICLE_TOPICS, type ArticleTopic } from "@/features/articles/articles";
 
-export type ArticleStatus = "draft" | "scheduled" | "published";
+export type ArticleStatus = "draft" | "scheduled" | "published" | "hidden";
 
 export type AdminArticle = {
     id: string;
@@ -45,8 +45,9 @@ export type ArticleWrite = {
 
 export const ARTICLE_STATUS_LABEL: Record<ArticleStatus, string> = {
     draft: "Nháp",
-    scheduled: "Hẹn giờ",
+    scheduled: "Đã lên lịch",
     published: "Đã đăng",
+    hidden: "Ẩn",
 };
 
 export function listAdminArticles(query: { q?: string; status?: string; page?: number }): Promise<AdminArticleList> {
@@ -68,6 +69,10 @@ export function createAdminArticle(body: ArticleWrite): Promise<AdminArticle> {
 
 export function updateAdminArticle(id: string, body: ArticleWrite): Promise<AdminArticle> {
     return apiRequest<AdminArticle>(`/admin/blogs/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+}
+
+export function hideAdminArticle(id: string): Promise<AdminArticle> {
+    return apiRequest<AdminArticle>(`/admin/blogs/${id}/hide`, { method: "POST" });
 }
 
 export function deleteAdminArticle(id: string): Promise<{ id: string }> {

@@ -1,6 +1,6 @@
 export const ARTICLE_TOPICS = ['cach-doc', 'khu-vuc', 'gia', 'du-lieu'] as const;
 
-export const ARTICLE_STATUSES = ['draft', 'scheduled', 'published'] as const;
+export const ARTICLE_STATUSES = ['draft', 'scheduled', 'published', 'hidden'] as const;
 
 export const ARTICLE_SOURCES = ['manual', 'ai'] as const;
 

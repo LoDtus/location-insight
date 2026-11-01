@@ -10,7 +10,7 @@ export type SeedArticle = {
   body: string;
 };
 
-export const SEED_ARTICLES: readonly SeedArticle[] = [
+const SEED_ARTICLE_BASE: readonly SeedArticle[] = [
   {
     slug: 'ban-kinh-500-met',
     title: 'Bán kính 500 mét đang đo cái gì',
@@ -50,4 +50,49 @@ export const SEED_ARTICLES: readonly SeedArticle[] = [
       'Xem điều kiện trong [tài liệu về giá và thanh toán](/phap-ly) trước khi kỳ vọng một con số chốt. Trang không bịa thêm nguồn khi dữ liệu chưa có.',
     ].join('\n\n'),
   },
+];
+
+const COVERS = ['/images/temp-002.jpg', '/images/temp-003.jpg', '/images/temp-004.jpg'] as const;
+
+const EXTRA: ReadonlyArray<readonly [string, string, string, ArticleTopic]> = [
+  ['mat-tien', 'Mặt tiền không nằm trong vòng tròn', 'Vòng quanh ghim không nói căn nhà quay ra đường nào.', 'cach-doc'],
+  ['ngo-cut', 'Ngõ cụt làm khoảng đi bộ dài hơn', 'Điểm trong vòng vẫn có thể phải quay đầu.', 'khu-vuc'],
+  ['ga-sat-meo', 'Ga sát mép vòng chưa có lối vào', 'Khoảng cách tới ga không phải phút ra khỏi nhà.', 'khu-vuc'],
+  ['ho-va-duong', 'Hồ chặn đường chim bay', 'Một mép hồ gần ghim vẫn có thể phải đi vòng.', 'khu-vuc'],
+  ['mat-do-tien-ich', 'Đếm tiện ích không phải đếm phút', 'Nhiều chấm trong vòng chưa nói được lối đi.', 'du-lieu'],
+  ['thieu-phap-ly', 'Thiếu pháp lý thì khung giá rộng ra', 'Trang không chốt một mức khi hồ sơ còn trống.', 'gia'],
+  ['gia-chao', 'Giá chào không phải khung giá', 'Số chủ nhà ghi trên tin là một nguồn khác.', 'gia'],
+  ['mot-luot-dinh-gia', 'Một lượt định giá không phải một gói', 'Trả một lần chỉ mở một lần xem khung giá.', 'gia'],
+  ['du-lieu-cu', 'Dữ liệu cũ không tự thành tin mới', 'Ngày cập nhật nguồn nằm cạnh con số.', 'du-lieu'],
+  ['tim-dia-chi', 'Ô tìm địa chỉ chỉ đưa tới gần', 'Ngõ Hà Nội hay làm điểm rơi lệch khỏi ô đất.', 'cach-doc'],
+  ['so-sanh-hai-ghim', 'Hai ghim là hai báo cáo', 'Đừng đọc số của ghim này cho ô đất kia.', 'cach-doc'],
+  ['duong-lon', 'Đường lớn có thể cắt vòng tròn', 'Sang đường không nằm trong phép đo chim bay.', 'khu-vuc'],
+  ['truong-hoc', 'Trường trong vòng chưa phải cổng trường', 'Cổng có thể nằm phía đường khác.', 'khu-vuc'],
+  ['cho-sang', 'Chợ sáng không hiện trên vòng đêm', 'Giờ hoạt động không được vẽ thành khoảng cách.', 'du-lieu'],
+  ['doc-truoc-khi-chot', 'Đọc giới hạn trước khi chốt một số', 'Một con số thiếu nguồn thì chưa dùng để quyết định.', 'du-lieu'],
+];
+
+function extraSeedArticles(): SeedArticle[] {
+  return EXTRA.map(([slug, title, lede, topic], index) => {
+    const month = String((index % 9) + 1).padStart(2, '0');
+    const day = String((index % 27) + 1).padStart(2, '0');
+    return {
+      slug,
+      title,
+      lede,
+      topic,
+      publishedAt: `2026-${month}-${day}T01:00:00.000Z`,
+      coverImage: COVERS[index % COVERS.length],
+      body: [
+        lede,
+        'Báo cáo bám đúng ô đất đã ghim. Điểm nằm trong vòng vẫn có thể khuất sau ngõ, sông hoặc một đường lớn.',
+        'Đối chiếu tin đang rao tại [danh sách nhà đất](/nha-dat) trước khi dùng con số này để quyết định.',
+      ].join('\n\n'),
+    };
+  });
+}
+
+export const SEED_ARTICLES: readonly SeedArticle[] = [
+  ...SEED_ARTICLE_BASE,
+  ...extraSeedArticles(),
 ];

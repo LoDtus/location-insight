@@ -58,6 +58,12 @@ export class ArticlesAdminController {
   }
 
   @RequirePermission('admin:access')
+  @Post(':id/hide')
+  hide(@Param('id', ParseUUIDPipe) id: string) {
+    return this.articles.hide(id);
+  }
+
+  @RequirePermission('admin:access')
   @Delete(':id')
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.articles.remove(id);

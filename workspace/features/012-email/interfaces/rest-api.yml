@@ -1,0 +1,177 @@
+openapi: 3.0.3
+info:
+  title: Địa Thế — Email
+  version: 0.1.0
+  description: |
+    Tiền tố `/api/v1`. Phản hồi bọc trong envelope chung `{success,status,data,error}`; lỗi nghiệp vụ có `error.details.code`.
+    Phân quyền: `email:manage` (admin), `email:self` (người dùng đã đăng nhập), công khai (hủy đăng ký bằng token).
+paths:
+  /admin/email/templates:
+    get:
+      summary: Danh mục loại email + trạng thái tùy biến theo ngôn ngữ
+      x-permission: email:manage
+      responses:
+        "200":
+          description: Danh sách
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/TemplateSummary" }
+  /admin/email/templates/{key}:
+    get:
+      summary: Mẫu hiệu lực (ghi đè hoặc mặc định) + mặc định + biến
+      x-permission: email:manage
+      parameters:
+        - { name: key, in: path, required: true, schema: { type: string } }
+        - { name: locale, in: query, schema: { type: string, enum: [vi, en], default: vi } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/TemplateDetail" } } } }
+        "404": { description: Không có loại này }
+  /admin/email/templates/{key}/{locale}:
+    put:
+      summary: Lưu bản tùy biến (HTML bị lọc; biến lạ → 422)
+      x-permission: email:manage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subject, bodyHtml]
+              properties:
+                subject: { type: string, maxLength: 200 }
+                bodyHtml: { type: string, maxLength: 50000 }
+                bodyText: { type: string, nullable: true, maxLength: 20000 }
+                enabled: { type: boolean, default: true }
+      responses:
+        "200": { description: Mẫu mới, content: { application/json: { schema: { $ref: "#/components/schemas/TemplateDetail" } } } }
+        "422": { description: "Biến không hợp lệ / quá dài / tắt loại security (error.details.code = unknown_variable | security_cannot_disable)" }
+    delete:
+      summary: Khôi phục mặc định (xóa bản ghi đè)
+      x-permission: email:manage
+      responses:
+        "200": { description: Mẫu mặc định }
+  /admin/email/templates/{key}/preview:
+    post:
+      summary: Render thử bằng giá trị ví dụ (không gửi, không lưu)
+      x-permission: email:manage
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                locale: { type: string }
+                subject: { type: string }
+                bodyHtml: { type: string }
+                bodyText: { type: string, nullable: true }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: object, properties: { subject: { type: string }, html: { type: string }, text: { type: string } } } } } }
+  /admin/email/templates/{key}/test:
+    post:
+      summary: Gửi thử tới email của chính admin (giới hạn 10/giờ)
+      x-permission: email:manage
+      requestBody:
+        content: { application/json: { schema: { type: object, properties: { locale: { type: string } } } } }
+      responses:
+        "202": { description: Đã xếp hàng, content: { application/json: { schema: { type: object, properties: { id: { type: string, format: uuid } } } } } }
+        "429": { description: Quá giới hạn }
+  /admin/email/messages:
+    get:
+      summary: Nhật ký gửi (phân trang con trỏ, mới nhất trước; không trả nội dung)
+      x-permission: email:manage
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [queued, sending, sent, dead, suppressed, skipped] } }
+        - { name: template, in: query, schema: { type: string } }
+        - { name: q, in: query, description: "Tìm theo địa chỉ (khớp tiền tố)", schema: { type: string } }
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, maximum: 50, default: 30 } }
+      responses:
+        "200": { description: OK }
+  /admin/email/messages/{id}/retry:
+    post:
+      summary: Đưa email dead về queued (chỉ khi còn nội dung)
+      x-permission: email:manage
+      responses:
+        "200": { description: OK }
+        "409": { description: "Không thử lại được (error.details.code = content_purged | not_dead)" }
+  /admin/email/stats:
+    get:
+      summary: Số theo trạng thái 24 giờ, độ sâu hàng đợi, tuổi email cũ nhất đang chờ (giây)
+      x-permission: email:manage
+      responses:
+        "200": { description: OK }
+  /admin/email/suppressions:
+    get:
+      summary: Danh sách chặn
+      x-permission: email:manage
+      responses: { "200": { description: OK } }
+    post:
+      summary: Chặn thủ công một địa chỉ
+      x-permission: email:manage
+      requestBody:
+        content: { application/json: { schema: { type: object, required: [email], properties: { email: { type: string }, note: { type: string, maxLength: 200 } } } } }
+      responses: { "201": { description: OK } }
+  /admin/email/suppressions/{email}:
+    delete:
+      summary: Bỏ chặn
+      x-permission: email:manage
+      responses: { "200": { description: OK } }
+  /email/preferences:
+    get:
+      summary: Tùy chọn của tôi theo danh mục có thể tắt
+      x-permission: email:self
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: object, properties: { category: { type: string, enum: [notification, marketing] }, enabled: { type: boolean } } }
+    put:
+      summary: Bật/tắt một danh mục (security/transactional → 422)
+      x-permission: email:self
+      requestBody:
+        content: { application/json: { schema: { type: object, required: [category, enabled], properties: { category: { type: string }, enabled: { type: boolean } } } } }
+      responses: { "200": { description: OK } }
+  /email/unsubscribe:
+    post:
+      summary: Hủy đăng ký một chạm (RFC 8058). Công khai, xác thực bằng token HMAC.
+      security: []
+      parameters:
+        - { name: u, in: query, required: true, schema: { type: string, format: uuid } }
+        - { name: c, in: query, required: true, schema: { type: string, enum: [notification, marketing] } }
+        - { name: t, in: query, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Đã hủy (idempotent) }
+        "400": { description: Token không hợp lệ }
+components:
+  schemas:
+    TemplateSummary:
+      type: object
+      properties:
+        key: { type: string }
+        category: { type: string, enum: [security, transactional, notification, marketing] }
+        name: { type: string }
+        description: { type: string }
+        locales:
+          type: array
+          items: { type: object, properties: { locale: { type: string }, customized: { type: boolean }, enabled: { type: boolean }, updatedAt: { type: string, format: date-time, nullable: true } } }
+    TemplateDetail:
+      type: object
+      properties:
+        key: { type: string }
+        locale: { type: string }
+        category: { type: string }
+        customized: { type: boolean }
+        enabled: { type: boolean }
+        version: { type: integer }
+        subject: { type: string }
+        bodyHtml: { type: string }
+        bodyText: { type: string, nullable: true }
+        defaults: { type: object, properties: { subject: { type: string }, bodyHtml: { type: string }, bodyText: { type: string } } }
+        variables:
+          type: array
+          items: { type: object, properties: { name: { type: string }, description: { type: string }, example: { type: string } } }

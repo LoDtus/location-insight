@@ -63,6 +63,7 @@ Lưu ý: kiểm tra theo **quyền**, không theo tên vai trò. Chuỗi `role =
 | `follow:read` | xem số theo dõi và danh sách người theo dõi | cần đăng nhập (`011-follow`) |
 | `follow:write` | theo dõi, bỏ theo dõi | cần đăng nhập; 60 lần mỗi giờ |
 | `feedback:write` | gửi góp ý kèm ảnh/video, xem và trả lời góp ý của mình | cần đăng nhập; 5 góp ý mỗi giờ |
+| `email:self` | xem và đổi tùy chọn nhận email của mình | cần đăng nhập; chỉ danh mục `notification`/`marketing` |
 
 ### 2.3 Theo gói
 
@@ -87,6 +88,7 @@ Lưu ý: kiểm tra theo **quyền**, không theo tên vai trò. Chuỗi `role =
 | `discussion:moderate` | ẩn bài diễn đàn, khóa hoặc ẩn chủ đề | không |
 | `message:moderate` | xem tin bị báo cáo (bản chụp ngữ cảnh), ẩn tin | không; không đọc được hội thoại tùy ý |
 | `feedback:manage` | xem mọi góp ý, trả lời, đổi trạng thái | không; ghi `admin_audit_logs` |
+| `email:manage` | sửa mẫu email, gửi thử, xem nhật ký, thử lại, quản lý danh sách chặn | gửi thử 10/giờ; ghi `admin_audit_logs` |
 | `audit:read` | xem `admin_audit_logs`, `auth_events` rút gọn | không |
 
 ## 3. Ma trận vai trò × quyền
@@ -156,11 +158,11 @@ export type Permission =
   | 'notification:read' | 'place:save' | 'place:note' | 'analysis:run' | 'analysis:history:read'
   | 'listing:create' | 'listing:update' | 'listing:delete' | 'listing:contact:reveal'
   | 'listing:report' | 'comment:create' | 'comment:delete'
-  | 'discussion:read' | 'discussion:write' | 'message:read' | 'message:write' | 'feedback:write' | 'follow:read' | 'follow:write'
+  | 'discussion:read' | 'discussion:write' | 'message:read' | 'message:write' | 'feedback:write' | 'email:self' | 'follow:read' | 'follow:write'
   | 'valuation:run'
   | 'admin:access' | 'user:read' | 'user:lock' | 'user:session:revoke' | 'subscription:grant'
   | 'credit:grant' | 'quota:reset' | 'listing:moderate' | 'report:review' | 'article:manage'
-  | 'discussion:moderate' | 'message:moderate' | 'feedback:manage'
+  | 'discussion:moderate' | 'message:moderate' | 'feedback:manage' | 'email:manage'
   | 'audit:read';
 
 export type QuotaName = 'analysisDaily';
@@ -196,13 +198,13 @@ export const USER_PERMISSIONS = [
   'notification:read', 'place:save', 'place:note', 'analysis:run', 'analysis:history:read',
   'listing:create', 'listing:update', 'listing:delete', 'listing:contact:reveal',
   'listing:report', 'comment:create', 'comment:delete',
-  'discussion:read', 'discussion:write', 'message:read', 'message:write', 'feedback:write', 'follow:read', 'follow:write',
+  'discussion:read', 'discussion:write', 'message:read', 'message:write', 'feedback:write', 'email:self', 'follow:read', 'follow:write',
 ] as const satisfies readonly Permission[];
 
 export const ADMIN_PERMISSIONS = [
   'admin:access', 'user:read', 'user:lock', 'user:session:revoke', 'subscription:grant',
   'credit:grant', 'quota:reset', 'listing:moderate', 'report:review', 'article:manage',
-  'discussion:moderate', 'message:moderate', 'feedback:manage', 'audit:read',
+  'discussion:moderate', 'message:moderate', 'feedback:manage', 'email:manage', 'audit:read',
 ] as const satisfies readonly Permission[];
 
 export const PLAN_ENTITLEMENTS: Readonly<Record<Plan, PlanEntitlement>> = {

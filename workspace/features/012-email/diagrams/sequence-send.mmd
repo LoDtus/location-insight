@@ -1,0 +1,27 @@
+sequenceDiagram
+    autonumber
+    participant S as Nghiệp vụ (auth/feedback/follow)
+    participant E as EmailService
+    participant R as Redis
+    participant D as PostgreSQL
+    participant W as EmailWorker
+    participant M as MailTransport (SMTP)
+    S->>E: send(template, to, vars, dedupeKey)
+    E->>D: suppression? preference? mẫu hiệu lực?
+    E->>R: giới hạn tần suất (fail-open)
+    E->>E: render + escape + lọc + layout
+    E->>D: INSERT email_messages (queued) ON CONFLICT (dedupe_key) DO NOTHING
+    E-->>S: return (không chờ SMTP, không ném lỗi)
+    E-)W: kick()
+    loop mỗi 2 giây hoặc khi kick
+        W->>D: UPDATE … WHERE id IN (SELECT … FOR UPDATE SKIP LOCKED) RETURNING
+        W->>M: send(message)
+        alt thành công
+            M-->>W: messageId
+            W->>D: status=sent, xóa nội dung nếu nhạy cảm
+        else lỗi tạm
+            W->>D: status=queued, next_attempt_at = backoff
+        else lỗi vĩnh viễn / hết lượt
+            W->>D: status=dead (+ suppression nếu bounce cứng)
+        end
+    end

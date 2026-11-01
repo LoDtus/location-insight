@@ -1,0 +1,68 @@
+Table email_templates {
+  id uuid [pk]
+  key varchar(60) [not null, note: 'khớp danh mục trong mã']
+  locale varchar(5) [not null, default: 'vi']
+  subject varchar(200) [not null]
+  body_html text [not null, note: 'đã lọc bằng sanitize-html, tối đa 50.000 ký tự']
+  body_text text [null, note: 'null = tự sinh từ HTML']
+  enabled boolean [not null, default: true, note: 'false = loại này không gửi (trừ security)']
+  version int [not null, default: 1]
+  updated_by uuid [null]
+  created_at timestamptz
+  updated_at timestamptz
+  deleted_at timestamptz [null]
+  indexes {
+    (key, locale) [unique, name: 'uk_email_templates_key_locale']
+  }
+}
+
+Table email_messages {
+  id uuid [pk, note: 'uuid v7 → sắp theo thời gian']
+  template_key varchar(60) [not null]
+  category varchar(20) [not null, note: 'security | transactional | notification | marketing']
+  locale varchar(5) [not null]
+  user_id uuid [null, note: 'null nếu gửi tới địa chỉ không gắn tài khoản']
+  to_email varchar(320) [not null, note: 'lowercase']
+  subject varchar(300) [not null]
+  body_html text [null, note: 'xóa sau khi sent/dead nếu nhạy cảm; xóa sau 7 ngày nếu không']
+  body_text text [null]
+  unsubscribe_url varchar(500) [null]
+  sensitive boolean [not null, default: false]
+  status varchar(12) [not null, note: 'queued | sending | sent | dead | suppressed | skipped']
+  attempts smallint [not null, default: 0]
+  next_attempt_at timestamptz [not null]
+  last_error varchar(500) [null]
+  provider_message_id varchar(200) [null]
+  dedupe_key varchar(200) [null]
+  sent_at timestamptz [null]
+  created_at timestamptz
+  updated_at timestamptz
+  deleted_at timestamptz [null]
+  indexes {
+    dedupe_key [unique, name: 'uk_email_messages_dedupe', note: 'WHERE dedupe_key IS NOT NULL']
+    next_attempt_at [name: 'idx_email_messages_due', note: "WHERE status IN ('queued','sending')"]
+    (user_id, created_at) [name: 'idx_email_messages_user']
+    (status, created_at) [name: 'idx_email_messages_status']
+  }
+}
+
+Table email_suppressions {
+  email varchar(320) [pk, note: 'lowercase']
+  reason varchar(20) [not null, note: 'hard_bounce | complaint | manual']
+  note varchar(200) [null]
+  created_by uuid [null]
+  created_at timestamptz
+}
+
+Table email_preferences {
+  user_id uuid [not null]
+  category varchar(20) [not null, note: 'notification | marketing']
+  enabled boolean [not null]
+  updated_at timestamptz
+  indexes {
+    (user_id, category) [pk]
+  }
+}
+
+Ref: email_messages.user_id > users.id [delete: set null]
+Ref: email_preferences.user_id > users.id [delete: cascade]

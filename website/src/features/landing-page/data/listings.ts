@@ -42,6 +42,7 @@ export type Listing = {
     baths: number;
     updatedAt: string;
     images: readonly string[];
+    watchers: number;
 };
 
 export const SALE_PRICE_RANGES = [
@@ -288,14 +289,249 @@ const RAW = [
         baths: 2,
         updatedAt: "2026-10-10",
     },
+    {
+        id: "019a2b10-0010-7000-8000-000000000010",
+        slug: "can-ho-my-dinh",
+        title: "Căn hộ 2 ngủ Mỹ Đình",
+        location: "Mỹ Đình, phường Từ Liêm",
+        district: "Nam Từ Liêm",
+        purpose: "ban",
+        kind: "can-ho",
+        priceVnd: 4_200_000_000,
+        areaM2: 78,
+        beds: 2,
+        living: 1,
+        baths: 2,
+        updatedAt: "2026-10-28",
+    },
+    {
+        id: "019a2b10-0011-7000-8000-000000000011",
+        slug: "nha-pho-ngo-truc",
+        title: "Nhà phố ngõ Trúc",
+        location: "Ngõ Trúc, phường Ba Đình",
+        district: "Ba Đình",
+        purpose: "ban",
+        kind: "nha-pho",
+        priceVnd: 9_800_000_000,
+        areaM2: 42,
+        beds: 4,
+        living: 1,
+        baths: 3,
+        updatedAt: "2026-10-27",
+    },
+    {
+        id: "019a2b10-0012-7000-8000-000000000012",
+        slug: "dat-dich-vu-hoai-duc",
+        title: "Đất dịch vụ Lai Xá",
+        location: "Lai Xá, huyện Hoài Đức",
+        district: "Hoài Đức",
+        purpose: "ban",
+        kind: "dat",
+        priceVnd: 1_850_000_000,
+        areaM2: 72,
+        beds: 0,
+        living: 0,
+        baths: 0,
+        updatedAt: "2026-10-09",
+    },
+    {
+        id: "019a2b10-0013-7000-8000-000000000013",
+        slug: "can-ho-thue-van-chuong",
+        title: "Căn hộ 2 ngủ cho thuê Văn Chương",
+        location: "Văn Chương, phường Văn Miếu - Quốc Tử Giám",
+        district: "Đống Đa",
+        purpose: "thue",
+        kind: "can-ho",
+        priceVnd: 18_000_000,
+        areaM2: 85,
+        beds: 2,
+        living: 1,
+        baths: 2,
+        updatedAt: "2026-10-26",
+    },
+    {
+        id: "019a2b10-0014-7000-8000-000000000014",
+        slug: "biet-thu-ban-ciputra",
+        title: "Biệt thự bán khu Ciputra",
+        location: "Khu Ciputra, phường Phú Thượng",
+        district: "Bắc Từ Liêm",
+        purpose: "ban",
+        kind: "biet-thu",
+        priceVnd: 42_000_000_000,
+        areaM2: 250,
+        beds: 5,
+        living: 2,
+        baths: 5,
+        updatedAt: "2026-10-08",
+    },
+    {
+        id: "019a2b10-0015-7000-8000-000000000015",
+        slug: "studio-thue-dich-vong",
+        title: "Studio cho thuê Dịch Vọng",
+        location: "Dịch Vọng, phường Cầu Giấy",
+        district: "Cầu Giấy",
+        purpose: "thue",
+        kind: "can-ho",
+        priceVnd: 7_500_000,
+        areaM2: 28,
+        beds: 1,
+        living: 1,
+        baths: 1,
+        updatedAt: "2026-10-25",
+    },
+    {
+        id: "019a2b10-0016-7000-8000-000000000016",
+        slug: "nha-mat-pho-tay-son",
+        title: "Nhà mặt phố Tây Sơn",
+        location: "Tây Sơn, phường Kim Liên",
+        district: "Đống Đa",
+        purpose: "ban",
+        kind: "nha-pho",
+        priceVnd: 21_000_000_000,
+        areaM2: 55,
+        beds: 4,
+        living: 1,
+        baths: 3,
+        updatedAt: "2026-10-07",
+    },
+    {
+        id: "019a2b10-0017-7000-8000-000000000017",
+        slug: "can-ho-dinh-cong",
+        title: "Căn hộ 3 ngủ Định Công",
+        location: "Định Công, phường Định Công",
+        district: "Hoàng Mai",
+        purpose: "ban",
+        kind: "can-ho",
+        priceVnd: 3_800_000_000,
+        areaM2: 92,
+        beds: 3,
+        living: 1,
+        baths: 2,
+        updatedAt: "2026-10-06",
+    },
+    {
+        id: "019a2b10-0018-7000-8000-000000000018",
+        slug: "dat-co-bi",
+        title: "Đất thổ cư Cổ Bi",
+        location: "Cổ Bi, huyện Đông Anh",
+        district: "Đông Anh",
+        purpose: "ban",
+        kind: "dat",
+        priceVnd: 2_100_000_000,
+        areaM2: 100,
+        beds: 0,
+        living: 0,
+        baths: 0,
+        updatedAt: "2026-09-28",
+    },
+    {
+        id: "019a2b10-0019-7000-8000-000000000019",
+        slug: "can-ho-thue-quang-an",
+        title: "Căn hộ cho thuê Quảng An",
+        location: "Quảng An, phường Tây Hồ",
+        district: "Tây Hồ",
+        purpose: "thue",
+        kind: "can-ho",
+        priceVnd: 25_000_000,
+        areaM2: 90,
+        beds: 2,
+        living: 1,
+        baths: 2,
+        updatedAt: "2026-10-29",
+    },
+    {
+        id: "019a2b10-001a-7000-8000-00000000001a",
+        slug: "nha-pho-ngoc-lam",
+        title: "Nhà phố Ngọc Lâm",
+        location: "Ngọc Lâm, phường Bồ Đề",
+        district: "Long Biên",
+        purpose: "ban",
+        kind: "nha-pho",
+        priceVnd: 6_400_000_000,
+        areaM2: 50,
+        beds: 3,
+        living: 1,
+        baths: 2,
+        updatedAt: "2026-10-05",
+    },
+    {
+        id: "019a2b10-001b-7000-8000-00000000001b",
+        slug: "biet-thu-thue-nhat-tan",
+        title: "Biệt thự cho thuê Nhật Tân",
+        location: "Nhật Tân, phường Tây Hồ",
+        district: "Tây Hồ",
+        purpose: "thue",
+        kind: "biet-thu",
+        priceVnd: 80_000_000,
+        areaM2: 300,
+        beds: 5,
+        living: 2,
+        baths: 4,
+        updatedAt: "2026-10-04",
+    },
+    {
+        id: "019a2b10-001c-7000-8000-00000000001c",
+        slug: "can-ho-hang-bong",
+        title: "Căn hộ Hàng Bông",
+        location: "Hàng Bông, phường Hoàn Kiếm",
+        district: "Hoàn Kiếm",
+        purpose: "ban",
+        kind: "can-ho",
+        priceVnd: 8_200_000_000,
+        areaM2: 70,
+        beds: 2,
+        living: 1,
+        baths: 2,
+        updatedAt: "2026-10-30",
+    },
 ] as const;
+
+const WATCHERS = [
+    128, 24, 41, 12, 96, 33, 19, 15, 28, 9, 7, 84, 22, 11, 37, 18, 44, 6, 31, 21, 8, 52, 14, 5, 27, 16, 39, 48,
+];
 
 export const LISTINGS: Listing[] = RAW.map((item, index) => ({
     ...item,
+    watchers: WATCHERS[index] ?? 0,
     images: [0, 1, 2].map(
         (offset) => LISTING_IMAGES[(index + offset) % LISTING_IMAGES.length],
     ),
 }));
+
+export type ListingBadge = "moi" | "gia-tot" | "quan-tam";
+
+const NEW_SINCE = "2026-10-18";
+
+export function listingBadges(listing: Listing): ListingBadge[] {
+    const badges: ListingBadge[] = [];
+
+    if (listing.updatedAt >= NEW_SINCE) {
+        badges.push("moi");
+    }
+
+    const peers = LISTINGS.filter(
+        (item) => item.purpose === listing.purpose && item.kind === listing.kind,
+    );
+
+    if (peers.length >= 4) {
+        const rates = peers.map((item) => item.priceVnd / item.areaM2).sort((left, right) => left - right);
+        const cutoff = rates[Math.max(0, Math.ceil(peers.length * 0.25) - 1)] ?? rates[0];
+
+        if (listing.priceVnd / listing.areaM2 <= cutoff) {
+            badges.push("gia-tot");
+        }
+    }
+
+    const mostWatched = [...LISTINGS]
+        .sort((left, right) => right.watchers - left.watchers || left.id.localeCompare(right.id))
+        .slice(0, 3);
+
+    if (mostWatched.some((item) => item.id === listing.id)) {
+        badges.push("quan-tam");
+    }
+
+    return badges;
+}
 
 export function getListingById(id: string): Listing | undefined {
     return LISTINGS.find((listing) => listing.id === id);

@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, type JSX } from "react";
+import { useEffect, useRef, useState, type JSX } from "react";
 
 import { logout } from "@/features/auth/auth.api";
 import { useAuth } from "@/features/auth/use-auth";
@@ -41,6 +41,10 @@ function isItemActive(href: string, pathname: string): boolean {
     return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+function isMapPath(pathname: string): boolean {
+    return pathname === "/app/map" || pathname.startsWith("/app/map/") || pathname === "/admin/map" || pathname.startsWith("/admin/map/");
+}
+
 function initialsOf(name: string): string {
     const parts = name.trim().split(/\s+/).filter((part) => part.length > 0);
     if (parts.length === 0) return "?";
@@ -58,7 +62,10 @@ export default function AppSidebar({
     const { locale } = useLocale();
     const auth = useAuth();
     const [collapsed, setCollapsed] = useState(false);
+    const [drawerOpen, setDrawerOpen] = useState(false);
     const [signingOut, setSigningOut] = useState(false);
+    const onMap = isMapPath(pathname);
+    const wasOnMap = useRef(onMap);
     const vi = locale === "vi";
     const user = auth.user;
     const home = surface === "admin" ? "/admin/properties" : "/app/properties";
@@ -75,6 +82,22 @@ export default function AppSidebar({
             compact.removeEventListener("change", sync);
         };
     }, []);
+
+    useEffect(() => {
+        if (onMap && !wasOnMap.current) setDrawerOpen(false);
+        wasOnMap.current = onMap;
+    }, [onMap]);
+
+    useEffect(() => {
+        if (!drawerOpen) return;
+        function onKey(event: KeyboardEvent): void {
+            if (event.key === "Escape") setDrawerOpen(false);
+        }
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [drawerOpen]);
+
+    const compact = onMap ? !drawerOpen : collapsed;
 
     const items: NavEntry[] =
         surface === "admin"
@@ -155,13 +178,26 @@ export default function AppSidebar({
     }
 
     return (
+        <>
+        {onMap ? <div className="w-[72px] shrink-0" aria-hidden="true" /> : null}
+        {onMap && drawerOpen ? (
+            <button
+                type="button"
+                className="fixed inset-0 z-40 bg-charcoal/40"
+                aria-label={vi ? "Đóng menu" : "Close menu"}
+                onClick={() => setDrawerOpen(false)}
+            />
+        ) : null}
         <aside
-            className={`flex h-full shrink-0 flex-col border-r border-charcoal/15 transition-[width] duration-200 motion-reduce:transition-none ${surface === "admin" ? "bg-white" : "bg-cream"} ${collapsed ? "w-[72px]" : "w-[272px]"}`}
+            className={`flex shrink-0 flex-col border-r border-charcoal/15 transition-[width] duration-200 motion-reduce:transition-none ${surface === "admin" ? "bg-white" : "bg-cream"} ${onMap ? "fixed inset-y-0 left-0 z-50" : "relative h-full"} ${compact ? "w-[72px]" : "w-[272px]"}`}
+            role={onMap && drawerOpen ? "dialog" : undefined}
+            aria-modal={onMap && drawerOpen ? true : undefined}
+            aria-label={onMap && drawerOpen ? (vi ? "Menu" : "Menu") : undefined}
         >
             <div
-                className={`flex h-[76px] items-center border-b border-charcoal/15 ${collapsed ? "justify-center px-3" : "gap-3 px-4"}`}
+                className={`flex h-[76px] items-center border-b border-charcoal/15 ${compact ? "justify-center px-3" : "gap-3 px-4"}`}
             >
-                {collapsed ? null : (
+                {compact ? null : (
                     <Link
                         href={home}
                         className="flex min-w-0 flex-1 items-center gap-2 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
@@ -175,10 +211,13 @@ export default function AppSidebar({
                 <button
                     type="button"
                     className="flex size-11 shrink-0 items-center justify-center rounded-xl text-charcoal hover:bg-green/10 hover:text-green focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
-                    aria-label={collapsed ? (vi ? "Mở rộng menu" : "Expand menu") : vi ? "Thu gọn menu" : "Collapse menu"}
-                    onClick={() => setCollapsed((current) => !current)}
+                    aria-label={compact ? (vi ? "Mở rộng menu" : "Expand menu") : vi ? "Thu gọn menu" : "Collapse menu"}
+                    onClick={() => {
+                        if (onMap) setDrawerOpen((open) => !open);
+                        else setCollapsed((current) => !current);
+                    }}
                 >
-                    {collapsed ? (
+                    {compact ? (
                         <PanelLeftOpen className="size-[18px]" aria-hidden="true" />
                     ) : (
                         <PanelLeftClose className="size-[18px]" aria-hidden="true" />
@@ -202,7 +241,7 @@ export default function AppSidebar({
                     if (item.kind === "divider") {
                         return (
                             <div key={item.id} className="my-2 px-2">
-                                {collapsed ? null : (
+                                {compact ? null : (
                                     <p className="m-0 pb-2 text-xs font-semibold text-charcoal/60">
                                         {item.label}
                                     </p>
@@ -220,10 +259,10 @@ export default function AppSidebar({
                             href={item.href}
                             title={item.label}
                             aria-current={active ? "page" : undefined}
-                            className={`flex min-h-11 items-center rounded-xl text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green ${collapsed ? "justify-center px-2" : "gap-3 px-3"} ${active ? "bg-green font-semibold text-cream" : "text-charcoal/80 hover:bg-green/10 hover:text-green"}`}
+                            className={`flex min-h-11 items-center rounded-xl text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green ${compact ? "justify-center px-2" : "gap-3 px-3"} ${active ? "bg-green font-semibold text-cream" : "text-charcoal/80 hover:bg-green/10 hover:text-green"}`}
                         >
                             <Icon className="size-[18px] shrink-0" aria-hidden="true" />
-                            {collapsed ? null : <span className="truncate">{item.label}</span>}
+                            {compact ? null : <span className="truncate">{item.label}</span>}
                         </Link>
                     );
                 })}
@@ -234,7 +273,7 @@ export default function AppSidebar({
                     href={profileHref}
                     aria-current={pathname === profileHref ? "page" : undefined}
                     className={`flex min-h-14 items-center rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green ${
-                        collapsed ? "justify-center" : "gap-3 px-1"
+                        compact ? "justify-center" : "gap-3 px-1"
                     } ${
                         pathname === profileHref
                             ? "bg-green/10 text-green"
@@ -244,7 +283,7 @@ export default function AppSidebar({
                     <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-green text-xs font-semibold text-cream">
                         {initialsOf(user?.displayName ?? "")}
                     </span>
-                    {collapsed ? null : (
+                    {compact ? null : (
                         <span className="min-w-0 flex-1">
                             <span className="block truncate text-sm font-semibold">
                                 {user?.displayName}
@@ -257,7 +296,7 @@ export default function AppSidebar({
                 </Link>
                 <button
                     type="button"
-                    className={`mt-2 flex min-h-11 w-full items-center rounded-xl text-sm text-charcoal hover:bg-green/10 hover:text-green focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green disabled:cursor-wait disabled:opacity-60 ${collapsed ? "justify-center px-2" : "gap-3 px-3"}`}
+                    className={`mt-2 flex min-h-11 w-full items-center rounded-xl text-sm text-charcoal hover:bg-green/10 hover:text-green focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green disabled:cursor-wait disabled:opacity-60 ${compact ? "justify-center px-2" : "gap-3 px-3"}`}
                     disabled={signingOut}
                     aria-label={vi ? "Đăng xuất" : "Log out"}
                     title={vi ? "Đăng xuất" : "Log out"}
@@ -266,9 +305,10 @@ export default function AppSidebar({
                     }}
                 >
                     <LogOut className="size-[18px] shrink-0" aria-hidden="true" />
-                    {collapsed ? null : <span>{vi ? "Đăng xuất" : "Log out"}</span>}
+                    {compact ? null : <span>{vi ? "Đăng xuất" : "Log out"}</span>}
                 </button>
             </div>
         </aside>
+        </>
     );
 }

@@ -1,5 +1,11 @@
-import { SaleList } from "@/app/app/properties/page";
+import { Suspense } from "react";
+
+import PropertyCatalog from "@/features/properties/components/property-catalog";
 
 export default function Page() {
-    return <SaleList root="/admin" />;
+    return (
+        <Suspense fallback={<div className="min-h-full" />}>
+            <PropertyCatalog root="/admin" />
+        </Suspense>
+    );
 }

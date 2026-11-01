@@ -90,6 +90,13 @@ describe('authorization config', () => {
     expect(effectivePermissions(UserRole.GUEST, Plan.FREE)).not.toContain('feedback:write');
   });
 
+  it('quyền theo dõi: user đọc và ghi, khách không có', () => {
+    const user = effectivePermissions(UserRole.USER, Plan.FREE);
+    expect(user).toContain('follow:read');
+    expect(user).toContain('follow:write');
+    expect(effectivePermissions(UserRole.GUEST, Plan.FREE)).not.toContain('follow:write');
+  });
+
   it('gói hết hạn được tính là free', () => {
     expect(effectivePlan(Plan.VALUED, Date.now() - 1000)).toBe(Plan.FREE);
     expect(effectivePlan(Plan.VALUED, Date.now() + 60_000)).toBe(Plan.VALUED);

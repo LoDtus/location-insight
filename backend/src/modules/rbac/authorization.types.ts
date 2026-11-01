@@ -38,6 +38,8 @@ export type Permission =
   | 'message:read'
   | 'message:write'
   | 'feedback:write'
+  | 'follow:read'
+  | 'follow:write'
   | 'valuation:run'
   | 'admin:access'
   | 'user:read'

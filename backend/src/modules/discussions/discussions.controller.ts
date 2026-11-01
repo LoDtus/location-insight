@@ -54,7 +54,7 @@ export class DiscussionsController {
   @RequirePermission('discussion:read')
   @Get('posts')
   posts(@Query() query: CursorQueryDto, @Req() request: RequestWithPrincipal) {
-    return this.discussions.listPosts(this.userId(request), query.cursor);
+    return this.discussions.listPosts(this.userId(request), query.cursor, query.scope === 'following');
   }
 
   @RequirePermission('discussion:read')

@@ -6,6 +6,7 @@ import { BusinessException } from '../../common/exceptions/business.exception.js
 import { RedisService } from '../../integrations/redis/redis.service.js';
 import { ErrorCode } from '../../shared/constants/error-code.constant.js';
 import { ListConversationsQueryDto } from './dto/messaging.dto.js';
+import { FollowService } from '../follow/follow.service.js';
 import { MessagingAccessService } from './messaging-access.service.js';
 import { rowsOf } from './messaging-db.js';
 import { conflict, cannotMessage, invalid } from './messaging-errors.js';
@@ -26,6 +27,7 @@ export class MessagingConversationsService {
     private readonly presenter: MessagingPresenterService,
     private readonly events: MessagingEventsService,
     private readonly rate: MessagingRateLimitService,
+    private readonly follows: FollowService,
     @InjectRepository(ConversationEntity)
     private readonly conversations: Repository<ConversationEntity>,
     @InjectRepository(ConversationParticipantEntity)
@@ -99,13 +101,15 @@ export class MessagingConversationsService {
     await this.assertCanOpenMore(userId);
     await this.rate.consume('newConversation', `user_${userId}`);
 
+    // Người nhận đang theo dõi người gửi: bỏ bước Yêu cầu (011-follow, BR-08).
+    const initialState = (await this.follows.isFollowing(peerId, userId)) ? 'active' : 'pending';
     const id = uuidv7();
     const created = await this.dataSource.transaction(async (manager) => {
       const raw: unknown = await manager.query(
         `INSERT INTO conversations (id, type, state, direct_key, initiator_id, last_seq, last_message_preview, created_at, updated_at)
-         VALUES ($1, 'direct', 'pending', $2, $3, 0, '', now(), now())
+         VALUES ($1, 'direct', $4, $2, $3, 0, '', now(), now())
          ON CONFLICT (direct_key) DO NOTHING RETURNING id`,
-        [id, key, userId],
+        [id, key, userId, initialState],
       );
       const inserted = rowsOf(raw).length > 0;
       if (!inserted) return false;

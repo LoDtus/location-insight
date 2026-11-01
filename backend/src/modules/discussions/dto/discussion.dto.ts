@@ -26,6 +26,10 @@ export class CursorQueryDto {
   @IsString()
   @MaxLength(80)
   query?: string;
+
+  @IsOptional()
+  @IsIn(['following'])
+  scope?: 'following';
 }
 
 export class CreateTopicDto {

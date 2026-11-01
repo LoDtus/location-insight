@@ -37,6 +37,8 @@ export const USER_PERMISSIONS = [
   'message:read',
   'message:write',
   'feedback:write',
+  'follow:read',
+  'follow:write',
 ] as const satisfies readonly Permission[];
 
 export const ADMIN_PERMISSIONS = [

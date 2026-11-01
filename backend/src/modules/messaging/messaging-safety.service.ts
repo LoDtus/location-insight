@@ -11,6 +11,7 @@ import {
   ReportMessageDto,
   ResolveReportDto,
 } from './dto/messaging.dto.js';
+import { FollowService } from '../follow/follow.service.js';
 import { MessagingAccessService, Preferences } from './messaging-access.service.js';
 import { MessagingConversationsService } from './messaging-conversations.service.js';
 import { conflict, invalid, notFound } from './messaging-errors.js';
@@ -41,6 +42,7 @@ export class MessagingSafetyService {
     private readonly rate: MessagingRateLimitService,
     private readonly conversations: MessagingConversationsService,
     private readonly storage: StorageService,
+    private readonly follows: FollowService,
     @InjectRepository(UserEntity)
     private readonly users: Repository<UserEntity>,
     @InjectRepository(UserBlockEntity)
@@ -87,6 +89,8 @@ export class MessagingSafetyService {
        ON CONFLICT (blocker_id, blocked_id) DO NOTHING`,
       [userId, targetId],
     );
+    // Chặn xóa theo dõi hai chiều (011-follow).
+    await this.follows.removeBetween(userId, targetId);
     const hidden = await this.participants.query(
       `UPDATE conversation_participants p SET hidden_at = now()
        FROM conversation_participants o

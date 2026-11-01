@@ -131,8 +131,8 @@ export class DiscussionsService {
     return { topic: this.topicView(topic), ...page };
   }
 
-  async listPosts(viewerId: string, cursor?: string) {
-    return this.pagePosts(cursor, null, viewerId);
+  async listPosts(viewerId: string, cursor?: string, followingOnly = false) {
+    return this.pagePosts(cursor, null, viewerId, undefined, followingOnly);
   }
 
   async listAuthorPosts(username: string, viewerId: string, cursor?: string) {
@@ -429,6 +429,7 @@ export class DiscussionsService {
     topicId: string | null,
     viewerId: string,
     authorId?: string,
+    followingOnly = false,
   ) {
     const qb = this.posts
       .createQueryBuilder('post')
@@ -439,6 +440,12 @@ export class DiscussionsService {
       .take(FEED_PAGE + 1);
     if (topicId) qb.andWhere('post.topicId = :topicId', { topicId });
     if (authorId) qb.andWhere('post.authorId = :authorId', { authorId });
+    if (followingOnly) {
+      qb.andWhere(
+        'EXISTS (SELECT 1 FROM user_follows f WHERE f.follower_id = :viewerId AND f.followee_id = post.authorId)',
+        { viewerId },
+      );
+    }
     const point = readCursor(cursor);
     if (point) {
       qb.andWhere(

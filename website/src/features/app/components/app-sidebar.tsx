@@ -62,6 +62,7 @@ export default function AppSidebar({
     const vi = locale === "vi";
     const user = auth.user;
     const home = surface === "admin" ? "/admin/properties" : "/app/properties";
+    const profileHref = surface === "admin" ? "/admin/profile" : "/app/profile";
 
     useEffect(() => {
         const compact = window.matchMedia("(max-width: 767px)");
@@ -92,19 +93,19 @@ export default function AppSidebar({
                   },
                   {
                       kind: "item",
-                      href: "/admin/goi",
+                      href: "/admin/plans",
                       icon: BadgeCheck,
                       label: vi ? "Gói" : "Plan",
                   },
                   {
                       kind: "item",
-                      href: "/admin/thanh-toan",
+                      href: "/admin/payments",
                       icon: Wallet,
                       label: vi ? "Thanh toán" : "Payment",
                   },
                   {
                       kind: "item",
-                      href: "/admin/hoan-tien",
+                      href: "/admin/refunds",
                       icon: Undo2,
                       label: vi ? "Hoàn tiền" : "Refund",
                   },
@@ -121,7 +122,7 @@ export default function AppSidebar({
                   },
                   {
                       kind: "item",
-                      href: "/admin/doi-soat",
+                      href: "/admin/reconciliation",
                       icon: Receipt,
                       label: vi ? "Đối soát" : "Reconciliation",
                   },
@@ -141,19 +142,19 @@ export default function AppSidebar({
                   },
                   {
                       kind: "item",
-                      href: "/app/goi",
+                      href: "/app/plans",
                       icon: BadgeCheck,
                       label: vi ? "Gói" : "Plan",
                   },
                   {
                       kind: "item",
-                      href: "/app/thanh-toan",
+                      href: "/app/payments",
                       icon: Wallet,
                       label: vi ? "Thanh toán" : "Payment",
                   },
                   {
                       kind: "item",
-                      href: "/app/hoan-tien",
+                      href: "/app/refunds",
                       icon: Undo2,
                       label: vi ? "Hoàn tiền" : "Refund",
                   },
@@ -241,7 +242,17 @@ export default function AppSidebar({
             </nav>
 
             <div className="border-t border-charcoal/15 p-3">
-                <div className={`flex items-center ${collapsed ? "justify-center" : "gap-3 px-1"}`}>
+                <Link
+                    href={profileHref}
+                    aria-current={pathname === profileHref ? "page" : undefined}
+                    className={`flex min-h-14 items-center rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green ${
+                        collapsed ? "justify-center" : "gap-3 px-1"
+                    } ${
+                        pathname === profileHref
+                            ? "bg-green/10 text-green"
+                            : "text-charcoal hover:bg-green/10"
+                    }`}
+                >
                     <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-green text-xs font-semibold text-cream">
                         {initialsOf(user?.displayName ?? "")}
                     </span>
@@ -255,7 +266,7 @@ export default function AppSidebar({
                             </span>
                         </span>
                     )}
-                </div>
+                </Link>
                 <button
                     type="button"
                     className={`mt-2 flex min-h-11 w-full items-center rounded-xl text-sm text-charcoal hover:bg-green/10 hover:text-green focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green disabled:cursor-wait disabled:opacity-60 ${collapsed ? "justify-center px-2" : "gap-3 px-3"}`}

@@ -14,6 +14,8 @@ import { AuthSessionEntity } from './entities/auth-session.entity.js';
 import { UserEntity } from './entities/user.entity.js';
 import { GoogleOAuthService } from './google-oauth.service.js';
 import { PasswordService } from './password.service.js';
+import { ProfileController } from './profile.controller.js';
+import { ProfileService } from './profile.service.js';
 import { RealtimeController } from './realtime.controller.js';
 import { RealtimeGateway } from './realtime.gateway.js';
 import { SessionMaintenanceService } from './session-maintenance.service.js';
@@ -33,13 +35,14 @@ import { TokenService } from './token.service.js';
     ]),
     forwardRef(() => RbacModule),
   ],
-  controllers: [AuthController, RealtimeController],
+  controllers: [AuthController, ProfileController, RealtimeController],
   providers: [
     AuthConfig,
     TokenService,
     AuthRateLimitService,
     SessionService,
     PasswordService,
+    ProfileService,
     SeedAccountService,
     GoogleOAuthService,
     SessionVerifierService,

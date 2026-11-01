@@ -48,8 +48,19 @@ const authSlice = createSlice({
             state.expiresAt = null;
             state.user = null;
         },
+        profileUpdated(
+            state,
+            action: PayloadAction<{
+                displayName: string;
+                avatarUrl: string | null;
+            }>,
+        ) {
+            if (!state.user) return;
+            state.user.displayName = action.payload.displayName;
+            state.user.avatarUrl = action.payload.avatarUrl;
+        },
     },
 });
 
-export const { sessionStarted, sessionCleared } = authSlice.actions;
+export const { sessionStarted, sessionCleared, profileUpdated } = authSlice.actions;
 export default authSlice.reducer;

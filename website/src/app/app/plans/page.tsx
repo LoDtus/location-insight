@@ -68,7 +68,7 @@ export function PlanScreen({ root }: { root: ShellRoot }) {
                             {billing.cancelAtPeriodEnd ? " Đã hủy, quyền giữ đến hết hạn đã trả." : ""}
                         </p>
                         <p className="m-0 text-sm">Lượt định giá lẻ còn {billing.valuationCredits}.</p>
-                        <Link className={AUTH_BUTTON_CLASS} href={`${root}/thanh-toan`}>
+                        <Link className={AUTH_BUTTON_CLASS} href={`${root}/payments`}>
                             Gia hạn hoặc mua thêm
                         </Link>
                         {!billing.cancelAtPeriodEnd && billing.subscriptionId ? (
@@ -132,7 +132,7 @@ export function PlanScreen({ root }: { root: ShellRoot }) {
                         {billing?.orders.map((order) => (
                             <tr key={order.id}>
                                 <td className="border-b p-2">
-                                    <Link href={`${root}/thanh-toan/${order.id}`}>{order.code}</Link>
+                                    <Link href={`${root}/payments/${order.id}`}>{order.code}</Link>
                                 </td>
                                 <td className="border-b p-2 text-right tabular-nums">
                                     {formatVnd(order.amountVnd)}
@@ -143,7 +143,7 @@ export function PlanScreen({ root }: { root: ShellRoot }) {
                     </tbody>
                 </table>
                 <p className="text-sm">
-                    <Link href={`${root}/hoan-tien`}>Xin hoàn một đơn đã trả</Link>
+                    <Link href={`${root}/refunds`}>Xin hoàn một đơn đã trả</Link>
                 </p>
             </section>
         </main>

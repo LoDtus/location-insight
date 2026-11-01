@@ -93,13 +93,13 @@ export default function PricingGrid() {
                         </ul>
                         <div className="mt-auto flex flex-wrap gap-2 pt-2">
                             <Link
-                                href={`/app/thanh-toan?plan=${plan.id}&cycle=month`}
+                                href={`/app/payments?plan=${plan.id}&cycle=month`}
                                 className={`${BUTTON_CLASS} font-semibold ${plan.recommended ? "bg-gold text-charcoal hover:bg-cream" : "bg-charcoal text-cream hover:bg-green"}`}
                             >
                                 {text(["pricing", "monthCta"])}
                             </Link>
                             <Link
-                                href={`/app/thanh-toan?plan=${plan.id}&cycle=year`}
+                                href={`/app/payments?plan=${plan.id}&cycle=year`}
                                 className={`${BUTTON_CLASS} font-semibold bg-cream text-charcoal hover:bg-gold`}
                             >
                                 {text(["pricing", "yearCta"])}
@@ -111,7 +111,7 @@ export default function PricingGrid() {
             <p className="mt-12 mb-0 max-w-3xl text-base leading-relaxed text-charcoal/80">
                 {text(["pricing", "note"])}{" "}
                 <Link
-                    href="/app/thanh-toan?plan=credit"
+                    href="/app/payments?plan=credit"
                     className="font-semibold text-green underline decoration-gold decoration-2 underline-offset-4"
                 >{text(["pricing", "creditCta"])}</Link>
             </p>

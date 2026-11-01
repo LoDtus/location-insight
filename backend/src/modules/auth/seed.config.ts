@@ -6,11 +6,13 @@ export const SEED_PASSWORD = '12345678';
 export const SEED_ACCOUNTS = [
   {
     email: 'admin@location-insight.local',
+    username: 'quan-tri',
     displayName: 'Quản trị',
     role: UserRole.ADMIN,
   },
   {
     email: 'user@location-insight.local',
+    username: 'nguoi-dung',
     displayName: 'Người dùng',
     role: UserRole.USER,
   },

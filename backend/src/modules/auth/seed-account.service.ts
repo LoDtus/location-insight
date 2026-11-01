@@ -40,8 +40,11 @@ export class SeedAccountService implements OnModuleInit {
     if (!user) {
       user = this.users.create({
         email,
+        username: account.username,
         displayName: account.displayName,
         avatarUrl: null,
+        city: 'Hà Nội',
+        bio: '',
         role: account.role,
         status: UserStatus.ACTIVE,
         passwordHash: null,
@@ -51,7 +54,7 @@ export class SeedAccountService implements OnModuleInit {
       });
     }
 
-    user.displayName = account.displayName;
+    if (!user.username) user.username = account.username;
     user.role = account.role;
     user.status = UserStatus.ACTIVE;
     if (!user.emailVerifiedAt) user.emailVerifiedAt = new Date();

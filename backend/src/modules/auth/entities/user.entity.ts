@@ -23,6 +23,16 @@ export class UserEntity extends AppBaseEntity {
   @Column({ type: 'varchar', length: 512, name: 'avatar_url', nullable: true })
   avatarUrl: string | null;
 
+  @Index('uk_users_username', { unique: true, where: 'username IS NOT NULL' })
+  @Column({ type: 'varchar', length: 40, nullable: true })
+  username: string | null;
+
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  city: string | null;
+
+  @Column({ type: 'varchar', length: 500, default: '' })
+  bio: string;
+
   @Index('idx_users_role')
   @Column({ type: 'varchar', length: 20, default: UserRole.USER })
   role: UserRole.USER | UserRole.ADMIN;

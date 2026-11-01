@@ -127,7 +127,7 @@ export function OrderScreen({ root }: { root: ShellRoot }) {
                     </>
                 ) : null}
                 <p className="m-0 text-sm">
-                    <Link href={`${root}/goi`}>Gói của tôi</Link>
+                    <Link href={`${root}/plans`}>Gói của tôi</Link>
                 </p>
             </section>
         </main>

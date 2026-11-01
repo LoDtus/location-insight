@@ -47,7 +47,7 @@ export function CheckoutScreen({ root }: { root: ShellRoot }) {
                     ? { kind: "valuation_credit" }
                     : { kind: "subscription", plan, cycle },
             );
-            router.push(`${root}/thanh-toan/${order.id}`);
+            router.push(`${root}/payments/${order.id}`);
         } catch (error) {
             setMessage(error instanceof AuthApiError ? error.message : "Chưa tạo được đơn.");
             setPending(false);
@@ -95,7 +95,7 @@ export function CheckoutScreen({ root }: { root: ShellRoot }) {
                     {pending ? "Đang tạo mã" : "Tạo mã chuyển khoản"}
                 </button>
                 <p className="m-0 text-sm">
-                    <Link href={`${root}/goi`}>Gói của tôi</Link>
+                    <Link href={`${root}/plans`}>Gói của tôi</Link>
                 </p>
             </form>
         </main>

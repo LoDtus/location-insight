@@ -110,7 +110,7 @@ export function RefundScreen({ root }: { root: ShellRoot }) {
                     Gửi yêu cầu
                 </button>
                 <p className="m-0 text-sm">
-                    <Link href={`${root}/goi`}>Về gói của tôi</Link>
+                    <Link href={`${root}/plans`}>Về gói của tôi</Link>
                 </p>
             </form>
         </main>

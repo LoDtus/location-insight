@@ -1,0 +1,14 @@
+sequenceDiagram
+    autonumber
+    participant U as Người dùng
+    participant B as Trình duyệt
+    participant A as Backend /map
+    participant V as Vietmap
+    U->>B: chọn điểm đi, điểm đến, loại xe
+    B->>A: GET /map/route?from=lat,lng&to=lat,lng&vehicle&alternatives
+    A->>A: validate (hộp bao VN, vehicle ∈ {car, motorcycle})
+    A->>V: Route v4 (points_encoded=false, annotations=congestion)
+    V-->>A: paths[]
+    A->>A: chuẩn hóa → MapRoute[] (geometry [lng,lat])
+    A-->>B: MapRoute[]
+    B->>B: setData(source "route") + fitBounds + danh sách bước

@@ -1,0 +1,28 @@
+sequenceDiagram
+    autonumber
+    participant U as Người dùng
+    participant B as Trình duyệt (map-search)
+    participant A as Backend /map
+    participant R as Redis
+    participant V as Vietmap
+    U->>B: gõ "hồ gươm"
+    B->>B: debounce 250 ms, ≥2 ký tự, hủy request cũ
+    B->>A: GET /map/search?text&lat&lng
+    A->>A: auth + map:use + validate + giới hạn người dùng
+    A->>R: GET cache(text chuẩn hóa, focus làm tròn)
+    alt cache hit
+        R-->>A: gợi ý
+    else miss
+        A->>R: ngân sách ngày INCR
+        A->>V: Autocomplete v4 (display_type=6, khóa API)
+        V-->>A: kết quả thô
+        A->>A: chuẩn hóa, cắt, ẩn khóa
+        A->>R: SET cache 5 phút
+    end
+    A-->>B: MapSuggestion[]
+    U->>B: chọn một gợi ý
+    B->>A: GET /map/places/resolve?refId
+    A->>V: Place v4 (khóa API)
+    V-->>A: lat/lng + địa chỉ
+    A-->>B: MapPlace
+    B->>B: flyTo + ghim + panel địa điểm

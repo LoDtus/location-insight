@@ -1,0 +1,118 @@
+openapi: 3.0.3
+info:
+  title: Địa Thế — Bản đồ (Vietmap)
+  version: 0.1.0
+  description: |
+    Tiền tố `/api/v1`. Phản hồi bọc trong envelope chung `{success,status,data,error}`; lỗi nghiệp vụ có `error.details.code`.
+    Phân quyền: `map:use` (người dùng đã đăng nhập, gồm admin); `admin:access` cho `/admin/map/usage`.
+    Khóa Vietmap không bao giờ xuất hiện trong request/response (trừ style URL ở /map/config có khóa Tilemap).
+paths:
+  /map/config:
+    get:
+      summary: Cấu hình bản đồ cho client
+      x-permission: map:use
+      x-rate-limit: 30/phút/người dùng
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/MapConfig" } } } }
+        "401": { description: Chưa đăng nhập }
+        "403": { description: Không có map:use }
+  /map/search:
+    get:
+      summary: Gợi ý địa điểm (Autocomplete v4)
+      x-permission: map:use
+      x-rate-limit: 90/phút/người dùng
+      parameters:
+        - { name: text, in: query, required: true, schema: { type: string, minLength: 2, maxLength: 120 } }
+        - { name: lat, in: query, schema: { type: number, minimum: 8, maximum: 24 }, description: Tâm ưu tiên (focus); mặc định Hà Nội }
+        - { name: lng, in: query, schema: { type: number, minimum: 102, maximum: 110 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 10, default: 8 } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/MapSuggestion" } } } } }
+        "422": { description: Đầu vào không hợp lệ }
+        "429": { description: Vượt giới hạn người dùng (details.retryAfter) }
+        "503": { description: Hết ngân sách ngày / upstream lỗi / cầu dao mở }
+  /map/places/resolve:
+    get:
+      summary: ref_id → tọa độ (Place v4)
+      x-permission: map:use
+      x-rate-limit: 30/phút/người dùng
+      parameters:
+        - { name: refId, in: query, required: true, schema: { type: string, maxLength: 1500, pattern: '^[A-Za-z0-9_:.\-]+$' } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/MapPlace" } } } }
+        "404": { description: ref_id không còn hợp lệ }
+  /map/reverse:
+    get:
+      summary: Tọa độ → địa chỉ (Reverse v4)
+      x-permission: map:use
+      x-rate-limit: 30/phút/người dùng
+      parameters:
+        - { name: lat, in: query, required: true, schema: { type: number, minimum: 8, maximum: 24 } }
+        - { name: lng, in: query, required: true, schema: { type: number, minimum: 102, maximum: 110 } }
+      responses:
+        "200": { description: OK; null nếu không có địa chỉ gần, content: { application/json: { schema: { $ref: "#/components/schemas/MapPlace" } } } }
+  /map/route:
+    get:
+      summary: Tìm đường (Route v4)
+      x-permission: map:use
+      x-rate-limit: 20/phút/người dùng
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, example: "21.0285,105.8542" }, description: "lat,lng" }
+        - { name: to, in: query, required: true, schema: { type: string, example: "21.0045,105.8430" }, description: "lat,lng" }
+        - { name: vehicle, in: query, schema: { type: string, enum: [car, motorcycle], default: motorcycle } }
+        - { name: alternatives, in: query, schema: { type: boolean, default: false } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/MapRoute" } } } } }
+        "404": { description: Không tìm được đường }
+  /admin/map/usage:
+    get:
+      summary: Bộ đếm hôm nay (gọi upstream, cache hit) và ngân sách
+      x-permission: admin:access
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/MapUsage" } } } }
+components:
+  schemas:
+    MapConfig:
+      type: object
+      properties:
+        styles: { type: array, items: { type: object, properties: { id: { type: string, enum: [tm, lm, dm, hm] }, url: { type: string } } } }
+        trafficStyleUrl: { type: string, nullable: true }
+        center: { type: array, items: { type: number }, minItems: 2, maxItems: 2, description: "[lng,lat]" }
+        zoom: { type: number }
+        maxBounds: { type: array, items: { type: number }, minItems: 4, maxItems: 4 }
+        searchEnabled: { type: boolean }
+        tilesEnabled: { type: boolean }
+    MapSuggestion:
+      type: object
+      properties:
+        refId: { type: string }
+        name: { type: string }
+        address: { type: string }
+        addressOld: { type: string, nullable: true }
+        display: { type: string }
+        distanceKm: { type: number, nullable: true }
+    MapPlace:
+      type: object
+      properties:
+        lat: { type: number }
+        lng: { type: number }
+        name: { type: string }
+        address: { type: string }
+        addressOld: { type: string, nullable: true }
+        display: { type: string }
+    MapRoute:
+      type: object
+      properties:
+        distanceM: { type: number }
+        durationS: { type: number }
+        bbox: { type: array, items: { type: number }, minItems: 4, maxItems: 4 }
+        geometry: { type: array, items: { type: array, items: { type: number }, minItems: 2, maxItems: 2 } }
+        steps: { type: array, items: { type: object, properties: { text: { type: string }, distanceM: { type: number }, durationS: { type: number }, sign: { type: integer }, street: { type: string } } } }
+        congestion: { type: array, nullable: true, items: { type: string, enum: [low, moderate, heavy, severe, unknown] } }
+    MapUsage:
+      type: object
+      properties:
+        date: { type: string, format: date }
+        budget: { type: integer, description: 0 = không giới hạn }
+        upstream: { type: object, additionalProperties: { type: integer } }
+        cacheHits: { type: object, additionalProperties: { type: integer } }

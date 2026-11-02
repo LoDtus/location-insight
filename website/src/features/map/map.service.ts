@@ -1,0 +1,75 @@
+import { AuthApiError, apiRequest } from "@/features/auth/auth.api";
+import type {
+    MapConfig,
+    MapPlace,
+    MapPoint,
+    MapRoute,
+    MapSuggestion,
+    MapUsage,
+    RouteVehicle,
+} from "@/features/map/map.types";
+
+function withSignal(signal?: AbortSignal): RequestInit {
+    return signal ? { signal } : {};
+}
+
+export function getMapConfig(signal?: AbortSignal): Promise<MapConfig> {
+    return apiRequest("/map/config", withSignal(signal));
+}
+
+export function searchPlaces(
+    text: string,
+    focus: MapPoint | null,
+    signal?: AbortSignal,
+): Promise<MapSuggestion[]> {
+    const query = new URLSearchParams({ text, limit: "8" });
+    if (focus) {
+        query.set("lat", String(focus.lat));
+        query.set("lng", String(focus.lng));
+    }
+    return apiRequest(`/map/search?${query.toString()}`, withSignal(signal));
+}
+
+export function resolvePlace(refId: string, signal?: AbortSignal): Promise<MapPlace> {
+    const query = new URLSearchParams({ refId });
+    return apiRequest(`/map/places/resolve?${query.toString()}`, withSignal(signal));
+}
+
+export function reverseGeocode(point: MapPoint, signal?: AbortSignal): Promise<MapPlace | null> {
+    const query = new URLSearchParams({ lat: String(point.lat), lng: String(point.lng) });
+    return apiRequest(`/map/reverse?${query.toString()}`, withSignal(signal));
+}
+
+export function getRoutes(
+    from: MapPoint,
+    to: MapPoint,
+    vehicle: RouteVehicle,
+    signal?: AbortSignal,
+): Promise<MapRoute[]> {
+    const query = new URLSearchParams({
+        from: `${from.lat},${from.lng}`,
+        to: `${to.lat},${to.lng}`,
+        vehicle,
+        alternatives: "true",
+    });
+    return apiRequest(`/map/route?${query.toString()}`, withSignal(signal));
+}
+
+export function getMapUsage(signal?: AbortSignal): Promise<MapUsage> {
+    return apiRequest("/admin/map/usage", withSignal(signal));
+}
+
+export function isAbortError(error: unknown): boolean {
+    return error instanceof DOMException && error.name === "AbortError";
+}
+
+/** Thông điệp tiếng Việt cho người dùng; không lộ chi tiết kỹ thuật. */
+export function mapErrorMessage(error: unknown, fallback: string): string {
+    if (error instanceof AuthApiError) {
+        if (error.status === 429) return "Bạn thao tác hơi nhanh, vui lòng thử lại sau ít giây.";
+        if (error.status === 404 || error.status === 422 || error.status === 503) {
+            return error.message || fallback;
+        }
+    }
+    return fallback;
+}

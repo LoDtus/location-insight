@@ -5,7 +5,12 @@ const SIDEBAR_ACTIONS = [
     { id: "listings", label: "Rao bán", icon: Megaphone },
 ] as const;
 
-export default function MapSidebar() {
+interface MapSidebarProps {
+    /** Chỉ admin có: mở thẻ mức dùng Vietmap. */
+    onSettings?: () => void;
+}
+
+export default function MapSidebar({ onSettings }: MapSidebarProps) {
     return (
         <aside
             aria-label="Thao tác bản đồ"
@@ -33,6 +38,7 @@ export default function MapSidebar() {
                 <button
                     type="button"
                     className="flex w-full flex-col items-center gap-1 px-1 text-center"
+                    onClick={onSettings}
                 >
                     <Settings size={22} strokeWidth={1.75} />
                     <span className="text-[11px] leading-tight text-neutral-800">

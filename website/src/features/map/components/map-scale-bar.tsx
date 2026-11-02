@@ -1,51 +1,23 @@
-const SCALE_BAR_PX = 56;
+import { niceScale } from "@/features/map/map.geo";
 
-function niceMeters(value: number): number {
-    const steps = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000];
-    let closest = steps[0];
+const DEFAULT_LATITUDE = 21.03;
 
-    for (const step of steps) {
-        if (Math.abs(step - value) < Math.abs(closest - value)) {
-            closest = step;
-        }
-    }
-
-    return closest;
+interface MapScaleBarProps {
+    zoom: number;
+    /** Vĩ độ giữa màn hình; mặc định Hà Nội. */
+    latitude?: number;
 }
 
-function formatScaleLabel(meters: number): string {
-    if (meters >= 1000) {
-        return `${meters / 1000} km`;
-    }
-
-    return `${meters} m`;
-}
-
-function scaleBarForZoom(zoom: number): { label: string; barPx: number } {
-    const rawMeters = 3200 / Math.pow(2, zoom - 11);
-    const meters = niceMeters(rawMeters);
-
-    return {
-        label: formatScaleLabel(meters),
-        barPx: SCALE_BAR_PX,
-    };
-}
-
-export default function MapScaleBar({ zoom }: { zoom: number }) {
-    const scale = scaleBarForZoom(zoom);
+export default function MapScaleBar({ zoom, latitude = DEFAULT_LATITUDE }: MapScaleBarProps) {
+    const scale = niceScale(zoom, latitude);
 
     return (
         <div
-            className="pointer-events-none absolute bottom-3 left-1/2 flex -translate-x-1/2 flex-col items-center gap-0.5"
+            className="pointer-events-none absolute bottom-3 left-1/2 flex -translate-x-1/2 flex-col items-center gap-0.5 rounded bg-white/70 px-1.5 py-0.5"
             aria-hidden
         >
-            <span className="text-[10px] leading-none text-neutral-800">
-                {scale.label}
-            </span>
-            <span
-                className="block h-0.5 bg-neutral-800"
-                style={{ width: scale.barPx }}
-            />
+            <span className="text-[10px] leading-none text-neutral-800">{scale.label}</span>
+            <span className="block h-0.5 bg-neutral-800" style={{ width: scale.px }} />
         </div>
     );
 }

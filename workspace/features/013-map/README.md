@@ -109,6 +109,7 @@ interface MapRoute {
   bbox: [number, number, number, number];            // [minLng,minLat,maxLng,maxLat]
   geometry: Array<[number, number]>;                  // [lng,lat]
   steps: Array<{ text: string; distanceM: number; durationS: number; sign: number; street: string }>;
+  /** Phần tử i = mức tắc của đoạn giữa đỉnh i và i+1 (độ dài = geometry − 1); null nếu không có dữ liệu. */
   congestion: Array<'low'|'moderate'|'heavy'|'severe'|'unknown'> | null;
 }
 ```
@@ -167,7 +168,11 @@ Các khóa dùng khi phát triển đã được ghi vào `.env.development` (b�
 | Proxy tile qua backend | Tốn băng thông, mất cache; khóa Tilemap có hạn chế domain là đủ | Nếu Vietmap không hỗ trợ hạn chế domain cho gói đang dùng |
 | Lưu lịch sử tìm kiếm/địa điểm ở DB | Chưa có yêu cầu; vị trí là dữ liệu cá nhân | Khi làm "Đã lưu" (`place:save`) — sẽ lưu `lat/lng`, không lưu `ref_id` |
 
-## 10. Tiêu chí nghiệm thu
+## 10. Trạng thái triển khai (02/11/2026)
+
+Backend `backend/src/modules/map/` (controller, service, client, mapper có test) và frontend `website/src/features/map/` (`map-canvas`, `place-search-box`, `map-place-panel`, `map-directions-panel`, `map-layer-picker`, `map-usage-card`, hooks) đã chạy trên `/app/map` và `/admin/map`. Đã kiểm tra tay trên stack dev: gợi ý (1 request cho 7 phím gõ nhờ debounce), chọn → Place, bấm bản đồ → Reverse, tìm đường có tô màu tắc, đổi 4 lớp nền giữ nguyên tuyến, cache hit ở lần gọi lặp, key không xuất hiện trong HTML/bundle/log. Chưa làm được trong môi trường này: C1–C7 (Console tài khoản Trial chỉ xem), lớp giao thông (Traffic chưa bật trên key), kiểm tra tải.
+
+## 11. Tiêu chí nghiệm thu
 
 | # | Tiêu chí |
 | --- | --- |

@@ -9,6 +9,7 @@ import { UserEntity, UserStatus } from '../auth/entities/user.entity.js';
 import { rowsOf } from '../messaging/messaging-db.js';
 import { invalid, notFound, tooMany, unavailable } from '../messaging/messaging-errors.js';
 import { isUuid, readCursor, writeCursor } from '../messaging/messaging-rules.js';
+import { NotificationsService } from '../notification/notification.service.js';
 import { UserFollowEntity } from './entities/user-follow.entity.js';
 
 export const FOLLOW_LIMITS = {
@@ -52,6 +53,7 @@ export class FollowService {
     private readonly dataSource: DataSource,
     private readonly redis: RedisService,
     private readonly email: EmailService,
+    private readonly notifications: NotificationsService,
     @InjectRepository(UserEntity) private readonly users: Repository<UserEntity>,
     @InjectRepository(UserFollowEntity) private readonly follows: Repository<UserFollowEntity>,
   ) {}
@@ -311,6 +313,14 @@ export class FollowService {
         profile_url: `${origin}/app/profile/${follower.username ?? follower.id}`,
       },
       dedupeKey: `new_follower:${followerId}:${targetId}`,
+    });
+    await this.notifications.notify({
+      userId: target.id,
+      type: 'follow.new',
+      link: `/app/profile/${follower.username ?? follower.id}`,
+      params: { actorName: follower.displayName },
+      actorId: follower.id,
+      dedupeKey: `follow.new:${followerId}:${targetId}`,
     });
   }
 

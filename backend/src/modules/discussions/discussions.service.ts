@@ -7,6 +7,8 @@ import { RedisService } from '../../integrations/redis/redis.service.js';
 import { StorageService } from '../../integrations/storage/storage.service.js';
 import { ErrorCode } from '../../shared/constants/error-code.constant.js';
 import { UserEntity } from '../auth/entities/user.entity.js';
+import { NotificationsService } from '../notification/notification.service.js';
+import { UserRole } from '../rbac/authorization.types.js';
 import { Principal } from '../rbac/authorization.types.js';
 import { AdminAuditLogEntity } from '../rbac/entities/admin-audit-log.entity.js';
 import { plainText, sniffMedia } from './discussion-text.js';
@@ -88,6 +90,7 @@ export class DiscussionsService {
     private readonly users: Repository<UserEntity>,
     @InjectRepository(AdminAuditLogEntity)
     private readonly audits: Repository<AdminAuditLogEntity>,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async listTopics(query?: string, cursor?: string) {
@@ -247,6 +250,24 @@ export class DiscussionsService {
       return post;
     });
     const [view] = await this.present([saved], userId);
+    if (saved.rootId) {
+      const root = await this.posts.findOne({ where: { id: saved.rootId } });
+      if (root && root.authorId !== userId) {
+        const [actor, author] = await Promise.all([
+          this.users.findOne({ where: { id: userId } }),
+          this.users.findOne({ where: { id: root.authorId } }),
+        ]);
+        const rootPath = author?.role === UserRole.ADMIN ? '/admin' : '/app';
+        void this.notifications.notify({
+          userId: root.authorId,
+          type: 'discussion.reply',
+          link: `${rootPath}/feed/${root.id}`,
+          params: { actorName: actor?.displayName ?? 'Một người dùng', preview: saved.body.slice(0, 80) },
+          actorId: userId,
+          collapseKey: `discussion.reply:${root.id}`,
+        });
+      }
+    }
     return view;
   }
 

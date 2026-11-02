@@ -3,7 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore, type JSX, type ReactNode } from "react";
 
-import { useUnreadBadge } from "@/features/messaging/messaging-provider";
+import { useNotificationUnread } from "@/features/notification/notification-badge";
 import { InstallGuide } from "@/features/pwa/components/install-guide";
 import { InstallPrompt } from "@/features/pwa/components/install-prompt";
 import { OfflineBar } from "@/features/pwa/components/offline-bar";
@@ -45,7 +45,7 @@ export function PwaProvider({ children }: { children: ReactNode }): JSX.Element 
     const pathname = usePathname();
     const search = useSearchParams();
     const router = useRouter();
-    const unread = useUnreadBadge();
+    const notices = useNotificationUnread();
     const [installEvent, setInstallEvent] = useState<InstallEvent | null>(null);
     const [offer, setOffer] = useState(false);
     const [guide, setGuide] = useState(false);
@@ -66,8 +66,8 @@ export function PwaProvider({ children }: { children: ReactNode }): JSX.Element 
 
     useEffect(() => {
         if (!standaloneDisplay()) return;
-        void syncBadge(unread).catch(() => undefined);
-    }, [unread]);
+        void syncBadge(notices.count).catch(() => undefined);
+    }, [notices.count]);
 
     useEffect(() => {
         function onInstallable(event: Event): void {
@@ -92,11 +92,14 @@ export function PwaProvider({ children }: { children: ReactNode }): JSX.Element 
         if (!("serviceWorker" in navigator)) return;
         const onMessage = (event: MessageEvent) => {
             if (!(event.source instanceof ServiceWorker)) return;
-            const data = event.data as { type?: string; url?: string } | null;
+            const data = event.data as { type?: string; url?: string; id?: string } | null;
             if (!data) return;
             if (data.type === "navigate" && typeof data.url === "string") {
                 const target = notificationTarget(data.url, window.location.origin);
-                if (isAppPath(new URL(target, window.location.origin).pathname)) router.push(target);
+                if (isAppPath(new URL(target, window.location.origin).pathname)) {
+                    window.dispatchEvent(new CustomEvent("notification:open", { detail: data.id }));
+                    router.push(target);
+                }
             }
             if (data.type === "resubscribe") {
                 window.dispatchEvent(new Event("pwa:resubscribe"));

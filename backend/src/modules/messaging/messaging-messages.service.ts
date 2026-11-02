@@ -3,6 +3,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { v7 as uuidv7 } from 'uuid';
 import { DiscussionPostEntity } from '../discussions/entities/discussion-post.entity.js';
+import { UserEntity } from '../auth/entities/user.entity.js';
+import { NotificationsService } from '../notification/notification.service.js';
+import { UserRole } from '../rbac/authorization.types.js';
 import { ListMessagesQueryDto, SendMessageDto } from './dto/messaging.dto.js';
 import { MessagingAccessService } from './messaging-access.service.js';
 import { MessagingConversationsService } from './messaging-conversations.service.js';
@@ -44,6 +47,9 @@ export class MessagingMessagesService {
     private readonly reactions: Repository<MessageReactionEntity>,
     @InjectRepository(DiscussionPostEntity)
     private readonly posts: Repository<DiscussionPostEntity>,
+    @InjectRepository(UserEntity)
+    private readonly users: Repository<UserEntity>,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async list(userId: string, conversationId: string, query: ListMessagesQueryDto) {
@@ -164,6 +170,20 @@ export class MessagingMessagesService {
       });
     }
     await this.events.publish(MESSAGING_CHANNELS.unread, [m.peerId], {});
+    const [actor, peer] = await Promise.all([
+      this.users.findOne({ where: { id: userId } }),
+      this.users.findOne({ where: { id: m.peerId } }),
+    ]);
+    const rootPath = peer?.role === UserRole.ADMIN ? '/admin' : '/app';
+    void this.notifications.notify({
+      userId: m.peerId,
+      type: 'message.new',
+      link: `${rootPath}/messages/${conversationId}`,
+      params: { actorName: actor?.displayName ?? 'Một người dùng', preview: message.body?.slice(0, 80) ?? 'Tin nhắn mới' },
+      actorId: userId,
+      dedupeKey: `message.new:${message.id}`,
+      collapseKey: `message.new:${conversationId}`,
+    });
     return { message, created: true };
   }
 

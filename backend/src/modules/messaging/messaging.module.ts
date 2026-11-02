@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { FollowModule } from '../follow/follow.module.js';
+import { NotificationModule } from '../notification/notification.module.js';
 import { AuthModule } from '../auth/auth.module.js';
 import { UserEntity } from '../auth/entities/user.entity.js';
 import { DiscussionPostEntity } from '../discussions/entities/discussion-post.entity.js';
@@ -33,6 +34,7 @@ import { MessagingController } from './messaging.controller.js';
   imports: [
     AuthModule,
     FollowModule,
+    NotificationModule,
     TypeOrmModule.forFeature([
       ConversationEntity,
       ConversationParticipantEntity,

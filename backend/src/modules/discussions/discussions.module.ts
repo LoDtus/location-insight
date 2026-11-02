@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserEntity } from '../auth/entities/user.entity.js';
+import { NotificationModule } from '../notification/notification.module.js';
 import { AdminAuditLogEntity } from '../rbac/entities/admin-audit-log.entity.js';
 import { DiscussionsAdminController } from './discussions-admin.controller.js';
 import { DiscussionsMaintenanceService } from './discussions-maintenance.service.js';
@@ -22,6 +23,7 @@ import { DiscussionTopicEntity } from './entities/discussion-topic.entity.js';
       UserEntity,
       AdminAuditLogEntity,
     ]),
+    NotificationModule,
   ],
   controllers: [DiscussionsController, DiscussionsAdminController],
   providers: [

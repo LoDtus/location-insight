@@ -160,6 +160,16 @@ export class RealtimeGateway
     return { type: 'pong' };
   }
 
+  @SubscribeMessage('presence.visible')
+  async presence(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: unknown,
+  ): Promise<void> {
+    const context = this.contextOrNull(client);
+    if (!context) return;
+    await this.registry.runEvent('presence.visible', context, payload).catch(() => undefined);
+  }
+
   @SubscribeMessage('typing')
   async typing(
     @ConnectedSocket() client: Socket,

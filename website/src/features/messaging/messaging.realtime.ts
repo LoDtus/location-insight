@@ -125,6 +125,7 @@ export class RealtimeClient {
             this.attempt = 0;
             this.handlers?.onStatus("online");
             this.startPing();
+            this.emitPresence();
             this.handlers?.onOpen();
         });
         socket.on("realtime.close", (payload: { code?: number }) => {
@@ -137,6 +138,11 @@ export class RealtimeClient {
         socket.on("connect_error", () => this.lost());
         for (const name of SERVER_EVENTS) {
             socket.on(name, (payload: unknown) => this.handlers?.onEvent(name, payload));
+        }
+        for (const name of ["notification.created", "notification.changed"] as const) {
+            socket.on(name, (payload: unknown) => {
+                window.dispatchEvent(new CustomEvent("notification:event", { detail: { name, payload } }));
+            });
         }
     }
 
@@ -174,7 +180,12 @@ export class RealtimeClient {
         this.stopPing();
         this.pingTimer = setInterval(() => {
             this.socket?.emit("ping");
+            this.emitPresence();
         }, PING_MS);
+    }
+
+    private emitPresence(): void {
+        this.socket?.emit("presence.visible", { type: "presence.visible", visible: document.visibilityState === "visible" });
     }
 
     private stopPing(): void {

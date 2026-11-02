@@ -24,6 +24,7 @@ export type Permission =
   | 'account:delete'
   | 'billing:read'
   | 'notification:read'
+  | 'notification:update'
   | 'place:save'
   | 'place:note'
   | 'analysis:run'

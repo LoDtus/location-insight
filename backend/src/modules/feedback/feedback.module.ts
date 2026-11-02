@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EmailModule } from '../email/email.module.js';
+import { NotificationModule } from '../notification/notification.module.js';
 import { UserEntity } from '../auth/entities/user.entity.js';
 import { AdminAuditLogEntity } from '../rbac/entities/admin-audit-log.entity.js';
 import { FeedbackMediaEntity } from './entities/feedback-media.entity.js';
@@ -21,6 +22,7 @@ import { SeedFeedbackService } from './seed-feedback.service.js';
       AdminAuditLogEntity,
     ]),
     EmailModule,
+    NotificationModule,
   ],
   controllers: [FeedbackController, FeedbackAdminController],
   providers: [FeedbackService, FeedbackMaintenanceService, SeedFeedbackService],

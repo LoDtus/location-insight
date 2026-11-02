@@ -3,6 +3,7 @@
 import Image from "next/image";
 import {
     BadgeCheck,
+    Bell,
     Download,
     House,
     Mail,
@@ -28,6 +29,7 @@ import { usePwaInstall } from "@/features/pwa/components/pwa-provider";
 import { useAuth } from "@/features/auth/use-auth";
 import { useFeedbackBadge } from "@/features/feedback/use-feedback-badge";
 import { useUnreadBadge } from "@/features/messaging/messaging-provider";
+import { useNotificationUnread } from "@/features/notification/notification-badge";
 import { useLocale } from "@/shared/hooks/useLocale";
 
 type NavItem = {
@@ -71,6 +73,7 @@ export default function AppSidebar({
     const { locale } = useLocale();
     const auth = useAuth();
     const unread = useUnreadBadge();
+    const notices = useNotificationUnread();
     const pwa = usePwaInstall();
     const feedbackBadge = useFeedbackBadge(surface);
     const [collapsed, setCollapsed] = useState(false);
@@ -141,6 +144,13 @@ export default function AppSidebar({
                   },
                   {
                       kind: "item",
+                      href: "/admin/notification",
+                      icon: Bell,
+                      label: vi ? "Thông báo" : "Notifications",
+                      badge: notices.count || undefined,
+                  },
+                  {
+                      kind: "item",
                       href: "/admin/feedback",
                       icon: MessageSquareHeart,
                       label: vi ? "Góp ý" : "Feedback",
@@ -204,6 +214,13 @@ export default function AppSidebar({
                   },
                   {
                       kind: "item",
+                      href: "/app/notification",
+                      icon: Bell,
+                      label: vi ? "Thông báo" : "Notifications",
+                      badge: notices.count || undefined,
+                  },
+                  {
+                      kind: "item",
                       href: "/app/feedback",
                       icon: MessageSquareHeart,
                       label: vi ? "Góp ý" : "Feedback",
@@ -241,7 +258,7 @@ export default function AppSidebar({
             />
         ) : null}
         <aside
-            className={`flex shrink-0 flex-col border-r border-charcoal/15 transition-[width] duration-200 motion-reduce:transition-none ${surface === "admin" ? "bg-white" : "bg-cream"} ${onMap ? "fixed inset-y-0 left-0 z-50" : "relative h-full"} ${compact ? "w-[72px]" : "w-[272px]"}`}
+            className={`flex shrink-0 flex-col border-r border-charcoal/15 bg-white transition-[width] duration-200 motion-reduce:transition-none ${onMap ? "fixed inset-y-0 left-0 z-50" : "relative h-full"} ${compact ? "w-[72px]" : "w-[272px]"}`}
             role={onMap && drawerOpen ? "dialog" : undefined}
             aria-modal={onMap && drawerOpen ? true : undefined}
             aria-label={onMap && drawerOpen ? (vi ? "Menu" : "Menu") : undefined}

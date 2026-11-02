@@ -22,6 +22,7 @@ export const USER_PERMISSIONS = [
   'account:delete',
   'billing:read',
   'notification:read',
+  'notification:update',
   'place:save',
   'place:note',
   'analysis:run',

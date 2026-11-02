@@ -29,6 +29,7 @@ import {
 import { AuthEventEntity } from './entities/auth-event.entity.js';
 import { UserEntity } from './entities/user.entity.js';
 import { AuthRateLimitService } from './auth-rate-limit.service.js';
+import { NotificationPushService } from '../notification/notification-push.service.js';
 import { TokenService } from './token.service.js';
 
 export interface IssuedSession {
@@ -54,6 +55,8 @@ export class SessionService {
     private readonly limits: AuthRateLimitService,
     @Inject(forwardRef(() => AuthzCacheService))
     private readonly authz: AuthzCacheService,
+    @Inject(forwardRef(() => NotificationPushService))
+    private readonly pushDevices: NotificationPushService,
   ) {}
 
   async open(input: {
@@ -255,6 +258,13 @@ export class SessionService {
       await this.revoke(session, reason, null);
       revoked += 1;
     }
+    const suspendReason =
+      reason === SessionRevokeReason.PASSWORD_CHANGED
+        ? 'password_changed'
+        : reason === SessionRevokeReason.ACCOUNT_LOCKED
+          ? 'locked'
+          : 'sessions_revoked';
+    await this.pushDevices.suspendAll(userId, suspendReason).catch(() => undefined);
     return revoked;
   }
 

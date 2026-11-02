@@ -2,6 +2,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EmailModule } from '../email/email.module.js';
+import { NotificationModule } from '../notification/notification.module.js';
 import { RbacModule } from '../rbac/rbac.module.js';
 import { AuthController } from './auth.controller.js';
 import { AuthConfig } from './auth.config.js';
@@ -36,6 +37,7 @@ import { TokenService } from './token.service.js';
       AuthEventEntity,
     ]),
     forwardRef(() => RbacModule),
+    forwardRef(() => NotificationModule),
     EmailModule,
   ],
   controllers: [AuthController, ProfileController, RealtimeController],

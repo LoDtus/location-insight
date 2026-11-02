@@ -3,6 +3,7 @@
 import { useEffect, type ReactNode } from "react";
 
 import { useAuth } from "@/features/auth/use-auth";
+import { NotificationProvider } from "@/features/notification/components/notification-provider";
 
 import { resync, startMessaging, stopMessaging } from "./messaging.actions";
 import { useMessagingState } from "./messaging.store";
@@ -15,8 +16,6 @@ export function MessagingProvider({ children }: { children: ReactNode }) {
     const userId = auth.user?.userId ?? null;
     const enabled = auth.status === "authenticated";
     const status = useMessagingState((state) => state.realtime);
-    const inbox = useMessagingState((state) => state.unread.inbox);
-    const requests = useMessagingState((state) => state.unread.requests);
 
     useEffect(() => {
         if (!enabled || !userId) return;
@@ -34,21 +33,7 @@ export function MessagingProvider({ children }: { children: ReactNode }) {
         return () => clearInterval(timer);
     }, [enabled, status]);
 
-    useEffect(() => {
-        const total = inbox + requests;
-        const base = document.title.replace(/^\(\d+\+?\)\s/, "");
-        function apply(): void {
-            document.title = total > 0 && document.visibilityState === "hidden" ? `(${total}) ${base}` : base;
-        }
-        apply();
-        document.addEventListener("visibilitychange", apply);
-        return () => {
-            document.removeEventListener("visibilitychange", apply);
-            document.title = base;
-        };
-    }, [inbox, requests]);
-
-    return children;
+    return <NotificationProvider>{children}</NotificationProvider>;
 }
 
 export function useUnreadBadge(): number {

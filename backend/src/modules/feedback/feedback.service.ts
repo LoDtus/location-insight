@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
 import { v7 as uuidv7 } from 'uuid';
 import { EmailService } from '../email/email.service.js';
+import { NotificationsService } from '../notification/notification.service.js';
 import { RedisService } from '../../integrations/redis/redis.service.js';
 import { StorageService } from '../../integrations/storage/storage.service.js';
 import { UserEntity } from '../auth/entities/user.entity.js';
@@ -73,6 +74,7 @@ export class FeedbackService {
     private readonly redis: RedisService,
     private readonly storage: StorageService,
     private readonly email: EmailService,
+    private readonly notifications: NotificationsService,
     @InjectRepository(FeedbackEntity) private readonly feedbacks: Repository<FeedbackEntity>,
     @InjectRepository(FeedbackMediaEntity) private readonly media: Repository<FeedbackMediaEntity>,
     @InjectRepository(FeedbackReplyEntity) private readonly replies: Repository<FeedbackReplyEntity>,
@@ -214,6 +216,13 @@ export class FeedbackService {
     if (row.status === 'open') await this.feedbacks.update({ id }, { status: 'in_progress' });
     await this.audit(actor, 'feedback_reply', id, null, { replyId: reply.id }, ip);
     await this.notifyAuthor(row, reply.body);
+    void this.notifications.notify({
+      userId: row.authorId,
+      type: 'feedback.replied',
+      link: `/app/feedback/${row.id}`,
+      params: { preview: reply.body.slice(0, 80) },
+      dedupeKey: `feedback.replied:${reply.id}`,
+    });
     return this.detail(id, { forAdmin: true });
   }
 

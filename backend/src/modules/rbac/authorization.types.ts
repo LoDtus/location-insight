@@ -16,6 +16,7 @@ export type Permission =
   | 'article:view'
   | 'listing:view'
   | 'map:view'
+  | 'map:use'
   | 'analysis:demo'
   | 'profile:read'
   | 'profile:update'

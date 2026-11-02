@@ -40,6 +40,7 @@ export const USER_PERMISSIONS = [
   'email:self',
   'follow:read',
   'follow:write',
+  'map:use',
 ] as const satisfies readonly Permission[];
 
 export const ADMIN_PERMISSIONS = [

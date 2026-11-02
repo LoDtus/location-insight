@@ -28,7 +28,7 @@ paths:
         - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 10, default: 8 } }
       responses:
         "200": { description: OK, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/MapSuggestion" } } } } }
-        "422": { description: Đầu vào không hợp lệ }
+        "400": { description: Đầu vào sai schema (VALIDATION_ERROR) }
         "429": { description: Vượt giới hạn người dùng (details.retryAfter) }
         "503": { description: Hết ngân sách ngày / upstream lỗi / cầu dao mở }
   /map/places/resolve:
@@ -37,7 +37,7 @@ paths:
       x-permission: map:use
       x-rate-limit: 30/phút/người dùng
       parameters:
-        - { name: refId, in: query, required: true, schema: { type: string, maxLength: 1500, pattern: '^[A-Za-z0-9_:.\-]+$' } }
+        - { name: refId, in: query, required: true, schema: { type: string, maxLength: 1500, pattern: '^[A-Za-z0-9_:.-]+$' } }
       responses:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/MapPlace" } } } }
         "404": { description: ref_id không còn hợp lệ }
@@ -64,6 +64,7 @@ paths:
       responses:
         "200": { description: OK, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/MapRoute" } } } } }
         "404": { description: Không tìm được đường }
+        "422": { description: Tọa độ ngoài Việt Nam hoặc điểm đi trùng điểm đến }
   /admin/map/usage:
     get:
       summary: Bộ đếm hôm nay (gọi upstream, cache hit) và ngân sách

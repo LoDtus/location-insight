@@ -21,6 +21,7 @@ import { DiscussionsModule } from './modules/discussions/discussions.module.js';
 import { EmailModule } from './modules/email/email.module.js';
 import { FollowModule } from './modules/follow/follow.module.js';
 import { FeedbackModule } from './modules/feedback/feedback.module.js';
+import { MapModule } from './modules/map/map.module.js';
 import { MessagingModule } from './modules/messaging/messaging.module.js';
 import { TypeOrmDatabaseModule } from './shared/database/typeorm/typeorm.module.js';
 import { isTestRuntime } from './shared/utils/runtime.util.js';
@@ -88,7 +89,7 @@ const nodeEnv = process.env.NODE_ENV || 'development';
     UserModule,
     ...(isTestRuntime()
         ? []
-        : [AuthModule, RbacModule, BillingModule, ArticlesModule, DiscussionsModule, MessagingModule, FeedbackModule, FollowModule, EmailModule]),
+        : [AuthModule, RbacModule, BillingModule, ArticlesModule, DiscussionsModule, MessagingModule, FeedbackModule, FollowModule, EmailModule, MapModule]),
   ],
   controllers: [AppController],
   providers: [AppService],

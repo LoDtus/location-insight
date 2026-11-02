@@ -176,7 +176,7 @@ Các khóa dùng khi phát triển đã được ghi vào `.env.development` (b�
 | AC3 | Bấm bản đồ hoặc kéo ghim → địa chỉ cập nhật bằng Reverse (một lần/lần thả). |
 | AC4 | Chọn "Chỉ đường đến đây" + điểm xuất phát → vẽ tuyến, hiện quãng đường/thời gian/các bước, đổi xe máy ↔ ô tô và tuyến thay thế. |
 | AC5 | Khóa API không xuất hiện trong bundle JS, HTML, phản hồi `/map/*` hay log backend (kiểm bằng `grep` và DevTools). |
-| AC6 | Người chưa đăng nhập gọi `/map/*` → 401; không có `map:use` → 403; đầu vào ngoài hộp bao/độ dài → 422, không có request ra upstream. |
+| AC6 | Người chưa đăng nhập gọi `/map/*` → 401; không có `map:use` → 403; đầu vào sai schema/độ dài → 400 (`VALIDATION_ERROR`), tọa độ route ngoài hộp bao Việt Nam → 422, và không có request ra upstream. |
 | AC7 | Cùng truy vấn hai lần trong TTL → lần hai là cache hit (bộ đếm upstream không tăng). |
 | AC8 | Vượt hạn mức người dùng → 429 có `retryAfter`; vượt `MAP_DAILY_BUDGET` → 503 thông điệp tiếng Việt, không gọi upstream. |
 | AC9 | Upstream timeout/5xx → thông điệp lỗi thân thiện, UI không treo; 5 lỗi liên tiếp → cầu dao mở 30 s. |

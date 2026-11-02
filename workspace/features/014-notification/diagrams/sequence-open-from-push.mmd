@@ -1,0 +1,22 @@
+sequenceDiagram
+    autonumber
+    actor U as Người dùng
+    participant OS as Hệ điều hành
+    participant SW as Service worker
+    participant App as Cửa sổ ứng dụng
+    participant API as Backend
+
+    OS->>U: hiện thông báo (title, body, icon)
+    U->>OS: bấm thông báo
+    OS->>SW: notificationclick {data.url, data.id}
+    SW->>SW: notification.close(); url = new URL(data.url, origin); từ chối nếu origin khác hoặc không bắt đầu /app/ /admin/
+    SW->>SW: clients.matchAll({type:"window", includeUncontrolled:true})
+    alt có cửa sổ của ứng dụng
+        SW->>App: focus(); postMessage({type:"navigate", url, id})
+        App->>App: router.push(url)
+    else không có
+        SW->>App: clients.openWindow(url + "?n=" + id)
+    end
+    App->>API: PUT /notifications/{id}/read (nếu có id; sau xác thực phiên)
+    App->>App: xóa tham số n khỏi URL bằng replaceState
+    Note over App,API: Nếu phiên hết hạn, đăng nhập rồi quay lại link (auth giữ returnTo)

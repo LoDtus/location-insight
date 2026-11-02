@@ -1,0 +1,287 @@
+openapi: 3.0.3
+info:
+  title: Địa Thế — Thông báo
+  version: 0.1.0
+  description: |
+    Tiền tố `/api/v1`. Phản hồi bọc trong envelope chung `{success,status,data,error}`; lỗi nghiệp vụ có `error.details.code`.
+    Xác thực bằng cookie phiên; mọi ghi cần CSRF như các endpoint khác. Mọi truy vấn có phạm vi `user_id = người gọi`.
+    Quyền: `notification:read` (GET), `notification:update` (PUT/POST/DELETE). Dòng của người khác luôn `404`.
+    Giới hạn tần suất xem `redis.md`; Redis lỗi khi ghi → 503.
+paths:
+  /notifications:
+    get:
+      summary: Danh sách thông báo của tôi (con trỏ)
+      x-permission: notification:read
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+        - { name: cursor, in: query, description: "id của dòng cuối trang trước", schema: { type: string, format: uuid } }
+        - { name: filter, in: query, schema: { type: string, enum: [all, unread], default: all } }
+      responses:
+        "200":
+          description: Trang kết quả
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/Notification" } }
+                  nextCursor: { type: string, format: uuid, nullable: true }
+        "400": { description: "Tham số sai (limit ngoài khoảng, cursor không phải UUID, filter lạ)" }
+        "429": { description: Vượt giới hạn }
+  /notifications/unread-count:
+    get:
+      summary: Số chưa đọc (chặn ở 99)
+      x-permission: notification:read
+      responses:
+        "200":
+          description: Số chưa đọc
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [count, capped]
+                properties:
+                  count: { type: integer, minimum: 0, maximum: 99 }
+                  capped: { type: boolean, description: "true khi có từ 100 chưa đọc trở lên" }
+  /notifications/{id}/read:
+    put:
+      summary: Đánh dấu đã đọc một dòng (idempotent)
+      x-permission: notification:update
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "204": { description: Đã đọc (hoặc đã đọc từ trước) }
+        "404": { description: Không tồn tại hoặc không phải của tôi }
+  /notifications/{id}/unread:
+    put:
+      summary: Bỏ đánh dấu đã đọc
+      x-permission: notification:update
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "204": { description: Xong }
+        "404": { description: Không tồn tại hoặc không phải của tôi }
+  /notifications/read-batch:
+    post:
+      summary: Đánh dấu đã đọc nhiều dòng (client gom mỗi 500 ms)
+      x-permission: notification:update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids]
+              properties:
+                ids: { type: array, minItems: 1, maxItems: 50, uniqueItems: true, items: { type: string, format: uuid } }
+              additionalProperties: false
+      responses:
+        "204": { description: Xong; id không phải của tôi bị bỏ qua im lặng }
+        "400": { description: Quá 50 id hoặc id sai định dạng }
+  /notifications/read-all:
+    post:
+      summary: Đánh dấu tất cả đã đọc đến mốc `upToId`
+      x-permission: notification:update
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                upToId: { type: string, format: uuid, description: "mặc định: id mới nhất lúc nhận yêu cầu" }
+              additionalProperties: false
+      responses:
+        "200":
+          description: Số dòng đã đổi
+          content:
+            application/json:
+              schema: { type: object, required: [updated], properties: { updated: { type: integer } } }
+  /notifications/{id}:
+    delete:
+      summary: Xóa (ẩn) một dòng của tôi
+      x-permission: notification:update
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "204": { description: Đã xóa (gọi lặp vẫn 204) }
+        "404": { description: Không phải của tôi }
+  /notifications/preferences:
+    get:
+      summary: Tùy chọn thông báo
+      x-permission: notification:read
+      responses:
+        "200":
+          description: Tùy chọn hiệu lực (đã điền mặc định)
+          content: { application/json: { schema: { $ref: "#/components/schemas/Preferences" } } }
+    patch:
+      summary: Đổi tùy chọn (từng phần)
+      x-permission: notification:update
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/PreferencesPatch" } } }
+      responses:
+        "200":
+          description: Tùy chọn mới
+          content: { application/json: { schema: { $ref: "#/components/schemas/Preferences" } } }
+        "400": { description: "Nhóm lạ, hoặc cố tắt `security`" }
+  /notifications/push/config:
+    get:
+      summary: Cấu hình Web Push công khai
+      x-permission: notification:read
+      responses:
+        "200":
+          description: Cấu hình
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [enabled]
+                properties:
+                  enabled: { type: boolean, description: "false khi máy chủ chưa có khóa VAPID" }
+                  vapidPublicKey: { type: string, description: "base64url, 65 byte (P-256 chưa nén)" }
+  /notifications/push/subscriptions:
+    get:
+      summary: Thiết bị đã đăng ký (không trả khóa/endpoint)
+      x-permission: notification:read
+      responses:
+        "200":
+          description: Danh sách
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/PushDevice" } }
+    post:
+      summary: Đăng ký (hoặc cập nhật) thiết bị nhận push
+      x-permission: notification:update
+      description: |
+        Kiểm: `endpoint` https, host trong danh sách cho phép, độ dài ≤ 1000; `keys.p256dh` 65 byte, `keys.auth` 16 byte (base64url).
+        Cùng endpoint: cập nhật, không tạo mới. Tối đa 10 thiết bị; dư thì xóa thiết bị lâu không thành công nhất.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/PushSubscriptionInput" } } }
+      responses:
+        "201":
+          description: Đã đăng ký
+          content: { application/json: { schema: { $ref: "#/components/schemas/PushDevice" } } }
+        "400": { description: "Endpoint không hợp lệ/không thuộc dịch vụ push cho phép; khóa sai độ dài" }
+        "409": { description: "Khóa VAPID của đăng ký không khớp khóa hiện tại — client đăng ký lại" }
+        "429": { description: Vượt giới hạn }
+  /notifications/push/subscriptions/{id}:
+    patch:
+      summary: Bật/tắt push của một thiết bị, đổi nhãn
+      x-permission: notification:update
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                pushEnabled: { type: boolean }
+                label: { type: string, maxLength: 80 }
+              additionalProperties: false
+      responses:
+        "200": { description: Đã cập nhật, content: { application/json: { schema: { $ref: "#/components/schemas/PushDevice" } } } }
+        "404": { description: Không phải của tôi }
+    delete:
+      summary: Hủy đăng ký thiết bị
+      x-permission: notification:update
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "204": { description: Đã hủy }
+        "404": { description: Không phải của tôi }
+  /notifications/push/subscriptions/by-endpoint:
+    post:
+      summary: Hủy theo endpoint hiện tại của trình duyệt (khi trình duyệt tự đổi/hủy đăng ký)
+      x-permission: notification:update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [endpoint]
+              properties: { endpoint: { type: string, maxLength: 1000 } }
+              additionalProperties: false
+      responses:
+        "204": { description: Xong (không tiết lộ endpoint có tồn tại hay không) }
+components:
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  schemas:
+    Notification:
+      type: object
+      required: [id, type, category, icon, tone, title, createdAt, readAt, link, count]
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string, example: follow.new }
+        category: { type: string, enum: [social, messages, billing, moderation, security, admin, system] }
+        icon: { type: string, example: user-plus, description: "khóa trong danh sách cho phép" }
+        tone: { type: string, enum: [neutral, info, success, warning, danger] }
+        title: { type: string, maxLength: 120 }
+        subtitle: { type: string, maxLength: 200, nullable: true }
+        createdAt: { type: string, format: date-time }
+        readAt: { type: string, format: date-time, nullable: true }
+        link: { type: string, pattern: "^/(app|admin)/[A-Za-z0-9/_\\-?=&#.%]*$", maxLength: 300 }
+        count: { type: integer, minimum: 1 }
+    Preferences:
+      type: object
+      required: [hideContentOnLockScreen, groups]
+      properties:
+        hideContentOnLockScreen: { type: boolean }
+        groups:
+          type: object
+          properties:
+            social: { $ref: "#/components/schemas/ChannelPrefs" }
+            messages: { $ref: "#/components/schemas/ChannelPrefs" }
+            billing: { $ref: "#/components/schemas/ChannelPrefs" }
+            moderation: { $ref: "#/components/schemas/ChannelPrefs" }
+            system: { $ref: "#/components/schemas/ChannelPrefs" }
+    ChannelPrefs:
+      type: object
+      required: [inApp, push]
+      properties: { inApp: { type: boolean }, push: { type: boolean } }
+    PreferencesPatch:
+      type: object
+      properties:
+        hideContentOnLockScreen: { type: boolean }
+        groups:
+          type: object
+          additionalProperties: false
+          properties:
+            social: { $ref: "#/components/schemas/ChannelPrefs" }
+            messages: { $ref: "#/components/schemas/ChannelPrefs" }
+            billing: { $ref: "#/components/schemas/ChannelPrefs" }
+            moderation: { $ref: "#/components/schemas/ChannelPrefs" }
+            system: { $ref: "#/components/schemas/ChannelPrefs" }
+      additionalProperties: false
+    PushSubscriptionInput:
+      type: object
+      required: [endpoint, keys]
+      properties:
+        endpoint: { type: string, maxLength: 1000 }
+        expirationTime: { type: number, nullable: true }
+        keys:
+          type: object
+          required: [p256dh, auth]
+          properties:
+            p256dh: { type: string, maxLength: 120 }
+            auth: { type: string, maxLength: 40 }
+          additionalProperties: false
+        label: { type: string, maxLength: 80 }
+        installedPwa: { type: boolean }
+        vapidPublicKey: { type: string, description: "khóa client đã dùng để đăng ký, để máy chủ phát hiện lệch" }
+      additionalProperties: false
+    PushDevice:
+      type: object
+      required: [id, platform, pushEnabled, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        platform: { type: string, enum: [chrome, edge, firefox, safari, other] }
+        label: { type: string, nullable: true }
+        installedPwa: { type: boolean }
+        pushEnabled: { type: boolean }
+        lastSuccessAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }

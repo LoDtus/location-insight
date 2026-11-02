@@ -120,7 +120,7 @@ Sơ đồ: `diagrams/sequence-follow.mmd`, `diagrams/flow-block-interaction.mmd`
 ## Câu hỏi mở (Open Questions) <!-- key: open_questions -->
 
 - Có cần tài khoản khóa (duyệt yêu cầu theo dõi) ở giai đoạn sau? Đề xuất: thêm bảng `follow_requests` như Mastodon, không đổi `user_follows`.
-- Có hiện thông báo "đã theo dõi bạn" khi tính năng notification sẵn sàng?
+- Có hiện thông báo "đã theo dõi bạn" khi tính năng notification sẵn sàng? Đã có loại `follow.new` (gộp theo `collapseKey`) trong danh mục của `014-notification`; nối producer ở bước triển khai.
 
 ## Nhật ký cập nhật <!-- key: update_log -->
 

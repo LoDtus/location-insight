@@ -164,7 +164,7 @@ Sơ đồ: `diagrams/sequence-send-message.mmd`, `diagrams/sequence-reconnect-sy
 - Danh sách emoji cho phép: đề xuất 6 emoji nhanh (👍 ❤️ 😂 😮 😢 🙏) ở bản đầu, mở bảng đầy đủ sau.
 - Có cần email nhắc khi chưa đọc quá 15 phút ở bản đầu không? Đề xuất: không, làm ở bậc 2.
 - Nút "Nhắn người đăng" ở chi tiết nhà đất (`006-buying`) có đi kèm ngữ cảnh tin không? Đề xuất: giai đoạn 2, thêm `context_listing_id`.
-- Vị trí đặt `RealtimeGateway` lâu dài (module `realtime` dùng chung với `notification`)?
+- Vị trí đặt `RealtimeGateway` lâu dài (module `realtime` dùng chung với `notification`)? Đã nêu lại ở `014-notification` (câu hỏi mở); push khi người nhận không hoạt động xem `014-notification` FR-18.
 
 ## Nhật ký cập nhật <!-- key: update_log -->
 

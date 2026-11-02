@@ -1,0 +1,24 @@
+sequenceDiagram
+    autonumber
+    participant Page as Trang
+    participant B as Trình duyệt
+    participant SW as Service worker
+    participant Net as Mạng
+
+    Page->>Page: sự kiện load + requestIdleCallback
+    Page->>B: navigator.serviceWorker.register('/sw.js', {scope:'/', updateViaCache:'none'})
+    B->>Net: GET /sw.js (no-cache)
+    B->>SW: install
+    SW->>SW: precache /offline, icon (addAll)
+    B->>SW: activate
+    SW->>SW: xóa bộ nhớ đệm static-v* cũ; clients.claim() không dùng (tránh đổi mã giữa phiên)
+    Note over Page,SW: Phát hành mới: /sw.js đổi byte (BUILD_ID)
+    Page->>B: reg.update() khi tab hiện lại / mỗi 6 giờ
+    B->>SW: install (bản mới) → waiting
+    SW-->>Page: updatefound / waiting
+    Page->>Page: hiện thanh cập nhật
+    Page->>SW: postMessage SKIP_WAITING (sau khi người dùng đồng ý)
+    SW->>SW: skipWaiting()
+    B-->>Page: controllerchange
+    Page->>Page: location.reload()
+    Note over SW,Net: fetch: /_next/static, /icons ⇒ cache-first; mọi thứ khác ⇒ network-only; điều hướng lỗi mạng ⇒ /offline

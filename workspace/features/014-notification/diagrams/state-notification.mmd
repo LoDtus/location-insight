@@ -1,0 +1,10 @@
+stateDiagram-v2
+    [*] --> Unread: notify() tạo
+    Unread --> Unread: gộp (count+1)
+    Unread --> Read: đọc một dòng / đọc tất cả / bấm vào dòng
+    Read --> Unread: bỏ đọc
+    Unread --> Deleted: xóa
+    Read --> Deleted: xóa
+    Deleted --> [*]: job dọn (> 7 ngày)
+    Read --> [*]: job dọn (> 90 ngày)
+    Unread --> [*]: job dọn (> 180 ngày hoặc ngoài 500 dòng gần nhất)

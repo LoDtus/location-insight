@@ -1,0 +1,22 @@
+flowchart TD
+    A([push_outbox đến hạn]) --> B{Thông báo còn tồn tại và chưa xóa?}
+    B -- không --> X1[skipped: read_before_send]
+    B -- có --> C{Đã đọc trong thời gian chờ?}
+    C -- có --> X1
+    C -- không --> D{Loại cho phép push và nhóm bật push?}
+    D -- không, trừ security --> X2[skipped: pref_off]
+    D -- có --> E{Có đăng ký còn sống, pushEnabled?}
+    E -- không --> X3[skipped: no_subscription]
+    E -- có --> F{notif:active còn? và urgency != high}
+    F -- có --> X4[skipped: user_active]
+    F -- không --> G{Vượt 10 push/giờ và không phải security?}
+    G -- có --> H[Gộp: payload chung 'Bạn có N thông báo mới', cùng Topic]
+    G -- không --> I[Dựng payload ≤ 3 KB; ẩn nội dung nếu hideContentOnLockScreen]
+    H --> J
+    I --> J[Gửi tới mọi đăng ký bật push, song song ≤ 10]
+    J --> K{Phản hồi}
+    K -- 201 --> L[sent]
+    K -- 404/410 --> M[xóa đăng ký]
+    K -- 429/5xx/timeout --> N{attempts < 5?}
+    N -- có --> O[lùi cấp số nhân + jitter]
+    N -- không --> P[dead]

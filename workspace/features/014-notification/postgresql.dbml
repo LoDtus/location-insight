@@ -1,0 +1,125 @@
+// 014-notification — lược đồ PostgreSQL. Khóa UUID v7 (sắp theo thời gian), timestamptz UTC.
+// Quy ước: có created_at, updated_at; xóa mềm bằng deleted_at (dọn vĩnh viễn bằng job).
+
+Table notifications {
+  id uuid [pk, note: 'uuid v7 → vừa là khóa vừa là con trỏ phân trang']
+  user_id uuid [not null, note: 'người nhận; luôn là điều kiện đầu tiên của mọi truy vấn']
+  type varchar(60) [not null, note: 'khớp notification.catalog.ts, vd follow.new']
+  category varchar(20) [not null, note: 'social | messages | billing | moderation | security | admin | system']
+  icon varchar(40) [not null, note: 'khóa trong danh sách cho phép (lucide), client ánh xạ sang icon']
+  tone varchar(10) [not null, default: 'neutral', note: 'neutral | info | success | warning | danger']
+  title varchar(120) [not null, note: 'văn bản thuần']
+  subtitle varchar(200) [null]
+  link varchar(300) [not null, note: 'đường dẫn tương đối /app/... hoặc /admin/..., đã kiểm mẫu cho phép']
+  params jsonb [null, note: 'tham số dựng lại title/subtitle khi cần đa ngôn ngữ; ≤ 1 KB; không chứa dữ liệu nhạy cảm']
+  actor_id uuid [null, note: 'người gây ra hành động (nếu có) — để chặn thông báo từ người bị chặn']
+  dedupe_key varchar(120) [null, note: 'chống trùng khi producer chạy lại']
+  collapse_key varchar(120) [null, note: 'gộp các sự kiện cùng loại chưa đọc']
+  count int [not null, default: 1, note: 'số sự kiện đã gộp']
+  campaign_id uuid [null, note: 'GIAI ĐOẠN 2: chiến dịch admin; chưa có khóa ngoại']
+  read_at timestamptz [null]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null, note: 'đổi khi gộp hoặc đọc']
+  deleted_at timestamptz [null]
+
+  indexes {
+    (user_id, id) [name: 'ix_notifications_user_list', note: 'DESC; PARTIAL WHERE deleted_at IS NULL — danh sách + cuộn vô hạn']
+    (user_id, id) [name: 'ix_notifications_user_unread', note: 'DESC; PARTIAL WHERE read_at IS NULL AND deleted_at IS NULL — đếm và lọc chưa đọc']
+    (user_id, dedupe_key) [unique, name: 'uk_notifications_user_dedupe', note: 'PARTIAL WHERE dedupe_key IS NOT NULL']
+    (user_id, collapse_key) [unique, name: 'uk_notifications_user_collapse_open', note: 'PARTIAL WHERE collapse_key IS NOT NULL AND read_at IS NULL AND deleted_at IS NULL — tối đa một dòng chưa đọc cho mỗi khóa gộp']
+    (created_at) [name: 'ix_notifications_purge', note: 'cho job dọn dẹp theo lô']
+  }
+  Note: '''
+  Gộp (collapse): khi có dòng chưa đọc cùng collapse_key tạo trong 60 phút gần nhất thì UPDATE
+  count = count + 1 và subtitle mới, giữ nguyên id, phát notification.changed {op:"updated"}.
+  Danh sách máy chủ vẫn sắp theo id nên dòng gộp không nhảy lên đầu sau khi tải lại; client có thể đưa
+  dòng vừa cập nhật lên đầu cục bộ. Đánh đổi có chủ ý: con trỏ ổn định, không cần chỉ mục thứ hai.
+  '''
+}
+
+Table notification_preferences {
+  user_id uuid [pk]
+  hide_content_on_lock_screen boolean [not null, default: false]
+  groups jsonb [not null, default: '{}', note: '{ social:{inApp,push}, messages:{...}, billing:{...}, moderation:{...}, system:{...} }; thiếu khóa = mặc định theo catalog; security không ghi ở đây']
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  Note: 'Một dòng mỗi người, tạo khi đổi lần đầu. Không có dòng = mặc định (inApp bật, push bật cho nhóm social/messages/billing/moderation/system sau khi thiết bị đã đăng ký).'
+}
+
+Table push_subscriptions {
+  id uuid [pk]
+  user_id uuid [not null]
+  session_family_id uuid [null, note: 'phiên đăng ký; xóa khi đăng xuất/thu hồi (xem câu hỏi mở)']
+  endpoint_hash char(64) [not null, note: 'sha256(endpoint) hex; tra cứu']
+  endpoint_enc bytea [not null, note: 'AES-256-GCM(endpoint)']
+  keys_enc bytea [not null, note: 'AES-256-GCM({p256dh, auth})']
+  key_version smallint [not null, default: 1, note: 'cho xoay NOTIFICATION_PUSH_ENC_KEY']
+  vapid_key_hash char(16) [not null, note: '16 ký tự đầu sha256(VAPID public key) lúc đăng ký → phát hiện khóa đã đổi']
+  platform varchar(12) [not null, note: 'chrome | edge | firefox | safari | other; từ UA, chỉ để hiển thị']
+  label varchar(80) [null, note: 'tên thiết bị do người dùng hoặc UA rút gọn đặt; văn bản thuần']
+  installed_pwa boolean [not null, default: false]
+  push_enabled boolean [not null, default: true, note: 'tắt riêng thiết bị này']
+  failure_count smallint [not null, default: 0]
+  last_success_at timestamptz [null]
+  last_failure_at timestamptz [null]
+  expires_at timestamptz [null, note: 'expirationTime của trình duyệt (nếu có)']
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  deleted_at timestamptz [null]
+
+  indexes {
+    endpoint_hash [unique, name: 'uk_push_subscriptions_endpoint']
+    (user_id) [name: 'ix_push_subscriptions_user', note: 'PARTIAL WHERE deleted_at IS NULL']
+    (session_family_id) [name: 'ix_push_subscriptions_session']
+  }
+}
+
+Table push_outbox {
+  id uuid [pk]
+  notification_id uuid [not null]
+  user_id uuid [not null]
+  status varchar(10) [not null, default: 'queued', note: 'queued | sending | sent | skipped | dead']
+  skip_reason varchar(30) [null, note: 'user_active | read_before_send | pref_off | no_subscription | rate_capped | permission_gone']
+  urgency varchar(8) [not null, default: 'normal', note: 'very-low | low | normal | high — theo catalog']
+  ttl_seconds int [not null, default: 86400]
+  topic varchar(32) [null, note: 'Topic của RFC 8030, ≤ 32 ký tự base64url; thay thế push cũ cùng topic chưa giao']
+  attempts smallint [not null, default: 0]
+  not_before timestamptz [not null, note: 'now()+8s với urgency thường, now() với high']
+  next_attempt_at timestamptz [not null]
+  last_error varchar(200) [null, note: 'mã/nhóm lỗi, không chứa endpoint']
+  sent_at timestamptz [null]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+
+  indexes {
+    (next_attempt_at) [name: 'ix_push_outbox_due', note: 'PARTIAL WHERE status = ''queued'' — worker lấy lô']
+    (created_at) [name: 'ix_push_outbox_purge']
+    notification_id [name: 'ix_push_outbox_notification']
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GIAI ĐOẠN 2 — chưa tạo migration. Ghi sẵn để giai đoạn 1 không chặn đường.
+// ---------------------------------------------------------------------------
+Table notification_campaigns {
+  id uuid [pk]
+  title varchar(120) [not null]
+  subtitle varchar(200) [null]
+  link varchar(300) [not null]
+  audience jsonb [not null, note: '{ kind: "all" | "role" | "plan" | "users", ... } — không nhận truy vấn tự do']
+  scheduled_at timestamptz [null, note: 'null = gửi ngay khi duyệt']
+  status varchar(12) [not null, note: 'draft | scheduled | running | done | canceled | failed']
+  created_by uuid [not null]
+  approved_by uuid [null]
+  recipients_total int [null]
+  recipients_done int [not null, default: 0]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  deleted_at timestamptz [null]
+  indexes { (scheduled_at) [note: 'PARTIAL WHERE status = ''scheduled''', name: 'ix_campaigns_due'] }
+}
+
+Ref: notifications.user_id > users.id
+Ref: notification_preferences.user_id - users.id
+Ref: push_subscriptions.user_id > users.id
+Ref: push_outbox.notification_id > notifications.id

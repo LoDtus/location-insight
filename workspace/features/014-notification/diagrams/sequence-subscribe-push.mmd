@@ -1,0 +1,27 @@
+sequenceDiagram
+    autonumber
+    actor U as Người dùng
+    participant UI as Trang /app/notification
+    participant SW as Service worker
+    participant B as Trình duyệt (Push API)
+    participant API as Backend
+    participant DB as PostgreSQL
+
+    U->>UI: bấm "Bật thông báo đẩy" (thao tác người dùng)
+    UI->>UI: hỗ trợ? (serviceWorker, PushManager, Notification); iOS: đã cài PWA?
+    UI->>API: GET /notifications/push/config
+    API-->>UI: {enabled, vapidPublicKey}
+    UI->>B: Notification.requestPermission()
+    alt granted
+        UI->>SW: navigator.serviceWorker.ready
+        UI->>B: registration.pushManager.subscribe({userVisibleOnly:true, applicationServerKey})
+        B-->>UI: PushSubscription {endpoint, keys}
+        UI->>API: POST /notifications/push/subscriptions {endpoint, keys, label, installedPwa, vapidPublicKey}
+        API->>API: kiểm endpoint (https, host cho phép, IP), kiểm VAPID khớp
+        API->>DB: UPSERT theo endpoint_hash (mã hóa), tối đa 10 thiết bị
+        API-->>UI: 201 thiết bị
+        UI->>UI: hiển thị trong "Thiết bị nhận thông báo"
+    else denied / dismissed
+        UI->>UI: hiển thị trạng thái + hướng dẫn mở lại quyền (không hỏi lại tự động)
+    end
+    Note over UI,API: Khi pushsubscriptionchange: SW báo trang đăng ký lại; hủy bằng DELETE hoặc by-endpoint

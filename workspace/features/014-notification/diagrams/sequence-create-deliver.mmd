@@ -1,0 +1,38 @@
+sequenceDiagram
+    autonumber
+    participant P as Module nghiệp vụ (vd follow)
+    participant N as NotificationsService
+    participant DB as PostgreSQL
+    participant R as Redis
+    participant G as RealtimeGateway (mọi instance)
+    participant C as Client (tab đang mở)
+    participant W as Push worker
+    participant PS as Dịch vụ push của hãng
+    participant SW as Service worker
+
+    P->>N: notify({userId, type, params, link, dedupeKey, collapseKey})
+    N->>R: INCR giới hạn tạo (Lua) — lỗi Redis ⇒ 503
+    N->>N: kiểm tùy chọn, quan hệ chặn, link theo mẫu, dựng title/subtitle
+    N->>DB: BEGIN; INSERT notifications (ON CONFLICT dedupe ⇒ bỏ qua) hoặc UPDATE gộp
+    N->>DB: INSERT push_outbox (not_before = now()+8s, hoặc now() nếu urgency=high)
+    DB-->>N: COMMIT
+    N->>R: DEL notif:unread:{u}; PUBLISH events:notification:created
+    R-->>G: sự kiện
+    G-->>C: notification.created {item, unread?}
+    C->>C: chèn dòng, tăng huy hiệu, toast (≤ 1/3 giây)
+    loop mỗi 1 giây (lô 50, SKIP LOCKED)
+        W->>DB: lấy push_outbox đến hạn
+        W->>DB: đã đọc? bỏ (skipped: read_before_send)
+        W->>R: notif:active:{u}? bỏ (skipped: user_active)
+        W->>R: giới hạn 10 push/giờ ⇒ gộp thành push chung
+        W->>PS: POST endpoint (payload mã hóa RFC 8291, VAPID, TTL, Urgency, Topic)
+        alt 201
+            PS-->>W: ok ⇒ status=sent
+            PS-->>SW: push event
+            SW->>SW: showNotification(title, body, icon, tag=Topic, data.url)
+        else 404/410
+            PS-->>W: gone ⇒ xóa đăng ký
+        else 429/5xx
+            PS-->>W: lỗi ⇒ thử lại lùi cấp số nhân (tối đa 5)
+        end
+    end

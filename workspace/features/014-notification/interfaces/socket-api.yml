@@ -1,0 +1,77 @@
+asyncapi: 3.0.0
+info:
+  title: Địa Thế — Realtime (thông báo)
+  version: 0.1.0
+  description: |
+    Dùng chung kết nối WebSocket với `003-auth` và `009-messaging` (vé một lần, phòng `user:{id}`, `transports: ['websocket']`).
+    Sự kiện chỉ báo "có thay đổi"; client coi `GET /notifications` là nguồn sự thật và đồng bộ lại khi nối lại.
+    Sự kiện luôn phát sau khi giao dịch DB commit. Không đảm bảo giao.
+channels:
+  connection:
+    address: /api/realtime?ticket={ticket}
+    messages:
+      notificationCreated: { $ref: "#/components/messages/notificationCreated" }
+      notificationChanged: { $ref: "#/components/messages/notificationChanged" }
+      notificationUnread: { $ref: "#/components/messages/notificationUnread" }
+      presenceVisible: { $ref: "#/components/messages/presenceVisible" }
+operations:
+  receiveNotificationCreated:
+    action: receive
+    channel: { $ref: "#/channels/connection" }
+    messages: [{ $ref: "#/channels/connection/messages/notificationCreated" }]
+  receiveNotificationChanged:
+    action: receive
+    channel: { $ref: "#/channels/connection" }
+    messages: [{ $ref: "#/channels/connection/messages/notificationChanged" }]
+  receiveNotificationUnread:
+    action: receive
+    channel: { $ref: "#/channels/connection" }
+    messages: [{ $ref: "#/channels/connection/messages/notificationUnread" }]
+  sendPresenceVisible:
+    action: send
+    channel: { $ref: "#/channels/connection" }
+    messages: [{ $ref: "#/channels/connection/messages/presenceVisible" }]
+components:
+  messages:
+    notificationCreated:
+      summary: Có thông báo mới (hoặc dòng gộp vừa đổi, `updated = true`)
+      payload:
+        type: object
+        required: [type, item]
+        properties:
+          type: { const: notification.created }
+          item: { description: "như schema Notification của REST" }
+          updated: { type: boolean, description: "true khi là dòng đã gộp, client thay dòng cũ theo id" }
+          unread: { type: integer, minimum: 0, maximum: 99, description: "có khi bộ đệm sẵn" }
+        additionalProperties: false
+    notificationChanged:
+      summary: Trạng thái đổi ở tab/thiết bị khác của cùng tài khoản
+      payload:
+        type: object
+        required: [type, op]
+        properties:
+          type: { const: notification.changed }
+          op: { type: string, enum: [read, unread, read_all, deleted, updated] }
+          ids: { type: array, maxItems: 50, items: { type: string, format: uuid } }
+          upToId: { type: string, format: uuid }
+          unread: { type: integer, minimum: 0, maximum: 99 }
+        additionalProperties: false
+    notificationUnread:
+      summary: Số chưa đọc mới
+      payload:
+        type: object
+        required: [type, unread]
+        properties:
+          type: { const: notification.unread }
+          unread: { type: integer, minimum: 0, maximum: 99 }
+        additionalProperties: false
+    presenceVisible:
+      summary: Client báo tab đang hiển thị/ẩn; gửi khi đổi trạng thái và mỗi 25 giây cùng `ping` lúc hiển thị
+      payload:
+        type: object
+        required: [type, visible]
+        properties:
+          type: { const: presence.visible }
+          visible: { type: boolean }
+        additionalProperties: false
+  # Máy chủ kiểm: người gửi đã xác thực; giới hạn 1 tín hiệu/10 giây/socket, vượt thì bỏ im lặng.

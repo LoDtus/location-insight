@@ -1,0 +1,17 @@
+flowchart TD
+    A([Người dùng vào website]) --> B{Đã chạy standalone?}
+    B -- có --> Z1[Ẩn mọi lời mời cài]
+    B -- không --> C{Trình duyệt}
+    C -- Chromium --> D[Giữ beforeinstallprompt]
+    D --> E{Có tương tác: ≥2 phiên hoặc đã vào Thông báo? và chưa từ chối 30 ngày}
+    E -- có --> F[Hiện lời mời nhỏ 'Cài ứng dụng']
+    F -- bấm --> G[prompt] --> H{Kết quả}
+    H -- accepted --> I[appinstalled: ẩn lời mời, ghi số liệu]
+    H -- dismissed --> J[Nghỉ 30 ngày]
+    C -- iOS / iPadOS / Safari --> K[Hướng dẫn: Chia sẻ → Thêm vào Màn hình chính]
+    K --> L[iOS: sau khi cài mới bật được push]
+    I --> M([Mở từ biểu tượng → /app?source=pwa])
+    subgraph Cập nhật
+      U1[SW mới tải xong, trạng thái waiting] --> U2[Thanh 'Có phiên bản mới · Tải lại']
+      U2 -- bấm --> U3[SKIP_WAITING] --> U4[controllerchange] --> U5[Tải lại trang]
+    end

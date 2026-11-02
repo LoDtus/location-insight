@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { DynamicModule, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { GracefulShutdownModule } from 'nestjs-graceful-shutdown';
@@ -28,6 +28,29 @@ import { TypeOrmDatabaseModule } from './shared/database/typeorm/typeorm.module.
 import { isTestRuntime } from './shared/utils/runtime.util.js';
 
 const nodeEnv = process.env.NODE_ENV || 'development';
+
+/**
+ * Công cụ reset database CHỈ cho máy dev. Nạp động bằng đường dẫn không cố định để image production
+ * (đã xóa thư mục `dev-tools` trước khi build) vẫn biên dịch được và không chứa mã này.
+ */
+async function loadDevTools(): Promise<DynamicModule[]> {
+  if (isTestRuntime()) return [];
+  if (process.env.NODE_ENV !== 'development') return [];
+  if (process.env.DEV_RESET_ENABLED !== 'true') return [];
+  try {
+    const specifier = './dev-tools/dev-reset.module.js';
+    const loaded: unknown = await import(specifier);
+    const register = (
+      loaded as { registerDevReset?: (env: NodeJS.ProcessEnv) => DynamicModule | null }
+    ).registerDevReset;
+    const module = typeof register === 'function' ? register(process.env) : null;
+    return module ? [module] : [];
+  } catch {
+    return [];
+  }
+}
+
+const devToolsModules = await loadDevTools();
 
 @Module({
   imports: [
@@ -91,6 +114,7 @@ const nodeEnv = process.env.NODE_ENV || 'development';
     ...(isTestRuntime()
         ? []
         : [AuthModule, RbacModule, BillingModule, ArticlesModule, DiscussionsModule, MessagingModule, FeedbackModule, FollowModule, EmailModule, MapModule, NotificationModule]),
+    ...devToolsModules,
   ],
   controllers: [AppController],
   providers: [AppService],

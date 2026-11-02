@@ -24,7 +24,12 @@ ENV NODE_ENV=development
 COPY package.json package-lock.json ./
 COPY --from=development /app/node_modules ./node_modules
 COPY . .
-RUN npm run build && npm prune --omit=dev
+# Công cụ reset database chỉ dành cho máy dev: xóa mã nguồn trước khi build và kiểm tra không còn dấu vết trong dist.
+RUN rm -rf src/dev-tools \
+    && npm run build \
+    && test ! -e dist/dev-tools \
+    && ! grep -rIl "DevResetController" dist \
+    && npm prune --omit=dev
 
 FROM node:24-alpine AS production
 WORKDIR /app

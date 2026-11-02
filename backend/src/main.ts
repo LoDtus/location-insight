@@ -14,7 +14,26 @@ import { configurePermissionsPolicy } from './shared/config/permissions-policy.c
 import { configureSwagger } from './shared/config/swagger.config.js';
 import { configureValidationPipe } from './shared/config/validation-pipe.config.js';
 
+/** Cờ reset dev bật ở môi trường không phải dev là lỗi cấu hình nghiêm trọng: dừng ngay, không khởi động. */
+function assertNoDevToolsOutsideDev(): void {
+  const names = ['NODE_ENV', 'APP_ENV', 'ENVIRONMENT', 'DEPLOY_ENV', 'STAGE'];
+  const nonDev = names.some((name) =>
+    ['production', 'prod', 'staging', 'stage', 'live'].includes(
+      (process.env[name] ?? '').trim().toLowerCase(),
+    ),
+  );
+  const flagged = ['DEV_RESET_ENABLED', 'DEV_RESET_TOKEN'].some(
+    (name) => (process.env[name] ?? '').trim() !== '' && process.env[name] !== 'false',
+  );
+  if (nonDev && flagged) {
+    throw new Error(
+      'DEV_RESET_ENABLED/DEV_RESET_TOKEN không được đặt ngoài môi trường development. Xóa chúng khỏi cấu hình.',
+    );
+  }
+}
+
 async function bootstrap(): Promise<void> {
+  assertNoDevToolsOutsideDev();
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     rawBody: true,
   });

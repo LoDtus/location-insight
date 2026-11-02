@@ -16,9 +16,9 @@ sequenceDiagram
         UI->>SW: navigator.serviceWorker.ready
         UI->>B: registration.pushManager.subscribe({userVisibleOnly:true, applicationServerKey})
         B-->>UI: PushSubscription {endpoint, keys}
-        UI->>API: POST /notifications/push/subscriptions {endpoint, keys, label, installedPwa, vapidPublicKey}
+        UI->>API: POST /notifications/push/subscriptions {endpoint, keys, deviceId, label, installedPwa, vapidPublicKey}
         API->>API: kiểm endpoint (https, host cho phép, IP), kiểm VAPID khớp
-        API->>DB: UPSERT theo endpoint_hash (mã hóa), tối đa 10 thiết bị
+        API->>DB: UPSERT theo (user, device_id)/endpoint_hash (mã hóa), bỏ tạm ngưng, tối đa 10 thiết bị
         API-->>UI: 201 thiết bị
         UI->>UI: hiển thị trong "Thiết bị nhận thông báo"
     else denied / dismissed

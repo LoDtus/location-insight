@@ -13,7 +13,7 @@ STRIDE; phần push và dữ liệu máy chủ xem `014-notification/threat-mode
 | P7 | Privacy | Theo dõi người dùng qua `source=pwa`, số liệu cài đặt | Không PII, không định danh ổn định; số liệu tổng hợp | Thấp |
 | P8 | Tampering | Manifest bị sửa để đổi `start_url`/`scope` | Phục vụ cùng origin, `manifest-src 'self'`; `scope: "/"` | Thấp |
 | P9 | Elevation | SW của `/app` được phục vụ cho `/admin` | Một SW, nhưng không lưu đệm thứ gì riêng tư; quyền kiểm ở backend; không lưu token trong SW | Thấp |
-| P10 | Supply chain | Công cụ build SW bị nhiễm | Ghim phiên bản, lockfile, `npm audit`; công cụ chỉ dev | Thấp |
+| P10 | Supply chain | Công cụ build SW bị nhiễm | Chỉ dùng `tsc` sẵn có (không thêm phụ thuộc); `sharp` chỉ dev, ghim phiên bản, lockfile, `npm audit` | Thấp |
 
 ## Kiểm tra trước phát hành
 

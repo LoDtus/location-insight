@@ -265,6 +265,7 @@ Dễ: chưa có mã.
 
 - Chỉ chấp nhận `https:`; host phải thuộc danh sách hậu tố cho phép của dịch vụ push (cấu hình, mặc định: `fcm.googleapis.com`, `updates.push.services.mozilla.com`, `push.services.mozilla.com`, `web.push.apple.com`, `*.notify.windows.com`); cổng 443; không theo chuyển hướng; phân giải DNS rồi chặn IP riêng/loopback/link-local; thời gian chờ 10 giây.
 - Lưu `endpoint_hash = sha256(endpoint)` (duy nhất, để tra cứu) và `endpoint_enc`, `keys_enc` bằng AES-256-GCM với khóa `NOTIFICATION_PUSH_ENC_KEY` (theo `.cursor/rules/security.md`). Khóa không đi vào log.
+- **Gắn với thiết bị (đã chốt với chủ dự án):** `device_id` do client sinh một lần. Đăng xuất/thu hồi phiên/đổi mật khẩu **tạm ngưng** (không xóa) để thiết bị dùng chung không lộ thông báo, còn thiết bị cá nhân bật lại ngay khi đăng nhập lại. `last_seen_at` quá 60 ngày thì tạm ngưng. Lý do: PWA cài lâu dài không bị bắt bật push lại sau mỗi đăng nhập; mất an toàn thiết bị dùng chung được giảm bằng tạm ngưng + chuyển chủ sở hữu.
 - Một thiết bị đăng ký lại cùng `endpoint` cập nhật dòng cũ, không tạo thêm. Endpoint đã thuộc người dùng khác (thiết bị dùng chung) chuyển quyền sở hữu sang người vừa đăng ký và xóa liên kết cũ.
 
 ### Hệ quả <!-- key: consequences -->

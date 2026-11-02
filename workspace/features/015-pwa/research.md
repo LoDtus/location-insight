@@ -45,13 +45,13 @@ Cần SW cho push và thông báo. Lưu đệm chỉ cần rất hẹp (tài ngu
 
 ### Quyết định <!-- key: decision -->
 
-SW tay, kiểu TypeScript chặt, build bằng một bước riêng sinh `public/sw.js` (có `BUILD_ID`). Bắt đầu với 4 trình xử lý sự kiện và một chiến lược lưu đệm duy nhất (cache-first cho `/_next/static/**`, `/icons/**`). Nếu sau này cần lưu đệm rộng thì thay bằng Serwist, hợp đồng thông điệp giữ nguyên.
+SW tay, kiểu TypeScript chặt, build bằng **`tsc` sẵn có** (`tsconfig.sw.json` với `lib: ["webworker"]`, `module: "none"`/ES2022, một tệp, không import) rồi script Node chèn `BUILD_ID` và ghi `public/sw.js`. Chọn `tsc` thay vì esbuild vì không thêm phụ thuộc nào và ít thứ có thể hỏng nhất về lâu dài; nếu SW phải chia nhiều tệp hay dùng thư viện thì thay bằng esbuild (đổi một script, không đổi hợp đồng). Bắt đầu với 4 trình xử lý sự kiện và một chiến lược lưu đệm duy nhất (cache-first cho `/_next/static/**`, `/icons/**`). Nếu sau này cần lưu đệm rộng thì thay bằng Serwist, hợp đồng thông điệp giữ nguyên.
 
 ### Hệ quả <!-- key: consequences -->
 
 - Ít mã, ít phụ thuộc, dễ kiểm tra bảo mật.
 - Phải có kiểm thử tự động cho các nhánh `push`, `notificationclick`, `activate` (dọn bộ nhớ đệm cũ).
-- Công cụ build SW (esbuild hoặc `tsc`) là phụ thuộc phát triển mới; xác nhận với người dùng trước khi thêm.
+- Không thêm phụ thuộc mới; mã SW giữ trong một tệp để không cần bundler (hạn chế đã chấp nhận).
 
 ### Khả năng đảo ngược <!-- key: reversibility -->
 

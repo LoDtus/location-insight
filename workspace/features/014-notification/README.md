@@ -59,7 +59,7 @@ Người dùng và admin có tab **Thông báo** ở sidebar trái (`/app/notifi
 - **FR-18 (nhắn tin):** tin nhắn mới (009) chỉ sinh **push** khi người nhận không hoạt động, không sinh dòng trong hộp thông báo (đã có huy hiệu Messages). `Topic` theo cuộc hội thoại để thay vì chồng.
 - **FR-19 (dọn dẹp):** job hằng đêm xóa vĩnh viễn: dòng đã xóa mềm > 7 ngày; dòng đã đọc > 90 ngày; mọi dòng > 180 ngày; giữ tối đa 500 dòng gần nhất mỗi người. Xóa theo lô 1.000, nghỉ giữa lô.
 - **FR-20 (giao diện):** theo `ui/ui-spec.md`: sidebar `Thông báo` có huy hiệu; trang danh sách dùng chung cho `/app` và `/admin`; đủ trạng thái tải, trống, lỗi, mất kết nối; dùng được trên điện thoại và trong PWA.
-- **FR-21 (quyền riêng tư khi đăng xuất):** đăng xuất hoặc thu hồi phiên xóa các đăng ký push gắn với phiên đó; thông báo không còn hiện trên thiết bị dùng chung sau khi đăng xuất.
+- **FR-21 (thiết bị và đăng xuất):** đăng ký push gắn với **thiết bị** (`device_id`), không gắn với phiên, nên PWA cài lâu dài không phải bật lại sau mỗi lần đăng nhập. Để an toàn trên thiết bị dùng chung: đăng xuất, thu hồi phiên, đổi mật khẩu hoặc khóa tài khoản **tạm ngưng** (`suspended_at`) mọi thiết bị liên quan thay vì xóa; thiết bị tạm ngưng không nhận push. Cùng người đăng nhập lại trên thiết bị đó: client đồng bộ lại đăng ký (`POST subscriptions`, cùng `deviceId`) và push tự hoạt động lại, không hỏi quyền. Người khác đăng nhập trên thiết bị: đăng ký chuyển chủ sở hữu, người trước không còn nhận. Thiết bị không thấy hoạt động quá 60 ngày bị tạm ngưng (`inactive`). Xóa tài khoản xóa vĩnh viễn. Người dùng xóa thiết bị trong Cài đặt là xóa hẳn.
 - **FR-22 (quan sát):** số liệu: thông báo tạo/đọc, độ trễ tạo→socket, độ trễ tạo→push gửi, tỉ lệ 404/410, độ sâu `push_outbox`. Nhật ký không chứa nội dung thông báo hay endpoint đầy đủ.
 
 ## Quy tắc nghiệp vụ <!-- key: business_rules -->
@@ -152,7 +152,7 @@ Người dùng và admin có tab **Thông báo** ở sidebar trái (`/app/notifi
 | AC6 | Thông báo mới hiện ở trang đang mở trong < 1 giây (p95, một instance) mà không tải lại. |
 | AC7 | Đóng tab, tạo sự kiện → Web Push tới trình duyệt (desktop + Android) và PWA đã cài (iOS ≥ 16.4); bấm vào mở đúng `link`. |
 | AC8 | Người dùng đang xem ứng dụng (tab hiển thị trong 30 giây) không nhận push trùng với toast. |
-| AC9 | Đăng xuất xóa đăng ký push của phiên; sau đó tạo sự kiện không hiện thông báo hệ điều hành trên thiết bị đó. |
+| AC9 | Đăng xuất tạm ngưng push của thiết bị; sự kiện sau đó không hiện thông báo hệ điều hành trên thiết bị. Đăng nhập lại cùng tài khoản trên thiết bị đó thì push hoạt động lại không cần cấp quyền lại; tài khoản khác đăng nhập thì tài khoản cũ không nhận được. |
 | AC10 | Truy cập `id` của người khác trả 404 với mọi thao tác (đọc, xóa, bỏ đọc). |
 | AC11 | `GET /notifications?limit=20` với 500 dòng/người dùng một truy vấn, quét chỉ mục, không sắp xếp bộ nhớ (kiểm bằng `EXPLAIN`). |
 | AC12 | Gọi `notify()` hai lần cùng `dedupeKey` chỉ tạo một dòng; 5 sự kiện cùng `collapseKey` trong 60 phút chỉ tạo một dòng chưa đọc có `count = 5`. |
@@ -162,7 +162,6 @@ Người dùng và admin có tab **Thông báo** ở sidebar trái (`/app/notifi
 
 ## Câu hỏi mở (Open Questions) <!-- key: open_questions -->
 
-- Đăng ký push gắn với **phiên** (xóa khi đăng xuất, an toàn thiết bị dùng chung) hay gắn với **thiết bị** (sống lâu hơn phiên)? Đề xuất mặc định: gắn phiên; PWA cài lâu dài sẽ phải bật lại sau mỗi lần đăng nhập mới. Cần xác nhận.
 - Tin nhắn mới (009) có nên sinh dòng trong hộp thông báo khi người nhận chưa đọc quá 24 giờ? Đề xuất: không ở giai đoạn 1.
 - Thông báo `security.new_login` dựa trên dấu vết thiết bị nào (IP tổng quát, user-agent)? Cần thống nhất với `003-auth`.
 - Gom admin: có cần nhóm thông báo admin theo vai trò (mọi admin cùng nhận) hay chỉ người được chỉ định? Mặc định: mọi người có quyền liên quan nhận bản riêng.
@@ -173,3 +172,4 @@ Người dùng và admin có tab **Thông báo** ở sidebar trái (`/app/notifi
 | Ngày | Thay đổi |
 | --- | --- |
 | 2026-11-02 | Tạo đặc tả ban đầu (chưa triển khai). |
+| 2026-11-02 | Chốt: đăng ký push gắn với thiết bị (`device_id`), đăng xuất chỉ tạm ngưng; icon thông báo lấy từ `lucide-react`. |

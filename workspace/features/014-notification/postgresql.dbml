@@ -49,7 +49,10 @@ Table notification_preferences {
 Table push_subscriptions {
   id uuid [pk]
   user_id uuid [not null]
-  session_family_id uuid [null, note: 'phiên đăng ký; xóa khi đăng xuất/thu hồi (xem câu hỏi mở)']
+  device_id uuid [not null, note: 'định danh thiết bị do client sinh (UUID v4, lưu IndexedDB/localStorage) — đăng ký gắn với thiết bị, sống lâu hơn phiên']
+  suspended_at timestamptz [null, note: 'đăng xuất/thu hồi phiên/hết hạn hoạt động ⇒ tạm ngưng, KHÔNG xóa; null = đang nhận push']
+  suspend_reason varchar(20) [null, note: 'logout | sessions_revoked | password_changed | inactive | locked']
+  last_seen_at timestamptz [not null, note: 'client báo khi mở ứng dụng (tối đa 1 lần/ngày); quá 60 ngày không thấy ⇒ tạm ngưng (inactive)']
   endpoint_hash char(64) [not null, note: 'sha256(endpoint) hex; tra cứu']
   endpoint_enc bytea [not null, note: 'AES-256-GCM(endpoint)']
   keys_enc bytea [not null, note: 'AES-256-GCM({p256dh, auth})']
@@ -70,7 +73,8 @@ Table push_subscriptions {
   indexes {
     endpoint_hash [unique, name: 'uk_push_subscriptions_endpoint']
     (user_id) [name: 'ix_push_subscriptions_user', note: 'PARTIAL WHERE deleted_at IS NULL']
-    (session_family_id) [name: 'ix_push_subscriptions_session']
+    (user_id, device_id) [unique, name: 'uk_push_subscriptions_user_device', note: 'PARTIAL WHERE deleted_at IS NULL — một thiết bị một dòng cho mỗi người']
+    (last_seen_at) [name: 'ix_push_subscriptions_inactive', note: 'PARTIAL WHERE suspended_at IS NULL AND deleted_at IS NULL — job tạm ngưng thiết bị lâu không thấy']
   }
 }
 

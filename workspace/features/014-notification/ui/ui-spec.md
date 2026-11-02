@@ -56,7 +56,7 @@ Nội dung tối đa `max-w-3xl` căn giữa trong vùng chính; trên điện t
 1. **Thông báo đẩy trên thiết bị này:** công tắc theo trạng thái thật: *Chưa hỗ trợ* / *Cần thêm vào Màn hình chính (iOS)* / *Chưa bật* / *Đã bật* / *Bị chặn trong trình duyệt* (kèm hướng dẫn theo trình duyệt). Bật = bấm → hỏi quyền → đăng ký (xem `diagrams/sequence-subscribe-push.mmd`). Có nút "Gửi thử" (một thông báo thử, giới hạn 3 lần/giờ).
 2. **Theo nhóm:** bảng nhóm (Xã hội, Tin nhắn, Thanh toán, Kiểm duyệt, Hệ thống) × (Trong ứng dụng, Đẩy). Nhóm *Bảo mật* hiển thị cố định bật, có chú thích lý do.
 3. **Ẩn nội dung trên màn hình khóa:** công tắc.
-4. **Thiết bị nhận thông báo:** danh sách thiết bị (nền tảng, nhãn, đã cài PWA?, lần giao thành công gần nhất), bật/tắt từng thiết bị, xóa; thiết bị hiện tại được đánh dấu.
+4. **Thiết bị nhận thông báo:** danh sách thiết bị (nền tảng, nhãn, đã cài PWA?, lần giao thành công gần nhất), bật/tắt từng thiết bị, xóa; thiết bị hiện tại được đánh dấu; thiết bị đang *Tạm ngưng* (đã đăng xuất hoặc lâu không dùng) hiển thị nhãn riêng và tự hoạt động lại khi bạn đăng nhập trên thiết bị đó.
 5. Lưu ngay khi đổi (lạc quan), lỗi thì hoàn lại và báo.
 
 **Thẻ gợi ý bật thông báo đẩy** ở đầu danh sách: chỉ hiện khi hỗ trợ, quyền chưa bị chặn, thiết bị chưa đăng ký và chưa từng bấm "Để sau" trong 14 ngày (lưu `localStorage`, bọc try/catch). **Không** hỏi quyền khi vừa vào trang hay vừa đăng nhập.

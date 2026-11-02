@@ -152,7 +152,8 @@ paths:
       x-permission: notification:update
       description: |
         Kiểm: `endpoint` https, host trong danh sách cho phép, độ dài ≤ 1000; `keys.p256dh` 65 byte, `keys.auth` 16 byte (base64url).
-        Cùng endpoint: cập nhật, không tạo mới. Tối đa 10 thiết bị; dư thì xóa thiết bị lâu không thành công nhất.
+        Cùng endpoint hoặc cùng `deviceId`: cập nhật và **bỏ tạm ngưng**, không tạo mới. Tối đa 10 thiết bị; dư thì xóa thiết bị lâu không thấy nhất.
+        Client gọi lại (đồng bộ) khi mở ứng dụng, tối đa 1 lần/ngày, để cập nhật `last_seen_at`.
       requestBody:
         required: true
         content: { application/json: { schema: { $ref: "#/components/schemas/PushSubscriptionInput" } } }
@@ -188,6 +189,21 @@ paths:
       responses:
         "204": { description: Đã hủy }
         "404": { description: Không phải của tôi }
+  /notifications/push/subscriptions/suspend:
+    post:
+      summary: Tạm ngưng push của thiết bị hiện tại (client gọi ngay trước khi đăng xuất)
+      x-permission: notification:update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [deviceId]
+              properties: { deviceId: { type: string, format: uuid } }
+              additionalProperties: false
+      responses:
+        "204": { description: Đã tạm ngưng (hoặc không có thiết bị này; không tiết lộ) }
   /notifications/push/subscriptions/by-endpoint:
     post:
       summary: Hủy theo endpoint hiện tại của trình duyệt (khi trình duyệt tự đổi/hủy đăng ký)
@@ -259,7 +275,7 @@ components:
       additionalProperties: false
     PushSubscriptionInput:
       type: object
-      required: [endpoint, keys]
+      required: [endpoint, keys, deviceId]
       properties:
         endpoint: { type: string, maxLength: 1000 }
         expirationTime: { type: number, nullable: true }
@@ -270,6 +286,7 @@ components:
             p256dh: { type: string, maxLength: 120 }
             auth: { type: string, maxLength: 40 }
           additionalProperties: false
+        deviceId: { type: string, format: uuid, description: "UUID v4 do client sinh một lần cho thiết bị" }
         label: { type: string, maxLength: 80 }
         installedPwa: { type: boolean }
         vapidPublicKey: { type: string, description: "khóa client đã dùng để đăng ký, để máy chủ phát hiện lệch" }
@@ -283,5 +300,8 @@ components:
         label: { type: string, nullable: true }
         installedPwa: { type: boolean }
         pushEnabled: { type: boolean }
+        suspended: { type: boolean, description: "true khi tạm ngưng (đã đăng xuất/hết hoạt động)" }
+        current: { type: boolean, description: "true nếu là thiết bị gọi API" }
+        lastSeenAt: { type: string, format: date-time }
         lastSuccessAt: { type: string, format: date-time, nullable: true }
         createdAt: { type: string, format: date-time }

@@ -60,14 +60,29 @@ export function hash(value: string): string {
 }
 
 /** Khóa cache gợi ý: chữ chuẩn hóa + focus làm tròn ~1 km. Không chứa userId. */
+export interface SearchFilters {
+  cats?: string;
+  scope?: string;
+  cityId?: number;
+  distId?: number;
+  wardId?: number;
+  radius?: number;
+}
+
 export function searchCacheKey(
   text: string,
   lat: number,
   lng: number,
   limit: number,
+  filters: SearchFilters = {},
 ): string {
   const normalized = cleanText(text).toLocaleLowerCase('vi');
-  return hash(`${normalized}|${roundTo(lat, 2)}|${roundTo(lng, 2)}|${limit}`);
+  // Có bán kính thì focus là tâm vòng tròn: làm tròn mịn hơn (~100 m) để kết quả đúng vùng.
+  const digits = filters.radius ? 3 : 2;
+  const extra = [filters.cats, filters.scope, filters.cityId, filters.distId, filters.wardId, filters.radius]
+    .map((value) => value ?? '')
+    .join(',');
+  return hash(`${normalized}|${roundTo(lat, digits)}|${roundTo(lng, digits)}|${limit}|${extra}`);
 }
 
 export function reverseCacheKey(lat: number, lng: number): string {
@@ -79,9 +94,20 @@ export function routeCacheKey(
   to: [number, number],
   vehicle: string,
   alternatives: boolean,
+  avoid = '',
+  departAt = '',
 ): string {
   const part = (p: [number, number]) => `${roundTo(p[0], 5)},${roundTo(p[1], 5)}`;
-  return `${vehicle}|${alternatives ? 'alt' : 'one'}|${part(from)}|${part(to)}`;
+  return `${vehicle}|${alternatives ? 'alt' : 'one'}|${part(from)}|${part(to)}|${avoid}|${departAt}`;
+}
+
+/** Giờ khởi hành ISO 8601 UTC hợp lệ → làm tròn xuống 15 phút (giao thông không đổi nhanh hơn). */
+export function normalizeDepartAt(value: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?Z$/.test(value)) return null;
+  const time = Date.parse(value);
+  if (Number.isNaN(time)) return null;
+  const quarter = 15 * 60 * 1000;
+  return new Date(Math.floor(time / quarter) * quarter).toISOString().replace('.000Z', 'Z');
 }
 
 /** Ẩn khóa API khỏi URL trước khi ghi log/lỗi. */

@@ -21,7 +21,9 @@ import {
   reverseCacheKey,
   routeCacheKey,
   searchCacheKey,
+  type SearchFilters,
   hash,
+  normalizeDepartAt,
   toPlaceFromPlace,
   toPlaceFromReverse,
   toRoutes,
@@ -76,18 +78,29 @@ export class MapService {
     lat: number | undefined,
     lng: number | undefined,
     limit = 8,
+    filters: SearchFilters = {},
   ): Promise<MapSuggestion[]> {
     await this.limits.consumeUser('autocomplete', userId);
     const clean = cleanText(text, MAP_TEXT_MAX);
     if (clean.length < 2) return [];
     const focusLat = lat ?? DEFAULT_CENTER[1];
     const focusLng = lng ?? DEFAULT_CENTER[0];
-    return this.cached('autocomplete', searchCacheKey(clean, focusLat, focusLng, limit), async () => {
-      const result = await this.client.get('/api/autocomplete/v4', {
+    return this.cached('autocomplete', searchCacheKey(clean, focusLat, focusLng, limit, filters), async () => {
+      const params: Record<string, string> = {
         text: clean,
         focus: `${focusLat},${focusLng}`,
         display_type: '6',
-      });
+      };
+      if (filters.cats) params.cats = filters.cats;
+      if (filters.scope) params.layers = filters.scope;
+      if (filters.cityId) params.cityId = String(filters.cityId);
+      if (filters.distId) params.distId = String(filters.distId);
+      if (filters.wardId) params.wardId = String(filters.wardId);
+      if (filters.radius) {
+        params.circle_center = `${focusLat},${focusLng}`;
+        params.circle_radius = String(filters.radius);
+      }
+      const result = await this.client.get('/api/autocomplete/v4', params);
       return toSuggestions(result.body, limit);
     });
   }
@@ -127,6 +140,8 @@ export class MapService {
     toText: string,
     vehicle: RouteVehicle = 'motorcycle',
     alternatives = false,
+    avoid?: string,
+    time?: string,
   ): Promise<MapRoute[]> {
     await this.limits.consumeUser('route', userId);
     const from = parseLatLng(fromText);
@@ -147,17 +162,29 @@ export class MapService {
         HttpStatus.UNPROCESSABLE_ENTITY,
       );
     }
+    const departAt = time ? normalizeDepartAt(time) : '';
+    if (departAt === null) {
+      throw new BusinessException(
+        ErrorCode.VALIDATION_ERROR,
+        'Giờ khởi hành phải theo dạng ISO UTC, ví dụ 2026-11-03T01:00:00Z.',
+        { time: true },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
     const routes = await this.cached(
       'route',
-      routeCacheKey([from[1], from[0]], [to[1], to[0]], vehicle, alternatives),
+      routeCacheKey([from[1], from[0]], [to[1], to[0]], vehicle, alternatives, avoid ?? '', departAt),
       async () => {
-        const result = await this.client.get('/api/route/v4', {
+        const params: Record<string, string | string[]> = {
           point: [`${from[0]},${from[1]}`, `${to[0]},${to[1]}`],
           vehicle,
           points_encoded: 'false',
           alternative: String(alternatives),
           annotations: 'congestion',
-        });
+        };
+        if (avoid) params.avoid = avoid;
+        if (departAt) params.time = departAt;
+        const result = await this.client.get('/api/route/v4', params);
         return toRoutes(result.body);
       },
     );

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   cleanText,
+  normalizeDepartAt,
   parseLatLng,
   redactUrl,
   reverseCacheKey,
@@ -53,8 +54,36 @@ describe('khóa cache', () => {
   it('reverse và route làm tròn 5 chữ số', () => {
     expect(reverseCacheKey(21.0285001, 105.8542004)).toBe('21.0285,105.8542');
     expect(routeCacheKey([105.1, 21.1], [105.2, 21.2], 'car', false)).toBe(
-      'car|one|105.1,21.1|105.2,21.2',
+      'car|one|105.1,21.1|105.2,21.2||',
     );
+  });
+});
+
+describe('bộ lọc trong khóa cache', () => {
+  it('bộ lọc khác nhau → khóa khác nhau', () => {
+    const base = searchCacheKey('cafe', 21.0285, 105.8542, 8);
+    expect(searchCacheKey('cafe', 21.0285, 105.8542, 8, { cats: '3001' })).not.toBe(base);
+    expect(searchCacheKey('cafe', 21.0285, 105.8542, 8, { radius: 500 })).not.toBe(base);
+    expect(searchCacheKey('cafe', 21.0285, 105.8542, 8, { distId: 1291 })).not.toBe(
+      searchCacheKey('cafe', 21.0285, 105.8542, 8, { wardId: 1291 }),
+    );
+  });
+  it('route: tránh phà và giờ khởi hành đổi khóa', () => {
+    const a = routeCacheKey([1, 2], [3, 4], 'car', false);
+    expect(routeCacheKey([1, 2], [3, 4], 'car', false, 'ferry')).not.toBe(a);
+    expect(routeCacheKey([1, 2], [3, 4], 'car', false, '', '2026-11-03T01:00:00Z')).not.toBe(a);
+  });
+});
+
+describe('normalizeDepartAt', () => {
+  it('làm tròn xuống 15 phút', () => {
+    expect(normalizeDepartAt('2026-11-03T01:07:30Z')).toBe('2026-11-03T01:00:00Z');
+    expect(normalizeDepartAt('2026-11-03T01:44:00Z')).toBe('2026-11-03T01:30:00Z');
+  });
+  it('từ chối sai dạng hoặc ngày không có thật', () => {
+    expect(normalizeDepartAt('2026-11-03 01:00')).toBeNull();
+    expect(normalizeDepartAt('2026-13-45T01:00:00Z')).toBeNull();
+    expect(normalizeDepartAt('2026-11-03T01:00:00+07:00')).toBeNull();
   });
 });
 

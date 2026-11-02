@@ -28,7 +28,8 @@ export class MapController {
   @Header('Cache-Control', 'private, no-store')
   @Get('search')
   search(@Query() query: SearchQueryDto, @Req() request: RequestWithPrincipal) {
-    return this.map.search(userId(request), query.text, query.lat, query.lng, query.limit);
+    const { text, lat, lng, limit, ...filters } = query;
+    return this.map.search(userId(request), text, lat, lng, limit, filters);
   }
 
   @RequirePermission('map:use')
@@ -49,7 +50,7 @@ export class MapController {
   @Header('Cache-Control', 'private, no-store')
   @Get('route')
   route(@Query() query: RouteQueryDto, @Req() request: RequestWithPrincipal) {
-    return this.map.route(userId(request), query.from, query.to, query.vehicle, query.alternatives);
+    return this.map.route(userId(request), query.from, query.to, query.vehicle, query.alternatives, query.avoid, query.time);
   }
 }
 

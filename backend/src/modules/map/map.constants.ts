@@ -32,6 +32,14 @@ export const MAP_CACHE_TTL: Readonly<Record<MapApi, number>> = {
   route: 3 * 60,
 };
 
+export const SEARCH_SCOPES = ['POI', 'ADDRESS', 'VILLAGE', 'WARD', 'DIST', 'CITY', 'STREET'] as const;
+export const ROUTE_AVOID = ['ferry'] as const;
+/** Mã nhóm POI: "1002-1" hoặc "3001"; tối đa 10 mã ngăn bởi dấu phẩy. */
+export const MAP_CATS_PATTERN = /^\d{1,6}(-\d{1,3})?(,\d{1,6}(-\d{1,3})?){0,9}$/;
+export const MAP_SCOPE_PATTERN = new RegExp(
+  `^(${SEARCH_SCOPES.join('|')})(,(${SEARCH_SCOPES.join('|')})){0,6}$`,
+);
+export const MAP_RADIUS_RANGE = { min: 50, max: 50000 } as const;
 export const MAP_TEXT_MAX = 120;
 export const MAP_REF_ID_MAX = 1500;
 export const MAP_REF_ID_PATTERN = /^[A-Za-z0-9_:.-]+$/;

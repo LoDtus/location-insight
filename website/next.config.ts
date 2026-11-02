@@ -18,6 +18,11 @@ loadRootEnv();
 const isDocker = fs.existsSync("/.dockerenv");
 const isProduction = process.env.NODE_ENV === "production";
 
+// Cờ reset dữ liệu dev bật khi build production là lỗi cấu hình: dừng build.
+if (isProduction && (process.env.DEV_RESET_ENABLED ?? "").trim() !== "" && process.env.DEV_RESET_ENABLED !== "false") {
+    throw new Error("DEV_RESET_ENABLED không được bật khi build production.");
+}
+
 const nextConfig: NextConfig = {
     output: "standalone",
     reactCompiler: true,

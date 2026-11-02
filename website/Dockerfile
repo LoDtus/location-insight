@@ -23,7 +23,10 @@ RUN if [ -z "$WEBSITE_PORT" ]; then echo "WEBSITE_PORT build-arg is required" >&
 COPY package.json package-lock.json ./
 COPY --from=development /app/node_modules ./node_modules
 COPY . .
-RUN npm run build
+# Công cụ reset dữ liệu chỉ dành cho máy dev: xóa mã nguồn trước khi build và kiểm tra không còn route trong bản build.
+RUN rm -rf src/app/reset src/features/dev-reset \
+    && npm run build \
+    && ! grep -rIl "x-dev-reset-token" .next
 
 FROM node:20-alpine AS production
 WORKDIR /app

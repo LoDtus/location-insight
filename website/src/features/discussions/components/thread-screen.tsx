@@ -130,7 +130,7 @@ export function ThreadScreen({ id, root }: { id: string; root: ShellRoot }): JSX
 
     if (!post) {
         return (
-            <main className={`h-full overflow-auto ${root === "/admin" ? "bg-white" : "bg-cream"}`}>
+            <main className="h-full overflow-auto bg-white">
                 <p className="m-0 px-4 py-8 text-sm">{message || "Đang tải mạch bài."}</p>
             </main>
         );
@@ -139,7 +139,7 @@ export function ThreadScreen({ id, root }: { id: string; root: ShellRoot }): JSX
     const items = [post, ...replies];
 
     return (
-        <main ref={scroller} className={`h-full overflow-auto ${root === "/admin" ? "bg-white" : "bg-cream"}`}>
+        <main ref={scroller} className="h-full overflow-auto bg-white">
             <div className="mx-auto min-h-full w-full max-w-[640px] border-x border-charcoal/10 bg-white">
                 <p className="m-0 border-b border-charcoal/10 px-4 py-3 text-sm">
                     <Link href={`${root}/feed`} className="font-semibold text-green no-underline">

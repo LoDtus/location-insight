@@ -85,7 +85,7 @@ export default function NewListingScreen({ root }: { root: ShellRoot }): JSX.Ele
     }
 
     return (
-        <main className={`box-border h-full overflow-auto px-4 py-8 sm:px-8 ${root === "/admin" ? "bg-white" : "bg-cream"}`}>
+        <main className="box-border h-full overflow-auto bg-white px-4 py-8 sm:px-8">
             <div className="mx-auto w-full max-w-xl">
                 <p className="m-0 text-sm">
                     <Link href={`${root}/properties`} className="font-semibold text-green no-underline">

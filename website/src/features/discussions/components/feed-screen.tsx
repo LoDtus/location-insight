@@ -182,7 +182,7 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
     }
 
     return (
-        <main ref={scroller} className={`h-full overflow-auto ${root === "/admin" ? "bg-white" : "bg-cream"}`}>
+        <main ref={scroller} className="h-full overflow-auto bg-white">
             <div className="mx-auto min-h-full w-full max-w-[640px] border-x border-charcoal/10 bg-white">
                 <div className="sticky top-0 z-10 flex gap-2 overflow-x-auto border-b border-charcoal/10 bg-white px-4 py-3">
                     <TopicTab

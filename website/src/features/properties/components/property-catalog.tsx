@@ -163,7 +163,7 @@ export default function PropertyCatalog({ root }: { root: ShellRoot }): JSX.Elem
     const gridHost = useRef<HTMLDivElement>(null);
     const searchTimer = useRef<number | null>(null);
     const closeFiltersRef = useRef<HTMLButtonElement>(null);
-    const surfaceClass = root === "/admin" ? "bg-white" : "bg-cream";
+    const surfaceClass = "bg-white";
 
     if (query !== syncedQuery) {
         setSyncedQuery(query);

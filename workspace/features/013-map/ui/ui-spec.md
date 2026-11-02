@@ -26,6 +26,10 @@ Mobile (< 1024 px): sidebar ẩn; panel phải thành **bottom sheet** (tối đ
 6. **Trạng thái toàn bản đồ**: đang tải style (khung xám + spinner), thiếu cấu hình (`tilesEnabled=false`: "Bản đồ chưa được cấu hình"), lỗi tải tile liên tục (banner "Không tải được bản đồ — thử lại"), `prefers-reduced-motion` → dùng `jumpTo` thay `flyTo`.
 7. **Admin**: cùng bản đồ; mục "Cài đặt" của sidebar mở thẻ **Mức dùng hôm nay** (số lần gọi upstream theo API, cache hit, ngân sách còn lại) lấy từ `/admin/map/usage`.
 
+## Đồng bộ URL và báo lỗi tham số
+
+Trạng thái bản đồ nằm trên URL (xem README §5a): mở link có `c/z/b/p/s/layers/q/…/pin/from/to/…` là dựng lại đúng cảnh; thao tác (kéo, zoom, đổi lớp, chọn ghim, chọn tuyến…) cập nhật URL. Khi có giá trị sai, một khung `role="alert"` ở góc trên trái liệt kê `tham số: lý do` kèm nút đóng. Có bộ lọc tìm kiếm (từ `cats/scope/city/dist/ward/r`) thì hiện các chip dưới ô tìm kèm "Xóa bộ lọc"; có `avoid`/`t` thì hiện chip trong bảng chỉ đường, bỏ được từng cái. Bảng chỉ đường có ô "Hiện tuyến thay thế" (`alt`).
+
 ## Trang chi tiết `/…/map/place/[id]`
 
 Giữ như hiện tại (chi tiết tin rao mẫu `MapPlaceDetail`) cho tới khi có module tin đăng thật; bản đồ phía sau là bản đồ thật.

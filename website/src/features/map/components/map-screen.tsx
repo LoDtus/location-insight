@@ -1,26 +1,47 @@
 "use client";
 
 import { Loader2, Navigation } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 import type { ShellRoot } from "@/features/app/shell";
 import { MAP_PLACE_SLUG } from "@/features/landing-page/data/listings";
-import MapCanvas, { type MapHandle, type MapViewport } from "@/features/map/components/map-canvas";
+import MapCanvas, {
+    type MapHandle,
+    type MapInitialView,
+    type MapViewport,
+} from "@/features/map/components/map-canvas";
 import MapDirectionsPanel from "@/features/map/components/map-directions-panel";
+import MapFilterChips from "@/features/map/components/map-filter-chips";
 import MapLayerPicker from "@/features/map/components/map-layer-picker";
 import MapPlaceDetail from "@/features/map/components/map-place-detail";
 import MapPlacePanel from "@/features/map/components/map-place-panel";
 import MapScaleBar from "@/features/map/components/map-scale-bar";
 import MapSidebar from "@/features/map/components/map-sidebar";
+import MapUrlErrors from "@/features/map/components/map-url-errors";
 import MapUsageCard from "@/features/map/components/map-usage-card";
 import MapZoomControls from "@/features/map/components/map-zoom-controls";
 import PlaceSearchBox from "@/features/map/components/place-search-box";
 import { useDirections } from "@/features/map/hooks/use-directions";
 import { useMapConfig } from "@/features/map/hooks/use-map-config";
 import { usePlaceSelection } from "@/features/map/hooks/use-place-selection";
+import {
+    buildMapUrl,
+    canonicalQuery,
+    parseMapUrl,
+    type MapUrlError,
+    type MapUrlParseResult,
+    type MapUrlState,
+    type SearchFilters,
+} from "@/features/map/map-url";
 import { isAbortError, reverseGeocode } from "@/features/map/map.service";
-import type { MapPlace, MapPoint, MapStyleId, Waypoint } from "@/features/map/map.types";
+import type {
+    MapConfig,
+    MapPlace,
+    MapPoint,
+    MapStyleId,
+    Waypoint,
+} from "@/features/map/map.types";
 
 interface MapScreenProps {
     placeId?: string;
@@ -30,38 +51,209 @@ interface MapScreenProps {
 type Panel = "place" | "directions" | "usage" | "detail" | null;
 
 const POINT_LABEL_FALLBACK = "Điểm đã chọn";
+const URL_WRITE_DELAY_MS = 500;
+const PIN_ZOOM = 16;
 
 function toWaypoint(place: MapPlace): Waypoint {
     return { lat: place.lat, lng: place.lng, label: place.name || place.display || POINT_LABEL_FALLBACK };
 }
 
-export default function MapScreen({ placeId, root = "/app" }: MapScreenProps) {
+function provisional(point: MapPoint | null): Waypoint | null {
+    return point ? { ...point, label: POINT_LABEL_FALLBACK } : null;
+}
+
+/** Camera ban đầu: `c`/`z`/`b`/`p` nếu có, không thì quanh ghim/điểm đi-đến, không thì mặc định của cấu hình. */
+function computeInitialView(state: MapUrlState, config: MapConfig): MapInitialView {
+    const anchor =
+        state.c ??
+        state.pin ??
+        (state.from && state.to
+            ? { lat: (state.from.lat + state.to.lat) / 2, lng: (state.from.lng + state.to.lng) / 2 }
+            : (state.from ?? state.to));
+    const fallbackZoom = state.c ? config.zoom : state.pin ? PIN_ZOOM : state.from || state.to ? 13 : config.zoom;
+    return {
+        center: anchor ? [anchor.lng, anchor.lat] : config.center,
+        zoom: state.z ?? fallbackZoom,
+        bearing: state.b ?? 0,
+        pitch: state.p ?? 0,
+    };
+}
+
+function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
     const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const paramsString = searchParams.toString();
+
     const mapRef = useRef<MapHandle>(null);
     const configState = useMapConfig();
     const { selection, selectPoint, clear } = usePlaceSelection();
-    const directions = useDirections();
 
-    const [styleId, setStyleId] = useState<MapStyleId>("tm");
-    const [trafficOn, setTrafficOn] = useState(false);
-    const [viewport, setViewport] = useState<MapViewport>({ zoom: 12, lat: 21.03, lng: 105.83, bearing: 0 });
-    const [panel, setPanel] = useState<Panel>(placeId !== undefined ? "detail" : null);
+    // URL được đọc đúng một lần khi vào trang; các lần đổi sau xử lý ở effect bên dưới.
+    const [initialParse] = useState<MapUrlParseResult>(() => parseMapUrl(new URLSearchParams(paramsString)));
+    const init = initialParse.state;
+    const hasDirectionsInUrl = init.from !== null || init.to !== null;
+
+    const directions = useDirections({
+        open: hasDirectionsInUrl,
+        from: provisional(init.from),
+        to: provisional(init.to),
+        vehicle: init.v ?? undefined,
+        alternatives: init.alt ?? undefined,
+        avoid: init.avoid,
+        departAt: init.t,
+        routeIndex: init.route ?? 0,
+    });
+
+    const [styleId, setStyleId] = useState<MapStyleId>(init.s ?? "tm");
+    const [trafficOn, setTrafficOn] = useState(init.traffic);
+    const [filters, setFilters] = useState<SearchFilters>(init.filters);
+    const [query, setQuery] = useState<string | null>(init.q);
+    const [queryValue, setQueryValue] = useState(init.q ?? "");
+    const [urlErrors, setUrlErrors] = useState<MapUrlError[]>(initialParse.errors);
+    const [viewport, setViewport] = useState<MapViewport>({ zoom: 12, lat: 21.03, lng: 105.83, bearing: 0, pitch: 0 });
+    const [viewportReady, setViewportReady] = useState(false);
+    const [panel, setPanel] = useState<Panel>(
+        hasDirectionsInUrl ? "directions" : init.pin ? "place" : placeId !== undefined ? "detail" : null,
+    );
     const [picking, setPicking] = useState<"from" | "to" | null>(null);
     const [failed, setFailed] = useState(false);
     const [locating, setLocating] = useState(false);
     const [notice, setNotice] = useState<string | null>(null);
-
+    const lastWrittenRef = useRef(canonicalQuery(paramsString));
     const isAdmin = root === "/admin";
     const focus: MapPoint = { lat: viewport.lat, lng: viewport.lng };
+    const config = configState.status === "ready" ? configState.config : null;
+    const trafficAvailable = config?.trafficStyleUrl != null;
 
-    // Fit tuyến đúng một lần cho mỗi kết quả mới.
+    function labelPoint(target: "from" | "to", point: MapPoint): void {
+        const named = (label: string): Waypoint => ({ ...point, label });
+        const set = target === "from" ? directions.setFrom : directions.setTo;
+        set(named(POINT_LABEL_FALLBACK));
+        reverseGeocode(point)
+            .then((place) => {
+                if (!place) return;
+                set((current) => (current && current.lat === point.lat && current.lng === point.lng ? named(place.name || place.display) : current));
+            })
+            .catch((error: unknown) => {
+                if (!isAbortError(error)) setNotice("Không lấy được tên địa điểm; vẫn dùng tọa độ đã chọn.");
+            });
+    }
+
+    // Vào trang bằng URL có pin/from/to: lấy địa chỉ cho các điểm đó.
+    useEffect(() => {
+        if (init.pin) selectPoint(init.pin);
+        if (init.from) labelPoint("from", init.from);
+        if (init.to) labelPoint("to", init.to);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ chạy một lần khi vào trang
+    }, []);
+
+    // `layers=traffic` mà hệ thống chưa bật Traffic → báo lỗi, không bật.
+    useEffect(() => {
+        if (configState.status !== "ready" || !trafficOn || trafficAvailable) return;
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- phản ứng với cấu hình vừa tải
+        setTrafficOn(false);
+        setUrlErrors((current) => [
+            ...current,
+            { param: "layers", message: "lớp giao thông chưa được bật trên hệ thống (cần bật API Traffic cho khóa Tilemap)" },
+        ]);
+    }, [configState.status, trafficOn, trafficAvailable]);
+
+    // Fit tuyến đúng một lần cho mỗi kết quả mới (trừ khi URL đã chỉ định tâm `c`).
     const { fitVersion, routes, active } = directions;
+    const skipFitRef = useRef(init.c !== null);
     useEffect(() => {
         const route = routes[active];
         if (fitVersion === 0 || !route) return;
+        if (skipFitRef.current) {
+            skipFitRef.current = false;
+            return;
+        }
         mapRef.current?.fitBounds(route.bbox);
         // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ khi có kết quả mới
     }, [fitVersion]);
+
+    // ---- Trạng thái → URL (replaceState, dồn nhịp) ----
+    const urlState: MapUrlState = {
+        c: viewportReady ? { lat: viewport.lat, lng: viewport.lng } : null,
+        z: viewportReady ? viewport.zoom : null,
+        b: viewportReady ? viewport.bearing : null,
+        p: viewportReady ? viewport.pitch : null,
+        s: styleId,
+        traffic: trafficOn,
+        q: query && query.trim().length >= 2 ? query.trim() : null,
+        filters,
+        pin: selection.status === "none" ? null : selection.point,
+        from: directions.open ? directions.from : null,
+        to: directions.open ? directions.to : null,
+        v: directions.vehicle,
+        alt: directions.alternatives,
+        route: directions.routes.length > 0 ? directions.active : init.route,
+        avoid: directions.avoid as MapUrlState["avoid"],
+        t: directions.departAt,
+    };
+    const built = buildMapUrl(urlState);
+    useEffect(() => {
+        if (!viewportReady) return;
+        const canonical = canonicalQuery(built);
+        if (canonical === lastWrittenRef.current) return;
+        const timer = setTimeout(() => {
+            lastWrittenRef.current = canonical;
+            window.history.replaceState(null, "", built ? `${pathname}?${built}` : pathname);
+        }, URL_WRITE_DELAY_MS);
+        return () => clearTimeout(timer);
+    }, [built, viewportReady, pathname]);
+
+    // ---- URL → trạng thái (khi URL đổi từ bên ngoài: Back/Forward, liên kết) ----
+    useEffect(() => {
+        const canonical = canonicalQuery(paramsString);
+        if (canonical === lastWrittenRef.current) return;
+        lastWrittenRef.current = canonical;
+        const { state, errors } = parseMapUrl(new URLSearchParams(paramsString));
+        /* eslint-disable react-hooks/set-state-in-effect -- đồng bộ trạng thái với URL (nguồn bên ngoài) */
+        setUrlErrors(errors);
+        setStyleId(state.s ?? "tm");
+        setTrafficOn(state.traffic && trafficAvailable);
+        setFilters(state.filters);
+        setQuery(state.q);
+        setQueryValue(state.q ?? "");
+        directions.setVehicle(state.v ?? "motorcycle");
+        directions.setAlternatives(state.alt ?? true);
+        directions.setAvoid(state.avoid);
+        directions.setDepartAt(state.t);
+        directions.setPendingIndex(state.route ?? 0);
+        if (state.from || state.to) {
+            clear();
+            if (state.from) labelPoint("from", state.from);
+            else directions.setFrom(null);
+            if (state.to) labelPoint("to", state.to);
+            else directions.setTo(null);
+            directions.setOpen(true);
+            setPanel("directions");
+        } else {
+            directions.close();
+            directions.setFrom(null);
+            directions.setTo(null);
+            if (state.pin) {
+                selectPoint(state.pin);
+                setPanel("place");
+            } else {
+                clear();
+                setPanel((current) => (current === "place" || current === "directions" ? null : current));
+            }
+        }
+        const center = state.c ?? state.pin;
+        if (center || state.z !== null || state.b !== null || state.p !== null) {
+            mapRef.current?.setView({
+                ...(center ?? {}),
+                ...(state.z !== null ? { zoom: state.z } : !state.c && state.pin ? { zoom: PIN_ZOOM } : {}),
+                ...(state.b !== null ? { bearing: state.b } : {}),
+                ...(state.p !== null ? { pitch: state.p } : {}),
+            });
+        }
+        /* eslint-enable react-hooks/set-state-in-effect */
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ phản ứng với thay đổi URL
+    }, [paramsString]);
 
     const setWaypoint = useCallback(
         (target: "from" | "to", place: MapPlace | null): void => {
@@ -73,23 +265,6 @@ export default function MapScreen({ placeId, root = "/app" }: MapScreenProps) {
         // eslint-disable-next-line react-hooks/exhaustive-deps -- setters ổn định
         [directions.setFrom, directions.setTo],
     );
-
-    function labelPoint(target: "from" | "to", point: MapPoint): void {
-        const provisional: Waypoint = { ...point, label: POINT_LABEL_FALLBACK };
-        if (target === "from") directions.setFrom(provisional);
-        else directions.setTo(provisional);
-        const controller = new AbortController();
-        reverseGeocode(point, controller.signal)
-            .then((place) => {
-                if (!place) return;
-                const named: Waypoint = { ...point, label: place.name || place.display };
-                if (target === "from") directions.setFrom((current) => (current && current.lat === point.lat ? named : current));
-                else directions.setTo((current) => (current && current.lat === point.lat ? named : current));
-            })
-            .catch((error: unknown) => {
-                if (!isAbortError(error)) setNotice("Không lấy được tên địa điểm; vẫn dùng tọa độ đã chọn.");
-            });
-    }
 
     const onMapClick = useCallback(
         (point: MapPoint): void => {
@@ -112,7 +287,7 @@ export default function MapScreen({ placeId, root = "/app" }: MapScreenProps) {
         const point = { lat: place.lat, lng: place.lng };
         selectPoint(point, place);
         setPanel("place");
-        mapRef.current?.flyTo(point, 16);
+        mapRef.current?.flyTo(point, PIN_ZOOM);
     }
 
     function openDirections(patch: { from?: Waypoint; to?: Waypoint }): void {
@@ -197,7 +372,7 @@ export default function MapScreen({ placeId, root = "/app" }: MapScreenProps) {
             </div>
         );
     }
-    const config = configState.config;
+    const readyConfig = configState.config;
     const pin = selection.status === "none" || directions.open ? null : selection.point;
     const sidePanel =
         panel === "directions" ? (
@@ -209,6 +384,13 @@ export default function MapScreen({ placeId, root = "/app" }: MapScreenProps) {
                 active={directions.active}
                 status={directions.status}
                 error={directions.error}
+                indexError={directions.indexError}
+                alternatives={directions.alternatives}
+                avoid={directions.avoid}
+                departAt={directions.departAt}
+                onAlternatives={directions.setAlternatives}
+                onClearAvoid={() => directions.setAvoid(null)}
+                onClearDepartAt={() => directions.setDepartAt(null)}
                 focus={focus}
                 picking={picking}
                 onPick={setPicking}
@@ -244,7 +426,8 @@ export default function MapScreen({ placeId, root = "/app" }: MapScreenProps) {
         <div className="relative h-full w-full">
             <MapCanvas
                 handleRef={mapRef}
-                config={config}
+                config={readyConfig}
+                initialView={computeInitialView(init, readyConfig)}
                 styleId={styleId}
                 trafficOn={trafficOn}
                 pin={pin}
@@ -254,7 +437,10 @@ export default function MapScreen({ placeId, root = "/app" }: MapScreenProps) {
                 activeRoute={directions.active}
                 onMapClick={onMapClick}
                 onPinDrag={(point) => selectPoint(point)}
-                onViewport={setViewport}
+                onViewport={(next) => {
+                    setViewport(next);
+                    setViewportReady(true);
+                }}
                 onFailure={setFailed}
             />
             <div className="pointer-events-none absolute inset-0">
@@ -264,14 +450,17 @@ export default function MapScreen({ placeId, root = "/app" }: MapScreenProps) {
                             <MapSidebar onSettings={isAdmin ? () => setPanel("usage") : undefined} />
                         </div>
                         <div className="relative min-h-0 min-w-0 flex-1">
-                            {config.searchEnabled ? (
+                            {readyConfig.searchEnabled ? (
                                 <div className="pointer-events-auto absolute top-2 right-2 left-2 z-10 flex max-w-md items-center gap-2">
                                     <PlaceSearchBox
                                         className="min-w-0 flex-1"
                                         label="Tìm kiếm địa điểm"
                                         placeholder="Tìm kiếm địa điểm, địa chỉ"
-                                        value=""
+                                        value={queryValue}
+                                        searchOnValue
+                                        filters={filters}
                                         focus={focus}
+                                        onQueryChange={setQuery}
                                         onSelect={onSearchSelect}
                                     />
                                     <button
@@ -291,26 +480,24 @@ export default function MapScreen({ placeId, root = "/app" }: MapScreenProps) {
                                     Tìm kiếm chưa được cấu hình.
                                 </p>
                             )}
-                            {failed ? (
-                                <p
-                                    role="alert"
-                                    className="pointer-events-auto absolute top-16 left-2 z-10 m-0 rounded-lg bg-white px-3 py-2 text-sm text-red-700 shadow-sm"
-                                >
-                                    Không tải được bản đồ. Kiểm tra kết nối rồi tải lại trang.
-                                </p>
-                            ) : null}
-                            {notice ? (
-                                <p
-                                    role="status"
-                                    className="pointer-events-auto absolute top-16 right-2 z-10 m-0 max-w-xs rounded-lg bg-white px-3 py-2 text-sm shadow-sm"
-                                >
-                                    {notice}
-                                </p>
-                            ) : null}
+                            <div className="pointer-events-none absolute top-14 right-2 left-2 z-10 flex max-w-md flex-col gap-2">
+                                <MapFilterChips filters={filters} onClear={() => setFilters({})} />
+                                <MapUrlErrors errors={urlErrors} onDismiss={() => setUrlErrors([])} />
+                                {failed ? (
+                                    <p role="alert" className="pointer-events-auto m-0 rounded-lg bg-white px-3 py-2 text-sm text-red-700 shadow-sm">
+                                        Không tải được bản đồ. Kiểm tra kết nối rồi tải lại trang.
+                                    </p>
+                                ) : null}
+                                {notice ? (
+                                    <p role="status" className="pointer-events-auto m-0 rounded-lg bg-white px-3 py-2 text-sm shadow-sm">
+                                        {notice}
+                                    </p>
+                                ) : null}
+                            </div>
                             <MapLayerPicker
                                 styleId={styleId}
                                 onStyleChange={setStyleId}
-                                trafficAvailable={config.trafficStyleUrl !== null}
+                                trafficAvailable={trafficAvailable}
                                 trafficOn={trafficOn}
                                 onTrafficChange={setTrafficOn}
                             />
@@ -329,5 +516,14 @@ export default function MapScreen({ placeId, root = "/app" }: MapScreenProps) {
                 </div>
             </div>
         </div>
+    );
+}
+
+/** `useSearchParams` cần Suspense để trang vẫn prerender được. */
+export default function MapScreen(props: MapScreenProps) {
+    return (
+        <Suspense fallback={<div className="h-full w-full bg-neutral-100" />}>
+            <MapScreenInner {...props} />
+        </Suspense>
     );
 }

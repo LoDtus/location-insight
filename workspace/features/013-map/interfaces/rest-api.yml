@@ -26,6 +26,12 @@ paths:
         - { name: lat, in: query, schema: { type: number, minimum: 8, maximum: 24 }, description: Tâm ưu tiên (focus); mặc định Hà Nội }
         - { name: lng, in: query, schema: { type: number, minimum: 102, maximum: 110 } }
         - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 10, default: 8 } }
+        - { name: cats, in: query, schema: { type: string, pattern: '^\d{1,6}(-\d{1,3})?(,\d{1,6}(-\d{1,3})?){0,9}$' }, description: Mã nhóm POI }
+        - { name: scope, in: query, schema: { type: string, example: "POI,STREET" }, description: "Tập con của POI,ADDRESS,VILLAGE,WARD,DIST,CITY,STREET (Vietmap: layers)" }
+        - { name: cityId, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: distId, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: wardId, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: radius, in: query, schema: { type: integer, minimum: 50, maximum: 50000 }, description: Mét quanh (lat,lng) }
       responses:
         "200": { description: OK, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/MapSuggestion" } } } } }
         "400": { description: Đầu vào sai schema (VALIDATION_ERROR) }
@@ -61,6 +67,8 @@ paths:
         - { name: to, in: query, required: true, schema: { type: string, example: "21.0045,105.8430" }, description: "lat,lng" }
         - { name: vehicle, in: query, schema: { type: string, enum: [car, motorcycle], default: motorcycle } }
         - { name: alternatives, in: query, schema: { type: boolean, default: false } }
+        - { name: avoid, in: query, schema: { type: string, enum: [ferry] } }
+        - { name: time, in: query, schema: { type: string, example: "2026-11-03T01:00:00Z" }, description: Giờ khởi hành ISO 8601 UTC; làm tròn xuống 15 phút }
       responses:
         "200": { description: OK, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/MapRoute" } } } } }
         "404": { description: Không tìm được đường }

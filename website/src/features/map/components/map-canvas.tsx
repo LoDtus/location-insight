@@ -26,6 +26,15 @@ export interface MapHandle {
     fitBounds: (bbox: [number, number, number, number], paddingLeft?: number) => void;
     /** Hiện chấm "vị trí của tôi" và bay tới đó. */
     showMyLocation: (point: MapPoint) => void;
+    /** Đặt lại camera tức thì (khi URL đổi từ bên ngoài). */
+    setView: (view: Partial<MapPoint> & { zoom?: number; bearing?: number; pitch?: number }) => void;
+}
+
+export interface MapInitialView {
+    center: [number, number];
+    zoom: number;
+    bearing: number;
+    pitch: number;
 }
 
 export interface MapViewport {
@@ -33,10 +42,12 @@ export interface MapViewport {
     lat: number;
     lng: number;
     bearing: number;
+    pitch: number;
 }
 
 interface MapCanvasProps {
     config: MapConfig;
+    initialView: MapInitialView;
     styleId: MapStyleId;
     trafficOn: boolean;
     pin: MapPoint | null;
@@ -91,6 +102,7 @@ function lineColor(): unknown[] {
 
 export default function MapCanvas({
     config,
+    initialView,
     styleId,
     trafficOn,
     pin,
@@ -149,6 +161,16 @@ export default function MapCanvas({
                     ],
                     { padding: { top: 80, bottom: 80, left: 80 + paddingLeft, right: 80 }, maxZoom: 17 },
                 );
+            },
+            setView: (view) => {
+                const map = mapRef.current;
+                if (!map) return;
+                map.jumpTo({
+                    ...(view.lat !== undefined && view.lng !== undefined ? { center: [view.lng, view.lat] as [number, number] } : {}),
+                    ...(view.zoom !== undefined ? { zoom: view.zoom } : {}),
+                    ...(view.bearing !== undefined ? { bearing: view.bearing } : {}),
+                    ...(view.pitch !== undefined ? { pitch: view.pitch } : {}),
+                });
             },
             showMyLocation: (point) => {
                 const map = mapRef.current;
@@ -271,8 +293,10 @@ export default function MapCanvas({
                 map = new lib.Map({
                     container,
                     style: url,
-                    center: config.center,
-                    zoom: config.zoom,
+                    center: initialView.center,
+                    zoom: initialView.zoom,
+                    bearing: initialView.bearing,
+                    pitch: initialView.pitch,
                     minZoom: 4,
                     maxZoom: 20,
                     maxBounds: [
@@ -294,6 +318,7 @@ export default function MapCanvas({
                         lat: center.lat,
                         lng: center.lng,
                         bearing: map.getBearing(),
+                        pitch: map.getPitch(),
                     });
                 };
                 const setup = (): void => {

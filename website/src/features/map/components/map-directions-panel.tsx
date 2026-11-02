@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpDown, Bike, Car, Crosshair, Loader2, LocateFixed } from "lucide-react";
+import { ArrowUpDown, Bike, Car, Crosshair, Loader2, LocateFixed, X } from "lucide-react";
 
 import MapPanel from "@/features/map/components/map-panel";
 import PlaceSearchBox from "@/features/map/components/place-search-box";
@@ -16,6 +16,13 @@ interface MapDirectionsPanelProps {
     active: number;
     status: RouteStatus;
     error: string | null;
+    indexError: string | null;
+    alternatives: boolean;
+    avoid: string | null;
+    departAt: string | null;
+    onAlternatives: (value: boolean) => void;
+    onClearAvoid: () => void;
+    onClearDepartAt: () => void;
     focus: MapPoint | null;
     picking: "from" | "to" | null;
     onPick: (target: "from" | "to" | null) => void;
@@ -29,13 +36,24 @@ interface MapDirectionsPanelProps {
     onClose: () => void;
 }
 
+function formatDepartAt(iso: string): string {
+    return new Date(iso).toLocaleString("vi-VN", {
+        timeZone: "Asia/Ho_Chi_Minh",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
+}
+
 const VEHICLES: Array<{ id: RouteVehicle; label: string; icon: typeof Car }> = [
     { id: "motorcycle", label: "Xe máy", icon: Bike },
     { id: "car", label: "Ô tô", icon: Car },
 ];
 
 export default function MapDirectionsPanel(props: MapDirectionsPanelProps) {
-    const { from, to, vehicle, routes, active, status, error, focus, picking } = props;
+    const { from, to, vehicle, routes, active, status, error, indexError, focus, picking } = props;
     const route = routes[active];
     const fastest = routes.length > 1 ? Math.min(...routes.map((item) => item.durationS)) : null;
 
@@ -123,6 +141,40 @@ export default function MapDirectionsPanel(props: MapDirectionsPanelProps) {
                     );
                 })}
             </div>
+
+            <label className="flex items-center gap-2 text-sm">
+                <input
+                    type="checkbox"
+                    checked={props.alternatives}
+                    onChange={(event) => props.onAlternatives(event.target.checked)}
+                />
+                Hiện tuyến thay thế
+            </label>
+            {props.avoid || props.departAt ? (
+                <ul className="m-0 flex list-none flex-wrap gap-2 p-0" aria-label="Tùy chọn tuyến đang áp dụng">
+                    {props.avoid ? (
+                        <li className="inline-flex items-center gap-1 rounded-full bg-charcoal/5 py-1 pr-1 pl-3 text-xs">
+                            Tránh phà
+                            <button type="button" aria-label="Bỏ tùy chọn tránh phà" className="inline-flex size-6 items-center justify-center rounded-full hover:bg-charcoal/10" onClick={props.onClearAvoid}>
+                                <X size={12} />
+                            </button>
+                        </li>
+                    ) : null}
+                    {props.departAt ? (
+                        <li className="inline-flex items-center gap-1 rounded-full bg-charcoal/5 py-1 pr-1 pl-3 text-xs">
+                            Khởi hành {formatDepartAt(props.departAt)}
+                            <button type="button" aria-label="Bỏ giờ khởi hành" className="inline-flex size-6 items-center justify-center rounded-full hover:bg-charcoal/10" onClick={props.onClearDepartAt}>
+                                <X size={12} />
+                            </button>
+                        </li>
+                    ) : null}
+                </ul>
+            ) : null}
+            {indexError ? (
+                <p className="m-0 text-xs text-amber-800" role="status">
+                    {indexError}
+                </p>
+            ) : null}
 
             {status === "loading" ? (
                 <p className="m-0 flex items-center gap-2 text-sm text-charcoal/70" role="status">

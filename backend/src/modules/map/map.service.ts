@@ -179,13 +179,15 @@ export class MapService {
           point: [`${from[0]},${from[1]}`, `${to[0]},${to[1]}`],
           vehicle,
           points_encoded: 'false',
-          alternative: String(alternatives),
           annotations: 'congestion',
         };
+        // Vietmap bỏ qua alternative=false: chỉ gửi khi bật.
+        if (alternatives) params.alternative = 'true';
         if (avoid) params.avoid = avoid;
         if (departAt) params.time = departAt;
         const result = await this.client.get('/api/route/v4', params);
-        return toRoutes(result.body);
+        const all = toRoutes(result.body);
+        return alternatives ? all : all.slice(0, 1);
       },
     );
     if (!routes.length) {

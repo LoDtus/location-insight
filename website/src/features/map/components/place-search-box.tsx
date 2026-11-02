@@ -9,6 +9,7 @@ import {
     resolvePlace,
     searchPlaces,
 } from "@/features/map/map.service";
+import type { SearchFilters } from "@/features/map/map-url";
 import type { MapPlace, MapPoint, MapSuggestion } from "@/features/map/map.types";
 
 const DEBOUNCE_MS = 250;
@@ -24,6 +25,12 @@ interface PlaceSearchBoxProps {
     focus: MapPoint | null;
     onSelect: (place: MapPlace) => void;
     onClear?: () => void;
+    /** Báo chuỗi đang gõ (để đồng bộ lên URL). */
+    onQueryChange?: (text: string) => void;
+    /** Bộ lọc áp dụng cho truy vấn gợi ý (ô tìm chính). */
+    filters?: SearchFilters;
+    /** Khi `value` đổi từ bên ngoài (vd. URL có `q`), tự chạy tìm kiếm. */
+    searchOnValue?: boolean;
     className?: string;
 }
 
@@ -34,6 +41,9 @@ export default function PlaceSearchBox({
     focus,
     onSelect,
     onClear,
+    onQueryChange,
+    filters,
+    searchOnValue = false,
     className = "",
 }: PlaceSearchBoxProps) {
     const listId = useId();
@@ -46,17 +56,22 @@ export default function PlaceSearchBox({
     const [resolving, setResolving] = useState(false);
     const typingRef = useRef(false);
     const focusRef = useRef(focus);
+    const filtersRef = useRef<SearchFilters>(filters ?? {});
     const searchRef = useRef<AbortController | null>(null);
     const resolveRef = useRef<AbortController | null>(null);
 
     useEffect(() => {
         focusRef.current = focus;
+        filtersRef.current = filters ?? {};
     });
 
     useEffect(() => {
-        typingRef.current = false;
+        const search = searchOnValue && value.trim().length >= MIN_CHARS;
+        typingRef.current = search;
         // eslint-disable-next-line react-hooks/set-state-in-effect -- đồng bộ nhãn từ bên ngoài
         setQuery(value);
+        if (search) setOpen(true);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ khi giá trị ngoài đổi
     }, [value]);
 
     useEffect(
@@ -81,7 +96,7 @@ export default function PlaceSearchBox({
             const controller = new AbortController();
             searchRef.current = controller;
             setStatus("loading");
-            searchPlaces(text, focusRef.current, controller.signal)
+            searchPlaces(text, focusRef.current, filtersRef.current, controller.signal)
                 .then((result) => {
                     setSuggestions(result);
                     setStatus("ready");
@@ -105,6 +120,7 @@ export default function PlaceSearchBox({
         setOpen(false);
         typingRef.current = false;
         setQuery(suggestion.name);
+        onQueryChange?.(suggestion.name);
         resolvePlace(suggestion.refId, controller.signal)
             .then((place) => {
                 setResolving(false);
@@ -164,6 +180,7 @@ export default function PlaceSearchBox({
                     onChange={(event) => {
                         typingRef.current = true;
                         setQuery(event.target.value);
+                        onQueryChange?.(event.target.value);
                         setOpen(true);
                     }}
                     onFocus={() => setOpen(true)}
@@ -179,6 +196,7 @@ export default function PlaceSearchBox({
                         onClick={() => {
                             typingRef.current = false;
                             setQuery("");
+                            onQueryChange?.("");
                             setSuggestions([]);
                             setStatus("idle");
                             onClear?.();

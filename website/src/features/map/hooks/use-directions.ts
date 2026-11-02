@@ -7,22 +7,50 @@ import type { MapRoute, RouteVehicle, Waypoint } from "@/features/map/map.types"
 
 export type RouteStatus = "idle" | "loading" | "ready" | "error";
 
-export function useDirections() {
-    const [open, setOpen] = useState(false);
-    const [from, setFrom] = useState<Waypoint | null>(null);
-    const [to, setTo] = useState<Waypoint | null>(null);
-    const [vehicle, setVehicle] = useState<RouteVehicle>("motorcycle");
+export interface DirectionsInitial {
+    open?: boolean;
+    from?: Waypoint | null;
+    to?: Waypoint | null;
+    vehicle?: RouteVehicle;
+    alternatives?: boolean;
+    avoid?: string | null;
+    departAt?: string | null;
+    routeIndex?: number;
+}
+
+function key(point: Waypoint | null): string | null {
+    return point ? `${point.lat},${point.lng}` : null;
+}
+
+export function useDirections(initial: DirectionsInitial = {}) {
+    const [open, setOpen] = useState(initial.open ?? false);
+    const [from, setFrom] = useState<Waypoint | null>(initial.from ?? null);
+    const [to, setTo] = useState<Waypoint | null>(initial.to ?? null);
+    const [vehicle, setVehicle] = useState<RouteVehicle>(initial.vehicle ?? "motorcycle");
+    const [alternatives, setAlternatives] = useState(initial.alternatives ?? true);
+    const [avoid, setAvoid] = useState<string | null>(initial.avoid ?? null);
+    const [departAt, setDepartAt] = useState<string | null>(initial.departAt ?? null);
     const [routes, setRoutes] = useState<MapRoute[]>([]);
-    const [active, setActive] = useState(0);
+    const [active, setActive] = useState(initial.routeIndex ?? 0);
     const [status, setStatus] = useState<RouteStatus>("idle");
     const [error, setError] = useState<string | null>(null);
+    const [indexError, setIndexError] = useState<string | null>(null);
     const [fitVersion, setFitVersion] = useState(0);
     const controllerRef = useRef<AbortController | null>(null);
+    /** Tuyến được chọn sẵn từ URL: áp dụng một lần khi kết quả về. */
+    const pendingIndexRef = useRef(initial.routeIndex ?? 0);
+    const pointsRef = useRef({ from, to });
+    useEffect(() => {
+        pointsRef.current = { from, to };
+    });
 
+    // Chỉ chạy lại khi TỌA ĐỘ đổi (nhãn được cập nhật sau reverse không gọi lại Route).
+    const fromKey = key(from);
+    const toKey = key(to);
     useEffect(() => {
         controllerRef.current?.abort();
-        if (!open || !from || !to) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect -- dọn kết quả khi điều kiện đầu vào mất
+        const { from: start, to: end } = pointsRef.current;
+        if (!open || !start || !end) {
             setRoutes([]);
             setStatus("idle");
             setError(null);
@@ -32,10 +60,18 @@ export function useDirections() {
         controllerRef.current = controller;
         setStatus("loading");
         setError(null);
-        getRoutes(from, to, vehicle, controller.signal)
+        getRoutes(start, end, vehicle, { alternatives, avoid, departAt }, controller.signal)
             .then((result) => {
+                const pending = pendingIndexRef.current;
+                pendingIndexRef.current = 0;
                 setRoutes(result);
-                setActive(0);
+                if (pending < result.length) {
+                    setActive(pending);
+                    setIndexError(null);
+                } else {
+                    setActive(0);
+                    setIndexError(`route=${pending}: chỉ có ${result.length} tuyến, đã dùng tuyến 0.`);
+                }
                 setStatus("ready");
                 setFitVersion((value) => value + 1);
             })
@@ -46,7 +82,7 @@ export function useDirections() {
                 setError(mapErrorMessage(failure, "Không tìm được đường, vui lòng thử lại."));
             });
         return () => controller.abort();
-    }, [open, from, to, vehicle]);
+    }, [open, fromKey, toKey, vehicle, alternatives, avoid, departAt]);
 
     const swap = useCallback((): void => {
         setFrom(to);
@@ -57,6 +93,10 @@ export function useDirections() {
         setOpen(false);
         setRoutes([]);
         setStatus("idle");
+    }, []);
+
+    const setPendingIndex = useCallback((index: number): void => {
+        pendingIndexRef.current = index;
     }, []);
 
     return {
@@ -70,11 +110,19 @@ export function useDirections() {
         swap,
         vehicle,
         setVehicle,
+        alternatives,
+        setAlternatives,
+        avoid,
+        setAvoid,
+        departAt,
+        setDepartAt,
         routes,
         active,
         setActive,
         status,
         error,
+        indexError,
+        setPendingIndex,
         /** Tăng mỗi khi có kết quả tuyến mới: dùng để `fitBounds` đúng một lần. */
         fitVersion,
     };

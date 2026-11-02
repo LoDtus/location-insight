@@ -1,4 +1,5 @@
 import { AuthApiError, apiRequest } from "@/features/auth/auth.api";
+import type { SearchFilters } from "@/features/map/map-url";
 import type {
     MapConfig,
     MapPlace,
@@ -20,6 +21,7 @@ export function getMapConfig(signal?: AbortSignal): Promise<MapConfig> {
 export function searchPlaces(
     text: string,
     focus: MapPoint | null,
+    filters: SearchFilters,
     signal?: AbortSignal,
 ): Promise<MapSuggestion[]> {
     const query = new URLSearchParams({ text, limit: "8" });
@@ -27,6 +29,12 @@ export function searchPlaces(
         query.set("lat", String(focus.lat));
         query.set("lng", String(focus.lng));
     }
+    if (filters.cats) query.set("cats", filters.cats);
+    if (filters.scope) query.set("scope", filters.scope);
+    if (filters.cityId) query.set("cityId", String(filters.cityId));
+    if (filters.distId) query.set("distId", String(filters.distId));
+    if (filters.wardId) query.set("wardId", String(filters.wardId));
+    if (filters.radius) query.set("radius", String(filters.radius));
     return apiRequest(`/map/search?${query.toString()}`, withSignal(signal));
 }
 
@@ -40,18 +48,27 @@ export function reverseGeocode(point: MapPoint, signal?: AbortSignal): Promise<M
     return apiRequest(`/map/reverse?${query.toString()}`, withSignal(signal));
 }
 
+export interface RouteOptions {
+    alternatives: boolean;
+    avoid: string | null;
+    departAt: string | null;
+}
+
 export function getRoutes(
     from: MapPoint,
     to: MapPoint,
     vehicle: RouteVehicle,
+    options: RouteOptions,
     signal?: AbortSignal,
 ): Promise<MapRoute[]> {
     const query = new URLSearchParams({
         from: `${from.lat},${from.lng}`,
         to: `${to.lat},${to.lng}`,
         vehicle,
-        alternatives: "true",
+        alternatives: String(options.alternatives),
     });
+    if (options.avoid) query.set("avoid", options.avoid);
+    if (options.departAt) query.set("time", options.departAt);
     return apiRequest(`/map/route?${query.toString()}`, withSignal(signal));
 }
 

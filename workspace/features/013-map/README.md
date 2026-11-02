@@ -84,10 +84,10 @@ Xem `interfaces/rest-api.yml`. Tiền tố `/api/v1`; quyền `map:use` (mọi n
 | Method | Đường dẫn | Mục đích | Cache | Giới hạn/người dùng |
 | --- | --- | --- | --- | --- |
 | GET | `/map/config` | Style URL, tâm/zoom mặc định, giới hạn, cờ tính năng | `Cache-Control: private, max-age=300` | 30/phút |
-| GET | `/map/search?text&lat&lng&limit` | Gợi ý (Autocomplete v4, `display_type=6`) | 5 phút, khóa = chữ chuẩn hóa + `focus` làm tròn 0,01° (~1 km) | 90/phút |
+| GET | `/map/search?text&lat&lng&limit&cats&scope&cityId&distId&wardId&radius` | Gợi ý (Autocomplete v4, `display_type=6`) | 5 phút, khóa = chữ chuẩn hóa + `focus` làm tròn 0,01° (~1 km) | 90/phút |
 | GET | `/map/places/resolve?refId` | `ref_id` → tọa độ + địa chỉ (Place v4) | 1 giờ, khóa = băm `refId` | 30/phút |
 | GET | `/map/reverse?lat&lng` | Tọa độ → địa chỉ (Reverse v4) | 24 giờ, khóa = tọa độ làm tròn 5 chữ số (~1 m) | 30/phút |
-| GET | `/map/route?from&to&vehicle&alternatives` | Tuyến đường (Route v4) | 3 phút (giao thông thay đổi), khóa = điểm làm tròn 5 chữ số + loại xe | 20/phút |
+| GET | `/map/route?from&to&vehicle&alternatives&avoid&time` | Tuyến đường (Route v4) | 3 phút (giao thông thay đổi), khóa = điểm làm tròn 5 chữ số + loại xe | 20/phút |
 | GET | `/admin/map/usage` | Bộ đếm hôm nay theo API | — | — |
 
 Quy ước: phản hồi bọc envelope chung của dự án; lỗi nghiệp vụ dùng `BusinessException` (mã `VALIDATION_ERROR`, `TOO_MANY_REQUESTS`, `EXTERNAL_SERVICE_TIMEOUT`, `EXTERNAL_SERVICE_ERROR`, `SERVICE_UNAVAILABLE`).
@@ -117,6 +117,41 @@ interface MapRoute {
 ## 5. Giao diện
 
 Xem `ui/ui-spec.md`. Tóm tắt: ô tìm có combobox gợi ý (bàn phím, ARIA), bấm bản đồ/kéo ghim → bảng địa điểm (địa chỉ, tọa độ, sao chép, "Chỉ đường đến đây/từ đây"), bảng chỉ đường (xe máy/ô tô, tuyến thay thế, danh sách bước), chọn lớp bản đồ thật (đường phố/sáng/tối/vệ tinh) + công tắc giao thông, nút phóng/thu/vị trí của tôi.
+
+## 5a. Tham số URL của `/app/map` và `/admin/map`
+
+Cả hai trang dùng chung bộ tham số; URL là nguồn trạng thái **hai chiều**: mở/đổi URL → bản đồ đổi; thao tác trên bản đồ → URL cập nhật bằng `history.replaceState` (dồn nhịp 500 ms, không thêm mục lịch sử). Mã: `website/src/features/map/map-url.ts` (phân tích/dựng, có test), `map-screen.tsx` (đồng bộ).
+
+| Nhóm | Param | Giá trị hợp lệ | Nguồn Vietmap | Mặc định (không ghi lên URL) |
+| --- | --- | --- | --- | --- |
+| Khung nhìn | `c` | `lat,lng` trong hộp bao Việt Nam | GL JS `center` | tâm Hà Nội |
+| | `z` | số 4–20 | `zoom` | 12 |
+| | `b` | số −360…360 (độ) | `bearing` | 0 |
+| | `p` | số 0–60 (độ) | `pitch` | 0 |
+| Lớp | `s` | `tm` `lm` `dm` `hm` | Tilemap styles | `tm` |
+| | `layers` | `traffic` | Traffic overlay `tf` (cần `MAP_TRAFFIC_ENABLED`) | không |
+| Tìm kiếm | `q` | 2–120 ký tự | Autocomplete `text` | — |
+| | `cats` | mã POI `3001`, `1002-1`, tối đa 10, ngăn dấu phẩy | `cats` | — |
+| | `scope` | tập con (không lặp) của `POI,ADDRESS,VILLAGE,WARD,DIST,CITY,STREET` | `layers` | — |
+| | `city` `dist` `ward` | số nguyên dương | `cityId` `distId` `wardId` | — |
+| | `r` | 50–50.000 (mét), quanh tâm bản đồ | `circle_radius` (+ `circle_center`) | — |
+| Điểm | `pin` | `lat,lng` | Reverse v4 | — |
+| Chỉ đường | `from`, `to` | `lat,lng` | Route v4 `point` | — |
+| | `v` | `motorcycle` `car` | `vehicle` | `motorcycle` |
+| | `alt` | `0` `1` | `alternative` | `1` |
+| | `route` | 0–4, chỉ số tuyến chọn sẵn | — | 0 |
+| | `avoid` | `ferry` | `avoid` | — |
+| | `t` | ISO 8601 UTC, vd `2026-11-03T01:00:00Z` | `time` | giờ hiện tại |
+
+Ví dụ: `/app/map?c=21.0285,105.8542&z=15&s=lm&from=21.03,105.85&to=21.00,105.84&v=car`
+
+**Quy tắc.**
+- **Lỗi:** giá trị không hợp lệ không bị lờ đi. Một khung cảnh báo liệt kê từng `param: lý do` (ví dụ đảo vĩ độ/kinh độ, ngoài khoảng, ngoài danh sách cho phép, lặp param, param lạ). Giá trị lỗi bị bỏ qua, phần hợp lệ còn lại vẫn áp dụng, URL được ghi lại ở dạng sạch.
+- **Phụ thuộc:** `v` `alt` `route` `avoid` `t` chỉ có nghĩa khi có `from` hoặc `to`. `pin` cùng `from`/`to` → `pin` bị bỏ qua (chế độ chỉ đường thắng). `layers=traffic` khi hệ thống chưa bật Traffic → báo lỗi, không bật. `route` vượt số tuyến trả về → báo và dùng tuyến 0.
+- **Không bao giờ** có `apikey`, `ref_id`, `display_type`, `annotations` trên URL. Chuỗi trong `q` chỉ là văn bản, đi qua API đã mã hóa.
+- **Riêng tư:** `pin/from/to/c` là vị trí; chỉ nằm trong thanh địa chỉ của người dùng, không gửi đi đâu ngoài các lần gọi API tương ứng.
+- **Hiệu năng/chi phí:** mở URL có `pin` tốn 1 Reverse, `from`+`to` tốn 1 Route, `q` tốn 1 Autocomplete; đều qua cache và ngân sách ở backend. Đổi nhãn điểm đi/đến không gọi lại Route. Backend chấp nhận thêm `cats`, `scope`, `cityId`, `distId`, `wardId`, `radius` ở `/map/search` và `avoid`, `time` ở `/map/route` (kiểm tra schema; sai → 400/422); khóa cache có bộ lọc; `time` được làm tròn xuống 15 phút.
+- Lưu ý Vietmap: `alternative=false` bị bỏ qua phía họ (vẫn trả 2 tuyến), nên backend chỉ gửi `alternative=true` khi bật và tự cắt còn 1 tuyến khi tắt.
 
 ## 6. Hiệu năng
 

@@ -15,7 +15,7 @@ fi
 endef
 
 .PHONY: help lint lint-fix test test-watch check \
-	dev-up dev-down dev-stop dev-build dev-rebuild dev-logs dev-ps dev-reset
+	dev-up dev-down dev-stop dev-build dev-rebuild dev-logs dev-ps dev-reset check-no-dev-reset
 
 .DEFAULT_GOAL := help
 
@@ -25,7 +25,8 @@ help:
 	@echo "  make test-watch               Chạy vitest ở chế độ watch"
 	@echo "  make lint                     Kiểm tra ESLint"
 	@echo "  make lint-fix                 Tự sửa lỗi ESLint có thể fix"
-	@echo "  make check                    Chạy lint và test"
+	@echo "  make check                    Chạy lint, test và kiểm tra không lọt công cụ reset dev"
+	@echo "  make check-no-dev-reset       Kiểm tra cấu hình/Dockerfile production không chứa /reset"
 	@echo ""
 	@echo "Development:"
 	@echo "  make dev-up                   Khởi động website, backend và hạ tầng, hot reload trong Docker"
@@ -54,7 +55,10 @@ endif
 test-watch:
 	@$(call run_website_npm,vitest,test)
 
-check: lint test
+check: lint test check-no-dev-reset
+
+check-no-dev-reset:
+	@sh infra/check-no-dev-reset.sh
 
 dev-up:
 	$(COMPOSE_DEV) up -d

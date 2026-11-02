@@ -45,6 +45,8 @@
 # Next.js
 /website/.next/
 /website/.vercel/
+/website/.sw-build/
+/website/public/sw.js
 
 # Vite
 **/.vite/

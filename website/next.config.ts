@@ -39,6 +39,31 @@ const nextConfig: NextConfig = {
               // Next không proxy WebSocket: ở dev trình duyệt nối thẳng cổng backend.
               env: { REALTIME_BACKEND_PORT: process.env.BACKEND_PORT || "22370" },
           }),
+    async headers() {
+        return [
+            {
+                source: "/sw.js",
+                headers: [
+                    { key: "Cache-Control", value: "no-cache" },
+                    { key: "Content-Type", value: "text/javascript; charset=utf-8" },
+                    { key: "Service-Worker-Allowed", value: "/" },
+                ],
+            },
+            {
+                source: "/manifest.webmanifest",
+                headers: [{ key: "Cache-Control", value: "public, max-age=3600" }],
+            },
+            {
+                source: "/:path*",
+                headers: [
+                    {
+                        key: "Content-Security-Policy",
+                        value: "worker-src 'self' blob:; manifest-src 'self'",
+                    },
+                ],
+            },
+        ];
+    },
     async rewrites() {
         const prefix = process.env.GLOBAL_PREFIX || "api/v1";
         const port = process.env.BACKEND_PORT || "22370";

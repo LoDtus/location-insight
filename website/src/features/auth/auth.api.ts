@@ -159,6 +159,8 @@ export async function resetPassword(token: string, password: string): Promise<vo
 
 export async function logout(): Promise<void> {
     try {
+        const { preparePwaLogout } = await import("@/features/pwa/pwa-client");
+        await preparePwaLogout();
         await apiRequest("/auth/logout", { method: "POST" }, false);
     } finally {
         store.dispatch(sessionCleared());

@@ -3,6 +3,7 @@
 import Image from "next/image";
 import {
     BadgeCheck,
+    Download,
     House,
     Mail,
     LogOut,
@@ -23,6 +24,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type JSX } from "react";
 
 import { logout } from "@/features/auth/auth.api";
+import { usePwaInstall } from "@/features/pwa/components/pwa-provider";
 import { useAuth } from "@/features/auth/use-auth";
 import { useFeedbackBadge } from "@/features/feedback/use-feedback-badge";
 import { useUnreadBadge } from "@/features/messaging/messaging-provider";
@@ -69,6 +71,7 @@ export default function AppSidebar({
     const { locale } = useLocale();
     const auth = useAuth();
     const unread = useUnreadBadge();
+    const pwa = usePwaInstall();
     const feedbackBadge = useFeedbackBadge(surface);
     const [collapsed, setCollapsed] = useState(false);
     const [drawerOpen, setDrawerOpen] = useState(false);
@@ -356,6 +359,18 @@ export default function AppSidebar({
                         </span>
                     )}
                 </Link>
+                {pwa.canInstall || pwa.showGuide ? (
+                    <button
+                        type="button"
+                        className={`mt-2 flex min-h-11 w-full items-center rounded-xl text-sm text-charcoal hover:bg-green/10 hover:text-green focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green ${compact ? "justify-center px-2" : "gap-3 px-3"}`}
+                        aria-label="Cài ứng dụng"
+                        title="Cài ứng dụng"
+                        onClick={pwa.requestInstall}
+                    >
+                        <Download className="size-[18px] shrink-0" aria-hidden="true" />
+                        {compact ? null : <span>Cài ứng dụng</span>}
+                    </button>
+                ) : null}
                 <button
                     type="button"
                     className={`mt-2 flex min-h-11 w-full items-center rounded-xl text-sm text-charcoal hover:bg-green/10 hover:text-green focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green disabled:cursor-wait disabled:opacity-60 ${compact ? "justify-center px-2" : "gap-3 px-3"}`}

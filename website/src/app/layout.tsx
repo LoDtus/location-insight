@@ -1,5 +1,5 @@
 import "./globals.css";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import NextTopLoader from "nextjs-toploader";
 import type { ReactNode } from "react";
 
@@ -10,9 +10,22 @@ import { LocaleProvider } from "@/shared/providers/locale.provider";
 import { loadFeatureLocale } from "@/shared/services/locale.loader";
 import { getLocale } from "@/shared/services/locale.service";
 
+export const viewport: Viewport = {
+    viewportFit: "cover",
+    themeColor: [
+        { media: "(prefers-color-scheme: light)", color: COLOR.GREEN },
+        { media: "(prefers-color-scheme: dark)", color: COLOR.GREEN },
+    ],
+};
+
 export const metadata: Metadata = {
     title: ENV.APP_NAME,
     description: ENV.APP_DESCRIPTION,
+    appleWebApp: {
+        capable: true,
+        title: "Địa Thế",
+        statusBarStyle: "default",
+    },
 };
 
 export default async function RootLayout({

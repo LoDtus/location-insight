@@ -43,7 +43,7 @@ export class SeedFollowService implements OnApplicationBootstrap {
       if ((await this.edges.count()) > 0) return;
       const names = [...new Set(EDGES.flatMap(([a, b]) => [a, b]))];
       const people = await this.users.find({
-        where: { email: In(names.map((name) => `${name}@location-insight.local`)) },
+        where: { email: In(names.map((name) => `${name}@email.com`)) },
       });
       const byName = new Map(people.map((user) => [user.email.split('@')[0] as string, user.id]));
       const now = Date.now();

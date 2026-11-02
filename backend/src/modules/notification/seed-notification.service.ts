@@ -19,7 +19,7 @@ export class SeedNotificationService implements OnApplicationBootstrap {
 
   async onApplicationBootstrap(): Promise<void> {
     if (process.env.NODE_ENV === 'production') return;
-    const user = await this.users.findOne({ where: { email: 'user@location-insight.local' } });
+    const user = await this.users.findOne({ where: { email: 'user@email.com' } });
     if (!user) return;
     const existing = await this.rows.count({ where: { userId: user.id } });
     if (existing > 0) return;

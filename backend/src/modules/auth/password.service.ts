@@ -124,10 +124,11 @@ export class PasswordService implements OnModuleInit {
     }
   }
 
-  async login(email: string, password: string): Promise<UserEntity> {
+  async login(identifier: string, password: string): Promise<UserEntity> {
     this.assertEnabled();
+    const value = identifier.trim().toLowerCase();
     const user = await this.users.findOne({
-      where: { email: email.trim().toLowerCase() },
+      where: value.includes('@') ? { email: value } : { username: value },
     });
     const hash = user?.passwordHash || this.dummyHash;
     const matches = hash ? await this.verify(hash, password) : false;
@@ -146,7 +147,7 @@ export class PasswordService implements OnModuleInit {
       }
       throw new BusinessException(
         ErrorCode.INVALID_CREDENTIALS,
-        SAME_MESSAGE,
+        'Email, tên đăng nhập hoặc mật khẩu không đúng.',
         null,
         HttpStatus.UNAUTHORIZED,
       );

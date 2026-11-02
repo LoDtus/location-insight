@@ -46,18 +46,18 @@ export class SeedBillingService implements OnModuleInit {
     const people = await this.users.find({
       where: {
         email: In([
-          'admin@location-insight.local',
-          'user@location-insight.local',
-          'lan-anh@location-insight.local',
-          'minh-duc@location-insight.local',
+          'admin@email.com',
+          'user@email.com',
+          'lan-anh@email.com',
+          'minh-duc@email.com',
         ]),
       },
     });
     const byEmail = new Map(people.map((user) => [user.email, user]));
-    const admin = byEmail.get('admin@location-insight.local');
-    const user = byEmail.get('user@location-insight.local');
-    const lan = byEmail.get('lan-anh@location-insight.local');
-    const minh = byEmail.get('minh-duc@location-insight.local');
+    const admin = byEmail.get('admin@email.com');
+    const user = byEmail.get('user@email.com');
+    const lan = byEmail.get('lan-anh@email.com');
+    const minh = byEmail.get('minh-duc@email.com');
     if (!admin || !user || !lan || !minh) {
       this.logger.warn('Bỏ qua seed thanh toán vì thiếu tài khoản mẫu.');
       return;
@@ -293,7 +293,7 @@ export class SeedBillingService implements OnModuleInit {
     await this.stabilizeKnownPlans();
     const samples: DirectorySample[] = [
       {
-        email: 'ha-my@location-insight.local',
+        email: 'ha-my@email.com',
         plan: Plan.UNLIMITED,
         status: SubscriptionStatus.ACTIVE,
         cycle: 'month',
@@ -305,7 +305,7 @@ export class SeedBillingService implements OnModuleInit {
         paidAt: '2026-10-12T01:00:00.000Z',
       },
       {
-        email: 'quoc-bao@location-insight.local',
+        email: 'quoc-bao@email.com',
         plan: Plan.VALUED,
         status: SubscriptionStatus.ACTIVE,
         cycle: 'year',
@@ -317,7 +317,7 @@ export class SeedBillingService implements OnModuleInit {
         paidAt: '2026-10-01T01:00:00.000Z',
       },
       {
-        email: 'thu-ha@location-insight.local',
+        email: 'thu-ha@email.com',
         plan: Plan.UNLIMITED,
         status: SubscriptionStatus.TRAILING,
         cycle: 'month',
@@ -326,7 +326,7 @@ export class SeedBillingService implements OnModuleInit {
         endedAt: null,
       },
       {
-        email: 'duc-anh@location-insight.local',
+        email: 'duc-anh@email.com',
         plan: Plan.VALUED,
         status: SubscriptionStatus.TRAILING,
         cycle: 'month',
@@ -335,7 +335,7 @@ export class SeedBillingService implements OnModuleInit {
         endedAt: null,
       },
       {
-        email: 'ngoc-lan@location-insight.local',
+        email: 'ngoc-lan@email.com',
         plan: Plan.UNLIMITED,
         status: SubscriptionStatus.CANCELED,
         cycle: 'month',
@@ -344,7 +344,7 @@ export class SeedBillingService implements OnModuleInit {
         endedAt: null,
       },
       {
-        email: 'thanh-son@location-insight.local',
+        email: 'thanh-son@email.com',
         plan: Plan.VALUED,
         status: SubscriptionStatus.CANCELED,
         cycle: 'month',
@@ -353,7 +353,7 @@ export class SeedBillingService implements OnModuleInit {
         endedAt: '2026-10-01T07:00:00.000Z',
       },
       {
-        email: 'my-linh@location-insight.local',
+        email: 'my-linh@email.com',
         plan: Plan.UNLIMITED,
         status: SubscriptionStatus.EXPIRED,
         cycle: 'month',
@@ -362,7 +362,7 @@ export class SeedBillingService implements OnModuleInit {
         endedAt: null,
       },
       {
-        email: 'hoang-nam@location-insight.local',
+        email: 'hoang-nam@email.com',
         plan: Plan.VALUED,
         status: SubscriptionStatus.ACTIVE,
         cycle: 'month',
@@ -374,7 +374,7 @@ export class SeedBillingService implements OnModuleInit {
         paidAt: '2026-09-26T08:00:00.000Z',
       },
       {
-        email: 'phuong-anh@location-insight.local',
+        email: 'phuong-anh@email.com',
         plan: Plan.UNLIMITED,
         status: SubscriptionStatus.ACTIVE,
         cycle: 'month',
@@ -386,7 +386,7 @@ export class SeedBillingService implements OnModuleInit {
         paidAt: '2026-11-01T05:00:00.000Z',
       },
       {
-        email: 'khoa-nguyen@location-insight.local',
+        email: 'khoa-nguyen@email.com',
         plan: Plan.VALUED,
         status: SubscriptionStatus.ACTIVE,
         cycle: 'month',
@@ -402,7 +402,7 @@ export class SeedBillingService implements OnModuleInit {
       await this.ensureSample(admin, sample);
     }
     await this.ensureRevenueOrder({
-      email: 'user@location-insight.local',
+      email: 'user@email.com',
       code: 'DTSEED11',
       amountVnd: 300_000,
       plan: 'unlimited',
@@ -414,12 +414,12 @@ export class SeedBillingService implements OnModuleInit {
   private async stabilizeKnownPlans(): Promise<void> {
     const known = [
       {
-        email: 'user@location-insight.local',
+        email: 'user@email.com',
         start: '2026-10-27T02:00:00.000Z',
         end: '2026-11-26T02:00:00.000Z',
       },
       {
-        email: 'lan-anh@location-insight.local',
+        email: 'lan-anh@email.com',
         start: '2026-10-08T03:00:00.000Z',
         end: '2026-11-08T03:00:00.000Z',
       },

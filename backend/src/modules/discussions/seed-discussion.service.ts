@@ -42,16 +42,16 @@ export class SeedDiscussionService implements OnModuleInit {
     const people = await this.users.find({
       where: {
         email: In([
-          'user@location-insight.local',
-          'lan-anh@location-insight.local',
-          'minh-duc@location-insight.local',
+          'user@email.com',
+          'lan-anh@email.com',
+          'minh-duc@email.com',
         ]),
       },
     });
     const byEmail = new Map(people.map((user) => [user.email, user]));
-    const user = byEmail.get('user@location-insight.local');
-    const lan = byEmail.get('lan-anh@location-insight.local');
-    const minh = byEmail.get('minh-duc@location-insight.local');
+    const user = byEmail.get('user@email.com');
+    const lan = byEmail.get('lan-anh@email.com');
+    const minh = byEmail.get('minh-duc@email.com');
     if (!user || !lan || !minh) {
       this.logger.warn('Bỏ qua seed diễn đàn vì thiếu tài khoản mẫu.');
       return;
@@ -148,38 +148,38 @@ export class SeedDiscussionService implements OnModuleInit {
     const gia = bySlug.get('gia-nha');
     if (!hoTay || !gia) return;
     const samples = [
-      ['admin@location-insight.local', hoTay.id, 'Mẫu hồ sơ quản trị: tin mới nên đọc nguồn trước khi đưa lên diễn đàn.'],
-      ['admin@location-insight.local', gia.id, 'Mẫu hồ sơ quản trị: khung giá trên trang chỉ để tham khảo, không thay hồ sơ nhà.'],
-      ['user@location-insight.local', hoTay.id, 'Mẫu hồ sơ người dùng: sáng nay đi bộ ven hồ, gió mạnh phía đường Thanh Niên.'],
-      ['user@location-insight.local', gia.id, 'Mẫu hồ sơ người dùng: mình đang so hai căn cùng một ngõ trước khi đi xem.'],
-      ['lan-anh@location-insight.local', hoTay.id, 'Mẫu hồ sơ Lan Anh: quán sát hồ cuối tuần đông, đi sớm thì còn chỗ ngồi.'],
-      ['lan-anh@location-insight.local', gia.id, 'Mẫu hồ sơ Lan Anh: giá chào và giá trên trang đang lệch, nên hỏi lại trước khi cọc.'],
-      ['minh-duc@location-insight.local', hoTay.id, 'Mẫu hồ sơ Minh Đức: bãi xe Quảng An còn chỗ vào buổi trưa ngày thường.'],
-      ['minh-duc@location-insight.local', gia.id, 'Mẫu hồ sơ Minh Đức: căn hướng tây nên xem nhà lúc chiều nếu ở tầng thấp.'],
-      ['ha-my@location-insight.local', gia.id, 'Mẫu hồ sơ Hà My: căn gần đường Láng mình xem có ban công hướng đông.'],
-      ['ha-my@location-insight.local', hoTay.id, 'Mẫu hồ sơ Hà My: từ đường Láng ra hồ mất khoảng hai mươi phút nếu không kẹt.'],
-      ['quoc-bao@location-insight.local', gia.id, 'Mẫu hồ sơ Quốc Bảo: nhà mặt phố nên tách giá đất và giá nhà khi so sánh.'],
-      ['quoc-bao@location-insight.local', hoTay.id, 'Mẫu hồ sơ Quốc Bảo: mặt phố ven hồ vắng người bán vào giữa tuần.'],
-      ['thu-ha@location-insight.local', gia.id, 'Mẫu hồ sơ Thu Hà: mình đang dùng thử, chỉ xem khung giá chứ chưa đi cọc.'],
-      ['thu-ha@location-insight.local', hoTay.id, 'Mẫu hồ sơ Thu Hà: hỏi người trong ngõ trước khi tin một bài rao trên mạng.'],
-      ['duc-anh@location-insight.local', gia.id, 'Mẫu hồ sơ Đức Anh: định giá một lần chỉ mở một lần xem, không phải một gói.'],
-      ['duc-anh@location-insight.local', hoTay.id, 'Mẫu hồ sơ Đức Anh: ghi lại ngày xem nhà để khỏi nhầm với tin cũ.'],
-      ['ngoc-lan@location-insight.local', gia.id, 'Mẫu hồ sơ Ngọc Lan: vẫn đọc tin đến hết kỳ, chưa đăng bài rao mới.'],
-      ['ngoc-lan@location-insight.local', hoTay.id, 'Mẫu hồ sơ Ngọc Lan: ngõ gần hồ tối sau chín giờ, nên đi cùng người quen.'],
-      ['thanh-son@location-insight.local', gia.id, 'Mẫu hồ sơ Thanh Sơn: đã về gói miễn phí, vẫn xem tin công khai mỗi tuần.'],
-      ['thanh-son@location-insight.local', hoTay.id, 'Mẫu hồ sơ Thanh Sơn: cuối hồ có lối ra đường lớn, dễ quay xe hơn giữa ngõ.'],
-      ['my-linh@location-insight.local', gia.id, 'Mẫu hồ sơ Mỹ Linh: gói tháng trước hết hạn, các tin đã lưu vẫn còn trên máy.'],
-      ['my-linh@location-insight.local', hoTay.id, 'Mẫu hồ sơ Mỹ Linh: sáng sớm hồ yên, chiều quán cà phê kín chỗ.'],
-      ['hoang-nam@location-insight.local', gia.id, 'Mẫu hồ sơ Hoàng Nam: kỳ thanh toán quá hạn nên mình chỉ đọc, chưa đăng tin.'],
-      ['hoang-nam@location-insight.local', hoTay.id, 'Mẫu hồ sơ Hoàng Nam: đường ven hồ hạn chế một chiều vào giờ tan tầm.'],
-      ['phuong-anh@location-insight.local', gia.id, 'Mẫu hồ sơ Phương Anh: vừa nâng gói, đang xem thêm các căn cùng một phường.'],
-      ['phuong-anh@location-insight.local', hoTay.id, 'Mẫu hồ sơ Phương Anh: muốn hỏi ngõ nào gần hồ mà ô tô vẫn quay đầu được.'],
-      ['viet-anh@location-insight.local', gia.id, 'Mẫu hồ sơ Việt Anh: mới xem tin, chưa chọn gói và chưa đặt lịch đi xem nhà.'],
-      ['viet-anh@location-insight.local', hoTay.id, 'Mẫu hồ sơ Việt Anh: ghi chú địa chỉ ngõ kẻo ô tìm kiếm thả sai điểm.'],
-      ['khoa-nguyen@location-insight.local', gia.id, 'Mẫu hồ sơ Khoa Nguyễn: đang dùng gói có định giá, mỗi lượt xem là một báo cáo.'],
-      ['khoa-nguyen@location-insight.local', hoTay.id, 'Mẫu hồ sơ Khoa Nguyễn: hai ghim gần nhau vẫn là hai ngôi nhà khác nhau.'],
-      ['bao-chau@location-insight.local', gia.id, 'Mẫu hồ sơ Bảo Châu: tài khoản mới, mình đang đọc các bài quanh hồ trước.'],
-      ['bao-chau@location-insight.local', hoTay.id, 'Mẫu hồ sơ Bảo Châu: hỏi lại sổ đứng tên ai trước khi hẹn xem nhà.'],
+      ['admin@email.com', hoTay.id, 'Mẫu hồ sơ quản trị: tin mới nên đọc nguồn trước khi đưa lên diễn đàn.'],
+      ['admin@email.com', gia.id, 'Mẫu hồ sơ quản trị: khung giá trên trang chỉ để tham khảo, không thay hồ sơ nhà.'],
+      ['user@email.com', hoTay.id, 'Mẫu hồ sơ người dùng: sáng nay đi bộ ven hồ, gió mạnh phía đường Thanh Niên.'],
+      ['user@email.com', gia.id, 'Mẫu hồ sơ người dùng: mình đang so hai căn cùng một ngõ trước khi đi xem.'],
+      ['lan-anh@email.com', hoTay.id, 'Mẫu hồ sơ Lan Anh: quán sát hồ cuối tuần đông, đi sớm thì còn chỗ ngồi.'],
+      ['lan-anh@email.com', gia.id, 'Mẫu hồ sơ Lan Anh: giá chào và giá trên trang đang lệch, nên hỏi lại trước khi cọc.'],
+      ['minh-duc@email.com', hoTay.id, 'Mẫu hồ sơ Minh Đức: bãi xe Quảng An còn chỗ vào buổi trưa ngày thường.'],
+      ['minh-duc@email.com', gia.id, 'Mẫu hồ sơ Minh Đức: căn hướng tây nên xem nhà lúc chiều nếu ở tầng thấp.'],
+      ['ha-my@email.com', gia.id, 'Mẫu hồ sơ Hà My: căn gần đường Láng mình xem có ban công hướng đông.'],
+      ['ha-my@email.com', hoTay.id, 'Mẫu hồ sơ Hà My: từ đường Láng ra hồ mất khoảng hai mươi phút nếu không kẹt.'],
+      ['quoc-bao@email.com', gia.id, 'Mẫu hồ sơ Quốc Bảo: nhà mặt phố nên tách giá đất và giá nhà khi so sánh.'],
+      ['quoc-bao@email.com', hoTay.id, 'Mẫu hồ sơ Quốc Bảo: mặt phố ven hồ vắng người bán vào giữa tuần.'],
+      ['thu-ha@email.com', gia.id, 'Mẫu hồ sơ Thu Hà: mình đang dùng thử, chỉ xem khung giá chứ chưa đi cọc.'],
+      ['thu-ha@email.com', hoTay.id, 'Mẫu hồ sơ Thu Hà: hỏi người trong ngõ trước khi tin một bài rao trên mạng.'],
+      ['duc-anh@email.com', gia.id, 'Mẫu hồ sơ Đức Anh: định giá một lần chỉ mở một lần xem, không phải một gói.'],
+      ['duc-anh@email.com', hoTay.id, 'Mẫu hồ sơ Đức Anh: ghi lại ngày xem nhà để khỏi nhầm với tin cũ.'],
+      ['ngoc-lan@email.com', gia.id, 'Mẫu hồ sơ Ngọc Lan: vẫn đọc tin đến hết kỳ, chưa đăng bài rao mới.'],
+      ['ngoc-lan@email.com', hoTay.id, 'Mẫu hồ sơ Ngọc Lan: ngõ gần hồ tối sau chín giờ, nên đi cùng người quen.'],
+      ['thanh-son@email.com', gia.id, 'Mẫu hồ sơ Thanh Sơn: đã về gói miễn phí, vẫn xem tin công khai mỗi tuần.'],
+      ['thanh-son@email.com', hoTay.id, 'Mẫu hồ sơ Thanh Sơn: cuối hồ có lối ra đường lớn, dễ quay xe hơn giữa ngõ.'],
+      ['my-linh@email.com', gia.id, 'Mẫu hồ sơ Mỹ Linh: gói tháng trước hết hạn, các tin đã lưu vẫn còn trên máy.'],
+      ['my-linh@email.com', hoTay.id, 'Mẫu hồ sơ Mỹ Linh: sáng sớm hồ yên, chiều quán cà phê kín chỗ.'],
+      ['hoang-nam@email.com', gia.id, 'Mẫu hồ sơ Hoàng Nam: kỳ thanh toán quá hạn nên mình chỉ đọc, chưa đăng tin.'],
+      ['hoang-nam@email.com', hoTay.id, 'Mẫu hồ sơ Hoàng Nam: đường ven hồ hạn chế một chiều vào giờ tan tầm.'],
+      ['phuong-anh@email.com', gia.id, 'Mẫu hồ sơ Phương Anh: vừa nâng gói, đang xem thêm các căn cùng một phường.'],
+      ['phuong-anh@email.com', hoTay.id, 'Mẫu hồ sơ Phương Anh: muốn hỏi ngõ nào gần hồ mà ô tô vẫn quay đầu được.'],
+      ['viet-anh@email.com', gia.id, 'Mẫu hồ sơ Việt Anh: mới xem tin, chưa chọn gói và chưa đặt lịch đi xem nhà.'],
+      ['viet-anh@email.com', hoTay.id, 'Mẫu hồ sơ Việt Anh: ghi chú địa chỉ ngõ kẻo ô tìm kiếm thả sai điểm.'],
+      ['khoa-nguyen@email.com', gia.id, 'Mẫu hồ sơ Khoa Nguyễn: đang dùng gói có định giá, mỗi lượt xem là một báo cáo.'],
+      ['khoa-nguyen@email.com', hoTay.id, 'Mẫu hồ sơ Khoa Nguyễn: hai ghim gần nhau vẫn là hai ngôi nhà khác nhau.'],
+      ['bao-chau@email.com', gia.id, 'Mẫu hồ sơ Bảo Châu: tài khoản mới, mình đang đọc các bài quanh hồ trước.'],
+      ['bao-chau@email.com', hoTay.id, 'Mẫu hồ sơ Bảo Châu: hỏi lại sổ đứng tên ai trước khi hẹn xem nhà.'],
     ] as const;
     for (const [email, topicId, body] of samples) {
       const author = await this.users.findOne({ where: { email } });
@@ -206,9 +206,9 @@ export class SeedDiscussionService implements OnModuleInit {
     const people = await this.users.find({
       where: {
         email: In([
-          'user@location-insight.local',
-          'lan-anh@location-insight.local',
-          'minh-duc@location-insight.local',
+          'user@email.com',
+          'lan-anh@email.com',
+          'minh-duc@email.com',
         ]),
       },
     });
@@ -218,18 +218,18 @@ export class SeedDiscussionService implements OnModuleInit {
     });
     const bySlug = new Map(topics.map((topic) => [topic.slug, topic]));
     const samples = [
-      ['user@location-insight.local', 'ho-tay', 'Sáng nay hồ Tây gió mạnh, đi bộ phía đường Thanh Niên nên mặc thêm áo.'],
-      ['lan-anh@location-insight.local', 'gia-nha', 'Mình vừa xem một căn gần chợ. Giá chào và giá trang đang lệch khoảng một phần mười.'],
-      ['minh-duc@location-insight.local', 'ngo-cu', 'Ngõ này xe máy tránh nhau được, ô tô thì phải quay đầu ở đầu ngõ.'],
-      ['user@location-insight.local', 'gia-nha', 'Hỏi chủ nhà xem giá đã gồm thuế và phí môi giới chưa trước khi đặt cọc.'],
-      ['lan-anh@location-insight.local', 'ho-tay', 'Cuối tuần quán cà phê sát hồ đông. Nếu cần yên thì đi sớm.'],
-      ['minh-duc@location-insight.local', 'gia-nha', 'Căn hướng tây nóng buổi chiều. Nên xem nhà lúc 3 giờ nếu ở tầng thấp.'],
-      ['user@location-insight.local', 'ngo-cu', 'Đèn ngõ tối sau 9 giờ. Người đi một mình nên chọn lối ra đường lớn.'],
-      ['lan-anh@location-insight.local', 'ngo-cu', 'Nhà cuối ngõ yên hơn, nhưng mùa mưa nước rút chậm hơn mặt phố.'],
-      ['minh-duc@location-insight.local', 'ho-tay', 'Bãi xe công cộng phía Quảng An còn chỗ vào buổi trưa ngày thường.'],
-      ['user@location-insight.local', 'gia-nha', 'So giá theo mét vuông trong cùng một ngõ sẽ dễ hơn so với cả quận.'],
-      ['lan-anh@location-insight.local', 'gia-nha', 'Tin rao ghi "sổ đỏ" thì nên hỏi lại sổ đứng tên ai trước khi đi xem.'],
-      ['minh-duc@location-insight.local', 'ho-tay', 'Đường ven hồ đang hạn chế một chiều vào giờ tan tầm. Đi vòng sẽ lâu hơn.'],
+      ['user@email.com', 'ho-tay', 'Sáng nay hồ Tây gió mạnh, đi bộ phía đường Thanh Niên nên mặc thêm áo.'],
+      ['lan-anh@email.com', 'gia-nha', 'Mình vừa xem một căn gần chợ. Giá chào và giá trang đang lệch khoảng một phần mười.'],
+      ['minh-duc@email.com', 'ngo-cu', 'Ngõ này xe máy tránh nhau được, ô tô thì phải quay đầu ở đầu ngõ.'],
+      ['user@email.com', 'gia-nha', 'Hỏi chủ nhà xem giá đã gồm thuế và phí môi giới chưa trước khi đặt cọc.'],
+      ['lan-anh@email.com', 'ho-tay', 'Cuối tuần quán cà phê sát hồ đông. Nếu cần yên thì đi sớm.'],
+      ['minh-duc@email.com', 'gia-nha', 'Căn hướng tây nóng buổi chiều. Nên xem nhà lúc 3 giờ nếu ở tầng thấp.'],
+      ['user@email.com', 'ngo-cu', 'Đèn ngõ tối sau 9 giờ. Người đi một mình nên chọn lối ra đường lớn.'],
+      ['lan-anh@email.com', 'ngo-cu', 'Nhà cuối ngõ yên hơn, nhưng mùa mưa nước rút chậm hơn mặt phố.'],
+      ['minh-duc@email.com', 'ho-tay', 'Bãi xe công cộng phía Quảng An còn chỗ vào buổi trưa ngày thường.'],
+      ['user@email.com', 'gia-nha', 'So giá theo mét vuông trong cùng một ngõ sẽ dễ hơn so với cả quận.'],
+      ['lan-anh@email.com', 'gia-nha', 'Tin rao ghi "sổ đỏ" thì nên hỏi lại sổ đứng tên ai trước khi đi xem.'],
+      ['minh-duc@email.com', 'ho-tay', 'Đường ven hồ đang hạn chế một chiều vào giờ tan tầm. Đi vòng sẽ lâu hơn.'],
     ] as const;
     for (const [email, slug, body] of samples) {
       const author = byEmail.get(email);
@@ -255,7 +255,7 @@ export class SeedDiscussionService implements OnModuleInit {
 
   private async articleFeed(): Promise<void> {
     const author = await this.users.findOne({
-      where: { email: 'admin@location-insight.local' },
+      where: { email: 'admin@email.com' },
     });
     const topics = await this.topics.find({
       where: { slug: In(['ho-tay', 'gia-nha']) },

@@ -4,6 +4,7 @@ import {
   IsBoolean,
   IsEmail,
   IsString,
+  Matches,
   MaxLength,
   MinLength,
 } from 'class-validator';
@@ -29,8 +30,10 @@ export class RegisterDto {
 }
 
 export class LoginDto {
-  @IsEmail()
+  @IsString()
+  @MinLength(1)
   @MaxLength(254)
+  @Matches(/^([a-z0-9]+(?:-[a-z0-9]+)*|[^\s@]+@[^\s@]+\.[^\s@]+)$/i)
   email: string;
 
   @IsString()

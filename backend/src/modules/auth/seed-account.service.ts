@@ -36,7 +36,12 @@ export class SeedAccountService implements OnModuleInit {
 
   private async upsert(account: (typeof SEED_ACCOUNTS)[number]): Promise<void> {
     const email = account.email.toLowerCase();
-    let user = await this.users.findOne({ where: { email }, withDeleted: true });
+    let user =
+      (await this.users.findOne({ where: { email }, withDeleted: true })) ??
+      (await this.users.findOne({
+        where: { username: account.username },
+        withDeleted: true,
+      }));
     const created = !user;
     if (!user) {
       user = this.users.create({
@@ -57,6 +62,7 @@ export class SeedAccountService implements OnModuleInit {
     }
     if (user.deletedAt) user.deletedAt = null;
 
+    user.email = email;
     if (!user.username) user.username = account.username;
     if (!user.city) user.city = account.city;
     if (!user.bio) user.bio = account.bio;
@@ -111,7 +117,13 @@ export class SeedAccountService implements OnModuleInit {
     const existing = await this.identities.findOne({
       where: { provider: AuthProvider.PASSWORD, providerUserId: userId },
     });
-    if (existing) return;
+    if (existing) {
+      if (existing.emailAtLink !== email) {
+        existing.emailAtLink = email;
+        await this.identities.save(existing);
+      }
+      return;
+    }
     await this.identities.save(
       this.identities.create({
         userId,

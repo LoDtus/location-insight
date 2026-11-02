@@ -29,8 +29,8 @@ const D = 24 * 60;
 
 export const SEED_CONVERSATIONS: SeedConversation[] = [
   {
-    a: 'user@location-insight.local',
-    b: 'lan-anh@location-insight.local',
+    a: 'user@email.com',
+    b: 'lan-anh@email.com',
     messages: [
       { from: 'a', ago: 3 * D + 5 * H, text: 'Chào Lan Anh, mình thấy bạn hay hỏi về ngõ quanh phố cổ. Bạn đã xem căn ở Hàng Bông chưa?' },
       { from: 'b', ago: 3 * D + 4 * H, text: 'Chào bạn! Mình xem rồi, ngõ rộng khoảng 3 mét, ô tô nhỏ vào được.', reactions: [['a', '👍']] },
@@ -50,8 +50,8 @@ export const SEED_CONVERSATIONS: SeedConversation[] = [
     unread: { a: 2 },
   },
   {
-    a: 'user@location-insight.local',
-    b: 'minh-duc@location-insight.local',
+    a: 'user@email.com',
+    b: 'minh-duc@email.com',
     messages: [
       { from: 'b', ago: 5 * D, text: 'Chào bạn, mình thấy bạn trả lời bài về Hồ Tây. Bạn ở khu đó lâu chưa?' },
       { from: 'a', ago: 5 * D - 30, text: 'Mình ở gần 4 năm rồi. Khu kè hồ yên tĩnh, nhưng mùa mưa một số ngõ hay ngập.' },
@@ -61,8 +61,8 @@ export const SEED_CONVERSATIONS: SeedConversation[] = [
     unread: { a: 1 },
   },
   {
-    a: 'ha-my@location-insight.local',
-    b: 'user@location-insight.local',
+    a: 'ha-my@email.com',
+    b: 'user@email.com',
     state: 'pending',
     unread: { b: 1 },
     messages: [
@@ -70,16 +70,16 @@ export const SEED_CONVERSATIONS: SeedConversation[] = [
     ],
   },
   {
-    a: 'user@location-insight.local',
-    b: 'quoc-bao@location-insight.local',
+    a: 'user@email.com',
+    b: 'quoc-bao@email.com',
     state: 'pending',
     messages: [
       { from: 'a', ago: 1 * D + 4 * H, text: 'Chào Quốc Bảo, mình thấy bạn hay so sánh giá nhà mặt phố. Bạn cho mình hỏi cách bạn lấy mốc giá với?' },
     ],
   },
   {
-    a: 'lan-anh@location-insight.local',
-    b: 'minh-duc@location-insight.local',
+    a: 'lan-anh@email.com',
+    b: 'minh-duc@email.com',
     messages: [
       { from: 'a', ago: 4 * D, text: 'Chào Minh Đức, bạn còn nhà nào gần Hồ Hoàn Kiếm không?' },
       { from: 'b', ago: 4 * D - 20, text: 'Còn một căn tầng 4, 55 m², hướng đông nam. Mình gửi thông tin sau nhé.' },
@@ -87,8 +87,8 @@ export const SEED_CONVERSATIONS: SeedConversation[] = [
     ],
   },
   {
-    a: 'thu-ha@location-insight.local',
-    b: 'lan-anh@location-insight.local',
+    a: 'thu-ha@email.com',
+    b: 'lan-anh@email.com',
     state: 'pending',
     unread: { b: 1 },
     messages: [
@@ -96,8 +96,8 @@ export const SEED_CONVERSATIONS: SeedConversation[] = [
     ],
   },
   {
-    a: 'user@location-insight.local',
-    b: 'duc-anh@location-insight.local',
+    a: 'user@email.com',
+    b: 'duc-anh@email.com',
     mutedBy: 'a',
     messages: [
       { from: 'b', ago: 6 * D, text: 'Chào bạn, mình mới đăng ký dùng thử gói định giá. Bạn dùng thấy thế nào?' },
@@ -108,11 +108,11 @@ export const SEED_CONVERSATIONS: SeedConversation[] = [
 ];
 
 // Hội thoại của tài khoản quản trị (xem ở /admin/messages).
-const ADMIN = 'admin@location-insight.local';
+const ADMIN = 'admin@email.com';
 
 export const SEED_ADMIN_CONVERSATIONS: SeedConversation[] = [
   {
-    a: 'user@location-insight.local',
+    a: 'user@email.com',
     b: ADMIN,
     unread: { b: 2 },
     messages: [
@@ -124,7 +124,7 @@ export const SEED_ADMIN_CONVERSATIONS: SeedConversation[] = [
     ],
   },
   {
-    a: 'thu-ha@location-insight.local',
+    a: 'thu-ha@email.com',
     b: ADMIN,
     state: 'pending',
     unread: { b: 1 },
@@ -134,7 +134,7 @@ export const SEED_ADMIN_CONVERSATIONS: SeedConversation[] = [
   },
   {
     a: ADMIN,
-    b: 'lan-anh@location-insight.local',
+    b: 'lan-anh@email.com',
     messages: [
       { from: 'b', ago: 3 * D + 6 * H, text: 'Chào admin, mình muốn đề xuất thêm chủ đề "Căn hộ chung cư" cho diễn đàn.' },
       { from: 'a', ago: 3 * D + 5 * H, text: 'Cảm ơn Lan Anh. Ý tưởng hay, mình sẽ trao đổi với nhóm và báo lại bạn.' },
@@ -146,14 +146,14 @@ export const SEED_ADMIN_CONVERSATIONS: SeedConversation[] = [
   },
   {
     a: ADMIN,
-    b: 'duc-anh@location-insight.local',
+    b: 'duc-anh@email.com',
     state: 'pending',
     messages: [
       { from: 'a', ago: 1 * D + 2 * H, text: 'Chào Đức Anh, mình là quản trị viên. Bạn vừa báo lỗi định giá, mình cần thêm ảnh chụp màn hình để kiểm tra, bạn gửi giúp nhé.' },
     ],
   },
   {
-    a: 'ha-my@location-insight.local',
+    a: 'ha-my@email.com',
     b: ADMIN,
     mutedBy: 'b',
     messages: [
@@ -163,7 +163,7 @@ export const SEED_ADMIN_CONVERSATIONS: SeedConversation[] = [
     ],
   },
   {
-    a: 'quoc-bao@location-insight.local',
+    a: 'quoc-bao@email.com',
     b: ADMIN,
     unread: { b: 2 },
     messages: [

@@ -5,7 +5,7 @@ export const SEED_PASSWORD = '12345678';
 
 export const SEED_ACCOUNTS = [
   {
-    email: 'admin@location-insight.local',
+    email: 'admin@email.com',
     username: 'quan-tri',
     displayName: 'Quản trị',
     city: 'Hà Nội',
@@ -14,7 +14,7 @@ export const SEED_ACCOUNTS = [
     joinedAt: '2026-09-01T00:00:00.000Z',
   },
   {
-    email: 'user@location-insight.local',
+    email: 'user@email.com',
     username: 'nguoi-dung',
     displayName: 'Người dùng',
     city: 'Hà Nội',
@@ -23,7 +23,7 @@ export const SEED_ACCOUNTS = [
     joinedAt: '2026-10-02T02:00:00.000Z',
   },
   {
-    email: 'lan-anh@location-insight.local',
+    email: 'lan-anh@email.com',
     username: 'lan-anh',
     displayName: 'Lan Anh',
     city: 'Hà Nội',
@@ -32,7 +32,7 @@ export const SEED_ACCOUNTS = [
     joinedAt: '2026-10-08T03:00:00.000Z',
   },
   {
-    email: 'minh-duc@location-insight.local',
+    email: 'minh-duc@email.com',
     username: 'minh-duc',
     displayName: 'Minh Đức',
     city: 'Hà Nội',
@@ -41,7 +41,7 @@ export const SEED_ACCOUNTS = [
     joinedAt: '2026-11-02T01:00:00.000Z',
   },
   {
-    email: 'ha-my@location-insight.local',
+    email: 'ha-my@email.com',
     username: 'ha-my',
     displayName: 'Hà My',
     city: 'Hà Nội',
@@ -50,7 +50,7 @@ export const SEED_ACCOUNTS = [
     joinedAt: '2026-10-12T01:00:00.000Z',
   },
   {
-    email: 'quoc-bao@location-insight.local',
+    email: 'quoc-bao@email.com',
     username: 'quoc-bao',
     displayName: 'Quốc Bảo',
     city: 'Hà Nội',
@@ -59,7 +59,7 @@ export const SEED_ACCOUNTS = [
     joinedAt: '2026-10-03T04:00:00.000Z',
   },
   {
-    email: 'thu-ha@location-insight.local',
+    email: 'thu-ha@email.com',
     username: 'thu-ha',
     displayName: 'Thu Hà',
     city: 'Hà Nội',
@@ -68,7 +68,7 @@ export const SEED_ACCOUNTS = [
     joinedAt: '2026-10-20T02:00:00.000Z',
   },
   {
-    email: 'duc-anh@location-insight.local',
+    email: 'duc-anh@email.com',
     username: 'duc-anh',
     displayName: 'Đức Anh',
     city: 'Hà Nội',
@@ -77,7 +77,7 @@ export const SEED_ACCOUNTS = [
     joinedAt: '2026-11-01T02:00:00.000Z',
   },
   {
-    email: 'ngoc-lan@location-insight.local',
+    email: 'ngoc-lan@email.com',
     username: 'ngoc-lan',
     displayName: 'Ngọc Lan',
     city: 'Hà Nội',
@@ -86,7 +86,7 @@ export const SEED_ACCOUNTS = [
     joinedAt: '2026-10-18T06:00:00.000Z',
   },
   {
-    email: 'thanh-son@location-insight.local',
+    email: 'thanh-son@email.com',
     username: 'thanh-son',
     displayName: 'Thanh Sơn',
     city: 'Hà Nội',
@@ -95,7 +95,7 @@ export const SEED_ACCOUNTS = [
     joinedAt: '2026-10-05T07:00:00.000Z',
   },
   {
-    email: 'my-linh@location-insight.local',
+    email: 'my-linh@email.com',
     username: 'my-linh',
     displayName: 'Mỹ Linh',
     city: 'Hà Nội',
@@ -104,7 +104,7 @@ export const SEED_ACCOUNTS = [
     joinedAt: '2026-11-01T04:00:00.000Z',
   },
   {
-    email: 'hoang-nam@location-insight.local',
+    email: 'hoang-nam@email.com',
     username: 'hoang-nam',
     displayName: 'Hoàng Nam',
     city: 'Hà Nội',
@@ -113,7 +113,7 @@ export const SEED_ACCOUNTS = [
     joinedAt: '2026-10-06T08:00:00.000Z',
   },
   {
-    email: 'phuong-anh@location-insight.local',
+    email: 'phuong-anh@email.com',
     username: 'phuong-anh',
     displayName: 'Phương Anh',
     city: 'Hà Nội',
@@ -122,7 +122,7 @@ export const SEED_ACCOUNTS = [
     joinedAt: '2026-11-01T05:00:00.000Z',
   },
   {
-    email: 'viet-anh@location-insight.local',
+    email: 'viet-anh@email.com',
     username: 'viet-anh',
     displayName: 'Việt Anh',
     city: 'Hà Nội',
@@ -131,7 +131,7 @@ export const SEED_ACCOUNTS = [
     joinedAt: '2026-11-01T06:00:00.000Z',
   },
   {
-    email: 'khoa-nguyen@location-insight.local',
+    email: 'khoa-nguyen@email.com',
     username: 'khoa-nguyen',
     displayName: 'Khoa Nguyễn',
     city: 'Hà Nội',
@@ -140,7 +140,7 @@ export const SEED_ACCOUNTS = [
     joinedAt: '2026-11-01T07:00:00.000Z',
   },
   {
-    email: 'bao-chau@location-insight.local',
+    email: 'bao-chau@email.com',
     username: 'bao-chau',
     displayName: 'Bảo Châu',
     city: 'Hà Nội',

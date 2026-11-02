@@ -52,12 +52,12 @@ export default function Page() {
                 Đăng nhập với Google
             </a>
             <label className={AUTH_LABEL_CLASS}>
-                Email
+                Email hoặc tên đăng nhập
                 <input
                     className={AUTH_FIELD_CLASS}
                     name="email"
-                    type="email"
-                    autoComplete="email"
+                    type="text"
+                    autoComplete="username"
                     required
                 />
             </label>

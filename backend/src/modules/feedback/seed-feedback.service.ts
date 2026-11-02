@@ -9,7 +9,7 @@ const H = 60 * 60 * 1000;
 
 const SEEDS = [
   {
-    email: 'user@location-insight.local',
+    email: 'user@email.com',
     category: 'bug' as const,
     description: 'Trên bản đồ, khi lọc theo khoảng giá rồi bấm vào một tin thì bộ lọc bị đặt lại. Mình dùng Chrome trên Windows.',
     status: 'in_progress' as const,
@@ -20,7 +20,7 @@ const SEEDS = [
     unread: true,
   },
   {
-    email: 'lan-anh@location-insight.local',
+    email: 'lan-anh@email.com',
     category: 'idea' as const,
     description: 'Mong có thể lưu nhiều ghi chú cho cùng một địa điểm, và lọc ghi chú theo ngày. Hiện tại mỗi nơi chỉ có một ô ghi chú.',
     status: 'open' as const,
@@ -29,7 +29,7 @@ const SEEDS = [
     unread: false,
   },
   {
-    email: 'minh-duc@location-insight.local',
+    email: 'minh-duc@email.com',
     category: 'question' as const,
     description: 'Khung giá định giá được cập nhật theo chu kỳ nào? Mình thấy số liệu tháng này khác tuần trước khá nhiều.',
     status: 'resolved' as const,
@@ -57,10 +57,10 @@ export class SeedFeedbackService implements OnApplicationBootstrap {
     if (process.env.NODE_ENV === 'production') return;
     try {
       if ((await this.feedbacks.count()) > 0) return;
-      const emails = [...SEEDS.map((item) => item.email), 'admin@location-insight.local'];
+      const emails = [...SEEDS.map((item) => item.email), 'admin@email.com'];
       const people = await this.users.find({ where: { email: In(emails) } });
       const byEmail = new Map(people.map((user) => [user.email, user]));
-      const admin = byEmail.get('admin@location-insight.local');
+      const admin = byEmail.get('admin@email.com');
       if (!admin) return;
       const now = Date.now();
       for (const seed of SEEDS) {

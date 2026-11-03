@@ -32,7 +32,27 @@ function assertNoDevToolsOutsideDev(): void {
   }
 }
 
+/**
+ * Lỗi bất đồng bộ không ai bắt (vd. DNS/Postgres đứt thoáng qua) làm Node thoát.
+ * Dev chạy dưới `nest start --watch` nên cha vẫn sống, container vẫn "Up" nhưng
+ * không còn ai listen cổng → website báo ECONNREFUSED. Dev: chỉ ghi log để server
+ * sống tiếp. Production: thoát để `restart: unless-stopped` dựng lại tiến trình.
+ */
+function installProcessErrorHandlers(): void {
+  const logger = new Logger('Process');
+  const isProd = (process.env.NODE_ENV ?? '').trim().toLowerCase() === 'production';
+  const handle = (kind: string) => (reason: unknown) => {
+    logger.error(
+      `${kind}: ${reason instanceof Error ? (reason.stack ?? reason.message) : String(reason)}`,
+    );
+    if (isProd) process.exit(1);
+  };
+  process.on('unhandledRejection', handle('unhandledRejection'));
+  process.on('uncaughtException', handle('uncaughtException'));
+}
+
 async function bootstrap(): Promise<void> {
+  installProcessErrorHandlers();
   assertNoDevToolsOutsideDev();
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     rawBody: true,

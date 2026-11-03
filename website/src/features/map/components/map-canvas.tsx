@@ -69,6 +69,7 @@ const LAYER_ALT = "li-route-alt-line";
 const LAYER_ACTIVE = "li-route-active-line";
 const MARKER_ATTR = "data-map-marker";
 const PIN_COLOR = "#026a4e";
+const DROPPED_PIN_SRC = "/icons/map-pin.svg";
 
 let vietmapPromise: Promise<VietmapModule> | null = null;
 
@@ -124,7 +125,8 @@ export default function MapCanvas({
         from: VietmapMarker | null;
         to: VietmapMarker | null;
         me: VietmapMarker | null;
-    }>({ pin: null, from: null, to: null, me: null });
+        drop: VietmapMarker | null;
+    }>({ pin: null, from: null, to: null, me: null, drop: null });
     const trafficIdsRef = useRef<{ sources: string[]; layers: string[] }>({
         sources: [],
         layers: [],
@@ -284,6 +286,7 @@ export default function MapCanvas({
         if (!url || !container) return;
         let cancelled = false;
         let map: VietmapMap | null = null;
+        let onContextMenu: ((event: MouseEvent) => void) | null = null;
         const markers = markersRef.current;
 
         void loadVietmap()
@@ -351,6 +354,31 @@ export default function MapCanvas({
                     if (target?.closest(`[${MARKER_ATTR}]`)) return;
                     latest.current.onMapClick({ lat: event.lngLat.lat, lng: event.lngLat.lng });
                 });
+                onContextMenu = (event: MouseEvent): void => {
+                    event.preventDefault();
+                    if (!map || event.target !== map.getCanvas()) return;
+                    const canvas = map.getCanvas();
+                    const rect = canvas.getBoundingClientRect();
+                    const point = map.unproject([event.clientX - rect.left, event.clientY - rect.top]);
+                    let marker = markersRef.current.drop;
+                    if (!marker) {
+                        const element = document.createElement("div");
+                        element.setAttribute(MARKER_ATTR, "drop");
+                        element.setAttribute("role", "img");
+                        element.setAttribute("aria-label", "Điểm đã ghim");
+                        element.className = "h-10 w-10";
+                        const image = document.createElement("img");
+                        image.src = DROPPED_PIN_SRC;
+                        image.alt = "";
+                        image.draggable = false;
+                        image.className = "pointer-events-none h-full w-full";
+                        element.append(image);
+                        marker = new lib.Marker({ element, anchor: "bottom" });
+                        markersRef.current.drop = marker;
+                    }
+                    marker.setLngLat([point.lng, point.lat]).addTo(map);
+                };
+                container.addEventListener("contextmenu", onContextMenu);
                 map.getCanvas().style.cursor = "crosshair";
             })
             .catch(() => {
@@ -359,6 +387,7 @@ export default function MapCanvas({
 
         return () => {
             cancelled = true;
+            if (onContextMenu) container.removeEventListener("contextmenu", onContextMenu);
             for (const key of Object.keys(markers) as Array<keyof typeof markers>) {
                 markers[key]?.remove();
                 markers[key] = null;

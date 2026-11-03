@@ -10,8 +10,9 @@ import {
     UserRound,
 } from "lucide-react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { FollowSummary } from "@/features/follow/components/follow-summary";
-import { useEffect, useRef, useState, type FormEvent, type JSX } from "react";
+import { Suspense, useEffect, useRef, useState, type FormEvent, type JSX } from "react";
 
 import { AUTH_BUTTON_CLASS, AUTH_FIELD_CLASS } from "@/app/auth/form-class";
 import type { ShellRoot } from "@/features/app/shell";
@@ -77,7 +78,51 @@ function Avatar({ profile }: { profile: Profile }): JSX.Element {
     );
 }
 
-export default function ProfileScreen({
+function AvatarViewer({
+    src,
+    name,
+    onClose,
+}: {
+    src: string;
+    name: string;
+    onClose: () => void;
+}): JSX.Element {
+    useEffect(() => {
+        function onKey(event: KeyboardEvent): void {
+            if (event.key === "Escape") onClose();
+        }
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [onClose]);
+
+    return (
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-charcoal/80 p-6"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Ảnh đại diện của ${name}`}
+            onClick={onClose}
+        >
+            <button
+                type="button"
+                className="absolute top-4 right-4 inline-flex min-h-11 items-center px-4 font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                onClick={onClose}
+            >
+                Đóng
+            </button>
+            {/* Ảnh đã lưu của hồ sơ, phóng lớn để xem đủ khung. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+                src={src}
+                alt={`Ảnh đại diện của ${name}`}
+                className="max-h-[80vh] max-w-[80vw] object-contain"
+                onClick={(event) => event.stopPropagation()}
+            />
+        </div>
+    );
+}
+
+function ProfileScreenContent({
     root,
     username,
 }: {
@@ -85,6 +130,9 @@ export default function ProfileScreen({
     username?: string;
 }): JSX.Element {
     const dispatch = useAppDispatch();
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
     const own = username === undefined;
     const [profile, setProfile] = useState<Profile | null>(null);
     const [draft, setDraft] = useState<ProfileInput>(EMPTY);
@@ -159,8 +207,8 @@ export default function ProfileScreen({
 
     if (!profile) {
         return (
-            <main className="box-border h-full overflow-auto px-4 py-8 sm:px-8">
-                <p role={message ? "alert" : "status"} className="m-0 text-sm">
+            <main className="box-border h-full overflow-auto">
+                <p role={message ? "alert" : "status"} className="m-0 px-4 py-8 text-sm">
                     {message || "Đang tải hồ sơ…"}
                 </p>
             </main>
@@ -168,44 +216,42 @@ export default function ProfileScreen({
     }
 
     return (
-        <main className="box-border h-full overflow-auto px-4 py-8 sm:px-8">
+        <main className="box-border h-full overflow-auto">
             <header className="border-b border-charcoal/15">
                     <form className="flex flex-col md:flex-row md:items-center" onSubmit={save}>
                         <div className="flex shrink-0 justify-center self-center p-6 md:p-10">
+                            <AvatarControl
+                                profile={editing ? { ...profile, avatarUrl: draft.avatarUrl || null, displayName: draft.displayName || profile.displayName } : profile}
+                                editing={own && editing}
+                                pending={avatarPending}
+                                onView={() => {
+                                    const params = new URLSearchParams(searchParams.toString());
+                                    params.set("avatar", "1");
+                                    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+                                }}
+                                onChange={() => fileRef.current?.click()}
+                            />
                             {own ? (
-                                <>
-                                    <button
-                                        type="button"
-                                        className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
-                                        aria-label="Cập nhật ảnh đại diện"
-                                        disabled={avatarPending}
-                                        onClick={() => fileRef.current?.click()}
-                                    >
-                                        <Avatar profile={editing ? { ...profile, avatarUrl: draft.avatarUrl || null, displayName: draft.displayName || profile.displayName } : profile} />
-                                    </button>
-                                    <input
-                                        ref={fileRef}
-                                        type="file"
-                                        accept="image/jpeg,image/png,image/webp"
-                                        className="sr-only"
-                                        onChange={(event) => {
-                                            const file = event.target.files?.[0];
-                                            event.target.value = "";
-                                            if (!file) return;
-                                            if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 8 * 1024 * 1024) {
-                                                setMessage("Ảnh cần là JPEG, PNG hoặc WebP và không quá 8 MB.");
-                                                return;
-                                            }
-                                            setCropSrc((current) => {
-                                                if (current) URL.revokeObjectURL(current);
-                                                return URL.createObjectURL(file);
-                                            });
-                                        }}
-                                    />
-                                </>
-                            ) : (
-                                <Avatar profile={profile} />
-                            )}
+                                <input
+                                    ref={fileRef}
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp"
+                                    className="sr-only"
+                                    onChange={(event) => {
+                                        const file = event.target.files?.[0];
+                                        event.target.value = "";
+                                        if (!file) return;
+                                        if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 8 * 1024 * 1024) {
+                                            setMessage("Ảnh cần là JPEG, PNG hoặc WebP và không quá 8 MB.");
+                                            return;
+                                        }
+                                        setCropSrc((current) => {
+                                            if (current) URL.revokeObjectURL(current);
+                                            return URL.createObjectURL(file);
+                                        });
+                                    }}
+                                />
+                            ) : null}
                         </div>
                         <div className="min-w-0 flex-1 border-t border-charcoal/15 px-4 py-5 md:border-t-0 md:border-l md:px-7">
                             <div className="mb-2 flex items-center gap-3">
@@ -240,7 +286,14 @@ export default function ProfileScreen({
                                     <button
                                         type="button"
                                         className="inline-flex min-h-11 shrink-0 items-center gap-2 border border-current bg-transparent px-4 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
-                                        onClick={() => setEditing(true)}
+                                        onClick={() => {
+                                            setEditing(true);
+                                            if (searchParams.get("avatar") !== "1") return;
+                                            const params = new URLSearchParams(searchParams.toString());
+                                            params.delete("avatar");
+                                            const query = params.toString();
+                                            router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+                                        }}
                                     >
                                         <Pencil className="size-4" aria-hidden="true" />
                                         Cập nhật hồ sơ
@@ -365,7 +418,7 @@ export default function ProfileScreen({
                     </form>
             </header>
 
-            <div className="mx-auto w-full max-w-5xl">
+            <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-8">
                 {message ? (
                     <p
                         role={message.startsWith("Đã ") ? "status" : "alert"}
@@ -420,6 +473,70 @@ export default function ProfileScreen({
                     }}
                 />
             ) : null}
+            {searchParams.get("avatar") === "1" && !editing && profile.avatarUrl ? (
+                <AvatarViewer
+                    src={profile.avatarUrl}
+                    name={profile.displayName}
+                    onClose={() => {
+                        const params = new URLSearchParams(searchParams.toString());
+                        params.delete("avatar");
+                        const query = params.toString();
+                        router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+                    }}
+                />
+            ) : null}
         </main>
+    );
+}
+
+function AvatarControl({
+    profile,
+    editing,
+    pending,
+    onView,
+    onChange,
+}: {
+    profile: Profile;
+    editing: boolean;
+    pending: boolean;
+    onView: () => void;
+    onChange: () => void;
+}): JSX.Element {
+    const canChange = editing;
+    const canView = !editing && Boolean(profile.avatarUrl);
+    if (!canChange && !canView) return <Avatar profile={profile} />;
+    const label = canChange ? "Thay đổi ảnh đại diện" : "Xem chi tiết";
+    return (
+        <button
+            type="button"
+            className="group relative rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
+            aria-label={label}
+            disabled={pending}
+            onClick={canChange ? onChange : onView}
+        >
+            <Avatar profile={profile} />
+            <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-full bg-charcoal/60 px-4 text-center text-sm font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                {label}
+            </span>
+        </button>
+    );
+}
+
+export default function ProfileScreen(props: {
+    root: ShellRoot;
+    username?: string;
+}): JSX.Element {
+    return (
+        <Suspense
+            fallback={
+                <main className="box-border h-full overflow-auto">
+                    <p role="status" className="m-0 px-4 py-8 text-sm">
+                        Đang tải hồ sơ…
+                    </p>
+                </main>
+            }
+        >
+            <ProfileScreenContent {...props} />
+        </Suspense>
     );
 }

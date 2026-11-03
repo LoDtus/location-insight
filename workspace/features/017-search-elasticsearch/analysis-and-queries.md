@@ -152,7 +152,7 @@ Tham số, đối chiếu tài liệu Elastic:
 ### Quy tắc cắt nhiễu và tie-break
 
 - Lấy điểm cao nhất `maxScore` của trang; loại kết quả `_score < scoreRatioMin × maxScore` (`scoreRatioMin = 0.15`). Khi sắp xếp theo trường khác, đặt `track_scores: true` để vẫn có điểm.
-- Sắp xếp mặc định: `_score desc`, rồi `tieBreaker` của profile (ví dụ `updatedAt desc` hoặc độ phổ biến), rồi `_id`. Thử nghiệm cho thấy các bản ghi ngang điểm xuất hiện thường xuyên (xem "Hồ Hoàn Kiếm" và "Quận Hoàn Kiếm" cùng điểm).
+- Sắp xếp mặc định: `_score desc`, rồi `tieBreaker` của profile (ví dụ `updatedAt desc` hoặc độ phổ biến), rồi `docId` (trường `keyword` chứa id bản ghi, do lớp tìm kiếm tự thêm vào mọi document). Thử nghiệm cho thấy các bản ghi ngang điểm xuất hiện thường xuyên (xem "Hồ Hoàn Kiếm" và "Quận Hoàn Kiếm" cùng điểm).
 - Điểm BM25 phụ thuộc thống kê kho dữ liệu. **Thứ tự tầng** (tầng cao thắng) ổn định nhờ boost, nhưng **ngưỡng 15%** phải kiểm lại trên dữ liệu thật.
 
 ## 4. Kết quả thử nghiệm (2026-11-03)
@@ -195,4 +195,23 @@ Quan sát:
 
 ## 5. Bộ ca kiểm thử cho triển khai
 
-Khi triển khai, giữ bộ ca vàng (golden queries) cạnh profile: tệp JSON `{ q, expectedId, maxRank }`, chạy như **integration test** với ES thật dựng bằng index tạm có tiền tố `test-` (không dùng dữ liệu dev, xóa sau khi chạy). Bắt buộc có đủ các nhóm FR-03 và vài ca "không được trả kết quả". Theo `testing-policy.md`: không e2e; test dựa trên đặc tả này, không dựa trên đầu ra hiện tại của mã.
+Bộ ca vàng của nền tảng đã có ở `backend/src/modules/search/search-engine.integration.spec.ts`: chạy trên ES thật bằng index tạm có tiền tố `test-` (xóa sau khi chạy, tự bỏ qua nếu không kết nối được ES). Mỗi profile thật khi thêm vào nên có bộ ca vàng riêng cạnh nó, cùng cách làm: `{ q, expectedId, maxRank }`. Bắt buộc có đủ các nhóm FR-03 và vài ca "không được trả kết quả". Theo `testing-policy.md`: không e2e; test dựa trên đặc tả này, không dựa trên đầu ra hiện tại của mã.
+
+## 6. Kết quả kiểm chứng sau khi cài đặt (2026-11-03)
+
+`backend/src/modules/search/search-engine.integration.spec.ts` (33 ca) chạy trên ES dev 9.2.0 thật bằng chính mã sản xuất (`buildIndexDefinition`, `buildSearchRequest`, `SearchService`, `SearchIndexService`, `SearchWorkerService`), 33/33 đạt:
+
+- Toàn bộ ca ở mục 4 ra đúng đối tượng ở hạng 1, kể cả `thang lonh`, `pho bo`, `nguyen cu`.
+- Thứ tự điểm theo tầng: đúng có dấu > không dấu > đảo từ > sai chính tả.
+- Cắt nhiễu: `ha dong` chỉ còn `Hà Đông`. Lưu ý: khi bản ghi đúng bị xóa, kết quả nhiễu duy nhất còn lại trở thành điểm cao nhất nên không bị cắt (ngưỡng là **tương đối**); `pho bo` khi "Phở bò Hà Nội" mất thì "Phố cổ Hoàn Kiếm Hà Nội" vẫn hiện. Chấp nhận được, ghi để biết.
+- `q` chứa `"`, `*`, `\\`, `(`, `{"match_all":{}}`, `title:*` không gây lỗi và `*:*` không khớp gì.
+- Hydrate dọn id đã mất, **không** dọn bản ghi chỉ bị ẩn với người xem.
+- Worker cập nhật/xóa theo trạng thái hiện tại; profile chưa đăng ký chuyển dòng sang `dead`.
+- Dựng lại luân phiên `-v1` ↔ `-v1-b`, alias đổi nguyên tử, index trước còn lại; bản ghi `toDocument = null` không vào index.
+- `dynamic: strict` từ chối tài liệu thừa trường; ES lỗi → dự phòng PostgreSQL, 3 lỗi liên tiếp → ngắt mạch.
+
+Kiểm chứng trên PostgreSQL thật (trong giao dịch rồi `ROLLBACK`): gộp hai lần enqueue thành một dòng (`revision` 2), `FOR UPDATE SKIP LOCKED` nhận đúng dòng, `DELETE ... USING unnest(id, revision)` **không** xóa dòng đã lên `revision` mới (`DELETE 0`), đường lỗi hoãn theo cấp số nhân.
+
+Kiểm chứng ứng dụng thật: backend khởi động được khi ES tắt, `/health/ready` = 200 với `elasticsearch: degraded`, và tự nối lại khi ES trở lại (trước thay đổi, backend không khởi động được nếu thiếu ES).
+
+Điều **chưa** kiểm: chạy với dữ liệu thật của một profile (chưa có), tải/độ trễ ở quy mô lớn, nhiều instance cùng lúc, `ELASTICSEARCH_ENABLED=false` trong ứng dụng đang chạy (chỉ có test đơn vị cho cấu hình), ES bật bảo mật.

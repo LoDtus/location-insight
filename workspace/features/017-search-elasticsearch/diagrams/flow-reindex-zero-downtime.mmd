@@ -1,14 +1,13 @@
 flowchart TD
-  A[Đổi analyzer hoặc mapping: tăng version của profile] --> B[Tạo index mới name-vN+1 với settings, analyzer, mapping dynamic strict]
+  A[Chưa có alias, hoặc đổi analyzer/mapping và tăng version của profile] --> A2[Lấy khóa tư vấn PostgreSQL: instance khác đang dựng thì bỏ qua] --> B[Tạo index mới -vN hoặc -vN-b, tên chưa được alias trỏ tới, mapping dynamic strict]
   B --> C[Ghi lại mốc startedAt]
   C --> D[Nạp từ PostgreSQL theo lô keyset 1000 dòng, toDocument, Bulk vào index mới]
   D --> E[Alias vẫn trỏ index cũ: tìm kiếm không gián đoạn, worker vẫn ghi index cũ]
   E --> F[Bù thay đổi: nạp lại các dòng có updated_at lớn hơn hoặc bằng startedAt trừ 1 phút vào index mới]
   F --> G[refresh index mới]
-  G --> H{Số document khớp số dòng nguồn đủ điều kiện?}
-  H -- Lệch --> F
-  H -- Khớp --> I[Một yêu cầu aliases: remove index cũ, add index mới, nguyên tử]
+  D -. Bulk có tài liệu lỗi .-> X[Hủy dựng lại, ghi lỗi, alias cũ giữ nguyên, index dở bị xóa ở lần dựng sau]
+  G --> I[Một yêu cầu aliases: remove index cũ, add index mới, nguyên tử]
   I --> J[Worker ghi qua alias nên từ đây ghi vào index mới]
-  J --> K[Giữ index cũ 24 giờ để quay lui]
-  K --> L[Xóa index cũ]
-  I -. lỗi sau đổi .-> R[Đổi alias ngược về index cũ]
+  J --> K[Giữ index cũ để quay lui tới lần dựng lại kế tiếp]
+  K --> L[Lần dựng lại sau xóa index cũ nhất cùng tên rồi dựng vào đó]
+  I -. phát hiện lỗi sau khi đổi .-> R[Thủ công: đổi alias ngược về index cũ còn giữ]

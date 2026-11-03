@@ -15,8 +15,8 @@ interface SearchFieldSpec {
 }
 
 interface SearchFilterSpec {
-  name: string;                       // trường keyword/date/boolean trong ES
-  kind: 'term' | 'terms' | 'range';
+  name: string;                       // trường lọc trong ES
+  type: 'keyword' | 'boolean' | 'date' | 'long';   // kiểu mapping
 }
 
 interface SearchProfile<TRow, TFilters> {
@@ -27,21 +27,25 @@ interface SearchProfile<TRow, TFilters> {
   readonly fields: readonly SearchFieldSpec[];
   readonly filters: readonly SearchFilterSpec[];
   /** Cùng sắp xếp mặc định khi hòa điểm, ví dụ updatedAt desc. */
-  readonly tieBreaker: readonly SortSpec[];
+  readonly tieBreaker: readonly SortSpec[];     // cuối cùng luôn theo docId asc
   /** Mặc định 0.15 (FR-05). */
   readonly scoreRatioMin?: number;
   /** refresh_interval của index, mặc định '5s'. */
   readonly refreshInterval?: string;
 
-  /** Hàng PostgreSQL -> document ES (chỉ trường cần tìm/lọc, FR-15). Trả null nếu bản ghi không nên nằm trong ES (đã ẩn/xóa). */
+  idOf(row: TRow): string;
+  /** Hàng PostgreSQL -> document ES (chỉ trường cần tìm/lọc, FR-15). Trả null nếu bản ghi không nên nằm trong ES (đã ẩn/xóa). Không đưa `docId`: lớp tìm kiếm tự thêm. */
   toDocument(row: TRow): SearchDocument | null;
-  /** Nạp hàng theo lô cho worker/reindex: keyset theo id, lọc updated_at >= since (nếu có). */
+  /** Nạp hàng theo lô cho reindex: keyset theo id tăng dần, lọc updated_at >= since (nếu có). */
   loadBatch(afterId: string | null, limit: number, since?: Date): Promise<TRow[]>;
+  /** Trả các hàng CÒN TỒN TẠI, không lọc quyền xem. */
   loadByIds(ids: readonly string[]): Promise<TRow[]>;
+  /** Quyền xem một hàng. Tách khỏi loadByIds để không dọn nhầm khỏi ES bản ghi chỉ là "người này không được xem". */
+  canView(row: TRow, viewer: SearchViewer): boolean;
   /** Chuyển bộ lọc của yêu cầu sang mệnh đề filter ES, gồm quyền xem (BR-08). */
-  toFilters(filters: TFilters, viewer: SearchViewer): readonly SearchFilterClause[];
-  /** Truy vấn dự phòng PostgreSQL (FR-10). Nhận cùng bộ lọc, trả đã sắp xếp. */
-  fallback(request: SearchRequest<TFilters>): Promise<SearchHit<TRow>[]>;
+  toFilters(filters: TFilters, viewer: SearchViewer): SearchFilterClause[];
+  /** Truy vấn dự phòng PostgreSQL (FR-10). Nhận cùng bộ lọc, trả hàng đã sắp xếp và phân trang. */
+  fallback(request: SearchRequest<TFilters>): Promise<TRow[]>;
 }
 ```
 
@@ -60,23 +64,26 @@ interface SearchResult<TRow> {
   items: Array<{ row: TRow; score: number | null }>;
   source: 'elasticsearch' | 'database';
   degraded: boolean;                   // true nếu đã rơi về PostgreSQL
-  /** Chỉ có khi profile bật đếm (FR-14/Câu hỏi mở 6). */
-  total?: number;
+  // Chưa có tổng số kết quả: ES chạy với track_total_hits=false (Câu hỏi mở 6).
 }
 
 class SearchService {
-  /** Trả null khi KHÔNG nên dùng ES (không có q, q quá ngắn, profile tắt, ES không khỏe): người gọi chạy luồng PostgreSQL thường. */
+  /**
+   * Trả null khi KHÔNG nên dùng ES: không có q, q quá ngắn, ES tắt (ELASTICSEARCH_ENABLED=false) hoặc profile chưa bật.
+   * Người gọi chạy luồng PostgreSQL thường. Khi profile ĐÃ BẬT nhưng ES chưa sẵn sàng / lỗi / ngắt mạch,
+   * trả kết quả dự phòng với degraded = true (không trả null).
+   */
   search<TRow, TFilters>(
     profile: SearchProfile<TRow, TFilters>,
     request: SearchRequest<TFilters>,
   ): Promise<SearchResult<TRow> | null>;
 
-  /** Gọi trong CÙNG giao dịch với thay đổi bản ghi (outbox). */
+  /** Gọi trong CÙNG giao dịch với thay đổi bản ghi (outbox); truyền `manager` của giao dịch. Bỏ qua nếu profile chưa bật. */
   enqueue(
-    profile: SearchProfile<unknown, unknown>,
+    profile: { name: string },
     id: string,
     op: 'upsert' | 'delete',
-    manager: EntityManager,
+    manager?: EntityManager,
   ): Promise<void>;
 }
 ```
@@ -95,7 +102,7 @@ return result; // đã hydrate từ PostgreSQL, đúng thứ tự
 - Chuẩn hóa `q`: cắt khoảng trắng, NFC, bỏ ký tự điều khiển, gộp khoảng trắng liên tiếp, cắt còn ≤ 120 ký tự và ≤ 8 từ. Sau chuẩn hóa còn < 2 ký tự: `null`.
 - Truy vấn dựng **chỉ** từ `match`/`match_phrase`/`multi_match`; `q` đi vào trường `query` dạng chuỗi, không ghép vào cấu trúc.
 - Tìm kiếm đặt `_source: false`, `timeout: '2s'`, `track_total_hits: false` (trừ khi bật đếm).
-- Hydrate: `loadByIds` giữ thứ tự ES; bản ghi không có/không được xem bị bỏ và gọi `enqueue(..., 'delete')` (FR-07).
+- Hydrate: `loadByIds` được đọc theo thứ tự ES; id **không còn** trong PostgreSQL bị bỏ và gọi `enqueue(..., 'delete')`; hàng còn nhưng `canView = false` chỉ bị ẩn, **không** bị dọn khỏi ES (FR-07).
 - `enqueue` trong cùng giao dịch; worker đọc lại hàng hiện tại, nếu `toDocument` trả `null` thì xóa document.
 - Lỗi ES không bao giờ ném ra người dùng: ghi nhật ký, tăng số liệu, rơi về `fallback` (FR-10).
 - Nhật ký không ghi `q` đầy đủ ở mức info (có thể chứa dữ liệu cá nhân); ghi độ dài và số kết quả.

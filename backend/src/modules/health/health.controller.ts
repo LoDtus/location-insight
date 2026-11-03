@@ -48,11 +48,13 @@ export class HealthController {
             throw new Error(`Redis trả về ${pong}`);
           }
         }),
-      () =>
-        this.indicators.check('elasticsearch').attempt(async () => {
-          const ok = await this.search.ping();
-          if (!ok) throw new Error('Elasticsearch không phản hồi');
-        }),
+      // ES là phụ thuộc tùy chọn: tắt hoặc không phản hồi chỉ là `degraded`, không loại instance khỏi vòng phục vụ.
+      async () => {
+        const session = this.indicators.check('elasticsearch');
+        if (!this.search.isEnabled()) return session.up({ mode: 'disabled' });
+        const ok = await this.search.ping();
+        return session.up({ mode: ok ? 'ready' : 'degraded' });
+      },
       () =>
         this.indicators.check('minio').attempt(async () => {
           await this.storage.ping();

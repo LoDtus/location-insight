@@ -23,6 +23,7 @@ import { FollowModule } from './modules/follow/follow.module.js';
 import { FeedbackModule } from './modules/feedback/feedback.module.js';
 import { MapModule } from './modules/map/map.module.js';
 import { NotificationModule } from './modules/notification/notification.module.js';
+import { SearchModule } from './modules/search/search.module.js';
 import { MessagingModule } from './modules/messaging/messaging.module.js';
 import { TypeOrmDatabaseModule } from './shared/database/typeorm/typeorm.module.js';
 import { isTestRuntime } from './shared/utils/runtime.util.js';
@@ -41,9 +42,12 @@ async function loadDevTools(): Promise<DynamicModule[]> {
     const specifier = './dev-tools/dev-reset.module.js';
     const loaded: unknown = await import(specifier);
     const register = (
-      loaded as { registerDevReset?: (env: NodeJS.ProcessEnv) => DynamicModule | null }
+      loaded as {
+        registerDevReset?: (env: NodeJS.ProcessEnv) => DynamicModule | null;
+      }
     ).registerDevReset;
-    const module = typeof register === 'function' ? register(process.env) : null;
+    const module =
+      typeof register === 'function' ? register(process.env) : null;
     return module ? [module] : [];
   } catch {
     return [];
@@ -112,8 +116,21 @@ const devToolsModules = await loadDevTools();
         ]),
     UserModule,
     ...(isTestRuntime()
-        ? []
-        : [AuthModule, RbacModule, BillingModule, ArticlesModule, DiscussionsModule, MessagingModule, FeedbackModule, FollowModule, EmailModule, MapModule, NotificationModule]),
+      ? []
+      : [
+          AuthModule,
+          RbacModule,
+          BillingModule,
+          ArticlesModule,
+          DiscussionsModule,
+          MessagingModule,
+          FeedbackModule,
+          FollowModule,
+          EmailModule,
+          MapModule,
+          NotificationModule,
+          SearchModule,
+        ]),
     ...devToolsModules,
   ],
   controllers: [AppController],

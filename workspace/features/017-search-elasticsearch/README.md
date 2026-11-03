@@ -44,15 +44,15 @@ Elasticsearch (ES) là **công cụ tìm kiếm chữ bổ sung**, không phải
 - **FR-01 (khi nào gọi ES):** chỉ gọi khi (a) người dùng nhập chữ `q`, (b) sau chuẩn hóa `q` dài ≥ 2 ký tự, (c) profile được bật (`ELASTICSEARCH_PROFILES`) và ES đang khỏe. Không có `q` thì **không** gọi ES: lọc/sắp xếp/phân trang chạy bằng PostgreSQL. Sơ đồ: `diagrams/flow-when-to-use-es.mmd`.
 - **FR-02 (profile):** mỗi nơi dùng ES khai báo một `SearchProfile` (tên, trường tìm kiếm + trọng số, trường lọc, hàm `toDocument`, truy vấn dự phòng PostgreSQL). Thêm nơi dùng mới = thêm một profile, không đổi `SearchService`. Hợp đồng ở `interfaces/search-port.md`.
 - **FR-03 (chịu lỗi gõ):** các tình huống sau phải tìm ra đúng đối tượng ở **hạng 1**: không dấu; sai dấu; đảo thứ tự từ; dính chữ (`hoankiem`); đảo hai chữ cái liền nhau (`keim`); sai 1 chữ cái; thừa 1 chữ cái; thiếu 1 chữ cái; người dùng gõ thừa từ; người dùng gõ thiếu từ; đang gõ dở (`bach ma`); `đ` ↔ `d`. Bộ ca kiểm thử mẫu và kết quả ở `analysis-and-queries.md`.
-- **FR-04 (xếp hạng):** kết quả xếp từ khớp nhất đến ít khớp nhất theo thứ tự tầng: cụm đúng có dấu > cụm đúng không dấu > đủ từ đảo thứ tự > chữ dính > sai chính tả (fuzzy) > gõ dở (tiền tố) > khớp một phần số từ. Cùng điểm thì xếp theo `tieBreaker` của profile (ví dụ độ mới/phổ biến), cuối cùng theo `id` để ổn định.
+- **FR-04 (xếp hạng):** kết quả xếp từ khớp nhất đến ít khớp nhất theo thứ tự tầng: cụm đúng có dấu > cụm đúng không dấu > đủ từ đảo thứ tự > chữ dính > sai chính tả (fuzzy) > gõ dở (tiền tố) > khớp một phần số từ. Cùng điểm thì xếp theo `tieBreaker` của profile (ví dụ độ mới/phổ biến), cuối cùng theo `docId` (trường keyword chứa id bản ghi) để ổn định.
 - **FR-05 (cắt nhiễu):** loại kết quả có điểm < 15% điểm cao nhất của trang đầu (`scoreRatioMin`, chỉnh theo profile). Mọi kết quả sai chính tả hợp lệ phải vượt ngưỡng này (kiểm bằng bộ ca mẫu).
 - **FR-06 (lọc kèm tìm):** khi có `q` kèm bộ lọc (thành phố, trạng thái, quyền xem…), bộ lọc đi vào mệnh đề `filter` của ES (không tính điểm, cache được). Người dùng chọn sắp xếp tường minh (mới nhất…): `q` chỉ còn là điều kiện khớp, ES sắp xếp theo trường đó, điểm dùng để cắt nhiễu.
 - **FR-07 (hydrate):** ES chỉ trả `id` + điểm. Backend đọc bản ghi từ PostgreSQL theo `id`, giữ thứ tự của ES, kiểm quyền xem một lần nữa, bỏ `id` không còn/không được xem và xếp lệnh xóa vào outbox (tự chữa chỉ mục cũ). Không bao giờ trả `_source` của ES cho client.
 - **FR-08 (đồng bộ):** thay đổi bản ghi và dòng outbox cùng giao dịch PostgreSQL. Worker (trong tiến trình backend, `FOR UPDATE SKIP LOCKED`, như `email-worker`) gộp theo `(profile, id)`, đọc **trạng thái hiện tại** từ PostgreSQL, ghi ES bằng Bulk API. Độ trễ mục tiêu ≤ 5 giây. Sơ đồ: `diagrams/sequence-index-sync.mmd`.
-- **FR-09 (dựng lại):** lệnh `search:reindex <profile>` tạo index phiên bản mới, nạp từ PostgreSQL theo lô, bù các thay đổi trong lúc nạp, so số lượng, rồi đổi alias nguyên tử; giữ index cũ một thời gian để quay lui. Sơ đồ: `diagrams/flow-reindex-zero-downtime.mmd`.
-- **FR-10 (dự phòng):** ES tắt, quá 2 giây, hoặc lỗi: `SearchService` trả kết quả từ truy vấn dự phòng của profile (PostgreSQL), kèm `source = 'database'`, `degraded = true`. Sau 3 lỗi liên tiếp, ngắt mạch 30 giây trước khi thử lại.
+- **FR-09 (dựng lại):** `SearchIndexService.reindex(profile)` tạo index mới, nạp từ PostgreSQL theo lô keyset 1.000 dòng, bù các thay đổi trong lúc nạp (`updated_at` ≥ mốc bắt đầu − 60 giây), rồi đổi alias nguyên tử; một khóa tư vấn PostgreSQL ngăn hai instance dựng cùng lúc. Tự chạy ở nền khi profile đã bật mà **chưa có alias** hoặc **phiên bản index thấp hơn `profile.version`**. Tên index luân phiên `-vN` và `-vN-b` để dựng lại cùng phiên bản không đụng index đang phục vụ; index trước được giữ cho tới lần dựng lại kế tiếp (thay vì hẹn giờ 24 giờ). **Chưa có lệnh CLI** `search:reindex`: sẽ thêm khi có profile đầu tiên và biết module nào sở hữu nó. Sơ đồ: `diagrams/flow-reindex-zero-downtime.mmd`.
+- **FR-10 (dự phòng):** profile **đã bật** nhưng ES chưa sẵn sàng, quá 2 giây, hoặc lỗi: `SearchService` trả kết quả từ truy vấn dự phòng của profile (PostgreSQL), kèm `source = 'database'`, `degraded = true`. Sau 3 lỗi liên tiếp, ngắt mạch 30 giây trước khi thử lại. Khi ES **tắt hẳn** (`ELASTICSEARCH_ENABLED=false`) hoặc profile **chưa bật**, `search()` trả `null` và người gọi chạy luồng PostgreSQL bình thường của mình.
 - **FR-11 (ES tùy chọn):** ứng dụng **khởi động và chạy bình thường** khi ES tắt/chưa sẵn sàng hoặc `ELASTICSEARCH_ENABLED=false`. `/health/ready` báo ES là `degraded`, không làm hỏng readiness (điểm lệch 1–2).
-- **FR-12 (từ đồng nghĩa):** từ đồng nghĩa nằm trong Synonyms API (`vi-common`), áp dụng lúc **tìm** (không lúc lập chỉ mục), đổi không cần dựng lại index. Nguồn chuẩn là tệp trong repo, áp dụng khi triển khai (`configuration.md`).
+- **FR-12 (từ đồng nghĩa):** từ đồng nghĩa nằm trong Synonyms API (`vi-common`), áp dụng lúc **tìm** (không lúc lập chỉ mục), đổi không cần dựng lại index. Nguồn chuẩn là tệp TypeScript trong repo `backend/src/modules/search/search-synonyms.ts`, được `PUT` idempotent mỗi khi ES sẵn sàng (`configuration.md`). Danh sách hiện có chỉ là mẫu 3 quy tắc cần chủ dự án duyệt.
 - **FR-13 (giới hạn truy vấn):** `q` 2–120 ký tự, tối đa 8 từ (thừa bị cắt), `size` ≤ 50, `from + size` ≤ 1000, mỗi lần tìm timeout 2 giây. Dùng `match`, **không** dùng `query_string`.
 - **FR-14 (quan sát):** số liệu: `search_requests_total{profile,source}`, `search_latency_ms{profile}`, `search_fallback_total{reason}`, `search_outbox_depth{profile}`, `search_outbox_lag_seconds`, `search_index_docs{profile}`, `search_zero_result_total{profile}`.
 - **FR-15 (an toàn dữ liệu):** chỉ lập chỉ mục trường cần để tìm/lọc; không lập chỉ mục dữ liệu nhạy cảm (mật khẩu, token, email người dùng khác…) trừ profile quản trị đã được duyệt. Mapping `dynamic: strict`.
@@ -89,17 +89,19 @@ Elasticsearch (ES) là **công cụ tìm kiếm chữ bổ sung**, không phải
 
 **Điểm lệch cần xử lý khi triển khai (chưa sửa mã):**
 
-| # | Hiện trạng | Đặc tả yêu cầu |
-| --- | --- | --- |
-| 1 | `onModuleInit` thử 10 lần rồi **ném lỗi**: backend không khởi động được nếu ES tắt | Không chặn khởi động; thử lại nền; tuân `ELASTICSEARCH_ENABLED` (FR-11) |
-| 2 | `/health/ready` coi ES là điều kiện sẵn sàng | Báo `degraded`, không loại instance khỏi vòng phục vụ (FR-11) |
-| 3 | `search()` chỉ nhận `query`; không có `size`, `from`, `sort`, `_source`, `timeout`, lọc | Mở rộng theo `interfaces/search-port.md` |
-| 4 | `indexDocument` từng bản ghi, `refresh: false` | Thêm Bulk API, xóa, và `refresh` có kiểm soát khi reindex |
-| 5 | `requestTimeout: 30000` toàn cục | Tìm kiếm timeout 2 giây theo từng lời gọi (FR-13) |
-| 6 | `createIndex` không đặt analyzer, không `dynamic: strict`, không alias, tên index không phiên bản | Theo BR-03, BR-04, BR-06 |
-| 7 | Client `@elastic/elasticsearch` **9.5.1**, server **9.2.0** | Thống nhất phiên bản (Câu hỏi mở 3) |
-| 8 | Dev: bảo mật tắt, cổng publish mọi giao diện | Chấp nhận ở dev; production bật bảo mật, gắn `127.0.0.1` (BR-09) |
-| 9 | Chưa có outbox, worker, lệnh reindex, tệp từ đồng nghĩa | Theo FR-08, FR-09, FR-12 |
+Trạng thái (cập nhật 2026-11-03): ✅ đã làm trong mã/cấu hình · ⏳ còn lại.
+
+| # | Hiện trạng ban đầu | Đặc tả yêu cầu | Trạng thái |
+| --- | --- | --- | --- |
+| 1 | `onModuleInit` thử 10 lần rồi **ném lỗi**: backend không khởi động được nếu ES tắt | Không chặn khởi động; thử lại nền; tuân `ELASTICSEARCH_ENABLED` (FR-11) | ✅ đã kiểm: backend lên bình thường khi ES tắt và tự nối lại khi ES trở lại |
+| 2 | `/health/ready` coi ES là điều kiện sẵn sàng | Báo `degraded`, không loại instance khỏi vòng phục vụ (FR-11) | ✅ `elasticsearch: { mode: ready\|degraded\|disabled }`, luôn `up` |
+| 3 | `search()` chỉ nhận `query`; không có `size`, `from`, `sort`, `_source`, `timeout`, lọc | Mở rộng theo `interfaces/search-port.md` | ✅ `searchWithTimeout`; lớp `SearchService` |
+| 4 | `indexDocument` từng bản ghi, `refresh: false` | Thêm Bulk API, xóa, và `refresh` có kiểm soát khi reindex | ✅ `bulk`, `refresh`, `swapAlias`, `putSynonymSet`… |
+| 5 | `requestTimeout: 30000` toàn cục | Tìm kiếm timeout 2 giây theo từng lời gọi (FR-13) | ✅ giữ 30 giây cho thao tác nền; mỗi lần tìm 2 giây, không thử lại |
+| 6 | `createIndex` không đặt analyzer, không `dynamic: strict`, không alias, tên index không phiên bản | Theo BR-03, BR-04, BR-06 | ✅ `search-analysis.ts`, `search-index.service.ts`; `createIndex` giữ `dynamic` |
+| 7 | Client `@elastic/elasticsearch` **9.5.1**, server **9.2.0** | Thống nhất phiên bản (Câu hỏi mở 3) | ⏳ chưa đổi; các API đang dùng (info, ping, search, bulk, alias, synonyms, count, refresh) đã chạy đúng giữa hai phiên bản này |
+| 8 | Dev: bảo mật tắt, cổng publish mọi giao diện | Chấp nhận ở dev; production bật bảo mật, gắn `127.0.0.1` (BR-09) | ⏳ chờ compose production (đang trống) |
+| 9 | Chưa có outbox, worker, lệnh reindex, tệp từ đồng nghĩa | Theo FR-08, FR-09, FR-12 | ✅ outbox, worker, dựng lại tự động, từ đồng nghĩa. ⏳ chưa có lệnh CLI (xem FR-09) |
 
 **Đề xuất vị trí mã (chưa tạo):** tầng thấp giữ ở `integrations/elasticsearch`; logic dùng chung (registry profile, bộ dựng truy vấn, outbox, worker, reindex) ở `backend/src/modules/search/`; mỗi module nghiệp vụ chỉ thêm một tệp `*.search-profile.ts`.
 
@@ -152,4 +154,5 @@ Elasticsearch (ES) là **công cụ tìm kiếm chữ bổ sung**, không phải
 
 ## Nhật ký cập nhật <!-- key: update_log -->
 
+- 2026-11-03: Áp dụng đặc tả vào mã: `integrations/elasticsearch` (khởi động không chặn, bulk, alias, synonyms, health `degraded`), module `modules/search` (profile, truy vấn nhiều tầng, outbox + worker, dựng lại luân phiên, ngắt mạch), biến môi trường. Kiểm chứng trên ES và PostgreSQL thật (xem `analysis-and-queries.md` mục 6). Tinh chỉnh so với bản nháp: `loadByIds` + `canView` thay vì lọc quyền khi nạp, trường `docId`, cột `revision` cho outbox, tên index luân phiên `-vN`/`-vN-b`, chưa có CLI reindex.
 - 2026-11-03: Tạo đặc tả ban đầu từ tài liệu Elastic (match query, fuzziness, search_as_you_type, synonyms, aliases, snapshot), thực tiễn Mastodon/GitLab/Mattermost, và thử nghiệm thực tế trên ES dev 9.2.0 (index tạm đã xóa, không để lại index hay synonym set nào).

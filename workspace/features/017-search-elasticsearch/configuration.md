@@ -10,12 +10,12 @@ Tuân `.cursor/rules/env-docker.md`: biến môi trường chỉ sửa ở `.env
 | `ELASTICSEARCH_USERNAME` | Có (đang rỗng) | Người dùng kết nối | rỗng (bảo mật tắt) | người dùng riêng của ứng dụng, **không** dùng `elastic` |
 | `ELASTICSEARCH_PASSWORD` | Có (đang rỗng) | Mật khẩu | rỗng | giá trị thật, ngoài repo |
 | `ELASTICSEARCH_PORT` | Có | Cổng publish ra host | như hiện tại | chỉ gắn `127.0.0.1`, hoặc không publish |
-| `ELASTICSEARCH_ENABLED` | **Mới** | Công tắc tổng; `false` thì bỏ qua ES hoàn toàn, không kết nối | `true` | `true`/`false` |
-| `ELASTICSEARCH_PROFILES` | **Mới** | Danh sách profile được dùng ES, cách nhau dấu phẩy (BR-02). Rỗng = không profile nào | tên profile đang thử | các profile đã duyệt |
-| `ELASTICSEARCH_INDEX_PREFIX` | **Mới**, tùy chọn | Tiền tố tên index/alias khi dùng chung cụm (`li-dev-`) | rỗng | rỗng |
-| `ELASTICSEARCH_SEARCH_TIMEOUT_MS` | **Mới**, tùy chọn | Timeout mỗi lần tìm | `2000` | `2000` |
-| `ELASTICSEARCH_SYNC_INTERVAL_MS` | **Mới**, tùy chọn | Chu kỳ worker đọc outbox | `2000` | `2000` |
-| `ELASTICSEARCH_SYNC_BATCH` | **Mới**, tùy chọn | Số dòng outbox mỗi lô bulk | `200` | `200` |
+| `ELASTICSEARCH_ENABLED` | Có (đã thêm vào `.env*`) | Công tắc tổng; `false` thì bỏ qua ES hoàn toàn, không kết nối | `true` | `true`/`false` |
+| `ELASTICSEARCH_PROFILES` | Có (đã thêm; mặc định rỗng) | Danh sách profile được dùng ES, cách nhau dấu phẩy (BR-02). Rỗng = không profile nào | tên profile đang thử | các profile đã duyệt |
+| `ELASTICSEARCH_INDEX_PREFIX` | Có (đã thêm), tùy chọn | Tiền tố tên index/alias khi dùng chung cụm (`li-dev-`) | rỗng | rỗng |
+| `ELASTICSEARCH_SEARCH_TIMEOUT_MS` | Có (đã thêm), tùy chọn | Timeout mỗi lần tìm | `2000` | `2000` |
+| `ELASTICSEARCH_SYNC_INTERVAL_MS` | Có (đã thêm), tùy chọn | Chu kỳ worker đọc outbox | `2000` | `2000` |
+| `ELASTICSEARCH_SYNC_BATCH` | Có (đã thêm), tùy chọn; tối đa 1000 | Số dòng outbox mỗi lô bulk | `200` | `200` |
 
 Ghi chú:
 
@@ -27,7 +27,8 @@ Ghi chú:
 ## Dev: ghi chú
 
 - Giữ cấu hình dev hiện tại: một node, bảo mật tắt, heap 512 MB, volume `elasticsearch_data`.
-- `/reset` (xóa DB dev) **không** động tới ES. Hậu quả: ES giữ id cũ; bước hydrate loại chúng và dọn dần (FR-07), nhưng nên chạy `search:reindex` sau reset để index đầy đủ lại. Không đổi hành vi `/reset` (`.cursor/rules/dev-reset.md`).
+- `/reset` (xóa DB dev) **không** động tới ES. Hậu quả: ES giữ id cũ; bước hydrate loại chúng và dọn dần (FR-07). Để index đầy đủ lại sau reset, tăng `version` của profile hoặc xóa alias để ứng dụng dựng lại (chưa có lệnh CLI). Không đổi hành vi `/reset` (`.cursor/rules/dev-reset.md`).
+- ES từ chối xóa bằng ký tự đại diện (`action.destructive_requires_name`): xóa index tay phải gọi đúng tên.
 - Kiểm tra tay, khi cần thử nghiệm: dùng index có tiền tố riêng (`test-`) và xóa sau khi xong; không đụng alias của profile thật.
 
 ## Production một máy: các điểm bắt buộc
@@ -58,7 +59,7 @@ Ghi chú:
 
 ## Từ đồng nghĩa: nguồn chuẩn và cách áp dụng
 
-- Tệp trong repo (đề xuất): `backend/src/modules/search/synonyms/vi-common.json`, định dạng đúng của Synonyms API:
+- Tệp trong repo: `backend/src/modules/search/search-synonyms.ts` (hằng `VI_COMMON_SYNONYMS`), cùng cấu trúc `{ id, synonyms }` của Synonyms API. Ví dụ nội dung:
 
 ```json
 {
@@ -77,8 +78,8 @@ Ghi chú:
 ## Dựng index và vòng đời (tóm tắt)
 
 - Tên: `{prefix}{profile}-v{version}`; alias: `{prefix}{profile}` (naming.md).
-- Khởi động: nếu alias chưa có, tạo `-v{version}` + alias và kích hoạt reindex nền lần đầu (hoặc chạy tay `search:reindex`).
-- Đổi analyzer/mapping: tăng `version` → `search:reindex` → đổi alias → xóa index cũ sau thời gian giữ lại (đề xuất 24 giờ).
+- Khi ES sẵn sàng: áp dụng bộ từ đồng nghĩa, rồi với mỗi profile đã bật: nếu alias chưa có hoặc phiên bản thấp hơn thì dựng lại ở nền (tên index luân phiên `-vN`/`-vN-b`).
+- Đổi analyzer/mapping: tăng `version` của profile và triển khai; ứng dụng tự dựng index mới và đổi alias. Index trước được giữ lại tới lần dựng lại kế tiếp để quay lui. Chưa có lệnh CLI thủ công.
 - Chi tiết: `diagrams/flow-reindex-zero-downtime.mmd`.
 
 ## Danh mục kiểm khi thêm một profile mới

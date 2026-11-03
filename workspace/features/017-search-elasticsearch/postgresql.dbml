@@ -19,6 +19,7 @@ Table search_outbox {
   op search_outbox_op [not null]
   status search_outbox_status [not null, default: 'pending']
   attempts int [not null, default: 0]
+  revision bigint [not null, default: 1, note: 'Tăng mỗi lần ghi đè dòng chờ. Worker chỉ xóa/cập nhật đúng revision đã nhận, nên thay đổi chen vào lúc đang xử lý không bị mất']
   next_attempt_at timestamptz [not null, default: `now()`]
   last_error varchar(200) [note: 'Tên lỗi, không chứa nội dung bản ghi']
   created_at timestamptz [not null, default: `now()`]

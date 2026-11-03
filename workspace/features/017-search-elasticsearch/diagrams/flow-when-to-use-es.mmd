@@ -5,9 +5,9 @@ flowchart TD
   C --> D{q còn từ 2 ký tự trở lên?}
   D -- Không --> P
   D -- Có --> E{Profile nằm trong ELASTICSEARCH_PROFILES và ELASTICSEARCH_ENABLED?}
-  E -- Không --> F[PostgreSQL: truy vấn dự phòng của module, ví dụ ILIKE]
+  E -- Không --> P2[search trả null: module chạy luồng PostgreSQL bình thường của nó]
   E -- Có --> G{Ngắt mạch đang mở hoặc ES không khỏe?}
-  G -- Có --> F
+  G -- Có --> F[PostgreSQL: truy vấn dự phòng của profile, ví dụ ILIKE]
   G -- Không --> H[Elasticsearch: truy vấn nhiều tầng + bộ lọc]
   H --> I{Thành công trong 2 giây?}
   I -- Không --> J[Ghi nhận lỗi, tăng bộ đếm ngắt mạch] --> F
@@ -16,3 +16,4 @@ flowchart TD
   F --> M[Trả kết quả source=database, degraded=true]
   L --> N[Trả kết quả source=elasticsearch]
   P --> O[Trả kết quả không qua ES]
+  P2 --> O

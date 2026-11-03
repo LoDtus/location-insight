@@ -5,10 +5,16 @@ import type {
     ConversationDetail,
     ConversationState,
     ConversationSummary,
+    CursorPage,
+    DeleteRequest,
     Message,
     MessagePage,
     Person,
     Preferences,
+    SearchHit,
+    SharedFile,
+    SharedLink,
+    SharedMedia,
 } from "./messaging.types";
 
 const BASE = "/messaging";
@@ -77,9 +83,63 @@ export function listMessages(
     return apiRequest(`${BASE}/conversations/${id}/messages${suffix ? `?${suffix}` : ""}`);
 }
 
+export function pinConversation(id: string, pinned: boolean): Promise<void> {
+    return apiRequest(`${BASE}/conversations/${id}/pin`, {
+        method: "PUT",
+        body: JSON.stringify({ pinned }),
+    });
+}
+
+export function setConversationNickname(id: string, nickname: string | null): Promise<{ nickname: string | null }> {
+    return apiRequest(`${BASE}/conversations/${id}/nickname`, {
+        method: "PUT",
+        body: JSON.stringify({ nickname }),
+    });
+}
+
+export type SharedKind = "media" | "links" | "files";
+export type SharedItem<K extends SharedKind> = K extends "media" ? SharedMedia : K extends "files" ? SharedFile : SharedLink;
+
+export function listShared<K extends SharedKind>(
+    id: string,
+    type: K,
+    options: { cursor?: string | null; limit?: number } = {},
+): Promise<CursorPage<SharedItem<K>>> {
+    const params = new URLSearchParams({ type });
+    if (options.cursor) params.set("cursor", options.cursor);
+    if (options.limit) params.set("limit", String(options.limit));
+    return apiRequest(`${BASE}/conversations/${id}/shared?${params.toString()}`);
+}
+
+export function searchInConversation(
+    id: string,
+    q: string,
+    options: { cursor?: string | null } = {},
+): Promise<CursorPage<SearchHit>> {
+    const params = new URLSearchParams({ q });
+    if (options.cursor) params.set("cursor", options.cursor);
+    return apiRequest(`${BASE}/conversations/${id}/search?${params.toString()}`);
+}
+
+export function requestDeleteHistory(id: string): Promise<DeleteRequest> {
+    return apiRequest(`${BASE}/conversations/${id}/delete-request`, { method: "POST" });
+}
+
+export function cancelDeleteHistory(id: string): Promise<void> {
+    return apiRequest(`${BASE}/conversations/${id}/delete-request`, { method: "DELETE" });
+}
+
+export function acceptDeleteHistory(id: string): Promise<void> {
+    return apiRequest(`${BASE}/conversations/${id}/delete-request/accept`, { method: "POST" });
+}
+
+export function declineDeleteHistory(id: string): Promise<void> {
+    return apiRequest(`${BASE}/conversations/${id}/delete-request/decline`, { method: "POST" });
+}
+
 export interface SendInput {
     clientMsgId: string;
-    kind: "text" | "image" | "post_share";
+    kind: "text" | "image" | "file" | "post_share";
     body?: string;
     replyToSeq?: number;
     attachmentIds?: string[];
@@ -193,6 +253,56 @@ export async function uploadImage(conversationId: string, file: File): Promise<s
     await apiRequest<Attachment>(`${BASE}/attachments/${created.attachmentId}/complete`, {
         method: "POST",
         body: JSON.stringify(size),
+    });
+    return created.attachmentId;
+}
+
+export const FILE_MAX_BYTES = 20 * 1024 * 1024;
+
+/** Loại tệp cho phép, theo đuôi: trình duyệt hay trả sai `file.type` cho csv/docx nên đuôi là nguồn chính. */
+const FILE_TYPES: Readonly<Record<string, string>> = {
+    pdf: "application/pdf",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    txt: "text/plain",
+    csv: "text/csv",
+};
+
+export const FILE_ACCEPT = Object.keys(FILE_TYPES)
+    .map((extension) => `.${extension}`)
+    .join(",");
+
+export function fileContentType(file: File): string | null {
+    const dot = file.name.lastIndexOf(".");
+    const extension = dot >= 0 ? file.name.slice(dot + 1).toLowerCase() : "";
+    return Object.prototype.hasOwnProperty.call(FILE_TYPES, extension) ? (FILE_TYPES[extension] ?? null) : null;
+}
+
+export function validateFile(file: File): string | null {
+    if (!fileContentType(file)) return "Chỉ nhận tệp PDF, Word, Excel, PowerPoint, TXT hoặc CSV.";
+    if (file.size <= 0) return "Tệp rỗng.";
+    if (file.size > FILE_MAX_BYTES) return "Tệp lớn hơn 20 MB.";
+    return null;
+}
+
+export async function uploadFile(conversationId: string, file: File): Promise<string> {
+    const invalid = validateFile(file);
+    const contentType = fileContentType(file);
+    if (invalid || !contentType) throw new AuthApiError(invalid ?? "Tệp không hợp lệ.", 422);
+    const created = await apiRequest<{ attachmentId: string; uploadUrl: string }>(`${BASE}/attachments`, {
+        method: "POST",
+        body: JSON.stringify({ conversationId, contentType, byteSize: file.size, fileName: file.name }),
+    });
+    const uploaded = await fetch(created.uploadUrl, {
+        method: "PUT",
+        headers: { "content-type": contentType },
+        body: file,
+    });
+    if (!uploaded.ok) throw new AuthApiError("Chưa tải được tệp lên.", uploaded.status);
+    await apiRequest<Attachment>(`${BASE}/attachments/${created.attachmentId}/complete`, {
+        method: "POST",
+        body: JSON.stringify({}),
     });
     return created.attachmentId;
 }

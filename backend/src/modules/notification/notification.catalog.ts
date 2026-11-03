@@ -71,6 +71,17 @@ export const NOTIFICATION_CATALOG = {
     title: (params) => `${actor(params)} đã nhắn cho bạn`,
     subtitle: (params) => params.preview || 'Mở tin nhắn để xem',
   },
+  'message.delete_request': {
+    category: 'messages',
+    icon: 'triangle-alert',
+    tone: 'warning',
+    inApp: true,
+    push: true,
+    urgency: 'normal',
+    ttl: 86400,
+    title: (params) => `${actor(params)} muốn xóa lịch sử trò chuyện`,
+    subtitle: () => 'Mở tin nhắn để đồng ý hoặc từ chối',
+  },
   'payment.succeeded': {
     category: 'billing',
     icon: 'badge-check',

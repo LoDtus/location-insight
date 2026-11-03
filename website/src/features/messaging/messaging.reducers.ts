@@ -38,6 +38,7 @@ export function mergeMessages(existing: Message[], incoming: Message[]): Message
 export function previewOf(message: Pick<Message, "kind" | "body" | "status">): string {
     if (message.status === "deleted") return UNSENT_PREVIEW;
     if (message.kind === "image") return message.body ? clip(message.body) : "Đã gửi ảnh";
+    if (message.kind === "file") return message.body ? clip(message.body) : "Đã gửi một tệp";
     if (message.kind === "post_share") return "Đã gửi một bài viết";
     return clip(message.body);
 }
@@ -230,7 +231,11 @@ export function inFolder(conversation: ConversationSummary, folder: Folder): boo
 }
 
 export function selectFolder(state: MessagingState, folder: Folder): ConversationSummary[] {
+    // Hội thoại ghim (chỉ Inbox) đứng trước, trong mỗi nhóm mới nhất trước.
     return Object.values(state.conversations)
         .filter((item) => inFolder(item, folder) && item.lastSeq > 0)
-        .sort((a, b) => (b.lastMessageAt ?? "").localeCompare(a.lastMessageAt ?? ""));
+        .sort((a, b) => {
+            if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+            return (b.lastMessageAt ?? "").localeCompare(a.lastMessageAt ?? "");
+        });
 }

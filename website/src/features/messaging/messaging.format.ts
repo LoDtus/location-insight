@@ -101,3 +101,86 @@ export function initials(name: string): string {
     const words = name.trim().split(/\s+/).filter(Boolean);
     return (words.at(-1) ?? "?").slice(0, 1).toLocaleUpperCase("vi");
 }
+
+/** Tên hiển thị của người kia: biệt danh mình đặt, nếu không có thì tên thật. */
+export function peerLabel(conversation: { nickname: string | null; peer: { displayName: string } }): string {
+    return conversation.nickname?.trim() || conversation.peer.displayName;
+}
+
+/** "148 B", "1,2 KB", "3,4 MB". */
+export function formatBytes(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    const units = ["KB", "MB", "GB"];
+    let value = bytes / 1024;
+    let unit = 0;
+    while (value >= 1024 && unit < units.length - 1) {
+        value /= 1024;
+        unit += 1;
+    }
+    const text = value >= 10 ? Math.round(value).toString() : value.toFixed(1).replace(".", ",");
+    return `${text} ${units[unit]}`;
+}
+
+export type FileKind = "pdf" | "word" | "sheet" | "slide" | "text";
+
+export function fileKindOf(fileName: string): FileKind {
+    const dot = fileName.lastIndexOf(".");
+    const extension = dot >= 0 ? fileName.slice(dot + 1).toLowerCase() : "";
+    if (extension === "pdf") return "pdf";
+    if (extension === "docx") return "word";
+    if (extension === "xlsx" || extension === "csv") return "sheet";
+    if (extension === "pptx") return "slide";
+    return "text";
+}
+
+/** Ngày ngắn cho danh sách đã gửi: "03/11/2026". */
+export function shortDate(iso: string): string {
+    return new Intl.DateTimeFormat("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: TZ }).format(
+        new Date(iso),
+    );
+}
+
+/** Chỉ cho mở liên kết http/https. */
+export function safeHttpUrl(value: string): string | null {
+    try {
+        const url = new URL(value);
+        return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
+    } catch {
+        return null;
+    }
+}
+
+function foldChar(char: string): string {
+    if (char === "đ" || char === "Đ") return "d";
+    // Một ký tự dựng sẵn → ký tự gốc: giữ nguyên độ dài để vị trí khớp trùng với chuỗi gốc.
+    return char.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
+
+/** Bỏ dấu và hạ chữ thường, mỗi ký tự vào một ký tự ra (cùng bảng với tìm kiếm ở máy chủ). */
+export function foldText(text: string): string {
+    return Array.from(text.normalize("NFC"))
+        .map((char) => foldChar(char).charAt(0) || char)
+        .join("");
+}
+
+export interface HighlightPart {
+    text: string;
+    match: boolean;
+}
+
+/** Tách văn bản để tô sáng chỗ khớp, bỏ qua dấu và hoa thường. */
+export function highlightParts(text: string, query: string): HighlightPart[] {
+    const needle = foldText(query.trim());
+    if (needle.length === 0) return [{ text, match: false }];
+    const chars = Array.from(text.normalize("NFC"));
+    const folded = foldText(text);
+    const parts: HighlightPart[] = [];
+    let cursor = 0;
+    for (let at = folded.indexOf(needle); at >= 0; at = folded.indexOf(needle, cursor)) {
+        if (at > cursor) parts.push({ text: chars.slice(cursor, at).join(""), match: false });
+        parts.push({ text: chars.slice(at, at + needle.length).join(""), match: true });
+        cursor = at + needle.length;
+    }
+    if (cursor < chars.length) parts.push({ text: chars.slice(cursor).join(""), match: false });
+    return parts;
+}

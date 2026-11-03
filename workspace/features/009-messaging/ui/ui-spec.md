@@ -115,6 +115,27 @@ Menu app thu gọn thành icon. Cột danh sách 300 px. Khung hội thoại ph�
 - Gửi `typing` (active=true) tối đa mỗi 2 giây khi đang gõ; `active=false` sau 3 giây dừng hoặc khi gửi.
 - Khi không được gửi: thay cả thanh soạn bằng thông báo (xem mục 5).
 
+## 4b. Cột thông tin hội thoại (bên phải)
+
+Mở bằng nút ⓘ ở đầu khung hội thoại (thay menu ⋯ cũ). **≥ 1440 px**: cột cố định 320 px bên phải, mở sẵn, nhớ lựa chọn đóng/mở trong `localStorage`. **< 1440 px**: ngăn trượt từ phải (tối đa 384 px) phủ lên, đóng bằng nút ✕, nhấn nền hoặc Esc; tự đóng khi chuyển hội thoại hoặc khi đi tới một tin. Điện thoại dùng cùng ngăn trượt.
+
+Thứ tự từ trên xuống:
+
+1. **Người trò chuyện:** ảnh đại diện 80 px, tên (biệt danh nếu có; dòng "Tên: …" bên dưới khi có biệt danh), trạng thái hoạt động.
+2. **Thao tác nhanh** (3 nút tròn có nhãn): Ghim / Bỏ ghim (vô hiệu ngoài Inbox), Tắt / Bật thông báo (hỏi thời lượng khi tắt), Tìm kiếm.
+3. **Thẻ yêu cầu xóa lịch sử** (khi có): "Đang chờ X xác nhận" + Hủy yêu cầu, hoặc "X đề nghị xóa lịch sử" + Xem yêu cầu.
+4. **Tùy chỉnh:** Đổi biệt danh (hộp thoại, nói rõ chỉ mình thấy).
+5. **File phương tiện:** lưới 3 cột, tối đa 6 ảnh; bấm mở ảnh lớn; nút ↳ trên ảnh đi tới tin; "Xem tất cả ảnh" khi còn nữa.
+6. **Liên kết:** tối đa 3 dòng (tên miền, URL, người gửi · ngày); mở tab mới (`noopener noreferrer nofollow`); "Xem tất cả".
+7. **Tệp:** tối đa 3 dòng (biểu tượng theo loại, tên, dung lượng · ngày); bấm để tải; "Xem tất cả".
+8. **Quyền riêng tư và hỗ trợ:** Chặn / Bỏ chặn, Xóa lịch sử trò chuyện (xóa cả hai phía, cần người kia đồng ý; vô hiệu khi chưa `active` hoặc đang có yêu cầu), Xóa cuộc trò chuyện (chỉ phía mình). Mỗi thao tác khó hoàn tác đều qua hộp xác nhận; hành động xóa dùng nút đỏ.
+
+Các mục 5–7 là `<details>` mở sẵn, tải lại khi có tin mới. **Xem tất cả**: màn con trong cùng cột với ← quay lại, ba tab Ảnh / Liên kết / Tệp, cuộn vô hạn (24 mục mỗi lần). **Tìm kiếm**: màn con có ô nhập (≥ 2 ký tự, debounce 300 ms, gõ không dấu được), kết quả có tên người gửi, thời gian và đoạn trích tô sáng chỗ khớp; bấm kết quả thì cuộn tới và nhấn mạnh tin (2 giây).
+
+**Người nhận yêu cầu xóa lịch sử** thấy hộp xác nhận tự mở khi vào hội thoại: nút "Đồng ý xóa" (đỏ) và "Từ chối"; đóng hộp (✕, Esc) không phải từ chối: thanh nhắc "X đề nghị xóa toàn bộ lịch sử" ở trên ô soạn tin giữ lại nút "Xem yêu cầu".
+
+**Tệp trong bong bóng:** thẻ tệp (biểu tượng, tên, dung lượng) bấm để tải; ô soạn tin có nút 📎 cạnh nút ảnh; ảnh và tệp đi thành hai tin riêng nếu chọn cả hai.
+
 ## 5. Các trạng thái đặc biệt của hội thoại
 
 | Tình huống | Hiển thị |

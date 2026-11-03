@@ -1,11 +1,13 @@
 "use client";
 
-import { ImagePlus, SendHorizontal, Smile, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, type ClipboardEvent, type DragEvent, type JSX } from "react";
+import { ImagePlus, Paperclip, SendHorizontal, Smile, X } from "lucide-react";
+import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent, type JSX } from "react";
 
 import { notifyTyping, sendMessage, stopTyping } from "../messaging.actions";
-import { validateImage } from "../messaging.api";
+import { FILE_ACCEPT, validateFile, validateImage } from "../messaging.api";
 import { ATTACHMENTS_MAX, BODY_MAX, DRAFT_KEY, EMOJI_PICKER } from "../messaging.constants";
+import { formatBytes } from "../messaging.format";
+import { FileTypeIcon } from "./file-card";
 import type { Message } from "../messaging.types";
 
 function readDraft(id: string): string {
@@ -42,12 +44,14 @@ export function Composer({
     const [items, setItems] = useState<Array<{ file: File; url: string }>>([]);
     const files = items.map((item) => item.file);
     const previews = items.map((item) => item.url);
+    const [documents, setDocuments] = useState<File[]>([]);
     const [emojiOpen, setEmojiOpen] = useState(false);
     const [notice, setNotice] = useState("");
     const [dragging, setDragging] = useState(false);
     const area = useRef<HTMLTextAreaElement>(null);
     const picker = useRef<HTMLDivElement>(null);
     const fileInput = useRef<HTMLInputElement>(null);
+    const documentInput = useRef<HTMLInputElement>(null);
     const stopTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const itemsRef = useRef(items);
@@ -82,10 +86,10 @@ export function Composer({
         return () => window.removeEventListener("mousedown", away);
     }, [emojiOpen]);
 
-    const addFiles = useCallback(
-        (incoming: File[]): void => {
-            const images = incoming.filter((file) => file.type.startsWith("image/"));
-            if (!images.length) return;
+    function addFiles(incoming: File[]): void {
+        const images = incoming.filter((file) => file.type.startsWith("image/"));
+        const others = incoming.filter((file) => !file.type.startsWith("image/"));
+        if (images.length) {
             const next = [...items];
             for (const file of images) {
                 const problem = validateImage(file);
@@ -100,9 +104,24 @@ export function Composer({
                 next.push({ file, url: URL.createObjectURL(file) });
             }
             setItems(next);
-        },
-        [items],
-    );
+        }
+        if (others.length) {
+            const next = [...documents];
+            for (const file of others) {
+                const problem = validateFile(file);
+                if (problem) {
+                    setNotice(`${file.name}: ${problem}`);
+                    continue;
+                }
+                if (next.length >= ATTACHMENTS_MAX) {
+                    setNotice(`Tối đa ${ATTACHMENTS_MAX} tệp mỗi tin.`);
+                    break;
+                }
+                next.push(file);
+            }
+            setDocuments(next);
+        }
+    }
 
     function change(value: string): void {
         setText(value);
@@ -118,16 +137,26 @@ export function Composer({
 
     const body = text.trim();
     const tooLong = text.length > BODY_MAX;
-    const canSubmit = (body.length > 0 || files.length > 0) && !tooLong;
+    const canSubmit = (body.length > 0 || files.length > 0 || documents.length > 0) && !tooLong;
 
     function submit(): void {
         if (!canSubmit) return;
-        sendMessage(conversationId, {
-            kind: files.length ? "image" : "text",
-            body,
-            replyToSeq: replyTo?.seq ?? null,
-            files,
-        });
+        // Ảnh và tệp đi thành hai tin riêng; chữ và trả lời đi cùng tin đầu tiên.
+        if (files.length) {
+            sendMessage(conversationId, { kind: "image", body, replyToSeq: replyTo?.seq ?? null, files });
+        }
+        if (documents.length) {
+            sendMessage(conversationId, {
+                kind: "file",
+                body: files.length ? "" : body,
+                replyToSeq: files.length ? null : (replyTo?.seq ?? null),
+                files: documents,
+            });
+        }
+        if (!files.length && !documents.length) {
+            sendMessage(conversationId, { kind: "text", body, replyToSeq: replyTo?.seq ?? null });
+        }
+        setDocuments([]);
         setText("");
         // ảnh xem trước được thu hồi khi tin gửi xong (sendMessage tự tạo URL riêng)
         items.forEach((item) => URL.revokeObjectURL(item.url));
@@ -148,7 +177,7 @@ export function Composer({
 
     function onPaste(event: ClipboardEvent<HTMLTextAreaElement>): void {
         const pasted = [...event.clipboardData.files];
-        if (pasted.some((file) => file.type.startsWith("image/"))) {
+        if (pasted.length > 0) {
             event.preventDefault();
             addFiles(pasted);
         }
@@ -174,7 +203,7 @@ export function Composer({
                 <div className="mb-2 flex items-start gap-2 rounded-2xl bg-cream px-3 py-2 text-sm">
                     <div className="min-w-0 flex-1">
                         <p className="m-0 text-xs font-semibold text-charcoal/70">Đang trả lời {replyName}</p>
-                        <p className="m-0 truncate">{replyTo.body || (replyTo.attachments.length ? "Ảnh" : "Bài viết")}</p>
+                        <p className="m-0 truncate">{replyTo.body || (replyTo.attachments[0]?.kind === "file" ? "Tệp" : replyTo.attachments.length ? "Ảnh" : "Bài viết")}</p>
                     </div>
                     <button
                         type="button"
@@ -207,6 +236,25 @@ export function Composer({
                     ))}
                 </ul>
             ) : null}
+            {documents.length > 0 ? (
+                <ul className="mb-2 grid gap-1.5 p-0" aria-label="Tệp đính kèm">
+                    {documents.map((file, index) => (
+                        <li key={`${file.name}-${index}`} className="flex list-none items-center gap-2 rounded-xl bg-cream px-3 py-2 text-sm">
+                            <FileTypeIcon fileName={file.name} className="size-4 shrink-0" />
+                            <span className="min-w-0 flex-1 truncate font-semibold">{file.name}</span>
+                            <span className="shrink-0 text-xs text-charcoal/60">{formatBytes(file.size)}</span>
+                            <button
+                                type="button"
+                                className="inline-flex size-8 shrink-0 items-center justify-center rounded-full hover:bg-charcoal/10 focus-visible:outline-2 focus-visible:outline-green"
+                                aria-label={`Bỏ tệp ${file.name}`}
+                                onClick={() => setDocuments((current) => current.filter((_, i) => i !== index))}
+                            >
+                                <X className="size-4" aria-hidden="true" />
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+            ) : null}
             {notice ? (
                 <p role="alert" className="m-0 mb-2 text-sm text-red-700">
                     {notice}
@@ -225,6 +273,25 @@ export function Composer({
                     ref={fileInput}
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
+                    multiple
+                    className="hidden"
+                    onChange={(event) => {
+                        addFiles([...(event.target.files ?? [])]);
+                        event.target.value = "";
+                    }}
+                />
+                <button
+                    type="button"
+                    className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-cream hover:bg-charcoal/10 focus-visible:outline-2 focus-visible:outline-green"
+                    aria-label="Đính kèm tệp"
+                    onClick={() => documentInput.current?.click()}
+                >
+                    <Paperclip className="size-5" aria-hidden="true" />
+                </button>
+                <input
+                    ref={documentInput}
+                    type="file"
+                    accept={FILE_ACCEPT}
                     multiple
                     className="hidden"
                     onChange={(event) => {

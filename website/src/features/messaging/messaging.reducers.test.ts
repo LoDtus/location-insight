@@ -7,6 +7,7 @@ import {
     applyRead,
     initialState,
     mergeMessages,
+    previewOf,
     selectFolder,
     upsertConversations,
     withThread,
@@ -44,6 +45,8 @@ function conversation(extra: Partial<ConversationSummary> = {}): ConversationSum
         lastReadSeq: 3,
         unread: false,
         muted: false,
+        pinned: false,
+        nickname: null,
         lastMessagePreview: "tin 3",
         lastMessageAt: new Date(2026, 10, 2, 10, 3).toISOString(),
         lastSenderIsMe: false,
@@ -162,5 +165,24 @@ describe("selectFolder", () => {
         ]);
         expect(selectFolder(state, "inbox").map((item) => item.id)).toEqual(["b", "mine", "a"]);
         expect(selectFolder(state, "requests").map((item) => item.id)).toEqual(["req"]);
+    });
+
+    it("hội thoại ghim đứng đầu Inbox dù cũ hơn, phần còn lại mới nhất trước", () => {
+        const state = upsertConversations(initialState(), [
+            conversation({ id: "new", lastMessageAt: "2026-11-02T12:00:00.000Z" }),
+            conversation({ id: "old-pinned", pinned: true, lastMessageAt: "2026-11-01T08:00:00.000Z" }),
+            conversation({ id: "mid", lastMessageAt: "2026-11-02T10:00:00.000Z" }),
+            conversation({ id: "pinned-newer", pinned: true, lastMessageAt: "2026-11-02T09:00:00.000Z" }),
+        ]);
+        expect(selectFolder(state, "inbox").map((item) => item.id)).toEqual(["pinned-newer", "old-pinned", "new", "mid"]);
+    });
+});
+
+describe("previewOf", () => {
+    it("tin tệp: dùng chú thích, không có thì nói đã gửi tệp", () => {
+        expect(previewOf({ kind: "file", body: "", status: "visible" })).toBe("Đã gửi một tệp");
+        expect(previewOf({ kind: "file", body: "Hợp đồng mẫu", status: "visible" })).toBe("Hợp đồng mẫu");
+        expect(previewOf({ kind: "image", body: "", status: "visible" })).toBe("Đã gửi ảnh");
+        expect(previewOf({ kind: "file", body: "x", status: "deleted" })).toBe("Tin nhắn đã thu hồi");
     });
 });

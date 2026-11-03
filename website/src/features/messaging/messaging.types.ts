@@ -1,5 +1,5 @@
 export type ConversationState = "pending" | "active" | "declined";
-export type MessageKind = "text" | "image" | "post_share" | "system";
+export type MessageKind = "text" | "image" | "file" | "post_share" | "system";
 
 export interface Person {
     id: string;
@@ -9,9 +9,12 @@ export interface Person {
 
 export interface Attachment {
     id: string;
+    kind: "image" | "file";
     contentType: string;
     width: number;
     height: number;
+    fileName: string | null;
+    byteSize: number;
     url: string;
 }
 
@@ -46,6 +49,10 @@ export interface ConversationSummary {
     lastReadSeq: number;
     unread: boolean;
     muted: boolean;
+    /** Đã ghim lên đầu Inbox (chỉ phía mình). */
+    pinned: boolean;
+    /** Biệt danh mình đặt cho người kia; chỉ mình thấy. */
+    nickname: string | null;
     lastMessagePreview: string;
     lastMessageAt: string | null;
     lastSenderIsMe: boolean;
@@ -57,6 +64,60 @@ export interface ConversationDetail extends ConversationSummary {
     peerPresence: { online: boolean; lastActiveAt: string | null } | null;
     canSend: boolean;
     blockedByMe: boolean;
+    /** Yêu cầu xóa lịch sử hai phía đang chờ (của mình hoặc của người kia). */
+    deleteRequest: DeleteRequest | null;
+}
+
+export interface DeleteRequest {
+    id: string;
+    byMe: boolean;
+    createdAt: string;
+}
+
+export interface SharedMedia {
+    id: string;
+    messageId: string;
+    messageSeq: number;
+    senderId: string;
+    createdAt: string;
+    contentType: string;
+    width: number;
+    height: number;
+    url: string;
+}
+
+export interface SharedFile {
+    id: string;
+    messageId: string;
+    messageSeq: number;
+    senderId: string;
+    createdAt: string;
+    fileName: string;
+    contentType: string;
+    byteSize: number;
+    url: string;
+}
+
+export interface SharedLink {
+    messageId: string;
+    messageSeq: number;
+    senderId: string;
+    createdAt: string;
+    url: string;
+    host: string;
+}
+
+export interface SearchHit {
+    messageId: string;
+    seq: number;
+    senderId: string;
+    createdAt: string;
+    snippet: string;
+}
+
+export interface CursorPage<T> {
+    items: T[];
+    nextCursor: string | null;
 }
 
 export interface Preferences {
@@ -77,7 +138,7 @@ export interface MessagePage {
 export interface PendingMessage {
     clientMsgId: string;
     conversationId: string;
-    kind: "text" | "image" | "post_share";
+    kind: "text" | "image" | "file" | "post_share";
     body: string;
     replyToSeq: number | null;
     files: File[];
@@ -97,6 +158,8 @@ export interface ThreadState {
     loadingOlder: boolean;
     peerLastReadSeq: number | null;
     error: string;
+    /** Tin cần cuộn tới và nhấn mạnh (từ tìm kiếm hoặc danh sách đã gửi); Thread xử lý rồi xóa. */
+    jumpSeq: number | null;
 }
 
 export type RealtimeStatus = "idle" | "connecting" | "online" | "offline";
@@ -122,4 +185,5 @@ export const EMPTY_THREAD: ThreadState = {
     loadingOlder: false,
     peerLastReadSeq: null,
     error: "",
+    jumpSeq: null,
 };

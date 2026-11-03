@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, type JSX } from "react";
 
 import { clockTime, fullTime, splitLinks } from "../messaging.format";
 import { REACTIONS } from "../messaging.constants";
+import { FileCard } from "./file-card";
 import type { Message } from "../messaging.types";
 
 export interface BubbleProps {
@@ -53,6 +54,8 @@ export function MessageBubble(props: BubbleProps): JSX.Element {
     const [touched, setTouched] = useState(false);
     const box = useRef<HTMLDivElement>(null);
     const deleted = message.status === "deleted";
+    const images = message.attachments.filter((item) => item.kind !== "file");
+    const documents = message.attachments.filter((item) => item.kind === "file");
 
     useEffect(() => {
         if (menu === "none") return;
@@ -108,11 +111,25 @@ export function MessageBubble(props: BubbleProps): JSX.Element {
                         <span>{mine ? "Bạn đã thu hồi một tin nhắn" : "Tin nhắn đã thu hồi"}</span>
                     ) : (
                         <>
-                            {message.attachments.length > 0 ? (
+                            {documents.length > 0 ? (
+                                <div className="mb-1 grid gap-1">
+                                    {documents.map((file) => (
+                                        <FileCard
+                                            key={file.id}
+                                            fileName={file.fileName ?? "tep"}
+                                            byteSize={file.byteSize}
+                                            url={file.url}
+                                            tone={mine ? "mine" : "theirs"}
+                                            onClick={(event) => event.stopPropagation()}
+                                        />
+                                    ))}
+                                </div>
+                            ) : null}
+                            {images.length > 0 ? (
                                 <div
-                                    className={`mb-1 grid gap-1 ${message.attachments.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}
+                                    className={`mb-1 grid gap-1 ${images.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}
                                 >
-                                    {message.attachments.map((file, index) => (
+                                    {images.map((file, index) => (
                                         <button
                                             key={file.id}
                                             type="button"

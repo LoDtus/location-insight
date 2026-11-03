@@ -1,12 +1,12 @@
 "use client";
 
-import { BellOff, Search, SquarePen, Settings } from "lucide-react";
+import { BellOff, Pin, Search, SquarePen, Settings } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 
 import { loadConversations, loadMoreConversations } from "../messaging.actions";
 import { listConversations } from "../messaging.api";
-import { listTime } from "../messaging.format";
+import { listTime, peerLabel } from "../messaging.format";
 import { selectFolder, type Folder } from "../messaging.reducers";
 import { useMessagingState } from "../messaging.store";
 import type { ConversationSummary } from "../messaging.types";
@@ -68,7 +68,11 @@ export function ConversationList({
     const items = useMemo(() => {
         if (text.length === 0) return local;
         const needle = text.toLocaleLowerCase("vi");
-        const filtered = local.filter((item) => item.peer.displayName.toLocaleLowerCase("vi").includes(needle));
+        const filtered = local.filter(
+            (item) =>
+                item.peer.displayName.toLocaleLowerCase("vi").includes(needle) ||
+                (item.nickname ?? "").toLocaleLowerCase("vi").includes(needle),
+        );
         if (!found) return filtered;
         const ids = new Set(filtered.map((item) => item.id));
         return [...filtered, ...found.filter((item) => !ids.has(item.id))];
@@ -200,7 +204,7 @@ function Row({ item, active, root }: { item: ConversationSummary; active: boolea
                 <PersonAvatar name={item.peer.displayName} url={item.peer.avatarUrl} size={48} />
                 <span className="min-w-0 flex-1">
                     <span className={`block truncate text-[15px] ${item.unread ? "font-bold" : "font-semibold"}`}>
-                        {item.peer.displayName}
+                        {peerLabel(item)}
                     </span>
                     <span className={`flex items-center gap-1 text-sm ${item.unread ? "font-semibold text-charcoal" : "text-charcoal/65"}`}>
                         <span className="truncate">
@@ -210,6 +214,7 @@ function Row({ item, active, root }: { item: ConversationSummary; active: boolea
                         <span className="shrink-0 text-charcoal/55">· {listTime(item.lastMessageAt)}</span>
                     </span>
                 </span>
+                {item.pinned ? <Pin className="size-4 shrink-0 text-charcoal/50" aria-label="Đã ghim" /> : null}
                 {item.muted ? <BellOff className="size-4 shrink-0 text-charcoal/50" aria-label="Đã tắt thông báo" /> : null}
                 {item.unread ? <span className="size-2.5 shrink-0 rounded-full bg-green" aria-label="Chưa đọc" /> : null}
             </Link>

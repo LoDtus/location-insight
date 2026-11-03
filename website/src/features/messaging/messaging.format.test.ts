@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import { backoffMs } from "./messaging.realtime";
-import { needsSeparator, presenceText, sameGroup, splitLinks } from "./messaging.format";
+import {
+    fileKindOf,
+    formatBytes,
+    needsSeparator,
+    peerLabel,
+    presenceText,
+    safeHttpUrl,
+    sameGroup,
+    splitLinks,
+} from "./messaging.format";
 
 describe("splitLinks", () => {
     it("tách liên kết, bỏ dấu câu cuối, không sinh HTML", () => {
@@ -46,5 +55,45 @@ describe("backoffMs", () => {
         expect(backoffMs(10, 0.5)).toBe(30000);
         expect(backoffMs(0, 0)).toBe(800);
         expect(backoffMs(0, 1)).toBe(1200);
+    });
+});
+
+describe("peerLabel", () => {
+    const peer = { displayName: "Lan Anh" };
+    it("ưu tiên biệt danh, bỏ qua biệt danh chỉ có khoảng trắng", () => {
+        expect(peerLabel({ nickname: "Lan Anh (hàng xóm)", peer })).toBe("Lan Anh (hàng xóm)");
+        expect(peerLabel({ nickname: null, peer })).toBe("Lan Anh");
+        expect(peerLabel({ nickname: "   ", peer })).toBe("Lan Anh");
+    });
+});
+
+describe("formatBytes", () => {
+    it("đổi sang đơn vị dễ đọc, dùng dấu phẩy thập phân", () => {
+        expect(formatBytes(148)).toBe("148 B");
+        expect(formatBytes(1536)).toBe("1,5 KB");
+        expect(formatBytes(20 * 1024)).toBe("20 KB");
+        expect(formatBytes(3.4 * 1024 * 1024)).toBe("3,4 MB");
+        expect(formatBytes(20 * 1024 * 1024)).toBe("20 MB");
+    });
+});
+
+describe("fileKindOf", () => {
+    it("nhận loại theo đuôi tệp, không phân biệt hoa thường", () => {
+        expect(fileKindOf("Hop-dong.PDF")).toBe("pdf");
+        expect(fileKindOf("bao cao.docx")).toBe("word");
+        expect(fileKindOf("gia.xlsx")).toBe("sheet");
+        expect(fileKindOf("gia.csv")).toBe("sheet");
+        expect(fileKindOf("slide.pptx")).toBe("slide");
+        expect(fileKindOf("ghi-chu.txt")).toBe("text");
+        expect(fileKindOf("khongduoi")).toBe("text");
+    });
+});
+
+describe("safeHttpUrl", () => {
+    it("chỉ cho http và https", () => {
+        expect(safeHttpUrl("https://example.com/a?b=1")).toBe("https://example.com/a?b=1");
+        expect(safeHttpUrl("javascript:alert(1)")).toBeNull();
+        expect(safeHttpUrl("data:text/html,x")).toBeNull();
+        expect(safeHttpUrl("không phải url")).toBeNull();
     });
 });

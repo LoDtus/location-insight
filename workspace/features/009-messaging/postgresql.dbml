@@ -71,6 +71,8 @@ Table conversation_participants {
   last_activity_at timestamptz [not null, default: `now()`, note: 'chép từ tin cuối để sắp hộp thư bằng một chỉ mục, không join conversations']
   hidden_at timestamptz [note: 'ẩn khỏi hộp thư; tin mới đến sẽ đặt lại null']
   muted_until timestamptz [note: 'null = không tắt; năm 9999 = tắt vô hạn']
+  pinned_at timestamptz [note: 'ghim lên đầu Inbox (chỉ phía mình); tối đa 5 hội thoại']
+  peer_nickname varchar(50) [note: 'biệt danh mình đặt cho người kia; chỉ mình thấy']
   joined_at timestamptz [not null, default: `now()`]
   left_at timestamptz [note: 'rời nhóm hoặc tài khoản bị xóa; null = đang tham gia']
 
@@ -111,7 +113,9 @@ Table message_attachments {
   message_seq bigint [note: 'null khi pending; gắn khi gửi tin']
   uploader_id uuid [not null, ref: > users.id]
   object_key varchar(240) [not null, unique, note: 'ngẫu nhiên, không chứa tên tệp gốc']
-  content_type varchar(40) [not null, note: 'image/jpeg | image/png | image/webp']
+  kind varchar(10) [not null, default: 'image', note: 'image | file']
+  content_type varchar(100) [not null, note: 'ảnh: image/jpeg | image/png | image/webp; tệp: application/pdf, docx/xlsx/pptx (OOXML), text/plain, text/csv']
+  file_name varchar(120) [note: 'tên hiển thị đã làm sạch (tệp); ảnh để null']
   byte_size int [not null]
   width int
   height int
@@ -123,6 +127,7 @@ Table message_attachments {
     (conversation_id, message_seq) [name: 'idx_attachments_message']
     (uploader_id, status) [name: 'idx_attachments_uploader_status']
     (status, created_at) [name: 'idx_attachments_status_created', note: 'job dọn pending quá 24 giờ']
+    (conversation_id, kind, message_seq) [name: 'idx_attachments_shared', note: 'danh sách ảnh/tệp đã gửi']
   }
   // FK: (conversation_id, message_seq) -> messages(conversation_id, seq) — trong migration.
 }
@@ -179,5 +184,22 @@ Table message_reports {
     (conversation_id, message_seq, reporter_id) [unique, name: 'uk_message_reports_once']
     (status, created_at) [name: 'idx_message_reports_status_created']
     (reported_user_id, created_at) [name: 'idx_message_reports_reported_user', note: 'người bị báo cáo nhiều lần']
+  }
+}
+
+Table conversation_delete_requests {
+  id uuid [pk]
+  conversation_id uuid [not null, ref: > conversations.id, note: 'ON DELETE CASCADE']
+  requester_id uuid [not null, ref: > users.id]
+  up_to_seq bigint [not null, note: 'chỉ xóa tin có seq <= giá trị này; tin gửi sau không bị xóa']
+  status varchar(10) [not null, default: 'pending', note: 'pending | accepted | declined | cancelled | expired']
+  resolved_at timestamptz
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+  deleted_at timestamptz
+
+  indexes {
+    conversation_id [unique, name: 'uk_delete_requests_pending', note: 'chỉ một yêu cầu đang chờ mỗi hội thoại: WHERE status = pending']
+    (status, created_at) [name: 'idx_delete_requests_status_created', note: 'job hết hạn sau 7 ngày']
   }
 }

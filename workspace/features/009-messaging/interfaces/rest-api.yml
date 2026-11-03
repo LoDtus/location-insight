@@ -11,6 +11,7 @@ info:
     - Lỗi theo khung phản hồi của dự án: { success: false, status, message, error: { code, details }, traceId }.
     - Mã lỗi nghiệp vụ nằm ở error.details.code: cannot_message_user, request_pending, email_not_verified, attachment_rejected. 429 có error.details.retryAfter (giây).
     - Phản hồi thành công nằm trong `data` của khung chuẩn.
+    - Tóm tắt hội thoại có thêm `pinned`, `nickname`; chi tiết có thêm `deleteRequest` ({ id, byMe, createdAt } hoặc null). Tệp đính kèm có thêm `kind`, `fileName`, `byteSize`; `POST /messaging/attachments` nhận cả tệp tài liệu (`contentType`, `byteSize` ≤ 20 MB, `fileName`).
     - Tin nhắn và URL ảnh không bao giờ ghi vào nhật ký.
 tags:
   - { name: conversations }
@@ -276,6 +277,71 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { description: Đã báo tin này }
         "422": { description: Không thể báo tin của chính mình }
+  /messaging/conversations/{conversationId}/pin:
+    put:
+      tags: [conversations]
+      summary: Ghim hoặc bỏ ghim hội thoại (chỉ phía mình, tối đa 5, chỉ Inbox)
+      parameters: [{ name: conversationId, in: path, required: true, schema: { type: string, format: uuid } }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [pinned], properties: { pinned: { type: boolean } } } } }
+      responses: { '204': { description: Đã cập nhật }, '409': { description: Vượt 5 hội thoại ghim }, '422': { description: Hội thoại không ở Inbox } }
+  /messaging/conversations/{conversationId}/nickname:
+    put:
+      tags: [conversations]
+      summary: Đặt hoặc xóa biệt danh cho người kia (chỉ mình thấy)
+      parameters: [{ name: conversationId, in: path, required: true, schema: { type: string, format: uuid } }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [nickname], properties: { nickname: { type: string, nullable: true, maxLength: 50 } } } } }
+      responses: { '200': { description: 'Biệt danh đã lưu: { nickname: string | null }' }, '422': { description: Quá 50 ký tự } }
+  /messaging/conversations/{conversationId}/shared:
+    get:
+      tags: [conversations]
+      summary: Ảnh, liên kết hoặc tệp đã gửi, mới nhất trước
+      parameters:
+        - { name: conversationId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: type, in: query, required: true, schema: { type: string, enum: [media, links, files] } }
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 12 } }
+      responses:
+        '200':
+          description: |
+            { items, nextCursor }. media: { id, messageId, messageSeq, senderId, createdAt, contentType, width, height, url };
+            files: { id, messageId, messageSeq, senderId, createdAt, fileName, contentType, byteSize, url (tải xuống) };
+            links: { messageId, messageSeq, senderId, createdAt, url, host }.
+  /messaging/conversations/{conversationId}/search:
+    get:
+      tags: [messages]
+      summary: Tìm tin trong một hội thoại (không phân biệt dấu và hoa thường)
+      parameters:
+        - { name: conversationId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: q, in: query, required: true, schema: { type: string, minLength: 2, maxLength: 100 } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses: { '200': { description: '{ items: [{ messageId, seq, senderId, createdAt, snippet }], nextCursor }' } }
+  /messaging/conversations/{conversationId}/delete-request:
+    post:
+      tags: [conversations]
+      summary: Gửi yêu cầu xóa lịch sử ở cả hai phía (cần người kia đồng ý)
+      parameters: [{ name: conversationId, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { '201': { description: '{ id, byMe, createdAt }; gọi lặp trả lại yêu cầu của mình' }, '409': { description: Người kia đã gửi yêu cầu, hãy trả lời trước }, '422': { description: Hội thoại chưa active hoặc chưa có tin để xóa } }
+    delete:
+      tags: [conversations]
+      summary: Người yêu cầu rút lại
+      parameters: [{ name: conversationId, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { '204': { description: Đã hủy }, '404': { description: Không có yêu cầu của bạn } }
+  /messaging/conversations/{conversationId}/delete-request/accept:
+    post:
+      tags: [conversations]
+      summary: Người kia đồng ý, xóa thật các tin tới up_to_seq ở cả hai phía
+      parameters: [{ name: conversationId, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { '204': { description: Đã xóa }, '404': { description: Không có yêu cầu hoặc là yêu cầu của chính bạn }, '409': { description: Đã được xử lý } }
+  /messaging/conversations/{conversationId}/delete-request/decline:
+    post:
+      tags: [conversations]
+      summary: Người kia từ chối
+      parameters: [{ name: conversationId, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { '204': { description: Đã từ chối } }
   /messaging/attachments:
     post:
       tags: [attachments]

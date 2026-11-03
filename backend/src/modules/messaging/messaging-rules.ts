@@ -1,6 +1,6 @@
 import { MESSAGING_LIMITS } from './messaging.constants.js';
 
-export type MessageKind = 'text' | 'image' | 'post_share' | 'system';
+export type MessageKind = 'text' | 'image' | 'file' | 'post_share' | 'system';
 export type ConversationState = 'pending' | 'active' | 'declined';
 
 export interface SendGateInput {
@@ -36,23 +36,34 @@ export function directKey(a: string, b: string): string {
 
 export function previewFor(kind: MessageKind, body: string): string {
   if (kind === 'image') return body ? truncate(body) : 'Đã gửi ảnh';
+  if (kind === 'file') return body ? truncate(body) : 'Đã gửi một tệp';
   if (kind === 'post_share') return 'Đã gửi một bài viết';
   return truncate(body);
 }
 
 export const UNSENT_PREVIEW = 'Tin nhắn đã thu hồi';
 
-export function truncate(value: string, max: number = MESSAGING_LIMITS.previewMax): string {
+export function truncate(
+  value: string,
+  max: number = MESSAGING_LIMITS.previewMax,
+): string {
   const chars = Array.from(value.replace(/\s+/g, ' ').trim());
-  return chars.length <= max ? chars.join('') : `${chars.slice(0, max - 1).join('')}…`;
+  return chars.length <= max
+    ? chars.join('')
+    : `${chars.slice(0, max - 1).join('')}…`;
 }
 
-export function excerpt(value: string, max: number = MESSAGING_LIMITS.excerptMax): string {
+export function excerpt(
+  value: string,
+  max: number = MESSAGING_LIMITS.excerptMax,
+): string {
   return truncate(value, max);
 }
 
 export function isUuid(value: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    value,
+  );
 }
 
 export function escapeLike(value: string): string {
@@ -63,7 +74,10 @@ export function writeCursor(parts: Array<string | number>): string {
   return Buffer.from(parts.join('|')).toString('base64url');
 }
 
-export function readCursor(cursor: string | undefined, size: number): string[] | null {
+export function readCursor(
+  cursor: string | undefined,
+  size: number,
+): string[] | null {
   if (!cursor) return null;
   try {
     const parts = Buffer.from(cursor, 'base64url').toString('utf8').split('|');
@@ -73,9 +87,12 @@ export function readCursor(cursor: string | undefined, size: number): string[] |
   }
 }
 
-export function pngSize(bytes: Buffer): { width: number; height: number } | null {
+export function pngSize(
+  bytes: Buffer,
+): { width: number; height: number } | null {
   if (bytes.length < 24) return null;
-  if (!bytes.subarray(0, 4).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47]))) return null;
+  if (!bytes.subarray(0, 4).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47])))
+    return null;
   return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
 }
 

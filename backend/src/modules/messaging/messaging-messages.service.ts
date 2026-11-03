@@ -10,9 +10,18 @@ import { ListMessagesQueryDto, SendMessageDto } from './dto/messaging.dto.js';
 import { MessagingAccessService } from './messaging-access.service.js';
 import { MessagingConversationsService } from './messaging-conversations.service.js';
 import { rowsOf } from './messaging-db.js';
-import { cannotMessage, forbidden, invalid, notFound, requestPending } from './messaging-errors.js';
+import {
+  cannotMessage,
+  forbidden,
+  invalid,
+  notFound,
+  requestPending,
+} from './messaging-errors.js';
 import { MessagingEventsService } from './messaging-events.service.js';
-import { MessageView, MessagingPresenterService } from './messaging-presenter.service.js';
+import {
+  MessageView,
+  MessagingPresenterService,
+} from './messaging-presenter.service.js';
 import { MessagingRateLimitService } from './messaging-rate-limit.service.js';
 import {
   ConversationState,
@@ -52,7 +61,11 @@ export class MessagingMessagesService {
     private readonly notifications: NotificationsService,
   ) {}
 
-  async list(userId: string, conversationId: string, query: ListMessagesQueryDto) {
+  async list(
+    userId: string,
+    conversationId: string,
+    query: ListMessagesQueryDto,
+  ) {
     const m = await this.access.membership(userId, conversationId);
     if (query.beforeSeq !== undefined && query.afterSeq !== undefined) {
       invalid('Chỉ dùng một trong beforeSeq và afterSeq.');
@@ -80,15 +93,22 @@ export class MessagingMessagesService {
       if (query.beforeSeq !== undefined) {
         base.andWhere('m.seq < :before', { before: query.beforeSeq });
       }
-      const found = await base.orderBy('m.seq', 'DESC').take(limit + 1).getMany();
+      const found = await base
+        .orderBy('m.seq', 'DESC')
+        .take(limit + 1)
+        .getMany();
       hasMoreBefore = found.length > limit;
       rows = (hasMoreBefore ? found.slice(0, limit) : found).reverse();
       hasMoreAfter = query.beforeSeq !== undefined;
     }
     const items = await this.presenter.messageViews(rows, userId);
     const prefs = await this.access.preferencesMany([userId, m.peerId]);
-    const receipts = prefs.get(userId)?.sendReadReceipts && prefs.get(m.peerId)?.sendReadReceipts;
-    const peer = receipts ? await this.peerRead(conversationId, m.peerId) : null;
+    const receipts =
+      prefs.get(userId)?.sendReadReceipts &&
+      prefs.get(m.peerId)?.sendReadReceipts;
+    const peer = receipts
+      ? await this.peerRead(conversationId, m.peerId)
+      : null;
     return {
       items,
       hasMoreBefore,
@@ -108,9 +128,14 @@ export class MessagingMessagesService {
     const prepared = this.prepare(input);
 
     const replay = await this.messages.findOne({
-      where: { conversationId, senderId: userId, clientMsgId: input.clientMsgId },
+      where: {
+        conversationId,
+        senderId: userId,
+        clientMsgId: input.clientMsgId,
+      },
     });
-    if (replay) return { message: await this.view(replay, userId), created: false };
+    if (replay)
+      return { message: await this.view(replay, userId), created: false };
 
     await this.access.assertPeerReachable(userId, m.peerId);
     const gate = sendGate({
@@ -124,10 +149,19 @@ export class MessagingMessagesService {
       invalid('Chỉ gửi được một tin chữ cho đến khi người này chấp nhận.');
     }
     await this.rate.consume('send', `user_${userId}`);
-    await this.rate.consume('sendConversation', `conv_${conversationId}:user_${userId}`);
+    await this.rate.consume(
+      'sendConversation',
+      `conv_${conversationId}:user_${userId}`,
+    );
 
-    if (input.replyToSeq) await this.assertReplyTarget(conversationId, input.replyToSeq, m.me.clearedBeforeSeq);
-    if (prepared.kind === 'post_share') await this.assertPostVisible(input.postId as string);
+    if (input.replyToSeq)
+      await this.assertReplyTarget(
+        conversationId,
+        input.replyToSeq,
+        m.me.clearedBeforeSeq,
+      );
+    if (prepared.kind === 'post_share')
+      await this.assertPostVisible(input.postId as string);
 
     let seq = 0;
     let activated = false;
@@ -145,7 +179,11 @@ export class MessagingMessagesService {
     } catch (error) {
       if (error instanceof ReplaySignal) {
         const existing = await this.messages.findOneOrFail({
-          where: { conversationId, senderId: userId, clientMsgId: input.clientMsgId },
+          where: {
+            conversationId,
+            senderId: userId,
+            clientMsgId: input.clientMsgId,
+          },
         });
         return { message: await this.view(existing, userId), created: false };
       }
@@ -156,7 +194,9 @@ export class MessagingMessagesService {
     const message = await this.view(row, userId);
     const members = [userId, m.peerId];
     await this.conversations.invalidateUnread(members);
-    const state: ConversationState = activated ? 'active' : m.conversation.state;
+    const state: ConversationState = activated
+      ? 'active'
+      : m.conversation.state;
     await this.events.publish(MESSAGING_CHANNELS.messageCreated, members, {
       conversationId,
       state,
@@ -164,10 +204,14 @@ export class MessagingMessagesService {
       message,
     });
     if (activated) {
-      await this.events.publish(MESSAGING_CHANNELS.conversationUpdated, members, {
-        conversationId,
-        reason: 'accepted',
-      });
+      await this.events.publish(
+        MESSAGING_CHANNELS.conversationUpdated,
+        members,
+        {
+          conversationId,
+          reason: 'accepted',
+        },
+      );
     }
     await this.events.publish(MESSAGING_CHANNELS.unread, [m.peerId], {});
     const [actor, peer] = await Promise.all([
@@ -179,7 +223,10 @@ export class MessagingMessagesService {
       userId: m.peerId,
       type: 'message.new',
       link: `${rootPath}/messages/${conversationId}`,
-      params: { actorName: actor?.displayName ?? 'Một người dùng', preview: message.body?.slice(0, 80) ?? 'Tin nhắn mới' },
+      params: {
+        actorName: actor?.displayName ?? 'Một người dùng',
+        preview: message.body?.slice(0, 80) ?? 'Tin nhắn mới',
+      },
       actorId: userId,
       dedupeKey: `message.new:${message.id}`,
       collapseKey: `message.new:${conversationId}`,
@@ -187,11 +234,19 @@ export class MessagingMessagesService {
     return { message, created: true };
   }
 
-  async unsend(userId: string, conversationId: string, messageId: string): Promise<void> {
+  async unsend(
+    userId: string,
+    conversationId: string,
+    messageId: string,
+  ): Promise<void> {
     const m = await this.access.membership(userId, conversationId);
-    const target = await this.messages.findOne({ where: { conversationId, id: messageId } });
-    if (!target || target.seq <= m.me.clearedBeforeSeq) notFound('Không tìm thấy tin nhắn.');
-    if (target.senderId !== userId) forbidden('Bạn chỉ thu hồi được tin của mình.');
+    const target = await this.messages.findOne({
+      where: { conversationId, id: messageId },
+    });
+    if (!target || target.seq <= m.me.clearedBeforeSeq)
+      notFound('Không tìm thấy tin nhắn.');
+    if (target.senderId !== userId)
+      forbidden('Bạn chỉ thu hồi được tin của mình.');
     if (target.status === 'deleted') return;
 
     await this.dataSource.transaction(async (manager) => {
@@ -200,7 +255,10 @@ export class MessagingMessagesService {
         { conversationId, seq: target.seq },
         { status: 'deleted', body: '', deletedAt: new Date() },
       );
-      await manager.delete(MessageReactionEntity, { conversationId, messageSeq: target.seq });
+      await manager.delete(MessageReactionEntity, {
+        conversationId,
+        messageSeq: target.seq,
+      });
       if (target.seq === m.conversation.lastSeq) {
         await manager.query(
           `UPDATE conversations SET last_message_preview = $2, updated_at = now() WHERE id = $1`,
@@ -218,11 +276,20 @@ export class MessagingMessagesService {
     await this.events.publish(MESSAGING_CHANNELS.unread, members, {});
   }
 
-  async react(userId: string, conversationId: string, messageId: string, emoji: string): Promise<void> {
+  async react(
+    userId: string,
+    conversationId: string,
+    messageId: string,
+    emoji: string,
+  ): Promise<void> {
     if (!(ALLOWED_REACTIONS as readonly string[]).includes(emoji)) {
       invalid('Cảm xúc này không được hỗ trợ.');
     }
-    const { target, peerId } = await this.reactable(userId, conversationId, messageId);
+    const { target, peerId } = await this.reactable(
+      userId,
+      conversationId,
+      messageId,
+    );
     await this.rate.consume('react', `user_${userId}`);
     const before = await this.reactions.findOne({
       where: { conversationId, messageSeq: target.seq, userId },
@@ -233,36 +300,64 @@ export class MessagingMessagesService {
        ON CONFLICT (conversation_id, message_seq, user_id) DO UPDATE SET emoji = EXCLUDED.emoji`,
       [conversationId, target.seq, userId, emoji],
     );
-    await this.events.publish(MESSAGING_CHANNELS.reactionChanged, [userId, peerId], {
-      conversationId,
-      seq: target.seq,
-      userId,
-      emoji,
-      previousEmoji: before?.emoji ?? null,
-    });
+    await this.events.publish(
+      MESSAGING_CHANNELS.reactionChanged,
+      [userId, peerId],
+      {
+        conversationId,
+        seq: target.seq,
+        userId,
+        emoji,
+        previousEmoji: before?.emoji ?? null,
+      },
+    );
   }
 
-  async unreact(userId: string, conversationId: string, messageId: string): Promise<void> {
-    const { target, peerId } = await this.reactable(userId, conversationId, messageId);
+  async unreact(
+    userId: string,
+    conversationId: string,
+    messageId: string,
+  ): Promise<void> {
+    const { target, peerId } = await this.reactable(
+      userId,
+      conversationId,
+      messageId,
+    );
     const before = await this.reactions.findOne({
       where: { conversationId, messageSeq: target.seq, userId },
     });
     if (!before) return;
-    await this.reactions.delete({ conversationId, messageSeq: target.seq, userId });
-    await this.events.publish(MESSAGING_CHANNELS.reactionChanged, [userId, peerId], {
+    await this.reactions.delete({
       conversationId,
-      seq: target.seq,
+      messageSeq: target.seq,
       userId,
-      emoji: null,
-      previousEmoji: before.emoji,
     });
+    await this.events.publish(
+      MESSAGING_CHANNELS.reactionChanged,
+      [userId, peerId],
+      {
+        conversationId,
+        seq: target.seq,
+        userId,
+        emoji: null,
+        previousEmoji: before.emoji,
+      },
+    );
   }
 
-  private async reactable(userId: string, conversationId: string, messageId: string) {
+  private async reactable(
+    userId: string,
+    conversationId: string,
+    messageId: string,
+  ) {
     const m = await this.access.membership(userId, conversationId);
-    const target = await this.messages.findOne({ where: { conversationId, id: messageId } });
-    if (!target || target.seq <= m.me.clearedBeforeSeq) notFound('Không tìm thấy tin nhắn.');
-    if (target.status !== 'visible') invalid('Không thể thả cảm xúc trên tin đã thu hồi.');
+    const target = await this.messages.findOne({
+      where: { conversationId, id: messageId },
+    });
+    if (!target || target.seq <= m.me.clearedBeforeSeq)
+      notFound('Không tìm thấy tin nhắn.');
+    if (target.status !== 'visible')
+      invalid('Không thể thả cảm xúc trên tin đã thu hồi.');
     if (await this.access.isBlockedEither(userId, m.peerId)) cannotMessage();
     return { target, peerId: m.peerId };
   }
@@ -280,7 +375,11 @@ export class MessagingMessagesService {
   ): Promise<{ seq: number; activated: boolean }> {
     const { userId, conversationId, input, kind, body } = args;
     // Khóa dòng hội thoại: các tin cùng hội thoại xếp hàng, hội thoại khác không bị ảnh hưởng.
-    const locked = rowsOf<{ last_seq: string; state: ConversationState; initiator_id: string }>(
+    const locked = rowsOf<{
+      last_seq: string;
+      state: ConversationState;
+      initiator_id: string;
+    }>(
       await manager.query(
         `UPDATE conversations SET last_seq = last_seq + 1, updated_at = now()
          WHERE id = $1 RETURNING last_seq, state, initiator_id`,
@@ -296,7 +395,8 @@ export class MessagingMessagesService {
       kind,
     });
     if (recheck === 'request_pending') requestPending();
-    if (recheck === 'request_text_only') invalid('Chỉ gửi được một tin chữ cho đến khi người này chấp nhận.');
+    if (recheck === 'request_text_only')
+      invalid('Chỉ gửi được một tin chữ cho đến khi người này chấp nhận.');
 
     const inserted = rowsOf<{ created_at: Date }>(
       await manager.query(
@@ -319,19 +419,31 @@ export class MessagingMessagesService {
     );
     if (!inserted.length) throw new ReplaySignal();
 
-    if (kind === 'image') {
+    if (kind === 'image' || kind === 'file') {
       const ids = input.attachmentIds as string[];
       const claimed = rowsOf<{ id: string }>(
         await manager.query(
           `UPDATE message_attachments
            SET message_seq = $1, sort_order = array_position($2::uuid[], id) - 1, updated_at = now()
            WHERE id = ANY($2::uuid[]) AND uploader_id = $3 AND conversation_id = $4
-             AND status = 'ready' AND message_seq IS NULL AND deleted_at IS NULL
+             AND kind = $5 AND status = 'ready' AND message_seq IS NULL AND deleted_at IS NULL
            RETURNING id`,
-          [seq, ids, userId, conversationId],
+          [
+            seq,
+            ids,
+            userId,
+            conversationId,
+            kind === 'file' ? 'file' : 'image',
+          ],
         ),
       );
-      if (claimed.length !== ids.length) invalid('Có ảnh chưa sẵn sàng hoặc không phải của bạn.');
+      if (claimed.length !== ids.length) {
+        invalid(
+          kind === 'file'
+            ? 'Có tệp chưa sẵn sàng hoặc không phải của bạn.'
+            : 'Có ảnh chưa sẵn sàng hoặc không phải của bạn.',
+        );
+      }
     }
 
     const now = new Date();
@@ -342,7 +454,8 @@ export class MessagingMessagesService {
        WHERE conversation_id = $1 AND left_at IS NULL`,
       [conversationId, now, userId, seq],
     );
-    const activated = locked.state !== 'active' && locked.initiator_id !== userId;
+    const activated =
+      locked.state !== 'active' && locked.initiator_id !== userId;
     await manager.query(
       `UPDATE conversations
        SET last_message_at = $2, last_sender_id = $3, last_message_preview = $4,
@@ -357,7 +470,8 @@ export class MessagingMessagesService {
     const body = cleanMessage(input.body ?? '');
     if (input.kind === 'text') {
       if (!body) invalid('Nội dung không được để trống.');
-      if (input.attachmentIds?.length || input.postId) invalid('Tin chữ không kèm ảnh hay bài viết.');
+      if (input.attachmentIds?.length || input.postId)
+        invalid('Tin chữ không kèm ảnh hay bài viết.');
     }
     if (input.kind === 'image') {
       const ids = input.attachmentIds ?? [];
@@ -365,35 +479,61 @@ export class MessagingMessagesService {
       if (new Set(ids).size !== ids.length) invalid('Ảnh bị lặp.');
       if (input.postId) invalid('Tin ảnh không kèm bài viết.');
     }
+    if (input.kind === 'file') {
+      const ids = input.attachmentIds ?? [];
+      if (!ids.length) invalid('Cần ít nhất một tệp.');
+      if (new Set(ids).size !== ids.length) invalid('Tệp bị lặp.');
+      if (input.postId) invalid('Tin tệp không kèm bài viết.');
+    }
     if (input.kind === 'post_share') {
       if (!input.postId) invalid('Thiếu bài viết cần chia sẻ.');
-      if (input.attachmentIds?.length) invalid('Tin chia sẻ bài không kèm ảnh.');
+      if (input.attachmentIds?.length)
+        invalid('Tin chia sẻ bài không kèm ảnh.');
     }
-    if (body.length > MESSAGING_LIMITS.bodyMax) invalid('Tin dài hơn 2.000 ký tự.');
+    if (body.length > MESSAGING_LIMITS.bodyMax)
+      invalid('Tin dài hơn 2.000 ký tự.');
     return { kind: input.kind, body };
   }
 
-  private async assertReplyTarget(conversationId: string, seq: number, floor: number): Promise<void> {
-    const target = await this.messages.findOne({ where: { conversationId, seq } });
-    if (!target || target.seq <= floor) invalid('Tin được trả lời không còn trong hội thoại.');
+  private async assertReplyTarget(
+    conversationId: string,
+    seq: number,
+    floor: number,
+  ): Promise<void> {
+    const target = await this.messages.findOne({
+      where: { conversationId, seq },
+    });
+    if (!target || target.seq <= floor)
+      invalid('Tin được trả lời không còn trong hội thoại.');
   }
 
   private async assertPostVisible(postId: string): Promise<void> {
-    const post = await this.posts.findOne({ where: { id: postId, status: 'visible' } });
+    const post = await this.posts.findOne({
+      where: { id: postId, status: 'visible' },
+    });
     if (!post) invalid('Bài viết không còn hiển thị.');
   }
 
-  private async view(row: MessageEntity, viewerId: string): Promise<MessageView> {
+  private async view(
+    row: MessageEntity,
+    viewerId: string,
+  ): Promise<MessageView> {
     const [view] = await this.presenter.messageViews([row], viewerId);
     return view as MessageView;
   }
 
-  private async peerRead(conversationId: string, peerId: string): Promise<number> {
+  private async peerRead(
+    conversationId: string,
+    peerId: string,
+  ): Promise<number> {
     const row = await this.dataSource
       .createQueryBuilder()
       .select('p.last_read_seq', 'seq')
       .from('conversation_participants', 'p')
-      .where('p.conversation_id = :conversationId AND p.user_id = :peerId', { conversationId, peerId })
+      .where('p.conversation_id = :conversationId AND p.user_id = :peerId', {
+        conversationId,
+        peerId,
+      })
       .getRawOne<{ seq: string }>();
     return row ? Number(row.seq) : 0;
   }

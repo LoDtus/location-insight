@@ -18,6 +18,16 @@ export const MESSAGING_LIMITS = {
   reportContextRadius: 5,
   socketsPerUser: 5,
   searchMax: 10,
+  fileMaxBytes: 20 * 1024 * 1024,
+  fileNameMax: 120,
+  pinMax: 5,
+  nicknameMax: 50,
+  sharedPage: 12,
+  sharedPageMax: 50,
+  conversationSearchPage: 20,
+  conversationSearchMin: 2,
+  conversationSearchMax: 100,
+  deleteRequestDays: 7,
 } as const;
 
 export const MESSAGING_RATE = {
@@ -29,6 +39,9 @@ export const MESSAGING_RATE = {
   report: { window: 24 * 60 * 60, max: 20 },
   search: { window: 60, max: 30 },
   read: { window: 10, max: 30 },
+  settings: { window: 60, max: 30 },
+  shared: { window: 10, max: 30 },
+  deleteRequest: { window: 24 * 60 * 60, max: 10 },
 } as const;
 
 export type MessagingRateName = keyof typeof MESSAGING_RATE;
@@ -41,8 +54,23 @@ export const ALLOWED_IMAGE_TYPES = [
   'image/webp',
 ] as const;
 
+/** Tệp đính kèm cho phép: loại nội dung → đuôi tệp. Không nhận SVG, HTML, tệp nén hay tệp thực thi. */
+export const ALLOWED_FILE_TYPES = {
+  'application/pdf': 'pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+    'docx',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation':
+    'pptx',
+  'text/plain': 'txt',
+  'text/csv': 'csv',
+} as const;
+
+export type AllowedFileType = keyof typeof ALLOWED_FILE_TYPES;
+
 export const MESSAGING_KEYS = {
-  rate: (name: MessagingRateName, scope: string) => `ratelimit:msg:${name}:${scope}`,
+  rate: (name: MessagingRateName, scope: string) =>
+    `ratelimit:msg:${name}:${scope}`,
   members: (conversationId: string) => `msg:members:${conversationId}`,
   unread: (userId: string) => `msg:unread:${userId}`,
   online: (userId: string) => `presence:online:${userId}`,

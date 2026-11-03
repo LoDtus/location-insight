@@ -7,6 +7,7 @@ import { UserEntity } from '../auth/entities/user.entity.js';
 import { DiscussionPostEntity } from '../discussions/entities/discussion-post.entity.js';
 import { AdminAuditLogEntity } from '../rbac/entities/admin-audit-log.entity.js';
 import { ConversationEntity } from './entities/conversation.entity.js';
+import { ConversationDeleteRequestEntity } from './entities/conversation-delete-request.entity.js';
 import { ConversationParticipantEntity } from './entities/conversation-participant.entity.js';
 import { MessageAttachmentEntity } from './entities/message-attachment.entity.js';
 import { MessageReactionEntity } from './entities/message-reaction.entity.js';
@@ -19,6 +20,7 @@ import { MessagingAdminController } from './messaging-admin.controller.js';
 import { MessagingAttachmentsService } from './messaging-attachments.service.js';
 import { MessagingConversationsService } from './messaging-conversations.service.js';
 import { MessagingEventsService } from './messaging-events.service.js';
+import { MessagingHistoryService } from './messaging-history.service.js';
 import { MessagingMaintenanceService } from './messaging-maintenance.service.js';
 import { MessagingMessagesService } from './messaging-messages.service.js';
 import { MessagingPresenceService } from './messaging-presence.service.js';
@@ -26,6 +28,7 @@ import { MessagingPresenterService } from './messaging-presenter.service.js';
 import { MessagingRateLimitService } from './messaging-rate-limit.service.js';
 import { MessagingRealtimeService } from './messaging-realtime.service.js';
 import { MessagingSafetyService } from './messaging-safety.service.js';
+import { MessagingSharedService } from './messaging-shared.service.js';
 import { SeedMessagingService } from './seed-messaging.service.js';
 import { MessagingSchemaService } from './messaging-schema.service.js';
 import { MessagingController } from './messaging.controller.js';
@@ -38,6 +41,7 @@ import { MessagingController } from './messaging.controller.js';
     TypeOrmModule.forFeature([
       ConversationEntity,
       ConversationParticipantEntity,
+      ConversationDeleteRequestEntity,
       MessageEntity,
       MessageAttachmentEntity,
       MessageReactionEntity,
@@ -60,6 +64,8 @@ import { MessagingController } from './messaging.controller.js';
     MessagingMessagesService,
     MessagingAttachmentsService,
     MessagingSafetyService,
+    MessagingSharedService,
+    MessagingHistoryService,
     MessagingRealtimeService,
     MessagingMaintenanceService,
     MessagingSchemaService,

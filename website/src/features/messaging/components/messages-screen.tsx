@@ -2,18 +2,43 @@
 
 import { MessageCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, type JSX } from "react";
+import { useEffect, useState, type JSX } from "react";
 
 import { useAuth } from "@/features/auth/use-auth";
 
 import type { Folder } from "../messaging.reducers";
 import { useMessagingState } from "../messaging.store";
+import { useMediaQuery } from "../use-media-query";
+import { ConversationInfoPanel } from "./conversation-info-panel";
 import { ConversationList } from "./conversation-list";
 import { NewMessageDialog } from "./new-message-dialog";
 import { SettingsDialog } from "./settings-dialog";
 import { Thread } from "./thread";
 
-/** Hai cột trên máy tính (danh sách + hội thoại); một cột theo tầng trên điện thoại. */
+const INFO_KEY = "messaging-info-open";
+/** Đủ rộng cho menu 272 px + danh sách 340 px + khung hội thoại + cột thông tin 320 px. */
+const WIDE_QUERY = "(min-width: 1440px)";
+
+function readInfoPreference(): boolean {
+    try {
+        return window.localStorage.getItem(INFO_KEY) !== "0";
+    } catch {
+        return true;
+    }
+}
+
+function writeInfoPreference(open: boolean): void {
+    try {
+        window.localStorage.setItem(INFO_KEY, open ? "1" : "0");
+    } catch {
+        /* localStorage có thể bị chặn */
+    }
+}
+
+/**
+ * Ba cột trên màn rộng (danh sách + hội thoại + thông tin); hai cột trên máy tính vừa, nơi thông tin mở dạng ngăn trượt;
+ * một cột theo tầng trên điện thoại.
+ */
 export function MessagesScreen({
     conversationId = null,
     root = "/app",
@@ -23,16 +48,46 @@ export function MessagesScreen({
 }): JSX.Element {
     const router = useRouter();
     const auth = useAuth();
+    const wide = useMediaQuery(WIDE_QUERY);
     const [chosen, setChosen] = useState<{ id: string | null; folder: Folder } | null>(null);
     const [composing, setComposing] = useState(false);
     const [settings, setSettings] = useState(false);
+    const [columnOpen, setColumnOpen] = useState(readInfoPreference);
+    // Ngăn trượt gắn với hội thoại đang mở: chuyển hội thoại thì tự đóng.
+    const [sheetFor, setSheetFor] = useState<string | null>(null);
     const conversation = useMessagingState((state) => (conversationId ? state.conversations[conversationId] : undefined));
 
     const derived: Folder =
         conversation && conversation.state === "pending" && !conversation.iAmInitiator ? "requests" : "inbox";
     const folder = chosen && chosen.id === conversationId ? chosen.folder : derived;
+    const sheetOpen = conversationId !== null && sheetFor === conversationId;
+    const infoOpen = wide ? columnOpen : sheetOpen;
+
+    useEffect(() => {
+        if (!sheetOpen) return;
+        function onKey(event: KeyboardEvent): void {
+            if (event.key === "Escape") setSheetFor(null);
+        }
+        document.addEventListener("keydown", onKey);
+        return () => document.removeEventListener("keydown", onKey);
+    }, [sheetOpen]);
 
     if (!auth.user) return <></>;
+
+    function toggleInfo(): void {
+        if (wide) {
+            setColumnOpen((current) => {
+                writeInfoPreference(!current);
+                return !current;
+            });
+        } else {
+            setSheetFor((current) => (current === conversationId ? null : conversationId));
+        }
+    }
+
+    function leave(): void {
+        router.replace(`${root}/messages`);
+    }
 
     return (
         <main className="flex h-full min-h-0 w-full bg-white" aria-label="Tin nhắn">
@@ -52,8 +107,10 @@ export function MessagesScreen({
                         key={conversationId}
                         conversationId={conversationId}
                         root={root}
+                        infoOpen={infoOpen}
+                        onToggleInfo={toggleInfo}
                         onBack={() => router.push(`${root}/messages`)}
-                        onGone={() => router.replace(`${root}/messages`)}
+                        onGone={leave}
                     />
                 ) : (
                     <div className="flex h-full w-full flex-col items-center justify-center gap-3 p-6 text-center text-charcoal/70">
@@ -70,6 +127,31 @@ export function MessagesScreen({
                     </div>
                 )}
             </div>
+            {conversationId && wide && columnOpen ? (
+                <div className="h-full min-h-0 w-[320px] shrink-0 border-l border-charcoal/10">
+                    <ConversationInfoPanel
+                        key={conversationId}
+                        conversationId={conversationId}
+                        variant="column"
+                        onClose={toggleInfo}
+                        onGone={leave}
+                    />
+                </div>
+            ) : null}
+            {conversationId && !wide && sheetOpen ? (
+                <div className="fixed inset-0 z-40 flex justify-end bg-charcoal/40">
+                    <button type="button" className="absolute inset-0 cursor-default" aria-label="Đóng thông tin" tabIndex={-1} onClick={() => setSheetFor(null)} />
+                    <div className="relative h-full w-full max-w-sm bg-white shadow-xl">
+                        <ConversationInfoPanel
+                            key={conversationId}
+                            conversationId={conversationId}
+                            variant="sheet"
+                            onClose={() => setSheetFor(null)}
+                            onGone={leave}
+                        />
+                    </div>
+                </div>
+            ) : null}
             {composing ? (
                 <NewMessageDialog
                     onClose={() => setComposing(false)}

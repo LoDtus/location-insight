@@ -1,7 +1,14 @@
-import { Column, CreateDateColumn, Entity, Index, PrimaryColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  PrimaryColumn,
+} from 'typeorm';
 import { bigintTransformer } from './bigint.transformer.js';
 
-export type MessageKindValue = 'text' | 'image' | 'post_share' | 'system';
+export type MessageKindValue =
+  'text' | 'image' | 'file' | 'post_share' | 'system';
 export type MessageStatusValue = 'visible' | 'deleted' | 'hidden';
 
 /**
@@ -9,8 +16,14 @@ export type MessageStatusValue = 'visible' | 'deleted' | 'hidden';
  * để sau này hash partition theo conversation_id mà không đổi khóa.
  */
 @Entity('messages')
-@Index('uk_messages_conversation_id_id', ['conversationId', 'id'], { unique: true })
-@Index('uk_messages_client_msg', ['conversationId', 'senderId', 'clientMsgId'], { unique: true })
+@Index('uk_messages_conversation_id_id', ['conversationId', 'id'], {
+  unique: true,
+})
+@Index(
+  'uk_messages_client_msg',
+  ['conversationId', 'senderId', 'clientMsgId'],
+  { unique: true },
+)
 @Index('idx_messages_sender_created', ['senderId', 'createdAt'])
 export class MessageEntity {
   @PrimaryColumn({ type: 'uuid', name: 'conversation_id' })
@@ -31,7 +44,12 @@ export class MessageEntity {
   @Column({ type: 'varchar', length: 2000, default: '' })
   body: string;
 
-  @Column({ type: 'bigint', name: 'reply_to_seq', nullable: true, transformer: bigintTransformer })
+  @Column({
+    type: 'bigint',
+    name: 'reply_to_seq',
+    nullable: true,
+    transformer: bigintTransformer,
+  })
   replyToSeq: number | null;
 
   @Column({ type: 'uuid', name: 'shared_post_id', nullable: true })

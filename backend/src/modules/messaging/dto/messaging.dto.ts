@@ -16,7 +16,16 @@ import {
   MinLength,
   ValidateIf,
 } from 'class-validator';
-import { ALLOWED_IMAGE_TYPES, MESSAGING_LIMITS } from '../messaging.constants.js';
+import {
+  ALLOWED_FILE_TYPES,
+  ALLOWED_IMAGE_TYPES,
+  MESSAGING_LIMITS,
+} from '../messaging.constants.js';
+
+const ATTACHMENT_TYPES: string[] = [
+  ...ALLOWED_IMAGE_TYPES,
+  ...Object.keys(ALLOWED_FILE_TYPES),
+];
 
 export class ListConversationsQueryDto {
   @IsOptional()
@@ -85,8 +94,8 @@ export class SendMessageDto {
   @IsUUID()
   clientMsgId: string;
 
-  @IsIn(['text', 'image', 'post_share'])
-  kind: 'text' | 'image' | 'post_share';
+  @IsIn(['text', 'image', 'file', 'post_share'])
+  kind: 'text' | 'image' | 'file' | 'post_share';
 
   @IsOptional()
   @IsString()
@@ -132,28 +141,37 @@ export class CreateAttachmentDto {
   @IsUUID()
   conversationId: string;
 
-  @IsIn([...ALLOWED_IMAGE_TYPES])
-  contentType: (typeof ALLOWED_IMAGE_TYPES)[number];
+  /** Ảnh (jpeg/png/webp) hoặc tệp tài liệu (pdf, docx, xlsx, pptx, txt, csv). */
+  @IsIn(ATTACHMENT_TYPES)
+  contentType: string;
 
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(MESSAGING_LIMITS.imageMaxBytes)
+  @Max(MESSAGING_LIMITS.fileMaxBytes)
   byteSize: number;
+
+  /** Bắt buộc với tệp tài liệu, bỏ qua với ảnh. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  fileName?: string;
 }
 
 export class CompleteAttachmentDto {
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(MESSAGING_LIMITS.imageSideMax)
-  width: number;
+  width?: number;
 
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(MESSAGING_LIMITS.imageSideMax)
-  height: number;
+  height?: number;
 }
 
 export class RecipientsQueryDto {
@@ -196,4 +214,53 @@ export class ResolveReportDto {
   @MinLength(5)
   @MaxLength(255)
   reason: string;
+}
+
+export class PinDto {
+  @IsBoolean()
+  pinned: boolean;
+}
+
+export class NicknameDto {
+  /** null hoặc chuỗi rỗng để xóa biệt danh. */
+  @ValidateIf((_, value) => value !== null)
+  @IsString()
+  @MaxLength(MESSAGING_LIMITS.nicknameMax * 2)
+  nickname: string | null;
+}
+
+export class SharedQueryDto {
+  @IsIn(['media', 'links', 'files'])
+  type: 'media' | 'links' | 'files';
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  cursor?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(MESSAGING_LIMITS.sharedPageMax)
+  limit?: number;
+}
+
+export class ConversationSearchQueryDto {
+  @IsString()
+  @MinLength(MESSAGING_LIMITS.conversationSearchMin)
+  @MaxLength(MESSAGING_LIMITS.conversationSearchMax)
+  q: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  cursor?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  limit?: number;
 }

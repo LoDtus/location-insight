@@ -15,22 +15,78 @@ import { cleanMessage } from './messaging-text.js';
 
 describe('sendGate (BR-04)', () => {
   it('người khởi tạo gửi được 1 tin chữ khi pending', () => {
-    expect(sendGate({ state: 'pending', iAmInitiator: true, lastSeq: 0, kind: 'text' })).toBe('ok');
+    expect(
+      sendGate({
+        state: 'pending',
+        iAmInitiator: true,
+        lastSeq: 0,
+        kind: 'text',
+      }),
+    ).toBe('ok');
   });
   it('tin thứ hai khi pending bị chặn', () => {
-    expect(sendGate({ state: 'pending', iAmInitiator: true, lastSeq: 1, kind: 'text' })).toBe('request_pending');
+    expect(
+      sendGate({
+        state: 'pending',
+        iAmInitiator: true,
+        lastSeq: 1,
+        kind: 'text',
+      }),
+    ).toBe('request_pending');
   });
   it('ảnh và bài chia sẻ bị chặn khi pending', () => {
-    expect(sendGate({ state: 'pending', iAmInitiator: true, lastSeq: 0, kind: 'image' })).toBe('request_text_only');
-    expect(sendGate({ state: 'pending', iAmInitiator: true, lastSeq: 0, kind: 'post_share' })).toBe('request_text_only');
+    expect(
+      sendGate({
+        state: 'pending',
+        iAmInitiator: true,
+        lastSeq: 0,
+        kind: 'image',
+      }),
+    ).toBe('request_text_only');
+    expect(
+      sendGate({
+        state: 'pending',
+        iAmInitiator: true,
+        lastSeq: 0,
+        kind: 'post_share',
+      }),
+    ).toBe('request_text_only');
   });
   it('declined không cho người khởi tạo gửi', () => {
-    expect(sendGate({ state: 'declined', iAmInitiator: true, lastSeq: 1, kind: 'text' })).toBe('request_pending');
+    expect(
+      sendGate({
+        state: 'declined',
+        iAmInitiator: true,
+        lastSeq: 1,
+        kind: 'text',
+      }),
+    ).toBe('request_pending');
   });
   it('người nhận gửi tự do và hội thoại active gửi tự do', () => {
-    expect(sendGate({ state: 'pending', iAmInitiator: false, lastSeq: 1, kind: 'image' })).toBe('ok');
-    expect(sendGate({ state: 'declined', iAmInitiator: false, lastSeq: 1, kind: 'text' })).toBe('ok');
-    expect(sendGate({ state: 'active', iAmInitiator: true, lastSeq: 9, kind: 'image' })).toBe('ok');
+    expect(
+      sendGate({
+        state: 'pending',
+        iAmInitiator: false,
+        lastSeq: 1,
+        kind: 'image',
+      }),
+    ).toBe('ok');
+    expect(
+      sendGate({
+        state: 'declined',
+        iAmInitiator: false,
+        lastSeq: 1,
+        kind: 'text',
+      }),
+    ).toBe('ok');
+    expect(
+      sendGate({
+        state: 'active',
+        iAmInitiator: true,
+        lastSeq: 9,
+        kind: 'image',
+      }),
+    ).toBe('ok');
   });
 });
 
@@ -51,7 +107,9 @@ describe('directKey', () => {
 
 describe('cleanMessage (BR-02)', () => {
   it('bỏ thẻ HTML và ký tự điều khiển', () => {
-    expect(cleanMessage('  <img src=x onerror=alert(1)>xin chào\u0000  ')).toBe('xin chào');
+    expect(cleanMessage('  <img src=x onerror=alert(1)>xin chào\u0000  ')).toBe(
+      'xin chào',
+    );
     expect(cleanMessage('<script>x</script>ok')).toBe('xok');
   });
   it('chuẩn hóa NFC và giữ xuống dòng', () => {
@@ -68,6 +126,8 @@ describe('cleanMessage (BR-02)', () => {
 describe('preview và excerpt', () => {
   it('ảnh, bài chia sẻ, chữ', () => {
     expect(previewFor('image', '')).toBe('Đã gửi ảnh');
+    expect(previewFor('file', '')).toBe('Đã gửi một tệp');
+    expect(previewFor('file', 'Hợp đồng mẫu')).toBe('Hợp đồng mẫu');
     expect(previewFor('post_share', '')).toBe('Đã gửi một bài viết');
     expect(previewFor('text', 'a  b\nc')).toBe('a b c');
   });

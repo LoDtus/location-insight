@@ -13,15 +13,16 @@ Người dùng đã đăng nhập nhắn tin riêng 1-1, nhận tin ngay qua Web
 **In scope:**
 
 - Hội thoại 1-1; Inbox và Requests; chấp nhận, từ chối, chặn, báo cáo.
-- Tin chữ, ảnh (≤ 4), chia sẻ bài `/feed`, trả lời trích dẫn, cảm xúc, thu hồi, xóa phía mình.
+- Tin chữ, ảnh (≤ 4), tệp tài liệu (≤ 4, PDF/Word/Excel/PowerPoint/TXT/CSV, ≤ 20 MB), chia sẻ bài `/feed`, trả lời trích dẫn, cảm xúc, thu hồi, xóa phía mình.
+- Cột thông tin hội thoại: ảnh/liên kết/tệp đã gửi, ghim, biệt danh, tắt thông báo, chặn, tìm tin trong hội thoại, xóa lịch sử hai phía có xác nhận (FR-24…FR-31).
 - Realtime: tin mới, thu hồi, cảm xúc, đã đọc, đang gõ, số chưa đọc.
 - Hiện diện (hoạt động gần nhất) có thể tắt; cài đặt riêng tư.
 - Màn `/app/messages` và duyệt báo cáo `/admin/messaging`.
 
 **Out of scope:**
 
-- Nhóm chat (schema sẵn, API chưa mở), gọi thoại/video, ghi âm, video, tệp tùy ý, GIF, nhãn dán.
-- Mã hóa đầu cuối, tìm kiếm toàn văn nội dung, xem trước liên kết, push và email, sửa tin, chuyển tiếp tin.
+- Nhóm chat (schema sẵn, API chưa mở), gọi thoại/video, ghi âm, video, tệp tùy ý ngoài danh sách cho phép (không nhận SVG, HTML, tệp nén, tệp thực thi), GIF, nhãn dán.
+- Mã hóa đầu cuối, tìm kiếm toàn văn nội dung **xuyên hội thoại** (tìm trong một hội thoại đã có, FR-28), xem trước liên kết (chỉ hiện tên miền), push và email, sửa tin, chuyển tiếp tin.
 - Khách chưa đăng nhập.
 
 ## Đối tượng liên quan <!-- key: actors -->
@@ -56,6 +57,15 @@ Người dùng đã đăng nhập nhắn tin riêng 1-1, nhận tin ngay qua Web
 - **FR-21 (tắt thông báo):** `PUT .../mute { until }` tắt chấm báo và âm thanh cho hội thoại; tin vẫn được lưu và hiển thị.
 - **FR-22 (khóa tài khoản):** người dùng bị khóa hoặc xóa không gửi được; tin cũ của họ hiện dưới tên "Người dùng đã xóa" nếu xóa.
 - **FR-23 (giao diện):** theo `ui/ui-spec.md`: danh sách + khung hội thoại, đầy đủ trạng thái tải, trống, lỗi, mất kết nối, bị chặn, yêu cầu nhắn; có dùng được trên điện thoại.
+
+- **FR-24 (tệp đính kèm):** `kind = file`: tối đa 4 tệp mỗi tin, mỗi tệp ≤ 20 MB, loại cho phép: PDF, DOCX, XLSX, PPTX, TXT, CSV. `POST /messaging/attachments` nhận `contentType`, `byteSize`, `fileName`; tên tệp được làm sạch (bỏ đường dẫn, ký tự điều khiển, đuôi do người dùng gõ bị thay bằng đuôi của loại đã kiểm); khóa lưu trữ do máy chủ sinh. `complete` kiểm chữ ký tệp (PDF `%PDF-`, Office là zip `PK`, TXT/CSV không có byte NUL và là UTF-8). URL tải buộc `Content-Disposition: attachment` với tên đã làm sạch. Hội thoại chưa được chấp nhận không gửi được tệp (như ảnh).
+- **FR-25 (nội dung đã gửi):** `GET /messaging/conversations/{id}/shared?type=media|links|files&cursor&limit` trả ảnh, liên kết hoặc tệp, mới nhất trước, con trỏ mờ, chỉ tin chưa thu hồi và sau `cleared_before_seq`. Liên kết lấy trực tiếp từ nội dung tin (kể cả chú thích của ảnh/tệp), chỉ http/https.
+- **FR-26 (ghim):** `PUT .../pin { pinned }`. Chỉ phía mình, chỉ hội thoại trong Inbox, tối đa 5. Hội thoại ghim đứng đầu Inbox (trang đầu); các trang sau không lặp lại chúng.
+- **FR-27 (biệt danh):** `PUT .../nickname { nickname }` ≤ 50 ký tự (rỗng hoặc `null` để xóa). **Chỉ mình người đặt nhìn thấy**; người kia không biết. Dùng thay tên ở danh sách, tiêu đề, trả lời; tìm hộp thư khớp cả biệt danh.
+- **FR-28 (tìm trong hội thoại):** `GET .../search?q&cursor` tìm trong tin chữ và chú thích ảnh/tệp, **không phân biệt dấu và hoa thường** (gõ `ban cong` ra "Ban công"), mới nhất trước, kèm đoạn trích quanh chỗ khớp. Bấm kết quả thì giao diện tải dần tin cũ cho tới khi có tin đó rồi cuộn tới và nhấn mạnh.
+- **FR-29 (xóa lịch sử hai phía):** `POST .../delete-request` tạo yêu cầu (một yêu cầu đang chờ mỗi hội thoại, chỉ khi hội thoại đã `active`); người kia nhận thông báo `message.delete_request` và hộp xác nhận. `POST .../delete-request/accept` xóa **thật** các tin có `seq ≤ up_to_seq` (kèm ảnh, tệp, cảm xúc; tệp bị xóa khỏi kho) ở cả hai phía; `.../decline` từ chối; `DELETE .../delete-request` để người yêu cầu rút lại. Tin có báo cáo mở được giữ làm bằng chứng nhưng vẫn ẩn với cả hai. Tin gửi sau thời điểm yêu cầu không bị xóa. Yêu cầu không ai trả lời tự hết hạn sau 7 ngày.
+- **FR-30 (phân biệt hai kiểu xóa):** "Xóa cuộc trò chuyện" (`DELETE /conversations/{id}`, FR-09) chỉ ẩn phía mình; "Xóa lịch sử" (FR-29) xóa cả hai phía và cần người kia đồng ý.
+- **FR-31 (đồng bộ nhiều tab):** ghim, biệt danh, tắt thông báo, yêu cầu xóa phát `conversation.updated` với `reason` ∈ `pinned`, `nickname`, `delete_requested`, `delete_resolved`, `history_cleared`; client lấy lại chi tiết (riêng `history_cleared` đọc lại cả hội thoại).
 
 ## Quy tắc nghiệp vụ <!-- key: business_rules -->
 
@@ -168,5 +178,6 @@ Sơ đồ: `diagrams/sequence-send-message.mmd`, `diagrams/sequence-reconnect-sy
 
 ## Nhật ký cập nhật <!-- key: update_log -->
 
+- 2026-11-03: Thêm cột thông tin hội thoại bên phải (FR-24…FR-31): tệp đính kèm, ảnh/liên kết/tệp đã gửi, ghim, biệt danh (chỉ mình thấy), tìm trong hội thoại không phân biệt dấu, xóa lịch sử hai phía có xác nhận; dữ liệu mẫu (ảnh PNG, PDF, TXT, CSV, liên kết, ghim, biệt danh, một yêu cầu xóa đang chờ) được thêm cả vào hội thoại mẫu đã có sẵn trong database dev.
 - 2026-11-02 (triển khai): hoàn thiện backend (REST, WebSocket, đồng bộ, giới hạn, báo cáo, dọn dẹp) và website (hộp thư, hội thoại, yêu cầu nhắn, ảnh, cảm xúc, chia sẻ bài, cài đặt, màn admin). Đổi đường dẫn Socket.IO sang `/api/v1/ws` vì `/api/v1/realtime` trùng tiền tố với `POST /realtime/ticket` (engine.io chặn mất route). Tham số phân trang đổi thành `beforeSeq`/`afterSeq`; mã lỗi nghiệp vụ nằm ở `error.details.code`; `429` trả `error.details.retryAfter`. Chọn người nhắn thì tạo hội thoại ngay (không có khung nháp). Cờ `MESSAGING_REQUIRE_VERIFIED_EMAIL` (mặc định tắt) cho BR-16.
 - 2026-11-02: Đặc tả đầu cho nhắn tin 1-1 thời gian thực, tham khảo giao diện Threads/Messenger và kiến trúc Discord, Zulip, Mattermost, Socket.IO (`research.md`). Nhóm chat để chỗ sẵn trong schema, chưa mở.

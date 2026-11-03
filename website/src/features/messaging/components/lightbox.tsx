@@ -3,14 +3,18 @@
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useEffect, useRef, useState, type JSX } from "react";
 
-import type { Attachment } from "../messaging.types";
+/** Chỉ cần địa chỉ ảnh: dùng được cho ảnh tin nhắn, danh sách đã gửi và phản hồi. */
+export interface LightboxFile {
+    id: string;
+    url: string;
+}
 
 export function Lightbox({
     files,
     start,
     onClose,
 }: {
-    files: Attachment[];
+    files: LightboxFile[];
     start: number;
     onClose: () => void;
 }): JSX.Element {

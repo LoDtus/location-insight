@@ -1,8 +1,14 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { RedisService } from '../../integrations/redis/redis.service.js';
 import { StorageService } from '../../integrations/storage/storage.service.js';
 import { rowsOf } from './messaging-db.js';
+import { MessagingHistoryService } from './messaging-history.service.js';
 import { MESSAGING_KEYS } from './messaging.constants.js';
 
 const HOUR = 60 * 60 * 1000;
@@ -12,10 +18,13 @@ const HOUR = 60 * 60 * 1000;
  *  - ảnh pending quá 24 giờ, ảnh của tin đã thu hồi quá 7 ngày (trừ tin có báo cáo mở);
  *  - hội thoại rỗng quá 24 giờ;
  *  - hội thoại mà cả hai phía đã xóa quá 30 ngày;
- *  - báo cáo đã xử lý quá 180 ngày.
+ *  - báo cáo đã xử lý quá 180 ngày;
+ *  - yêu cầu xóa lịch sử hai phía quá 7 ngày không ai trả lời.
  */
 @Injectable()
-export class MessagingMaintenanceService implements OnModuleInit, OnModuleDestroy {
+export class MessagingMaintenanceService
+  implements OnModuleInit, OnModuleDestroy
+{
   private readonly logger = new Logger(MessagingMaintenanceService.name);
   private timer: NodeJS.Timeout | null = null;
 
@@ -23,6 +32,7 @@ export class MessagingMaintenanceService implements OnModuleInit, OnModuleDestro
     private readonly dataSource: DataSource,
     private readonly redis: RedisService,
     private readonly storage: StorageService,
+    private readonly history: MessagingHistoryService,
   ) {}
 
   onModuleInit(): void {
@@ -44,11 +54,14 @@ export class MessagingMaintenanceService implements OnModuleInit, OnModuleDestro
       if (lock !== 'OK') return;
       await this.cleanAttachments();
       await this.cleanConversations();
+      await this.history.expireStale();
       await this.dataSource.query(
         `DELETE FROM message_reports WHERE status <> 'open' AND resolved_at < now() - interval '180 days'`,
       );
     } catch (error) {
-      this.logger.warn(`Dọn nhắn tin lỗi: ${error instanceof Error ? error.message : 'không rõ'}`);
+      this.logger.warn(
+        `Dọn nhắn tin lỗi: ${error instanceof Error ? error.message : 'không rõ'}`,
+      );
     }
   }
 
@@ -69,7 +82,10 @@ export class MessagingMaintenanceService implements OnModuleInit, OnModuleDestro
     );
     for (const row of stale) {
       await this.storage.deleteObject(row.object_key).catch(() => undefined);
-      await this.dataSource.query(`DELETE FROM message_attachments WHERE id = $1`, [row.id]);
+      await this.dataSource.query(
+        `DELETE FROM message_attachments WHERE id = $1`,
+        [row.id],
+      );
     }
   }
 
@@ -95,8 +111,11 @@ export class MessagingMaintenanceService implements OnModuleInit, OnModuleDestro
           [id],
         ),
       );
-      for (const file of files) await this.storage.deleteObject(file.object_key).catch(() => undefined);
-      await this.dataSource.query(`DELETE FROM conversations WHERE id = $1`, [id]);
+      for (const file of files)
+        await this.storage.deleteObject(file.object_key).catch(() => undefined);
+      await this.dataSource.query(`DELETE FROM conversations WHERE id = $1`, [
+        id,
+      ]);
     }
   }
 }

@@ -43,11 +43,12 @@ export function errorText(error: unknown, fallback = "Chưa thực hiện đư�
 }
 
 function toSummary(detail: ConversationDetail): ConversationSummary {
-    const { peerLastReadSeq, peerPresence, canSend, blockedByMe, ...summary } = detail;
+    const { peerLastReadSeq, peerPresence, canSend, blockedByMe, deleteRequest, ...summary } = detail;
     void peerLastReadSeq;
     void peerPresence;
     void canSend;
     void blockedByMe;
+    void deleteRequest;
     return summary;
 }
 
@@ -147,9 +148,13 @@ function handleEvent(name: ServerEvent, raw: unknown): void {
             const id = payload.conversationId as string | null;
             const reason = payload.reason as string;
             if (!id) break;
-            if (reason === "accepted") void fetchConversation(id);
-            else if (reason === "declined" || reason === "deleted_by_me" || reason === "blocked") {
+            if (reason === "declined" || reason === "deleted_by_me" || reason === "blocked") {
                 messagingStore.update((state) => removeConversation(state, id));
+            } else if (reason === "history_cleared") {
+                void resetThread(id);
+            } else {
+                // accepted, pinned, nickname, delete_requested, delete_resolved: lấy lại chi tiết hội thoại.
+                void fetchConversation(id);
             }
             scheduleUnread();
             break;
@@ -313,13 +318,13 @@ export async function syncThread(id: string): Promise<void> {
     }
 }
 
-export async function loadOlder(id: string): Promise<void> {
+export async function loadOlder(id: string, limit?: number): Promise<void> {
     const thread = getThread(messagingStore.getState(), id);
     const first = thread.messages[0];
     if (!first || !thread.hasMoreBefore || thread.loadingOlder) return;
     messagingStore.update((state) => withThread(state, id, { loadingOlder: true }));
     try {
-        const page = await api.listMessages(id, { beforeSeq: first.seq });
+        const page = await api.listMessages(id, { beforeSeq: first.seq, limit });
         messagingStore.update((state) =>
             withThread(state, id, (current) => ({
                 messages: mergeMessages(current.messages, page.items),
@@ -372,7 +377,7 @@ async function markReadNow(id: string): Promise<void> {
 // --- Gửi tin --------------------------------------------------------------
 
 export interface SendRequest {
-    kind: "text" | "image" | "post_share";
+    kind: "text" | "image" | "file" | "post_share";
     body: string;
     replyToSeq: number | null;
     files?: File[];
@@ -438,6 +443,9 @@ async function performSend(pending: PendingMessage): Promise<void> {
         if (pending.kind === "image") {
             attachmentIds = [];
             for (const file of pending.files) attachmentIds.push(await api.uploadImage(conversationId, file));
+        } else if (pending.kind === "file") {
+            attachmentIds = [];
+            for (const file of pending.files) attachmentIds.push(await api.uploadFile(conversationId, file));
         }
         const message = await api.sendMessage(conversationId, {
             clientMsgId,
@@ -594,4 +602,96 @@ export function stopTyping(conversationId: string): void {
     if (!lastTypingSent.has(conversationId)) return;
     lastTypingSent.delete(conversationId);
     realtime.sendTyping(conversationId, false);
+}
+
+// --- Panel thông tin hội thoại ---------------------------------------------
+
+function patchConversation(id: string, patch: Partial<ConversationSummary>): void {
+    messagingStore.update((state) => {
+        const known = state.conversations[id];
+        const next = known ? { ...state, conversations: { ...state.conversations, [id]: { ...known, ...patch } } } : state;
+        const thread = next.threads[id];
+        return thread?.detail ? withThread(next, id, { detail: { ...thread.detail, ...patch } }) : next;
+    });
+}
+
+function patchDetail(id: string, patch: Partial<ConversationDetail>): void {
+    messagingStore.update((state) =>
+        withThread(state, id, (thread) => (thread.detail ? { detail: { ...thread.detail, ...patch } } : {})),
+    );
+}
+
+/** Đọc lại hội thoại từ đầu, dùng khi lịch sử vừa bị xóa ở cả hai phía. */
+async function resetThread(id: string): Promise<void> {
+    if (!messagingStore.getState().threads[id]) {
+        await fetchConversation(id);
+        return;
+    }
+    messagingStore.update((state) =>
+        withThread(state, id, { messages: [], hasMoreBefore: false, loaded: false, peerLastReadSeq: null, jumpSeq: null }),
+    );
+    await openThread(id);
+    scheduleUnread();
+}
+
+export async function setPinned(id: string, pinned: boolean): Promise<void> {
+    patchConversation(id, { pinned });
+    try {
+        await api.pinConversation(id, pinned);
+    } catch (error) {
+        patchConversation(id, { pinned: !pinned });
+        throw error;
+    }
+}
+
+export async function saveNickname(id: string, nickname: string | null): Promise<void> {
+    const result = await api.setConversationNickname(id, nickname);
+    patchConversation(id, { nickname: result.nickname });
+}
+
+export async function requestHistoryDelete(id: string): Promise<void> {
+    patchDetail(id, { deleteRequest: await api.requestDeleteHistory(id) });
+}
+
+export async function cancelHistoryDelete(id: string): Promise<void> {
+    await api.cancelDeleteHistory(id);
+    patchDetail(id, { deleteRequest: null });
+}
+
+export async function declineHistoryDelete(id: string): Promise<void> {
+    await api.declineDeleteHistory(id);
+    patchDetail(id, { deleteRequest: null });
+}
+
+export async function acceptHistoryDelete(id: string): Promise<void> {
+    await api.acceptDeleteHistory(id);
+    await resetThread(id);
+}
+
+const JUMP_PAGE = 100;
+const JUMP_MAX_PAGES = 30;
+
+/**
+ * Cuộn tới một tin (từ kết quả tìm hoặc danh sách đã gửi). Danh sách tin luôn liền mạch nên tải dần tin cũ hơn
+ * cho tới khi có tin đó (tối đa 30 trang x 100 tin). Trả false nếu không tìm thấy.
+ */
+export async function jumpToMessage(id: string, seq: number): Promise<boolean> {
+    for (let page = 0; page < JUMP_MAX_PAGES; page += 1) {
+        const thread = getThread(messagingStore.getState(), id);
+        const first = thread.messages[0];
+        if (first && first.seq <= seq) break;
+        if (thread.loadingOlder) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            continue;
+        }
+        if (!thread.hasMoreBefore) break;
+        await loadOlder(id, JUMP_PAGE);
+    }
+    const found = getThread(messagingStore.getState(), id).messages.some((item) => item.seq === seq);
+    if (found) messagingStore.update((state) => withThread(state, id, { jumpSeq: seq }));
+    return found;
+}
+
+export function clearJump(id: string): void {
+    messagingStore.update((state) => withThread(state, id, { jumpSeq: null }));
 }

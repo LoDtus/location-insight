@@ -19,22 +19,28 @@ import { RequirePermission } from '../../common/decorators/access.decorator.js';
 import type { RequestWithPrincipal } from '../auth/auth.guard.js';
 import {
   CompleteAttachmentDto,
+  ConversationSearchQueryDto,
   CreateAttachmentDto,
   CreateConversationDto,
   ListConversationsQueryDto,
   ListMessagesQueryDto,
   MuteDto,
+  NicknameDto,
+  PinDto,
   PreferencesDto,
   ReactionDto,
   ReadDto,
   RecipientsQueryDto,
   ReportMessageDto,
   SendMessageDto,
+  SharedQueryDto,
 } from './dto/messaging.dto.js';
 import { MessagingAttachmentsService } from './messaging-attachments.service.js';
 import { MessagingConversationsService } from './messaging-conversations.service.js';
+import { MessagingHistoryService } from './messaging-history.service.js';
 import { MessagingMessagesService } from './messaging-messages.service.js';
 import { MessagingSafetyService } from './messaging-safety.service.js';
+import { MessagingSharedService } from './messaging-shared.service.js';
 
 @Controller('messaging')
 export class MessagingController {
@@ -43,11 +49,16 @@ export class MessagingController {
     private readonly messages: MessagingMessagesService,
     private readonly attachments: MessagingAttachmentsService,
     private readonly safety: MessagingSafetyService,
+    private readonly shared: MessagingSharedService,
+    private readonly historyService: MessagingHistoryService,
   ) {}
 
   @RequirePermission('message:read')
   @Get('conversations')
-  list(@Query() query: ListConversationsQueryDto, @Req() request: RequestWithPrincipal) {
+  list(
+    @Query() query: ListConversationsQueryDto,
+    @Req() request: RequestWithPrincipal,
+  ) {
     return this.conversations.list(this.userId(request), query);
   }
 
@@ -58,7 +69,10 @@ export class MessagingController {
     @Req() request: RequestWithPrincipal,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const { view, created } = await this.conversations.findOrCreate(this.userId(request), body.userId);
+    const { view, created } = await this.conversations.findOrCreate(
+      this.userId(request),
+      body.userId,
+    );
     response.status(created ? HttpStatus.CREATED : HttpStatus.OK);
     return view;
   }
@@ -71,34 +85,49 @@ export class MessagingController {
 
   @RequirePermission('message:write')
   @Get('recipients')
-  recipients(@Query() query: RecipientsQueryDto, @Req() request: RequestWithPrincipal) {
+  recipients(
+    @Query() query: RecipientsQueryDto,
+    @Req() request: RequestWithPrincipal,
+  ) {
     return this.safety.searchRecipients(this.userId(request), query.q);
   }
 
   @RequirePermission('message:read')
   @Get('conversations/:id')
-  detail(@Param('id', ParseUUIDPipe) id: string, @Req() request: RequestWithPrincipal) {
+  detail(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: RequestWithPrincipal,
+  ) {
     return this.conversations.get(this.userId(request), id);
   }
 
   @RequirePermission('message:write')
   @Delete('conversations/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id', ParseUUIDPipe) id: string, @Req() request: RequestWithPrincipal) {
+  async remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: RequestWithPrincipal,
+  ) {
     await this.conversations.deleteForMe(this.userId(request), id);
   }
 
   @RequirePermission('message:write')
   @Post('conversations/:id/accept')
   @HttpCode(HttpStatus.OK)
-  accept(@Param('id', ParseUUIDPipe) id: string, @Req() request: RequestWithPrincipal) {
+  accept(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: RequestWithPrincipal,
+  ) {
     return this.conversations.accept(this.userId(request), id);
   }
 
   @RequirePermission('message:write')
   @Post('conversations/:id/decline')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async decline(@Param('id', ParseUUIDPipe) id: string, @Req() request: RequestWithPrincipal) {
+  async decline(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: RequestWithPrincipal,
+  ) {
     await this.conversations.decline(this.userId(request), id);
   }
 
@@ -124,6 +153,92 @@ export class MessagingController {
     await this.conversations.mute(this.userId(request), id, body.until);
   }
 
+  @RequirePermission('message:write')
+  @Put('conversations/:id/pin')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async pin(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: PinDto,
+    @Req() request: RequestWithPrincipal,
+  ) {
+    await this.conversations.pin(this.userId(request), id, body.pinned);
+  }
+
+  @RequirePermission('message:write')
+  @Put('conversations/:id/nickname')
+  async nickname(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: NicknameDto,
+    @Req() request: RequestWithPrincipal,
+  ) {
+    return {
+      nickname: await this.conversations.setNickname(
+        this.userId(request),
+        id,
+        body.nickname,
+      ),
+    };
+  }
+
+  @RequirePermission('message:read')
+  @Get('conversations/:id/shared')
+  sharedContent(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: SharedQueryDto,
+    @Req() request: RequestWithPrincipal,
+  ) {
+    return this.shared.list(this.userId(request), id, query);
+  }
+
+  @RequirePermission('message:read')
+  @Get('conversations/:id/search')
+  searchInConversation(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: ConversationSearchQueryDto,
+    @Req() request: RequestWithPrincipal,
+  ) {
+    return this.shared.search(this.userId(request), id, query);
+  }
+
+  @RequirePermission('message:write')
+  @Post('conversations/:id/delete-request')
+  requestDeleteHistory(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: RequestWithPrincipal,
+  ) {
+    return this.historyService.request(this.userId(request), id);
+  }
+
+  @RequirePermission('message:write')
+  @Delete('conversations/:id/delete-request')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async cancelDeleteHistory(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: RequestWithPrincipal,
+  ) {
+    await this.historyService.cancel(this.userId(request), id);
+  }
+
+  @RequirePermission('message:write')
+  @Post('conversations/:id/delete-request/accept')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async acceptDeleteHistory(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: RequestWithPrincipal,
+  ) {
+    await this.historyService.accept(this.userId(request), id);
+  }
+
+  @RequirePermission('message:write')
+  @Post('conversations/:id/delete-request/decline')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async declineDeleteHistory(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: RequestWithPrincipal,
+  ) {
+    await this.historyService.decline(this.userId(request), id);
+  }
+
   @RequirePermission('message:read')
   @Get('conversations/:id/messages')
   history(
@@ -142,7 +257,11 @@ export class MessagingController {
     @Req() request: RequestWithPrincipal,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const { message, created } = await this.messages.send(this.userId(request), id, body);
+    const { message, created } = await this.messages.send(
+      this.userId(request),
+      id,
+      body,
+    );
     response.status(created ? HttpStatus.CREATED : HttpStatus.OK);
     return message;
   }
@@ -195,7 +314,10 @@ export class MessagingController {
 
   @RequirePermission('message:write')
   @Post('attachments')
-  prepareAttachment(@Body() body: CreateAttachmentDto, @Req() request: RequestWithPrincipal) {
+  prepareAttachment(
+    @Body() body: CreateAttachmentDto,
+    @Req() request: RequestWithPrincipal,
+  ) {
     return this.attachments.prepare(this.userId(request), body);
   }
 
@@ -218,7 +340,10 @@ export class MessagingController {
 
   @RequirePermission('message:write')
   @Patch('preferences')
-  updatePreferences(@Body() body: PreferencesDto, @Req() request: RequestWithPrincipal) {
+  updatePreferences(
+    @Body() body: PreferencesDto,
+    @Req() request: RequestWithPrincipal,
+  ) {
     return this.safety.updatePreferences(this.userId(request), body);
   }
 
@@ -231,14 +356,20 @@ export class MessagingController {
   @RequirePermission('message:write')
   @Put('blocks/:userId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async block(@Param('userId', ParseUUIDPipe) target: string, @Req() request: RequestWithPrincipal) {
+  async block(
+    @Param('userId', ParseUUIDPipe) target: string,
+    @Req() request: RequestWithPrincipal,
+  ) {
     await this.safety.block(this.userId(request), target);
   }
 
   @RequirePermission('message:write')
   @Delete('blocks/:userId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async unblock(@Param('userId', ParseUUIDPipe) target: string, @Req() request: RequestWithPrincipal) {
+  async unblock(
+    @Param('userId', ParseUUIDPipe) target: string,
+    @Req() request: RequestWithPrincipal,
+  ) {
     await this.safety.unblock(this.userId(request), target);
   }
 

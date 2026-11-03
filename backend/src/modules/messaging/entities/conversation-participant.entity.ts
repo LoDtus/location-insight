@@ -1,4 +1,11 @@
-import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryColumn,
+} from 'typeorm';
 import { UserEntity } from '../../auth/entities/user.entity.js';
 import { bigintTransformer } from './bigint.transformer.js';
 import { ConversationEntity } from './conversation.entity.js';
@@ -25,13 +32,27 @@ export class ConversationParticipantEntity {
   @Column({ type: 'varchar', length: 10, default: 'member' })
   role: 'member' | 'owner';
 
-  @Column({ type: 'bigint', name: 'last_read_seq', default: 0, transformer: bigintTransformer })
+  @Column({
+    type: 'bigint',
+    name: 'last_read_seq',
+    default: 0,
+    transformer: bigintTransformer,
+  })
   lastReadSeq: number;
 
-  @Column({ type: 'bigint', name: 'cleared_before_seq', default: 0, transformer: bigintTransformer })
+  @Column({
+    type: 'bigint',
+    name: 'cleared_before_seq',
+    default: 0,
+    transformer: bigintTransformer,
+  })
   clearedBeforeSeq: number;
 
-  @Column({ type: 'timestamptz', name: 'last_activity_at', default: () => 'now()' })
+  @Column({
+    type: 'timestamptz',
+    name: 'last_activity_at',
+    default: () => 'now()',
+  })
   lastActivityAt: Date;
 
   @Column({ type: 'timestamptz', name: 'hidden_at', nullable: true })
@@ -39,6 +60,19 @@ export class ConversationParticipantEntity {
 
   @Column({ type: 'timestamptz', name: 'muted_until', nullable: true })
   mutedUntil: Date | null;
+
+  /** Ghim cuộc trò chuyện lên đầu Inbox (chỉ phía mình). */
+  @Column({ type: 'timestamptz', name: 'pinned_at', nullable: true })
+  pinnedAt: Date | null;
+
+  /** Biệt danh mình đặt cho người kia; chỉ mình nhìn thấy. */
+  @Column({
+    type: 'varchar',
+    length: 50,
+    name: 'peer_nickname',
+    nullable: true,
+  })
+  peerNickname: string | null;
 
   @Column({ type: 'timestamptz', name: 'joined_at', default: () => 'now()' })
   joinedAt: Date;

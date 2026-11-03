@@ -1,19 +1,20 @@
 "use client";
 
-import { ArrowDown, ArrowLeft, Ban, BellOff, Bell, Flag, MoreHorizontal, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowLeft, Flag, Info } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX } from "react";
 
 import { useAuth } from "@/features/auth/use-auth";
 
 import {
+    acceptHistoryDelete,
     acceptRequest,
     blockPerson,
+    clearJump,
+    declineHistoryDelete,
     declineRequest,
-    deleteForMe,
     discardPending,
     errorText,
     loadOlder,
-    muteConversation,
     openThread,
     refreshDetail,
     retryPending,
@@ -25,31 +26,29 @@ import {
     unsend,
 } from "../messaging.actions";
 import { LOAD_OLDER_PX, NEAR_BOTTOM_PX } from "../messaging.constants";
-import { dayLabel, needsSeparator, presenceText, sameGroup } from "../messaging.format";
+import { dayLabel, formatBytes, needsSeparator, peerLabel, presenceText, sameGroup } from "../messaging.format";
 import { EMPTY_THREAD, type Message, type PendingMessage } from "../messaging.types";
 import { useMessagingState } from "../messaging.store";
 import { Composer } from "./composer";
 import { Dialog } from "./dialog";
+import { IncomingDeleteDialog } from "./history-dialogs";
 import { Lightbox } from "./lightbox";
 import { MessageBubble } from "./message-bubble";
 import { PersonAvatar } from "./person-avatar";
 import { ReportDialog } from "./report-dialog";
 
-const MUTE_OPTIONS: Array<{ label: string; hours: number | null }> = [
-    { label: "1 giờ", hours: 1 },
-    { label: "8 giờ", hours: 8 },
-    { label: "24 giờ", hours: 24 },
-    { label: "Cho đến khi bật lại", hours: null },
-];
-
 export function Thread({
     conversationId,
     root,
+    infoOpen,
+    onToggleInfo,
     onBack,
     onGone,
 }: {
     conversationId: string;
     root: string;
+    infoOpen: boolean;
+    onToggleInfo: () => void;
     onBack: () => void;
     onGone: () => void;
 }): JSX.Element {
@@ -71,13 +70,12 @@ export function Thread({
     const [replyTo, setReplyTo] = useState<Message | null>(null);
     const [reporting, setReporting] = useState<Message | null>(null);
     const [zoom, setZoom] = useState<{ message: Message; index: number } | null>(null);
-    const [menuOpen, setMenuOpen] = useState(false);
-    const [muteOpen, setMuteOpen] = useState(false);
-    const [confirm, setConfirm] = useState<"delete" | "block" | null>(null);
+    const [confirm, setConfirm] = useState<"block" | null>(null);
+    const [dismissedRequest, setDismissedRequest] = useState<string | null>(null);
+    const [requestOpen, setRequestOpen] = useState(false);
     const [notice, setNotice] = useState("");
     const [highlight, setHighlight] = useState<number | null>(null);
     const [divider, setDivider] = useState<number | null>(null);
-    const menuBox = useRef<HTMLDivElement>(null);
     const initialScrolled = useRef(false);
 
     useEffect(() => {
@@ -111,15 +109,6 @@ export function Thread({
         // chỉ chạy khi socket vừa nối lại
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [realtime]);
-
-    useEffect(() => {
-        if (!menuOpen) return;
-        function away(event: MouseEvent): void {
-            if (event.target instanceof Node && !menuBox.current?.contains(event.target)) setMenuOpen(false);
-        }
-        window.addEventListener("mousedown", away);
-        return () => window.removeEventListener("mousedown", away);
-    }, [menuOpen]);
 
     useEffect(() => {
         if (!thread.loaded || divider !== null || initialScrolled.current) return;
@@ -198,6 +187,21 @@ export function Thread({
         setTimeout(() => setHighlight(null), 1200);
     }
 
+    // Cuộn tới tin được chọn từ panel (kết quả tìm, ảnh/liên kết/tệp đã gửi); tin đã được tải sẵn khi tới đây.
+    useEffect(() => {
+        const seq = thread.jumpSeq;
+        if (seq === null) return;
+        const target = document.getElementById(`msg-${seq}`);
+        if (target) {
+            target.scrollIntoView({ block: "center", behavior: "smooth" });
+            atBottom.current = false;
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setHighlight(seq);
+            setTimeout(() => setHighlight(null), 2000);
+        }
+        clearJump(conversationId);
+    }, [thread.jumpSeq, thread.messages, conversationId]);
+
     async function guarded(action: () => Promise<void>, ok = ""): Promise<void> {
         try {
             await action();
@@ -215,12 +219,15 @@ export function Thread({
         return mine.at(-1)?.seq ?? null;
     }, [messages, me, thread.peerLastReadSeq]);
 
-    const peerName = peer?.displayName ?? "";
+    const peerName = conversation ? peerLabel(conversation) : (peer?.displayName ?? "");
     const typing = typingUntil > 0;
     const status = presenceText(detail?.peerPresence ?? null);
     const requestForMe = detail?.state === "pending" && detail.iAmInitiator === false;
     const blocked = detail?.blockedByMe === true;
     const sendable = detail?.canSend === true;
+    const incoming = detail?.deleteRequest && !detail.deleteRequest.byMe ? detail.deleteRequest : null;
+    // Hộp xác nhận tự mở khi có yêu cầu mới; đóng hộp không phải từ chối nên có thanh nhắc để mở lại.
+    const autoOpenRequest = incoming !== null && dismissedRequest !== incoming.id;
 
     if (thread.error) {
         return (
@@ -267,57 +274,15 @@ export function Thread({
                         {status}
                     </p>
                 </div>
-                <div className="relative" ref={menuBox}>
-                    <button
-                        type="button"
-                        className="inline-flex size-11 items-center justify-center rounded-full hover:bg-cream focus-visible:outline-2 focus-visible:outline-green"
-                        aria-label="Tùy chọn hội thoại"
-                        aria-expanded={menuOpen}
-                        onClick={() => setMenuOpen((current) => !current)}
-                    >
-                        <MoreHorizontal className="size-5" aria-hidden="true" />
-                    </button>
-                    {menuOpen ? (
-                        <div className="absolute right-0 z-30 w-60 rounded-2xl border border-charcoal/10 bg-white p-1.5 shadow-md" role="menu">
-                            <HeaderItem
-                                icon={conversation?.muted ? <Bell className="size-4" /> : <BellOff className="size-4" />}
-                                label={conversation?.muted ? "Bật lại thông báo" : "Tắt thông báo"}
-                                onClick={() => {
-                                    setMenuOpen(false);
-                                    if (conversation?.muted) void guarded(() => muteConversation(conversationId, null), "Đã bật lại thông báo.");
-                                    else setMuteOpen(true);
-                                }}
-                            />
-                            {blocked ? (
-                                <HeaderItem
-                                    icon={<Ban className="size-4" />}
-                                    label="Bỏ chặn"
-                                    onClick={() => {
-                                        setMenuOpen(false);
-                                        if (peer) void guarded(() => unblockPerson(conversationId, peer.id), "Đã bỏ chặn.");
-                                    }}
-                                />
-                            ) : (
-                                <HeaderItem
-                                    icon={<Ban className="size-4" />}
-                                    label="Chặn"
-                                    onClick={() => {
-                                        setMenuOpen(false);
-                                        setConfirm("block");
-                                    }}
-                                />
-                            )}
-                            <HeaderItem
-                                icon={<Trash2 className="size-4" />}
-                                label="Xóa hội thoại"
-                                onClick={() => {
-                                    setMenuOpen(false);
-                                    setConfirm("delete");
-                                }}
-                            />
-                        </div>
-                    ) : null}
-                </div>
+                <button
+                    type="button"
+                    className={`inline-flex size-11 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-green ${infoOpen ? "bg-green text-cream" : "hover:bg-cream"}`}
+                    aria-label={infoOpen ? "Đóng thông tin cuộc trò chuyện" : "Mở thông tin cuộc trò chuyện"}
+                    aria-pressed={infoOpen}
+                    onClick={onToggleInfo}
+                >
+                    <Info className="size-5" aria-hidden="true" />
+                </button>
             </header>
 
             {realtime === "offline" || realtime === "connecting" ? (
@@ -429,6 +394,18 @@ export function Thread({
                 </button>
             ) : null}
 
+            {incoming ? (
+                <div role="status" className="flex flex-wrap items-center justify-between gap-2 border-t border-gold bg-gold/15 px-4 py-2 text-sm">
+                    <span className="font-semibold">{peerName} đề nghị xóa toàn bộ lịch sử trò chuyện.</span>
+                    <button
+                        type="button"
+                        className="min-h-10 rounded-full bg-charcoal px-4 text-sm font-semibold text-cream focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
+                        onClick={() => setRequestOpen(true)}
+                    >
+                        Xem yêu cầu
+                    </button>
+                </div>
+            ) : null}
             {requestForMe && peer ? (
                 <RequestBar
                     name={peer.displayName}
@@ -470,35 +447,10 @@ export function Thread({
                 </div>
             )}
 
-            {muteOpen ? (
-                <Dialog title="Tắt thông báo" onClose={() => setMuteOpen(false)}>
-                    <ul className="m-0 grid gap-1 p-0">
-                        {MUTE_OPTIONS.map((option) => (
-                            <li key={option.label} className="list-none">
-                                <button
-                                    type="button"
-                                    className="flex min-h-11 w-full items-center rounded-xl px-3 text-left font-semibold hover:bg-cream focus-visible:outline-2 focus-visible:outline-green"
-                                    onClick={() => {
-                                        setMuteOpen(false);
-                                        const until = option.hours
-                                            ? new Date(Date.now() + option.hours * 3_600_000).toISOString()
-                                            : "9999-12-31T00:00:00.000Z";
-                                        void guarded(() => muteConversation(conversationId, until), "Đã tắt thông báo.");
-                                    }}
-                                >
-                                    {option.label}
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
-                </Dialog>
-            ) : null}
-            {confirm ? (
-                <Dialog title={confirm === "delete" ? "Xóa hội thoại?" : `Chặn ${peerName}?`} onClose={() => setConfirm(null)}>
+            {confirm === "block" ? (
+                <Dialog title={`Chặn ${peerName}?`} onClose={() => setConfirm(null)}>
                     <p className="m-0 text-sm text-charcoal/80">
-                        {confirm === "delete"
-                            ? "Hội thoại chỉ bị xóa phía bạn. Người kia vẫn giữ tin nhắn. Tin mới sẽ làm hội thoại hiện lại, chỉ từ tin mới."
-                            : "Người này sẽ không nhắn được cho bạn và không biết mình bị chặn. Bạn có thể bỏ chặn trong cài đặt."}
+                        Người này sẽ không nhắn được cho bạn và không biết mình bị chặn. Bạn có thể bỏ chặn trong cài đặt.
                     </p>
                     <div className="mt-4 flex justify-end gap-2">
                         <button
@@ -512,19 +464,29 @@ export function Thread({
                             type="button"
                             className="min-h-11 rounded-full bg-charcoal px-5 font-semibold text-cream focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
                             onClick={() => {
-                                const action = confirm;
                                 setConfirm(null);
                                 void guarded(async () => {
-                                    if (action === "delete") await deleteForMe(conversationId);
-                                    else if (peer) await blockPerson(conversationId, peer.id);
+                                    if (peer) await blockPerson(conversationId, peer.id);
                                     onGone();
                                 });
                             }}
                         >
-                            {confirm === "delete" ? "Xóa" : "Chặn"}
+                            Chặn
                         </button>
                     </div>
                 </Dialog>
+            ) : null}
+            {incoming && (autoOpenRequest || requestOpen) ? (
+                <IncomingDeleteDialog
+                    peerName={peerName}
+                    request={incoming}
+                    onAccept={() => acceptHistoryDelete(conversationId)}
+                    onDecline={() => declineHistoryDelete(conversationId)}
+                    onClose={() => {
+                        setDismissedRequest(incoming.id);
+                        setRequestOpen(false);
+                    }}
+                />
             ) : null}
             {reporting ? (
                 <ReportDialog
@@ -539,20 +501,6 @@ export function Thread({
             ) : null}
             {zoom ? <Lightbox files={zoom.message.attachments} start={zoom.index} onClose={() => setZoom(null)} /> : null}
         </section>
-    );
-}
-
-function HeaderItem({ icon, label, onClick }: { icon: JSX.Element; label: string; onClick: () => void }): JSX.Element {
-    return (
-        <button
-            type="button"
-            role="menuitem"
-            className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-semibold hover:bg-cream focus-visible:outline-2 focus-visible:outline-green"
-            onClick={onClick}
-        >
-            {icon}
-            {label}
-        </button>
     );
 }
 
@@ -571,6 +519,14 @@ function PendingBubble({ item, conversationId }: { item: PendingMessage; convers
                         ))}
                     </div>
                 ) : null}
+                {item.kind === "file"
+                    ? item.files.map((file) => (
+                          <p key={file.name} className="m-0 mb-1 flex items-center gap-2 rounded-xl border border-cream/40 px-3 py-2 text-sm">
+                              <span className="truncate font-semibold">{file.name}</span>
+                              <span className="shrink-0 opacity-75">{formatBytes(file.size)}</span>
+                          </p>
+                      ))
+                    : null}
                 {item.body ? <p className="m-0 whitespace-pre-wrap [overflow-wrap:anywhere]">{item.body}</p> : null}
             </div>
             {failed ? (

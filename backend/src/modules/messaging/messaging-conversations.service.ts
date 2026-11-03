@@ -1,6 +1,6 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, IsNull, Not, Repository } from 'typeorm';
 import { v7 as uuidv7 } from 'uuid';
 import { BusinessException } from '../../common/exceptions/business.exception.js';
 import { RedisService } from '../../integrations/redis/redis.service.js';
@@ -10,11 +10,22 @@ import { FollowService } from '../follow/follow.service.js';
 import { MessagingAccessService } from './messaging-access.service.js';
 import { rowsOf } from './messaging-db.js';
 import { conflict, cannotMessage, invalid } from './messaging-errors.js';
+import { FOLD_FROM, FOLD_TO, foldVietnamese } from './messaging-fold.js';
 import { MessagingEventsService } from './messaging-events.service.js';
 import { MessagingPresenterService } from './messaging-presenter.service.js';
 import { MessagingRateLimitService } from './messaging-rate-limit.service.js';
-import { directKey, escapeLike, readCursor, writeCursor } from './messaging-rules.js';
-import { MESSAGING_CHANNELS, MESSAGING_KEYS, MESSAGING_LIMITS } from './messaging.constants.js';
+import {
+  directKey,
+  escapeLike,
+  readCursor,
+  writeCursor,
+} from './messaging-rules.js';
+import { cleanLine } from './messaging-text.js';
+import {
+  MESSAGING_CHANNELS,
+  MESSAGING_KEYS,
+  MESSAGING_LIMITS,
+} from './messaging.constants.js';
 import { ConversationEntity } from './entities/conversation.entity.js';
 import { ConversationParticipantEntity } from './entities/conversation-participant.entity.js';
 
@@ -37,25 +48,14 @@ export class MessagingConversationsService {
   async list(userId: string, query: ListConversationsQueryDto) {
     const limit = query.limit ?? MESSAGING_LIMITS.inboxPage;
     const folder = query.folder ?? 'inbox';
-    const qb = this.participants
-      .createQueryBuilder('p')
-      .innerJoinAndSelect('p.conversation', 'c')
-      .where('p.userId = :me', { me: userId })
-      .andWhere('p.leftAt IS NULL')
-      .andWhere('p.hiddenAt IS NULL')
-      .andWhere('c.lastSeq > 0')
+    const inbox = folder === 'inbox';
+
+    // Hội thoại ghim chỉ thuộc Inbox và chỉ trả ở trang đầu; các trang sau (con trỏ theo hoạt động) loại chúng ra.
+    const qb = this.baseList(userId, folder, query.q)
       .orderBy('p.lastActivityAt', 'DESC')
       .addOrderBy('p.conversationId', 'DESC')
       .take(limit + 1);
-    this.applyFolder(qb, folder, userId);
-    if (query.q) {
-      qb.andWhere(
-        `EXISTS (SELECT 1 FROM conversation_participants o INNER JOIN users u ON u.id = o.user_id
-                 WHERE o.conversation_id = c.id AND o.user_id <> :me
-                 AND lower(u.display_name) LIKE lower(:q) ESCAPE '\\')`,
-        { q: `${escapeLike(query.q)}%` },
-      );
-    }
+    if (inbox) qb.andWhere('p.pinnedAt IS NULL');
     const point = readCursor(query.cursor, 2);
     if (point) {
       qb.andWhere(
@@ -63,19 +63,61 @@ export class MessagingConversationsService {
         { at: new Date(point[0] as string), cid: point[1] },
       );
     }
+    const pinned =
+      inbox && !query.cursor
+        ? await this.baseList(userId, folder, query.q)
+            .andWhere('p.pinnedAt IS NOT NULL')
+            .orderBy('p.pinnedAt', 'DESC')
+            .take(MESSAGING_LIMITS.pinMax)
+            .getMany()
+        : [];
     const rows = await qb.getMany();
     const hasMore = rows.length > limit;
     const slice = hasMore ? rows.slice(0, limit) : rows;
     const last = slice.at(-1);
     const items = await this.presenter.summaries(
-      slice.map((row) => ({ conversation: row.conversation, me: row })),
+      [...pinned, ...slice].map((row) => ({
+        conversation: row.conversation,
+        me: row,
+      })),
       userId,
     );
     return {
       items,
       nextCursor:
-        hasMore && last ? writeCursor([last.lastActivityAt.toISOString(), last.conversationId]) : null,
+        hasMore && last
+          ? writeCursor([
+              last.lastActivityAt.toISOString(),
+              last.conversationId,
+            ])
+          : null,
     };
+  }
+
+  /** Truy vấn nền của hộp thư; tìm theo tên hoặc biệt danh, không phân biệt dấu và hoa thường. */
+  private baseList(userId: string, folder: 'inbox' | 'requests', q?: string) {
+    const qb = this.participants
+      .createQueryBuilder('p')
+      .innerJoinAndSelect('p.conversation', 'c')
+      .where('p.userId = :me', { me: userId })
+      .andWhere('p.leftAt IS NULL')
+      .andWhere('p.hiddenAt IS NULL')
+      .andWhere('c.lastSeq > 0');
+    this.applyFolder(qb, folder, userId);
+    if (q) {
+      qb.andWhere(
+        `(EXISTS (SELECT 1 FROM conversation_participants o INNER JOIN users u ON u.id = o.user_id
+                  WHERE o.conversation_id = c.id AND o.user_id <> :me
+                  AND translate(u.display_name, :foldFrom, :foldTo) LIKE :needle ESCAPE '\\')
+          OR translate(coalesce(p.peerNickname, ''), :foldFrom, :foldTo) LIKE :needle ESCAPE '\\')`,
+        {
+          needle: `%${escapeLike(foldVietnamese(q))}%`,
+          foldFrom: FOLD_FROM,
+          foldTo: FOLD_TO,
+        },
+      );
+    }
+    return qb;
   }
 
   async get(userId: string, conversationId: string) {
@@ -88,7 +130,9 @@ export class MessagingConversationsService {
     await this.access.assertSenderAllowed(userId);
     await this.access.assertPeerReachable(userId, peerId);
     const key = directKey(userId, peerId);
-    const existing = await this.conversations.findOne({ where: { directKey: key } });
+    const existing = await this.conversations.findOne({
+      where: { directKey: key },
+    });
     if (existing) {
       await this.participants.update(
         { conversationId: existing.id, userId },
@@ -102,7 +146,9 @@ export class MessagingConversationsService {
     await this.rate.consume('newConversation', `user_${userId}`);
 
     // Người nhận đang theo dõi người gửi: bỏ bước Yêu cầu (011-follow, BR-08).
-    const initialState = (await this.follows.isFollowing(peerId, userId)) ? 'active' : 'pending';
+    const initialState = (await this.follows.isFollowing(peerId, userId))
+      ? 'active'
+      : 'pending';
     const id = uuidv7();
     const created = await this.dataSource.transaction(async (manager) => {
       const raw: unknown = await manager.query(
@@ -116,12 +162,19 @@ export class MessagingConversationsService {
       const now = new Date();
       await manager.insert(ConversationParticipantEntity, [
         { conversationId: id, userId, role: 'member', lastActivityAt: now },
-        { conversationId: id, userId: peerId, role: 'member', lastActivityAt: now },
+        {
+          conversationId: id,
+          userId: peerId,
+          role: 'member',
+          lastActivityAt: now,
+        },
       ]);
       return true;
     });
     if (!created) {
-      const winner = await this.conversations.findOneOrFail({ where: { directKey: key } });
+      const winner = await this.conversations.findOneOrFail({
+        where: { directKey: key },
+      });
       return { view: await this.get(userId, winner.id), created: false };
     }
     return { view: await this.get(userId, id), created: true };
@@ -130,37 +183,71 @@ export class MessagingConversationsService {
   async accept(userId: string, conversationId: string) {
     const m = await this.access.membership(userId, conversationId);
     const { conversation } = m;
-    if (conversation.state === 'active' || conversation.initiatorId === userId) {
+    if (
+      conversation.state === 'active' ||
+      conversation.initiatorId === userId
+    ) {
       conflict('Không thể chấp nhận hội thoại này.');
     }
     await this.access.assertPeerReachable(userId, m.peerId);
-    await this.conversations.update({ id: conversationId }, { state: 'active' });
-    await this.participants.update({ conversationId, userId }, { hiddenAt: null });
+    await this.conversations.update(
+      { id: conversationId },
+      { state: 'active' },
+    );
+    await this.participants.update(
+      { conversationId, userId },
+      { hiddenAt: null },
+    );
     await this.invalidateUnread([userId, m.peerId]);
-    await this.events.publish(MESSAGING_CHANNELS.conversationUpdated, [userId, m.peerId], {
-      conversationId,
-      reason: 'accepted',
-    });
-    await this.events.publish(MESSAGING_CHANNELS.unread, [userId, m.peerId], {});
+    await this.events.publish(
+      MESSAGING_CHANNELS.conversationUpdated,
+      [userId, m.peerId],
+      {
+        conversationId,
+        reason: 'accepted',
+      },
+    );
+    await this.events.publish(
+      MESSAGING_CHANNELS.unread,
+      [userId, m.peerId],
+      {},
+    );
     return this.get(userId, conversationId);
   }
 
   async decline(userId: string, conversationId: string): Promise<void> {
     const m = await this.access.membership(userId, conversationId);
-    if (m.conversation.state !== 'pending' || m.conversation.initiatorId === userId) {
+    if (
+      m.conversation.state !== 'pending' ||
+      m.conversation.initiatorId === userId
+    ) {
       conflict('Không thể từ chối hội thoại này.');
     }
-    await this.conversations.update({ id: conversationId }, { state: 'declined' });
-    await this.participants.update({ conversationId, userId }, { hiddenAt: new Date() });
+    await this.conversations.update(
+      { id: conversationId },
+      { state: 'declined' },
+    );
+    await this.participants.update(
+      { conversationId, userId },
+      { hiddenAt: new Date() },
+    );
     await this.invalidateUnread([userId]);
-    await this.events.publish(MESSAGING_CHANNELS.conversationUpdated, [userId], {
-      conversationId,
-      reason: 'declined',
-    });
+    await this.events.publish(
+      MESSAGING_CHANNELS.conversationUpdated,
+      [userId],
+      {
+        conversationId,
+        reason: 'declined',
+      },
+    );
     await this.events.publish(MESSAGING_CHANNELS.unread, [userId], {});
   }
 
-  async markRead(userId: string, conversationId: string, seq: number): Promise<void> {
+  async markRead(
+    userId: string,
+    conversationId: string,
+    seq: number,
+  ): Promise<void> {
     const m = await this.access.membership(userId, conversationId);
     await this.rate.consume('read', `user_${userId}`);
     const target = Math.min(seq, m.conversation.lastSeq);
@@ -168,13 +255,19 @@ export class MessagingConversationsService {
     await this.participants
       .createQueryBuilder()
       .update(ConversationParticipantEntity)
-      .set({ lastReadSeq: () => `GREATEST(last_read_seq, ${Math.floor(target)})` })
-      .where('conversation_id = :conversationId AND user_id = :userId', { conversationId, userId })
+      .set({
+        lastReadSeq: () => `GREATEST(last_read_seq, ${Math.floor(target)})`,
+      })
+      .where('conversation_id = :conversationId AND user_id = :userId', {
+        conversationId,
+        userId,
+      })
       .execute();
     await this.invalidateUnread([userId]);
     const prefs = await this.access.preferencesMany([userId, m.peerId]);
     const receipts = Boolean(
-      prefs.get(userId)?.sendReadReceipts && prefs.get(m.peerId)?.sendReadReceipts,
+      prefs.get(userId)?.sendReadReceipts &&
+      prefs.get(m.peerId)?.sendReadReceipts,
     );
     await this.events.publish(
       MESSAGING_CHANNELS.conversationRead,
@@ -184,11 +277,19 @@ export class MessagingConversationsService {
     await this.events.publish(MESSAGING_CHANNELS.unread, [userId], {});
   }
 
-  async mute(userId: string, conversationId: string, until: string | null): Promise<void> {
+  async mute(
+    userId: string,
+    conversationId: string,
+    until: string | null,
+  ): Promise<void> {
     await this.access.membership(userId, conversationId);
     const value = until ? new Date(until) : null;
-    if (value && Number.isNaN(value.getTime())) invalid('Thời điểm không hợp lệ.');
-    await this.participants.update({ conversationId, userId }, { mutedUntil: value });
+    if (value && Number.isNaN(value.getTime()))
+      invalid('Thời điểm không hợp lệ.');
+    await this.participants.update(
+      { conversationId, userId },
+      { mutedUntil: value },
+    );
     await this.invalidateUnread([userId]);
     await this.events.publish(MESSAGING_CHANNELS.unread, [userId], {});
   }
@@ -201,22 +302,109 @@ export class MessagingConversationsService {
         clearedBeforeSeq: m.conversation.lastSeq,
         lastReadSeq: m.conversation.lastSeq,
         hiddenAt: new Date(),
+        pinnedAt: null,
       },
     );
     await this.invalidateUnread([userId]);
-    await this.events.publish(MESSAGING_CHANNELS.conversationUpdated, [userId], {
-      conversationId,
-      reason: 'deleted_by_me',
-    });
+    await this.events.publish(
+      MESSAGING_CHANNELS.conversationUpdated,
+      [userId],
+      {
+        conversationId,
+        reason: 'deleted_by_me',
+      },
+    );
     await this.events.publish(MESSAGING_CHANNELS.unread, [userId], {});
   }
 
-  async unreadCount(userId: string): Promise<{ inbox: number; requests: number }> {
+  async pin(
+    userId: string,
+    conversationId: string,
+    pinned: boolean,
+  ): Promise<void> {
+    const m = await this.access.membership(userId, conversationId);
+    await this.rate.consume('settings', `user_${userId}`);
+    if (pinned) {
+      const inInbox =
+        m.conversation.state === 'active' ||
+        m.conversation.initiatorId === userId;
+      if (!inInbox) invalid('Chỉ ghim được hội thoại trong Inbox.');
+      if (m.me.pinnedAt) return;
+      const count = await this.participants.count({
+        where: {
+          userId,
+          pinnedAt: Not(IsNull()),
+          hiddenAt: IsNull(),
+          leftAt: IsNull(),
+        },
+      });
+      if (count >= MESSAGING_LIMITS.pinMax) {
+        throw new BusinessException(
+          ErrorCode.LIMIT_REACHED,
+          `Bạn chỉ ghim được tối đa ${MESSAGING_LIMITS.pinMax} cuộc trò chuyện.`,
+          null,
+          HttpStatus.CONFLICT,
+        );
+      }
+      await this.participants.update(
+        { conversationId, userId },
+        { pinnedAt: new Date() },
+      );
+    } else {
+      await this.participants.update(
+        { conversationId, userId },
+        { pinnedAt: null },
+      );
+    }
+    await this.events.publish(
+      MESSAGING_CHANNELS.conversationUpdated,
+      [userId],
+      {
+        conversationId,
+        reason: 'pinned',
+      },
+    );
+  }
+
+  /** Biệt danh mình đặt cho người kia; chỉ mình thấy. Rỗng hoặc null thì xóa. */
+  async setNickname(
+    userId: string,
+    conversationId: string,
+    nickname: string | null,
+  ): Promise<string | null> {
+    await this.access.membership(userId, conversationId);
+    await this.rate.consume('settings', `user_${userId}`);
+    const value = nickname === null ? '' : cleanLine(nickname);
+    if (Array.from(value).length > MESSAGING_LIMITS.nicknameMax) {
+      invalid(`Biệt danh tối đa ${MESSAGING_LIMITS.nicknameMax} ký tự.`);
+    }
+    const next = value === '' ? null : value;
+    await this.participants.update(
+      { conversationId, userId },
+      { peerNickname: next },
+    );
+    await this.events.publish(
+      MESSAGING_CHANNELS.conversationUpdated,
+      [userId],
+      {
+        conversationId,
+        reason: 'nickname',
+      },
+    );
+    return next;
+  }
+
+  async unreadCount(
+    userId: string,
+  ): Promise<{ inbox: number; requests: number }> {
     const key = MESSAGING_KEYS.unread(userId);
     try {
       const cached = await this.redis.getClient().hgetall(key);
       if (cached.inbox !== undefined && cached.requests !== undefined) {
-        return { inbox: Number(cached.inbox), requests: Number(cached.requests) };
+        return {
+          inbox: Number(cached.inbox),
+          requests: Number(cached.requests),
+        };
       }
     } catch {
       /* tính lại từ DB */
@@ -231,7 +419,10 @@ export class MessagingConversationsService {
     };
     try {
       const client = this.redis.getClient();
-      await client.hset(key, { inbox: result.inbox, requests: result.requests });
+      await client.hset(key, {
+        inbox: result.inbox,
+        requests: result.requests,
+      });
       await client.expire(key, 300);
     } catch {
       /* không có bộ đệm vẫn đúng */
@@ -242,13 +433,18 @@ export class MessagingConversationsService {
   async invalidateUnread(userIds: string[]): Promise<void> {
     if (!userIds.length) return;
     try {
-      await this.redis.getClient().del(...userIds.map((id) => MESSAGING_KEYS.unread(id)));
+      await this.redis
+        .getClient()
+        .del(...userIds.map((id) => MESSAGING_KEYS.unread(id)));
     } catch {
       /* hết hạn sau 5 phút */
     }
   }
 
-  private async countUnread(userId: string, folder: 'inbox' | 'requests'): Promise<number> {
+  private async countUnread(
+    userId: string,
+    folder: 'inbox' | 'requests',
+  ): Promise<number> {
     const qb = this.participants
       .createQueryBuilder('p')
       .innerJoin('p.conversation', 'c')
@@ -264,13 +460,19 @@ export class MessagingConversationsService {
   }
 
   private applyFolder(
-    qb: ReturnType<Repository<ConversationParticipantEntity>['createQueryBuilder']>,
+    qb: ReturnType<
+      Repository<ConversationParticipantEntity>['createQueryBuilder']
+    >,
     folder: 'inbox' | 'requests',
     userId: string,
   ): void {
     if (folder === 'requests') {
-      const since = new Date(Date.now() - MESSAGING_LIMITS.requestVisibleDays * 86_400_000);
-      qb.andWhere("c.state = 'pending' AND c.initiatorId <> :me", { me: userId });
+      const since = new Date(
+        Date.now() - MESSAGING_LIMITS.requestVisibleDays * 86_400_000,
+      );
+      qb.andWhere("c.state = 'pending' AND c.initiatorId <> :me", {
+        me: userId,
+      });
       qb.andWhere('c.lastMessageAt > :since', { since });
       return;
     }

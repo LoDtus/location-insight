@@ -35,7 +35,8 @@ export class WrapResponseInterceptor<T> implements NestInterceptor<
     if (context.getType() !== 'http') return next.handle();
     const request = context.switchToHttp().getRequest<Request>();
     const url = request.originalUrl || request.url || '';
-    if (isHealthUrl(url) || url.split('?')[0]?.includes('/billing/sepay/webhook')) {
+    const path = url.split('?')[0] ?? '';
+    if (isHealthUrl(url) || path.includes('/billing/sepay/webhook') || path.includes('/media/avatars/')) {
       return next.handle();
     }
 

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { StorageService } from '../../integrations/storage/storage.service.js';
+import { presentAvatarUrl } from '../auth/avatar-url.js';
 import { UserEntity, UserStatus } from '../auth/entities/user.entity.js';
 import { Principal } from '../rbac/authorization.types.js';
 import { AdminAuditLogEntity } from '../rbac/entities/admin-audit-log.entity.js';
@@ -147,7 +148,7 @@ export class MessagingSafetyService {
       items: rows.map((row) => ({
         id: row.id,
         displayName: row.displayName,
-        avatarUrl: row.avatarUrl,
+        avatarUrl: presentAvatarUrl(row.avatarUrl),
       })),
     };
   }

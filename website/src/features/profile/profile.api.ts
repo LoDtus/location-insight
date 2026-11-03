@@ -1,4 +1,4 @@
-import { apiRequest } from "@/features/auth/auth.api";
+import { AuthApiError, apiRequest } from "@/features/auth/auth.api";
 
 export type Profile = {
     userId: string;
@@ -33,4 +33,21 @@ export function updateOwnProfile(input: ProfileInput): Promise<Profile> {
         method: "PATCH",
         body: JSON.stringify(input),
     });
+}
+
+export async function uploadAvatar(file: Blob): Promise<Profile> {
+    const contentType = file.type === "image/png" || file.type === "image/webp" ? file.type : "image/jpeg";
+    const created = await apiRequest<{ uploadUrl: string }>("/profiles/me/avatar", {
+        method: "POST",
+        body: JSON.stringify({ contentType, byteSize: file.size }),
+    });
+    const uploaded = await fetch(created.uploadUrl, {
+        method: "PUT",
+        headers: { "content-type": contentType },
+        body: file,
+    });
+    if (!uploaded.ok) {
+        throw new AuthApiError("Chưa tải được ảnh.", uploaded.status);
+    }
+    return apiRequest<Profile>("/profiles/me/avatar/complete", { method: "POST" });
 }

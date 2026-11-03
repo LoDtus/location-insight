@@ -11,18 +11,20 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { FollowSummary } from "@/features/follow/components/follow-summary";
-import { useEffect, useState, type FormEvent, type JSX } from "react";
+import { useEffect, useRef, useState, type FormEvent, type JSX } from "react";
 
 import { AUTH_BUTTON_CLASS, AUTH_FIELD_CLASS } from "@/app/auth/form-class";
 import type { ShellRoot } from "@/features/app/shell";
 import { AuthApiError } from "@/features/auth/auth.api";
 import { profileUpdated } from "@/features/auth/auth.slice";
+import { AvatarCropDialog } from "@/features/profile/components/avatar-crop-dialog";
 import { ProfileForumPost } from "@/features/profile/components/profile-forum-post";
 import { ProfilePosts } from "@/features/profile/components/profile-posts";
 import {
     getOwnProfile,
     getPublicProfile,
     updateOwnProfile,
+    uploadAvatar,
     type Profile,
     type ProfileInput,
 } from "@/features/profile/profile.api";
@@ -90,6 +92,9 @@ export default function ProfileScreen({
     const [pending, setPending] = useState(false);
     const [message, setMessage] = useState("");
     const [postedTick, setPostedTick] = useState(0);
+    const [cropSrc, setCropSrc] = useState<string | null>(null);
+    const [avatarPending, setAvatarPending] = useState(false);
+    const fileRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         let active = true;
@@ -164,11 +169,43 @@ export default function ProfileScreen({
 
     return (
         <main className="box-border h-full overflow-auto px-4 py-8 sm:px-8">
-            <div className="mx-auto w-full max-w-5xl">
-                <header className="border-b border-charcoal/15">
-                    <form className="flex flex-col md:flex-row" onSubmit={save}>
-                        <div className="flex shrink-0 justify-center p-6 md:p-10">
-                            <Avatar profile={editing ? { ...profile, avatarUrl: draft.avatarUrl || null, displayName: draft.displayName || profile.displayName } : profile} />
+            <header className="border-b border-charcoal/15">
+                    <form className="flex flex-col md:flex-row md:items-center" onSubmit={save}>
+                        <div className="flex shrink-0 justify-center self-center p-6 md:p-10">
+                            {own ? (
+                                <>
+                                    <button
+                                        type="button"
+                                        className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
+                                        aria-label="Cập nhật ảnh đại diện"
+                                        disabled={avatarPending}
+                                        onClick={() => fileRef.current?.click()}
+                                    >
+                                        <Avatar profile={editing ? { ...profile, avatarUrl: draft.avatarUrl || null, displayName: draft.displayName || profile.displayName } : profile} />
+                                    </button>
+                                    <input
+                                        ref={fileRef}
+                                        type="file"
+                                        accept="image/jpeg,image/png,image/webp"
+                                        className="sr-only"
+                                        onChange={(event) => {
+                                            const file = event.target.files?.[0];
+                                            event.target.value = "";
+                                            if (!file) return;
+                                            if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 8 * 1024 * 1024) {
+                                                setMessage("Ảnh cần là JPEG, PNG hoặc WebP và không quá 8 MB.");
+                                                return;
+                                            }
+                                            setCropSrc((current) => {
+                                                if (current) URL.revokeObjectURL(current);
+                                                return URL.createObjectURL(file);
+                                            });
+                                        }}
+                                    />
+                                </>
+                            ) : (
+                                <Avatar profile={profile} />
+                            )}
                         </div>
                         <div className="min-w-0 flex-1 border-t border-charcoal/15 px-4 py-5 md:border-t-0 md:border-l md:px-7">
                             <div className="mb-2 flex items-center gap-3">
@@ -265,19 +302,6 @@ export default function ProfileScreen({
                             {editing ? (
                                 <>
                                     <label className="mb-2 flex items-center gap-2 text-sm text-charcoal/70">
-                                        <span className="shrink-0">Ảnh đại diện</span>
-                                        <span className="min-w-0 flex-1">
-                                            <input
-                                                className={AUTH_FIELD_CLASS}
-                                                value={draft.avatarUrl}
-                                                maxLength={512}
-                                                placeholder="/images/anh-dai-dien.jpg"
-                                                aria-label="Ảnh đại diện"
-                                                onChange={(event) => update("avatarUrl", event.target.value)}
-                                            />
-                                        </span>
-                                    </label>
-                                    <label className="mb-2 flex items-center gap-2 text-sm text-charcoal/70">
                                         <MapPin className="size-4 shrink-0" aria-hidden="true" />
                                         <span className="min-w-0 flex-1">
                                             <input
@@ -339,8 +363,9 @@ export default function ProfileScreen({
                             </section>
                         </div>
                     </form>
-                </header>
+            </header>
 
+            <div className="mx-auto w-full max-w-5xl">
                 {message ? (
                     <p
                         role={message.startsWith("Đã ") ? "status" : "alert"}
@@ -367,6 +392,34 @@ export default function ProfileScreen({
                     </p>
                 ) : null}
             </div>
+            {cropSrc ? (
+                <AvatarCropDialog
+                    src={cropSrc}
+                    pending={avatarPending}
+                    onCancel={() => {
+                        if (avatarPending) return;
+                        URL.revokeObjectURL(cropSrc);
+                        setCropSrc(null);
+                    }}
+                    onConfirm={(file) => {
+                        setAvatarPending(true);
+                        setMessage("");
+                        void uploadAvatar(file)
+                            .then((next) => {
+                                setProfile(next);
+                                setDraft((current) => ({ ...current, avatarUrl: next.avatarUrl ?? "" }));
+                                dispatch(profileUpdated({ displayName: next.displayName, avatarUrl: next.avatarUrl }));
+                                setMessage("Đã cập nhật ảnh đại diện.");
+                                URL.revokeObjectURL(cropSrc);
+                                setCropSrc(null);
+                            })
+                            .catch((error: unknown) => {
+                                setMessage(error instanceof AuthApiError ? error.message : "Chưa cập nhật được ảnh đại diện.");
+                            })
+                            .finally(() => setAvatarPending(false));
+                    }}
+                />
+            ) : null}
         </main>
     );
 }

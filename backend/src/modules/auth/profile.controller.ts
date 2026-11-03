@@ -1,7 +1,7 @@
-import { Body, Controller, Get, Param, Patch, Req } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Req } from '@nestjs/common';
 import { RequirePermission } from '../../common/decorators/access.decorator.js';
 import type { RequestWithPrincipal } from './auth.guard.js';
-import { UpdateProfileDto } from './dto/profile.dto.js';
+import { PrepareAvatarDto, UpdateProfileDto } from './dto/profile.dto.js';
 import { ProfileService } from './profile.service.js';
 
 @Controller('profiles')
@@ -21,6 +21,21 @@ export class ProfileController {
     @Body() body: UpdateProfileDto,
   ) {
     return this.profiles.update(request.principal?.userId as string, body);
+  }
+
+  @RequirePermission('profile:update')
+  @Post('me/avatar')
+  prepareAvatar(
+    @Req() request: RequestWithPrincipal,
+    @Body() body: PrepareAvatarDto,
+  ) {
+    return this.profiles.prepareAvatar(request.principal?.userId as string, body);
+  }
+
+  @RequirePermission('profile:update')
+  @Post('me/avatar/complete')
+  completeAvatar(@Req() request: RequestWithPrincipal) {
+    return this.profiles.completeAvatar(request.principal?.userId as string);
   }
 
   @RequirePermission('profile:read')

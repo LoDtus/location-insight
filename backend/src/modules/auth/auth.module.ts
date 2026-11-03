@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { EmailModule } from '../email/email.module.js';
 import { NotificationModule } from '../notification/notification.module.js';
 import { RbacModule } from '../rbac/rbac.module.js';
+import { AvatarController } from './avatar.controller.js';
 import { AuthController } from './auth.controller.js';
 import { AuthConfig } from './auth.config.js';
 import { AuthGuard } from './auth.guard.js';
@@ -40,7 +41,7 @@ import { TokenService } from './token.service.js';
     forwardRef(() => NotificationModule),
     EmailModule,
   ],
-  controllers: [AuthController, ProfileController, RealtimeController],
+  controllers: [AuthController, ProfileController, AvatarController, RealtimeController],
   providers: [
     AuthConfig,
     TokenService,

@@ -6,6 +6,7 @@ import { EmailService } from '../email/email.service.js';
 import { NotificationsService } from '../notification/notification.service.js';
 import { RedisService } from '../../integrations/redis/redis.service.js';
 import { StorageService } from '../../integrations/storage/storage.service.js';
+import { presentAvatarUrl } from '../auth/avatar-url.js';
 import { UserEntity } from '../auth/entities/user.entity.js';
 import { sniffMedia } from '../discussions/discussion-text.js';
 import { invalid, notFound, tooMany, unavailable } from '../messaging/messaging-errors.js';
@@ -393,7 +394,7 @@ export class FeedbackService {
         author: {
           id: row.authorId,
           displayName: author?.displayName ?? 'Người dùng',
-          avatarUrl: author?.avatarUrl ?? null,
+          avatarUrl: presentAvatarUrl(author?.avatarUrl),
         },
         media: files
           .filter((file) => file.feedbackId === row.id)

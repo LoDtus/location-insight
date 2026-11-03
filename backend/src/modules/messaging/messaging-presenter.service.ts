@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { StorageService } from '../../integrations/storage/storage.service.js';
+import { presentAvatarUrl } from '../auth/avatar-url.js';
 import { UserEntity, UserStatus } from '../auth/entities/user.entity.js';
 import { DiscussionPostEntity } from '../discussions/entities/discussion-post.entity.js';
 import { MessagingAccessService } from './messaging-access.service.js';
@@ -130,7 +131,7 @@ export class MessagingPresenterService {
       map.set(row.id, {
         id: row.id,
         displayName: gone ? DELETED_USER_NAME : row.displayName,
-        avatarUrl: gone ? null : row.avatarUrl,
+        avatarUrl: gone ? null : presentAvatarUrl(row.avatarUrl),
       });
     }
     for (const id of unique) {

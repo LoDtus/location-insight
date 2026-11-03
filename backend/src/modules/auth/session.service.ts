@@ -11,6 +11,7 @@ import { BusinessException } from '../../common/exceptions/business.exception.js
 import { RedisService } from '../../integrations/redis/redis.service.js';
 import { ErrorCode } from '../../shared/constants/error-code.constant.js';
 import { AuthzCacheService } from '../rbac/authz-cache.service.js';
+import { presentAvatarUrl } from './avatar-url.js';
 import { Plan, UserRole } from '../rbac/authorization.types.js';
 import {
   AUTH_LIMITS,
@@ -315,7 +316,7 @@ export class SessionService {
       userId: user.id,
       displayName: user.displayName,
       email: user.email,
-      avatarUrl: user.avatarUrl,
+      avatarUrl: presentAvatarUrl(user.avatarUrl),
       role: user.role,
       plan,
     };

@@ -5,6 +5,7 @@ import { BusinessException } from '../../common/exceptions/business.exception.js
 import { RedisService } from '../../integrations/redis/redis.service.js';
 import { ErrorCode } from '../../shared/constants/error-code.constant.js';
 import { EmailService } from '../email/email.service.js';
+import { presentAvatarUrl } from '../auth/avatar-url.js';
 import { UserEntity, UserStatus } from '../auth/entities/user.entity.js';
 import { rowsOf } from '../messaging/messaging-db.js';
 import { invalid, notFound, tooMany, unavailable } from '../messaging/messaging-errors.js';
@@ -177,7 +178,7 @@ export class FollowService {
         id: row.id,
         displayName: row.display_name,
         username: row.username,
-        avatarUrl: row.avatar_url,
+        avatarUrl: presentAvatarUrl(row.avatar_url),
         followedByMe: row.followed_by_me,
         followsMe: row.follows_me,
         followedAt: new Date(row.at).toISOString(),

@@ -6,6 +6,7 @@ import { BusinessException } from '../../common/exceptions/business.exception.js
 import { RedisService } from '../../integrations/redis/redis.service.js';
 import { StorageService } from '../../integrations/storage/storage.service.js';
 import { ErrorCode } from '../../shared/constants/error-code.constant.js';
+import { presentAvatarUrl } from '../auth/avatar-url.js';
 import { UserEntity } from '../auth/entities/user.entity.js';
 import { NotificationsService } from '../notification/notification.service.js';
 import { UserRole } from '../rbac/authorization.types.js';
@@ -546,7 +547,7 @@ export class DiscussionsService {
           authorId: post.authorId,
           authorName: author?.displayName ?? 'Người dùng',
           authorUsername: author?.username ?? null,
-          authorAvatarUrl: author?.avatarUrl ?? null,
+          authorAvatarUrl: presentAvatarUrl(author?.avatarUrl),
           topicId: post.topicId,
           topicSlug: topic?.slug ?? '',
           topicName: topic?.name ?? '',

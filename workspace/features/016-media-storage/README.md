@@ -65,7 +65,7 @@
 - **BR-03 (khóa do server sinh):** `object_key = {domain}/{ownerScope}/{id}[.ext]`, `id` là UUID v7, `ext` suy ra từ loại đã kiểm (không lấy từ tên tệp người dùng). Tên tệp gốc nếu cần chỉ lưu ở cột DB đã làm sạch. Khóa không chứa email, tên, dữ liệu cá nhân. Tiền tố hiện có: `discussions/`, `feedback/`, `messaging/`; dự phòng: `avatars/`, `exports/`, `tmp/`.
 - **BR-04 (riêng tư mặc định):** bucket không công khai, không liệt kê ẩn danh. Truy cập duy nhất là URL ký sau khi kiểm quyền ở backend. Công khai là quyết định theo từng loại tệp ở giai đoạn sau, đi qua bucket/tên miền riêng (không bật công khai cho bucket hiện tại).
 - **BR-05 (kiểm quyền trước khi ký):** URL ký là bearer token. Backend chỉ ký sau khi xác định người gọi có quyền với **dòng metadata** (không tin `object_key` do client gửi). Không có API nhận `object_key` thô từ client.
-- **BR-06 (kích thước):** URL PUT ký không ép được giới hạn kích thước một cách di động (R2 không hỗ trợ POST policy). Do đó giới hạn được ép tại `complete` (FR-04) và bằng hạn mức tệp `pending` trên mỗi người; thử nghiệm ký thêm `Content-Length` khi triển khai (`research.md` bản ghi 3).
+- **BR-06 (kích thước):** URL PUT ký không ép được giới hạn kích thước một cách di động (R2 không hỗ trợ POST policy). Do đó giới hạn được ép tại `complete` (FR-04) và bằng hạn mức tệp `pending` trên mỗi người; ký thêm `Content-Length` đã kiểm chứng ép được trên MinIO (R2 chưa thử), nên là tùy chọn của `StorageService`, chưa bật cho module nào (`research.md` bản ghi 3).
 - **BR-07 (loại tệp):** danh sách cho phép theo module. **Không nhận SVG, HTML, XML, tệp thực thi** làm tệp người dùng. Phục vụ lại với `Content-Disposition` phù hợp và `X-Content-Type-Options: nosniff` khi ký GET (tham số `ResponseContentType`/`ResponseContentDisposition`).
 - **BR-08 (một bucket, nhiều tiền tố):** dùng một bucket `S3_BUCKET`. Tách bucket chỉ khi chính sách khác nhau (ví dụ công khai vs riêng tư) hoặc quyền khóa khác nhau.
 - **BR-09 (đặc quyền tối thiểu):** ứng dụng dùng khóa riêng giới hạn trên đúng bucket (đọc/ghi/xóa/liệt kê), **không** dùng khóa root. Khóa root chỉ để vận hành.
@@ -90,16 +90,21 @@
 
 **Điểm lệch cần xử lý khi triển khai (chưa sửa mã):**
 
-| # | Hiện trạng | Đặc tả yêu cầu |
-| --- | --- | --- |
-| 1 | `publicEndpoint()` thay chuỗi cứng `://minio:9000` → `127.0.0.1:22374` | Dùng `S3_PUBLIC_ENDPOINT` bắt buộc ngoài dev; bỏ chuỗi cứng (FR-08) |
-| 2 | CORS origin cứng `localhost:22360` | Lấy từ `CORS_ORIGINS` hoặc `S3_CORS_ORIGINS` (FR-08) |
-| 3 | Luôn tạo bucket + đặt CORS khi khởi động | Chỉ dev; prod chỉ `HeadBucket` (FR-09) |
-| 4 | Ứng dụng dùng khóa root MinIO | Khóa dịch vụ giới hạn theo bucket (BR-09) |
-| 5 | `.env.production` có `S3_ENDPOINT=http://localhost:22374` | Cấu hình prod thật theo `configuration.md` |
-| 6 | Image `bitnamilegacy/*` + MinIO Community đã ngừng bảo trì | Ghim phiên bản/digest, giảm bề mặt tấn công, chuẩn bị đường thoát (`research.md` bản ghi 1) |
-| 7 | Chưa có sao lưu, chưa có đối soát mồ côi | FR-13, FR-07 |
-| 8 | Không loại EXIF | FR-12 |
+Trạng thái xử lý (cập nhật 2026-11-03): ✅ đã làm trong mã/cấu hình · ⏳ còn lại.
+
+| # | Hiện trạng ban đầu | Đặc tả yêu cầu | Trạng thái |
+| --- | --- | --- | --- |
+| 1 | `publicEndpoint()` thay chuỗi cứng `://minio:9000` → `127.0.0.1:22374` | Dùng `S3_PUBLIC_ENDPOINT` bắt buộc ngoài dev; bỏ chuỗi cứng (FR-08) | ✅ `storage.config.ts`; `.env*` đã có biến |
+| 2 | CORS origin cứng `localhost:22360` | Lấy từ `CORS_ORIGINS` hoặc `S3_CORS_ORIGINS` (FR-08) | ✅ (MinIO bỏ qua CORS theo bucket, xem `configuration.md`) |
+| 3 | Luôn tạo bucket + đặt CORS khi khởi động | Chỉ dev; prod chỉ `HeadBucket` (FR-09) | ✅ `S3_AUTO_CREATE_BUCKET` |
+| 4 | Ứng dụng dùng khóa root MinIO | Khóa dịch vụ giới hạn theo bucket (BR-09) | ⏳ dev vẫn dùng khóa root; làm khi dựng production |
+| 5 | `.env.production` có `S3_ENDPOINT=http://localhost:22374` | Cấu hình prod thật theo `configuration.md` | ⏳ đã thêm biến, giá trị prod thật do người vận hành điền |
+| 6 | Image `bitnamilegacy/*` + MinIO Community đã ngừng bảo trì | Ghim phiên bản/digest, giảm bề mặt tấn công, chuẩn bị đường thoát (`research.md` bản ghi 1) | ⏳ đã ghi chú trong compose; chưa ghim digest |
+| 7 | Chưa có sao lưu, chưa có đối soát mồ côi | FR-13, FR-07 | ⏳ module đã có job dọn `pending` riêng; chưa có sao lưu và đối soát chung |
+| 8 | Không loại EXIF | FR-12 | ⏳ chờ quyết định thư viện (Câu hỏi mở 3) |
+| 9 | URL PUT không thực sự ràng buộc `Content-Type` (phát hiện khi kiểm thử) | URL PUT ký kèm `Content-Type` (FR-02) | ✅ `signableHeaders` |
+| 10 | `objectSize` nuốt mọi lỗi thành `null` | Chỉ `NotFound` → `null` (`storage-port.md`) | ✅ |
+| 11 | Không có `deleteObjects`, `listByPrefix`, kiểm tra khóa, timeout | Theo `storage-port.md` | ✅ |
 
 **Trạng thái MinIO (quan trọng):** kho `minio/minio` đã được chủ sở hữu **lưu trữ (archived) ngày 25/04/2026**, README ghi "no longer maintained"; bản nhị phân cũ không còn cập nhật. Mã nguồn vẫn AGPL-3.0 và bản hiện có chạy được, nhưng **sẽ không có bản vá bảo mật**. Vì vậy đặc tả giữ MinIO cho dev và giai đoạn đầu, đồng thời khóa chặt phạm vi chức năng vào S3 chuẩn để chuyển được (`research.md` bản ghi 1).
 
@@ -149,8 +154,9 @@
 3. **FR-12 (loại EXIF):** chấp nhận thêm thư viện (ví dụ `sharp`) hay làm bằng cách khác? Kiểm tra `backend/package.json` ngày 2026-11-03: chưa có `sharp`.
 4. **`/reset` ở dev có nên xóa luôn đối tượng trong bucket dev?** Chạm vào công cụ reset nên cần người dùng đồng ý rõ ràng theo `.cursor/rules/dev-reset.md`; đặc tả không tự thay đổi.
 5. **Hạn mức:** có cần giới hạn dung lượng lưu trữ theo người dùng/gói (liên quan `007-billing`) không?
-6. **Thử nghiệm ký `Content-Length`** trên MinIO và R2 (BR-06) — cần spike nhỏ khi triển khai.
+6. **Ký `Content-Length` trên R2** (BR-06): MinIO đã xác nhận ép được; R2 chưa thử. Chưa bật cho module nào.
 
 ## Nhật ký cập nhật <!-- key: update_log -->
 
+- 2026-11-03: Áp dụng đặc tả vào `StorageService`, `.env*`, compose; kiểm thử thật trên MinIO dev (xem `research.md` mục "Kết quả kiểm thử"). Sửa BR-06 theo kết quả.
 - 2026-11-03: Tạo đặc tả ban đầu từ tài liệu chính thức (MinIO, Cloudflare R2, AWS S3), OWASP, và cách GitLab/Mastodon dùng kho đối tượng; đối chiếu mã `StorageService` hiện có. Phát hiện kho MinIO đã lưu trữ ngày 25/04/2026.

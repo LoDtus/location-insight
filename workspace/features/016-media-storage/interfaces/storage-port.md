@@ -12,8 +12,8 @@ Mô tả hợp đồng mà mọi module dùng. Không phải API HTTP; không th
 | `getObjectRange(key, bytes)` | Đọc đầu tệp để đối chiếu chữ ký | `GetObject` + `Range` | Có |
 | `objectSize(key)` | Kích thước thực, `null` nếu không có | `HeadObject` | Có |
 | `deleteObject(key)` | Xóa một đối tượng | `DeleteObject` | Có |
-| `deleteObjects(keys)` | Xóa theo lô (≤ 1000) | `DeleteObjects` | **Mới** (dùng cho job dọn) |
-| `listByPrefix(prefix, cursor)` | Đối soát mồ côi | `ListObjectsV2` | **Mới** (giai đoạn 1+) |
+| `deleteObjects(keys)` | Xóa theo lô (≤ 1000), trả các khóa lỗi | `DeleteObjects` | Có (mới thêm; chưa module nào dùng) |
+| `listByPrefix(prefix, cursor, limit)` | Đối soát mồ côi | `ListObjectsV2` | Có (mới thêm; chưa module nào dùng) |
 | `getPresignedPutUrl(key, contentType, ttl, opts)` | URL tải lên | URL ký `PUT` | Có |
 | `getPresignedUrl(key, ttl, opts)` | URL xem/tải | URL ký `GET` | Có |
 
@@ -23,8 +23,8 @@ Mô tả hợp đồng mà mọi module dùng. Không phải API HTTP; không th
 
 - `key` luôn do server tạo theo BR-03. Phương thức **từ chối** khóa chứa `..`, bắt đầu bằng `/`, rỗng, hoặc dài hơn 512 byte.
 - Không phương thức nào trả về hay ghi nhật ký URL đã ký; chỉ trả cho người gọi để gửi tới đúng người dùng.
-- Lỗi `NotFound` của `objectSize` trả `null`; các lỗi khác ném lên (không nuốt).
-- Thời gian hết hạn tối đa khi ký: PUT 600 giây, GET 3600 giây (cấu hình trong code, không từ client).
+- Lỗi `NotFound` của `objectSize` trả `null`; các lỗi khác ném lên (không nuốt). Lưu ý: với khóa dịch vụ không có quyền `ListBucket`, S3 trả 403 thay vì 404 cho khóa thiếu, nên chính sách mẫu trong `configuration.md` có `s3:ListBucket`.
+- Thời gian hết hạn tối đa khi ký: PUT 600 giây, GET 3600 giây (hằng số trong `storage.config.ts`, không từ client). URL PUT luôn ký `Content-Type` (đã kiểm chứng trên MinIO).
 - Không có phương thức nhận bucket làm tham số: bucket là cấu hình.
 
 ## Cột chuẩn cho bảng metadata của module

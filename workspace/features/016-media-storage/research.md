@@ -96,7 +96,7 @@ Có CVE MinIO ảnh hưởng cấu hình đang dùng; hoặc quyết định ch�
 
 ### Quyết định
 
-**A.** Giữ luồng hiện có. Bù phần thiếu: (1) kiểm `ContentLength` thực qua `HEAD` và xóa nếu vượt; (2) hạn mức tệp `pending` mỗi người; (3) hết hạn URL PUT ≤ 10 phút; (4) thử nghiệm ký thêm `Content-Length` (một số triển khai chấp nhận header này khi ký, **cần xác minh bằng thử nghiệm** trên cả MinIO và R2 trước khi dựa vào). **D** chỉ khi có tệp > 100 MB (bậc 2 trong roadmap).
+**A.** Giữ luồng hiện có. Bù phần thiếu: (1) kiểm `ContentLength` thực qua `HEAD` và xóa nếu vượt; (2) hạn mức tệp `pending` mỗi người; (3) hết hạn URL PUT ≤ 10 phút; (4) ký thêm `Content-Length` — **đã kiểm chứng trên MinIO** (gửi sai độ dài bị `403 SignatureDoesNotMatch`), **chưa kiểm trên R2**; có sẵn như tùy chọn `contentLength`, chưa bật cho module nào. **D** chỉ khi có tệp > 100 MB (bậc 2 trong roadmap).
 
 ---
 
@@ -142,3 +142,22 @@ Giai đoạn đầu **A** (đã chạy). Khi số liệu cho thấy tải ảnh 
 ### Quyết định
 
 **A** với quy ước cột chung (xem `interfaces/storage-port.md` §Cột chuẩn). **C** là bậc 2 khi cần hạn mức hoặc đối soát xuyên miền. **B** chỉ khi xuất hiện nhóm công khai (BR-08).
+
+---
+
+## Kết quả kiểm thử thật trên MinIO dev (2026-11-03) <!-- key: verification -->
+
+Chạy bằng AWS SDK v3 từ container backend tới MinIO `bitnamilegacy/minio:2025.7.23`, gọi URL ký bằng `curl` từ máy chủ.
+
+| Giả định | Kết quả |
+| --- | --- |
+| `signingDate` lùi 5 phút vẫn dùng được (nền tảng của bản ghi 4) | Đạt: `200` |
+| Ký `ContentLength=5`, gửi đúng 5 byte | Đạt: `200` |
+| Ký `ContentLength=5`, gửi 12 byte | Bị chặn: `403 SignatureDoesNotMatch` |
+| Không ký `ContentLength`, gửi 12 byte | `200` (không ép kích thước) |
+| PUT với `Content-Type` khác lúc ký, **mặc định SDK** | `200`, **không bị chặn** (sai với giả định cũ) |
+| PUT với `Content-Type` khác lúc ký, sau khi thêm `signableHeaders: ['content-type']` | Bị chặn: `403` |
+| `HeadObject` khóa không tồn tại | lỗi `NotFound`, HTTP 404 |
+| `PutBucketCors` | `NotImplemented` (MinIO không hỗ trợ CORS theo bucket) |
+
+Hệ quả: (1) `Content-Type` phải được ký tường minh, đã sửa trong `StorageService`; ba client website đều gửi `content-type: file.type` trùng giá trị khai báo nên không bị ảnh hưởng. (2) Chưa kiểm trên R2: hành vi ký header và `Content-Length` có thể khác.

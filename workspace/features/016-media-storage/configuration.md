@@ -7,15 +7,15 @@ Tuân thủ `.cursor/rules/env-docker.md`: giá trị chỉ sửa ở `.env.deve
 | Biến | Có sẵn? | Ý nghĩa | Dev (MinIO) | Prod tự host (MinIO) | Prod cloud (R2) |
 | --- | --- | --- | --- | --- | --- |
 | `S3_ENDPOINT` | Có | Endpoint backend gọi (trong mạng Docker) | `http://minio:9000` (compose ghi đè) | `http://minio:9000` | `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` |
-| `S3_PUBLIC_ENDPOINT` | Có (đọc tùy chọn) | Endpoint trình duyệt gọi; dùng để ký URL | `http://127.0.0.1:${MINIO_API_PORT}` | `https://media.<miền>` (reverse proxy tới MinIO) | Giống `S3_ENDPOINT` (URL ký R2 không dùng tên miền riêng) |
+| `S3_PUBLIC_ENDPOINT` | Có (đã thêm vào `.env*`; bắt buộc ở production) | Endpoint trình duyệt gọi; dùng để ký URL | `http://127.0.0.1:${MINIO_API_PORT}` | `https://media.<miền>` (reverse proxy tới MinIO) | Giống `S3_ENDPOINT` (URL ký R2 không dùng tên miền riêng) |
 | `S3_REGION` | Có | Vùng ký SigV4 | `us-east-1` | `us-east-1` | `auto` |
 | `S3_BUCKET` | Có | Tên bucket | `location-insight` | `location-insight` | tên bucket R2 |
 | `S3_ACCESS_KEY` | Có | Khóa truy cập | khóa dev | **khóa dịch vụ giới hạn bucket** | token R2 giới hạn bucket (Object Read & Write) |
 | `S3_SECRET_KEY` | Có | Bí mật | giá trị dev | giá trị thật, không commit | giá trị thật, không commit |
 | `S3_FORCE_PATH_STYLE` | Có | Địa chỉ dạng path | `true` | `true` | `true` (an toàn; R2 chấp nhận) |
-| `S3_AUTO_CREATE_BUCKET` | **Mới** | Cho phép tự tạo bucket + đặt CORS khi khởi động | `true` | `false` | `false` |
-| `S3_CORS_ORIGINS` | **Mới** (hoặc tái dùng `CORS_ORIGINS`) | Origin web được gọi trực tiếp tới kho | `http://localhost:${WEBSITE_PORT}` | `https://<miền web>` | `https://<miền web>` |
-| `S3_REQUEST_TIMEOUT_MS` | **Mới**, tùy chọn | Timeout kết nối/đọc | `5000` | `5000` | `5000` |
+| `S3_AUTO_CREATE_BUCKET` | Có (đã thêm; mặc định `true` ngoài production) | Cho phép tự tạo bucket + đặt CORS khi khởi động | `true` | `false` | `false` |
+| `S3_CORS_ORIGINS` | Có (đã thêm; bỏ trống thì dùng `CORS_ORIGINS`) | Origin web được gọi trực tiếp tới kho | `http://localhost:${WEBSITE_PORT}` | `https://<miền web>` | `https://<miền web>` |
+| `S3_REQUEST_TIMEOUT_MS` | Có (đã thêm, tùy chọn) | Timeout kết nối/đọc | `5000` | `5000` | `5000` |
 | `MINIO_API_PORT`, `MINIO_CONSOLE_PORT` | Có | Cổng publish ra host | như hiện tại | **không publish console** | không dùng |
 
 Ghi chú:
@@ -48,7 +48,7 @@ Ghi chú:
 ```
 
    (`PutBucketCors` và `CreateBucket` làm một lần bằng khóa root khi dựng hệ thống, vì `S3_AUTO_CREATE_BUCKET=false`.)
-6. CORS bucket (cho phép đúng origin web):
+6. CORS. **MinIO không hỗ trợ `PutBucketCors`** (trả `NotImplemented`, đã kiểm chứng); CORS của MinIO đặt ở mức máy chủ bằng biến `MINIO_API_CORS_ALLOW_ORIGIN=https://<miền web>` (hoặc cấu hình ở reverse proxy). Với R2 và các kho hỗ trợ CORS theo bucket, dùng cấu hình sau:
 
 ```json
 [

@@ -96,6 +96,8 @@ services:
       retries: 30
       start_period: 40s
 
+  # MinIO Community đã archived (2026-04-25), không còn bản vá: chỉ dùng cho dev, giữ phiên bản ghim cố định.
+  # Backend chỉ nói S3 API (xem workspace/features/016-media-storage); đổi nhà cung cấp bằng .env.
   minio:
     container_name: location-insight-minio
     image: bitnamilegacy/minio:2025.7.23-debian-12-r5

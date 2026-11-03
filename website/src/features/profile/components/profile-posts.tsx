@@ -13,9 +13,15 @@ import {
     likePost,
     listAuthorPosts,
     unlikePost,
+    type AuthorPostSort,
     type DiscussionPost,
 } from "@/features/discussions/discussions.api";
 import { getConfirmModal } from "@/shared/utils/confirm.utils";
+
+function readAuthorSort(value: string): AuthorPostSort {
+    if (value === "interactions" || value === "oldest") return value;
+    return "newest";
+}
 
 export function ProfilePosts({
     username,
@@ -32,15 +38,17 @@ export function ProfilePosts({
     const [saved, setSaved] = useState<string[]>([]);
     const [message, setMessage] = useState("");
     const [loading, setLoading] = useState(true);
+    const [sort, setSort] = useState<AuthorPostSort>("newest");
 
     const load = useCallback(async (): Promise<void> => {
-        const page = await listAuthorPosts(username);
+        const page = await listAuthorPosts(username, undefined, sort);
         setPosts(page.items);
-    }, [username]);
+    }, [username, sort]);
 
     useEffect(() => {
         setSaved(readSavedPosts());
         let active = true;
+        setLoading(true);
         void load()
             .catch((error: unknown) => {
                 if (!active) return;
@@ -68,10 +76,24 @@ export function ProfilePosts({
     }
 
     return (
-        <section className="mt-10" aria-labelledby="bai-dang">
-            <h2 id="bai-dang" className="m-0 text-lg font-semibold">
-                Bài đăng
-            </h2>
+        <section className="mt-8" aria-labelledby="bai-dang">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 id="bai-dang" className="m-0 text-lg font-semibold">
+                    Bài đăng
+                </h2>
+                <label className="text-sm">
+                    <span className="sr-only">Sắp xếp bài đăng</span>
+                    <select
+                        className="min-h-11 rounded-full border border-charcoal/15 bg-white px-3 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
+                        value={sort}
+                        onChange={(event) => setSort(readAuthorSort(event.target.value))}
+                    >
+                        <option value="newest">Mới nhất</option>
+                        <option value="interactions">Tương tác nhiều nhất</option>
+                        <option value="oldest">Lâu nhất</option>
+                    </select>
+                </label>
+            </div>
             {message ? (
                 <p role="alert" className="mt-3 mb-0 text-sm">
                     {message}

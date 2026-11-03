@@ -17,7 +17,6 @@ import { AUTH_BUTTON_CLASS, AUTH_FIELD_CLASS } from "@/app/auth/form-class";
 import type { ShellRoot } from "@/features/app/shell";
 import { AuthApiError } from "@/features/auth/auth.api";
 import { profileUpdated } from "@/features/auth/auth.slice";
-import { EmailPreferencesCard } from "@/features/email/components/email-preferences-card";
 import { ProfileForumPost } from "@/features/profile/components/profile-forum-post";
 import { ProfilePosts } from "@/features/profile/components/profile-posts";
 import {
@@ -351,16 +350,10 @@ export default function ProfileScreen({
                     </p>
                 ) : null}
 
-                {profile.username ? (
-                    <ProfilePosts username={profile.username} root={root} reloadKey={postedTick} />
-                ) : null}
-
                 {own ? <ProfileForumPost root={root} onPosted={() => setPostedTick((current) => current + 1)} /> : null}
 
-                {own ? (
-                    <div className="mt-8">
-                        <EmailPreferencesCard />
-                    </div>
+                {profile.username ? (
+                    <ProfilePosts username={profile.username} root={root} reloadKey={postedTick} />
                 ) : null}
 
                 {own && root === "/app" && profile.username ? (

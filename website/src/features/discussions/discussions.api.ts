@@ -66,9 +66,16 @@ export function listPosts(cursor?: string, scope?: "following"): Promise<Discuss
     return apiRequest(`/discussions/posts${query ? `?${query}` : ""}`);
 }
 
-export function listAuthorPosts(username: string, cursor?: string): Promise<DiscussionPage<DiscussionPost>> {
+export type AuthorPostSort = "newest" | "interactions" | "oldest";
+
+export function listAuthorPosts(
+    username: string,
+    cursor?: string,
+    sort: AuthorPostSort = "newest",
+): Promise<DiscussionPage<DiscussionPost>> {
     const params = new URLSearchParams();
     if (cursor) params.set("cursor", cursor);
+    if (sort !== "newest") params.set("sort", sort);
     const suffix = params.toString();
     return apiRequest(`/discussions/authors/${encodeURIComponent(username)}/posts${suffix ? `?${suffix}` : ""}`);
 }

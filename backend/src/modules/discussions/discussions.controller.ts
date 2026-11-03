@@ -15,6 +15,7 @@ import { RequirePermission } from '../../common/decorators/access.decorator.js';
 import type { RequestWithPrincipal } from '../auth/auth.guard.js';
 import { DiscussionsService } from './discussions.service.js';
 import {
+  AuthorPostsQueryDto,
   CreateMediaDto,
   CreatePostDto,
   CreateReplyDto,
@@ -61,10 +62,15 @@ export class DiscussionsController {
   @Get('authors/:username/posts')
   authorPosts(
     @Param('username') username: string,
-    @Query() query: CursorQueryDto,
+    @Query() query: AuthorPostsQueryDto,
     @Req() request: RequestWithPrincipal,
   ) {
-    return this.discussions.listAuthorPosts(username, this.userId(request), query.cursor);
+    return this.discussions.listAuthorPosts(
+      username,
+      this.userId(request),
+      query.cursor,
+      query.sort ?? 'newest',
+    );
   }
 
   @RequirePermission('discussion:write')

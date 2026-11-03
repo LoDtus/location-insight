@@ -92,7 +92,7 @@ export function ProfileForumPost({ root, onPosted }: { root: ShellRoot; onPosted
     }
 
     return (
-        <section className="mt-10 max-w-[640px] overflow-hidden rounded-2xl border border-charcoal/10 bg-white" aria-labelledby="dang-dien-dan">
+        <section className="mt-6 max-w-[640px] overflow-hidden rounded-2xl border border-charcoal/10 bg-white" aria-labelledby="dang-dien-dan">
             <h2 id="dang-dien-dan" className="m-0 border-b border-charcoal/10 px-4 py-3 text-base font-semibold">
                 Đăng lên diễn đàn
             </h2>

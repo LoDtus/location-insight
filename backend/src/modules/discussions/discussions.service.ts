@@ -138,10 +138,15 @@ export class DiscussionsService {
     return this.pagePosts(cursor, null, viewerId, undefined, followingOnly);
   }
 
-  async listAuthorPosts(username: string, viewerId: string, cursor?: string) {
+  async listAuthorPosts(
+    username: string,
+    viewerId: string,
+    cursor?: string,
+    sort: 'newest' | 'interactions' | 'oldest' = 'newest',
+  ) {
     const author = await this.users.findOne({ where: { username } });
     if (!author) this.missing('Không tìm thấy người dùng.');
-    return this.pagePosts(cursor, null, viewerId, author.id);
+    return this.pagePosts(cursor, null, viewerId, author.id, false, sort);
   }
 
   async createPost(userId: string, input: CreatePostDto): Promise<PostView> {
@@ -451,14 +456,22 @@ export class DiscussionsService {
     viewerId: string,
     authorId?: string,
     followingOnly = false,
+    sort: 'newest' | 'interactions' | 'oldest' = 'newest',
   ) {
     const qb = this.posts
       .createQueryBuilder('post')
       .where('post.rootId IS NULL')
       .andWhere('post.status = :status', { status: 'visible' })
-      .orderBy('post.createdAt', 'DESC')
-      .addOrderBy('post.id', 'DESC')
       .take(FEED_PAGE + 1);
+    if (sort === 'oldest') {
+      qb.orderBy('post.createdAt', 'ASC').addOrderBy('post.id', 'ASC');
+    } else if (sort === 'interactions') {
+      qb.orderBy('post.likeCount + post.replyCount', 'DESC')
+        .addOrderBy('post.createdAt', 'DESC')
+        .addOrderBy('post.id', 'DESC');
+    } else {
+      qb.orderBy('post.createdAt', 'DESC').addOrderBy('post.id', 'DESC');
+    }
     if (topicId) qb.andWhere('post.topicId = :topicId', { topicId });
     if (authorId) qb.andWhere('post.authorId = :authorId', { authorId });
     if (followingOnly) {
@@ -467,7 +480,7 @@ export class DiscussionsService {
         { viewerId },
       );
     }
-    const point = readCursor(cursor);
+    const point = sort === 'newest' ? readCursor(cursor) : undefined;
     if (point) {
       qb.andWhere(
         '(post.createdAt < :at OR (post.createdAt = :at AND post.id < :id))',
@@ -480,7 +493,8 @@ export class DiscussionsService {
     const last = slice.at(-1);
     return {
       items: await this.present(slice, viewerId),
-      nextCursor: hasMore && last ? writeCursor(last.createdAt, last.id) : null,
+      nextCursor:
+        sort === 'newest' && hasMore && last ? writeCursor(last.createdAt, last.id) : null,
     };
   }
 

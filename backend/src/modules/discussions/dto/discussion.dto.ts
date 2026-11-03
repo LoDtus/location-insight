@@ -32,6 +32,15 @@ export class CursorQueryDto {
   scope?: 'following';
 }
 
+export const AUTHOR_POST_SORTS = ['newest', 'interactions', 'oldest'] as const;
+export type AuthorPostSort = (typeof AUTHOR_POST_SORTS)[number];
+
+export class AuthorPostsQueryDto extends CursorQueryDto {
+  @IsOptional()
+  @IsIn(AUTHOR_POST_SORTS)
+  sort?: AuthorPostSort;
+}
+
 export class CreateTopicDto {
   @IsString()
   @MinLength(3)

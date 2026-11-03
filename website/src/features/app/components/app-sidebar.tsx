@@ -9,6 +9,8 @@ import {
     Mail,
     LogOut,
     Map,
+    Settings,
+    UserRound,
     MessagesSquare,
     Newspaper,
     PanelLeftClose,
@@ -79,12 +81,16 @@ export default function AppSidebar({
     const [collapsed, setCollapsed] = useState(false);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [signingOut, setSigningOut] = useState(false);
+    const [accountOpen, setAccountOpen] = useState(false);
+    const accountRef = useRef<HTMLDivElement>(null);
     const onMap = isMapPath(pathname);
     const wasOnMap = useRef(onMap);
     const vi = locale === "vi";
     const user = auth.user;
     const home = surface === "admin" ? "/admin/properties" : "/app/properties";
-    const profileHref = surface === "admin" ? "/admin/profile" : "/app/profile";
+    const accountRoot = user?.role === "admin" ? "/admin" : "/app";
+    const profileHref = `${accountRoot}/profile`;
+    const settingsHref = `${accountRoot}/settings`;
 
     useEffect(() => {
         const compact = window.matchMedia("(max-width: 767px)");
@@ -112,7 +118,27 @@ export default function AppSidebar({
         return () => window.removeEventListener("keydown", onKey);
     }, [drawerOpen]);
 
+    useEffect(() => {
+        if (!accountOpen) return;
+        function onPointer(event: PointerEvent): void {
+            if (!accountRef.current?.contains(event.target as Node)) setAccountOpen(false);
+        }
+        function onKey(event: KeyboardEvent): void {
+            if (event.key === "Escape") setAccountOpen(false);
+        }
+        document.addEventListener("pointerdown", onPointer);
+        window.addEventListener("keydown", onKey);
+        return () => {
+            document.removeEventListener("pointerdown", onPointer);
+            window.removeEventListener("keydown", onKey);
+        };
+    }, [accountOpen]);
+
     const compact = onMap ? !drawerOpen : collapsed;
+
+    useEffect(() => {
+        setAccountOpen(false);
+    }, [pathname, compact]);
 
     const items: NavEntry[] =
         surface === "admin"
@@ -258,7 +284,7 @@ export default function AppSidebar({
             />
         ) : null}
         <aside
-            className={`flex shrink-0 flex-col border-r border-charcoal/15 bg-white transition-[width] duration-200 motion-reduce:transition-none ${onMap ? "fixed inset-y-0 left-0 z-50" : "relative h-full"} ${compact ? "w-[72px]" : "w-[272px]"}`}
+            className={`flex shrink-0 flex-col border-r border-charcoal/15 bg-white transition-[width] duration-200 motion-reduce:transition-none ${onMap ? "fixed inset-y-0 left-0 z-50" : "relative z-20 h-full"} ${compact ? "w-[72px]" : "w-[272px]"}`}
             role={onMap && drawerOpen ? "dialog" : undefined}
             aria-modal={onMap && drawerOpen ? true : undefined}
             aria-label={onMap && drawerOpen ? (vi ? "Menu" : "Menu") : undefined}
@@ -351,31 +377,89 @@ export default function AppSidebar({
             </nav>
 
             <div className="border-t border-charcoal/15 p-3">
-                <Link
-                    href={profileHref}
-                    aria-current={pathname === profileHref ? "page" : undefined}
-                    className={`flex min-h-14 items-center rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green ${
-                        compact ? "justify-center" : "gap-3 px-1"
-                    } ${
-                        pathname === profileHref
-                            ? "bg-green/10 text-green"
-                            : "text-charcoal hover:bg-green/10"
-                    }`}
-                >
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-green text-xs font-semibold text-cream">
-                        {initialsOf(user?.displayName ?? "")}
-                    </span>
-                    {compact ? null : (
-                        <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-semibold">
-                                {user?.displayName}
+                <div ref={accountRef} className="relative">
+                    <button
+                        type="button"
+                        className={`flex min-h-14 w-full items-center rounded-xl text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green ${
+                            compact ? "justify-center" : "gap-3 px-1"
+                        } ${
+                            pathname === profileHref || pathname === settingsHref
+                                ? "bg-green/10 text-green"
+                                : "text-charcoal hover:bg-green/10"
+                        }`}
+                        aria-haspopup="menu"
+                        aria-expanded={accountOpen}
+                        aria-controls={accountOpen ? "menu-tai-khoan" : undefined}
+                        onClick={() => setAccountOpen((open) => !open)}
+                    >
+                        {user?.avatarUrl ? (
+                            // Ảnh đại diện đã lưu của chính người dùng.
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                                src={user.avatarUrl}
+                                alt=""
+                                className="size-10 shrink-0 rounded-full object-cover"
+                            />
+                        ) : (
+                            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-green text-xs font-semibold text-cream">
+                                {initialsOf(user?.displayName ?? "")}
                             </span>
-                            <span className="mt-0.5 block truncate text-xs text-charcoal/70">
-                                {user?.email}
+                        )}
+                        {compact ? null : (
+                            <span className="min-w-0 flex-1">
+                                <span className="block truncate text-sm font-semibold">
+                                    {user?.displayName}
+                                </span>
+                                <span className="mt-0.5 block truncate text-xs text-charcoal/70">
+                                    {user?.email}
+                                </span>
                             </span>
-                        </span>
-                    )}
-                </Link>
+                        )}
+                    </button>
+                    {accountOpen ? (
+                        <div
+                            id="menu-tai-khoan"
+                            role="menu"
+                            className={
+                                compact
+                                    ? "absolute bottom-0 left-full z-30 ml-3 w-56 rounded-2xl border border-charcoal/15 bg-white p-2 shadow-[0_20px_55px_rgba(16,17,17,0.16)]"
+                                    : "absolute bottom-full left-0 right-0 z-30 mb-3 rounded-2xl border border-charcoal/15 bg-white p-2 shadow-[0_20px_55px_rgba(16,17,17,0.16)]"
+                            }
+                        >
+                            <Link
+                                href={profileHref}
+                                role="menuitem"
+                                className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-charcoal no-underline hover:bg-green/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
+                                onClick={() => setAccountOpen(false)}
+                            >
+                                <UserRound className="size-4 shrink-0" aria-hidden="true" />
+                                <span>{vi ? "Trang cá nhân" : "Profile"}</span>
+                            </Link>
+                            <Link
+                                href={settingsHref}
+                                role="menuitem"
+                                className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-charcoal no-underline hover:bg-green/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
+                                onClick={() => setAccountOpen(false)}
+                            >
+                                <Settings className="size-4 shrink-0" aria-hidden="true" />
+                                <span>{vi ? "Cài đặt" : "Settings"}</span>
+                            </Link>
+                            <div className="my-1 h-px bg-charcoal/15" />
+                            <button
+                                type="button"
+                                role="menuitem"
+                                className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-semibold text-charcoal hover:bg-green/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green disabled:cursor-wait disabled:opacity-60"
+                                disabled={signingOut}
+                                onClick={() => {
+                                    void handleLogout();
+                                }}
+                            >
+                                <LogOut className="size-4 shrink-0" aria-hidden="true" />
+                                <span>{vi ? "Đăng xuất" : "Log out"}</span>
+                            </button>
+                        </div>
+                    ) : null}
+                </div>
                 {pwa.canInstall || pwa.showGuide ? (
                     <button
                         type="button"
@@ -388,19 +472,6 @@ export default function AppSidebar({
                         {compact ? null : <span>Cài ứng dụng</span>}
                     </button>
                 ) : null}
-                <button
-                    type="button"
-                    className={`mt-2 flex min-h-11 w-full items-center rounded-xl text-sm text-charcoal hover:bg-green/10 hover:text-green focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green disabled:cursor-wait disabled:opacity-60 ${compact ? "justify-center px-2" : "gap-3 px-3"}`}
-                    disabled={signingOut}
-                    aria-label={vi ? "Đăng xuất" : "Log out"}
-                    title={vi ? "Đăng xuất" : "Log out"}
-                    onClick={() => {
-                        void handleLogout();
-                    }}
-                >
-                    <LogOut className="size-[18px] shrink-0" aria-hidden="true" />
-                    {compact ? null : <span>{vi ? "Đăng xuất" : "Log out"}</span>}
-                </button>
             </div>
         </aside>
         </>

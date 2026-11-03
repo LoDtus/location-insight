@@ -97,7 +97,7 @@ export function PostCard({
                             {post.authorName}
                         </Link>
                         {post.authorUsername ? (
-                            <Link href={`${root}/profile/${post.authorUsername}`} className="text-charcoal/55 no-underline">
+                            <Link href={`${root}/profile/@${post.authorUsername}`} className="text-charcoal/55 no-underline">
                                 {" "}@{post.authorUsername}
                             </Link>
                         ) : null}

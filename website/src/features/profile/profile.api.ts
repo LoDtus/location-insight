@@ -12,6 +12,14 @@ export type Profile = {
     joinedAt: string;
 };
 
+export type SharedAvatar = {
+    fileId: string;
+    avatarUrl: string;
+    userId: string;
+    username: string | null;
+    displayName: string;
+};
+
 export type ProfileInput = {
     displayName: string;
     username: string;
@@ -26,6 +34,14 @@ export function getOwnProfile(): Promise<Profile> {
 
 export function getPublicProfile(username: string): Promise<Profile> {
     return apiRequest<Profile>(`/profiles/${encodeURIComponent(username)}`);
+}
+
+export function getProfileById(userId: string): Promise<Profile> {
+    return apiRequest<Profile>(`/profiles/id/${encodeURIComponent(userId)}`);
+}
+
+export function getSharedAvatar(fileId: string): Promise<SharedAvatar> {
+    return apiRequest<SharedAvatar>(`/profiles/avatars/${encodeURIComponent(fileId)}`);
 }
 
 export function updateOwnProfile(input: ProfileInput): Promise<Profile> {

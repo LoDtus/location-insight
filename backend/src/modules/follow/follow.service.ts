@@ -311,14 +311,16 @@ export class FollowService {
       to: { userId: target.id, email: target.email, displayName: target.displayName, locale: target.locale },
       vars: {
         follower_name: follower.displayName,
-        profile_url: `${origin}/app/profile/${follower.username ?? follower.id}`,
+        profile_url: `${origin}${follower.username ? `/app/profile/@${follower.username}` : '/app/profile'}`,
       },
       dedupeKey: `new_follower:${followerId}:${targetId}`,
     });
     await this.notifications.notify({
       userId: target.id,
       type: 'follow.new',
-      link: `/app/profile/${follower.username ?? follower.id}`,
+      link: follower.username
+        ? `/app/profile/@${follower.username}`
+        : '/app/profile',
       params: { actorName: follower.displayName },
       actorId: follower.id,
       dedupeKey: `follow.new:${followerId}:${targetId}`,

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import ProfileScreen from "@/features/profile/components/profile-screen";
+import { readProfileSegment } from "@/features/profile/profile-path";
 
 export default async function Page({
     params,
@@ -8,7 +9,10 @@ export default async function Page({
     params: Promise<{ username: string }>;
 }) {
     const { username } = await params;
-    const handle = decodeURIComponent(username).replace(/^@/, "");
-    if (!handle) notFound();
-    return <ProfileScreen root="/app" username={handle} />;
+    const target = readProfileSegment(username);
+    if (!target) notFound();
+    if (target.kind === "id") {
+        return <ProfileScreen root="/app" userId={target.userId} />;
+    }
+    return <ProfileScreen root="/app" username={target.username} />;
 }

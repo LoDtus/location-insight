@@ -29,6 +29,46 @@ export class ProfileService {
     return this.view(user, true);
   }
 
+  async getById(userId: string) {
+    const user = await this.users.findOne({
+      where: { id: userId, status: UserStatus.ACTIVE },
+    });
+    if (!user) {
+      throw new BusinessException(
+        ErrorCode.NOT_FOUND,
+        'Không tìm thấy hồ sơ này.',
+        undefined,
+        HttpStatus.NOT_FOUND,
+      );
+    }
+    return this.view(user, false);
+  }
+
+  async getSharedAvatar(fileId: string) {
+    const id = fileId.toLowerCase();
+    const user = await this.users
+      .createQueryBuilder('user')
+      .where('user.status = :status', { status: UserStatus.ACTIVE })
+      .andWhere('user.avatarUrl LIKE :tail', { tail: `%/${id}.webp` })
+      .getOne();
+    const key = user ? `avatars/${user.id}/${id}.webp` : '';
+    if (!user || user.avatarUrl !== key) {
+      throw new BusinessException(
+        ErrorCode.NOT_FOUND,
+        'Không tìm thấy ảnh đại diện.',
+        undefined,
+        HttpStatus.NOT_FOUND,
+      );
+    }
+    return {
+      fileId: id,
+      avatarUrl: presentAvatarUrl(user.avatarUrl) ?? '',
+      userId: user.id,
+      username: user.username,
+      displayName: user.displayName,
+    };
+  }
+
   async getPublic(username: string) {
     const user = await this.users.findOne({
       where: {

@@ -123,7 +123,7 @@ export const EMAIL_CATALOG: TemplateDefinition[] = [
     variables: [
       NAME,
       { name: 'follower_name', description: 'Tên người vừa theo dõi', example: 'Hoàng Nam' },
-      { name: 'profile_url', description: 'Liên kết tới hồ sơ người theo dõi', example: 'https://diathe.vn/app/profile/abc', kind: 'url' },
+      { name: 'profile_url', description: 'Liên kết tới hồ sơ người theo dõi', example: 'https://diathe.vn/app/profile/@hoang-nam', kind: 'url' },
     ],
     defaults: {
       subject: '{{follower_name}} vừa theo dõi bạn',

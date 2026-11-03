@@ -18,17 +18,22 @@ import { AUTH_BUTTON_CLASS, AUTH_FIELD_CLASS } from "@/app/auth/form-class";
 import type { ShellRoot } from "@/features/app/shell";
 import { AuthApiError } from "@/features/auth/auth.api";
 import { profileUpdated } from "@/features/auth/auth.slice";
+import { useAuth } from "@/features/auth/use-auth";
 import { AvatarCropDialog } from "@/features/profile/components/avatar-crop-dialog";
 import { ProfileForumPost } from "@/features/profile/components/profile-forum-post";
 import { ProfilePosts } from "@/features/profile/components/profile-posts";
 import {
     getOwnProfile,
+    getProfileById,
     getPublicProfile,
+    getSharedAvatar,
     updateOwnProfile,
     uploadAvatar,
     type Profile,
     type ProfileInput,
+    type SharedAvatar,
 } from "@/features/profile/profile.api";
+import { avatarFileId, isUuid, profileHref } from "@/features/profile/profile-path";
 import { useAppDispatch } from "@/store/hooks";
 
 const EMPTY: ProfileInput = {
@@ -81,10 +86,12 @@ function Avatar({ profile }: { profile: Profile }): JSX.Element {
 function AvatarViewer({
     src,
     name,
+    message,
     onClose,
 }: {
-    src: string;
+    src: string | null;
     name: string;
+    message?: string;
     onClose: () => void;
 }): JSX.Element {
     useEffect(() => {
@@ -100,7 +107,7 @@ function AvatarViewer({
             className="fixed inset-0 z-50 flex items-center justify-center bg-charcoal/80 p-6"
             role="dialog"
             aria-modal="true"
-            aria-label={`Ảnh đại diện của ${name}`}
+            aria-label={name ? `Ảnh đại diện của ${name}` : "Ảnh đại diện"}
             onClick={onClose}
         >
             <button
@@ -110,14 +117,20 @@ function AvatarViewer({
             >
                 Đóng
             </button>
-            {/* Ảnh đã lưu của hồ sơ, phóng lớn để xem đủ khung. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-                src={src}
-                alt={`Ảnh đại diện của ${name}`}
-                className="max-h-[80vh] max-w-[80vw] object-contain"
-                onClick={(event) => event.stopPropagation()}
-            />
+            {src ? (
+                // Ảnh đã lưu của hồ sơ, phóng lớn để xem đủ khung.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                    src={src}
+                    alt={name ? `Ảnh đại diện của ${name}` : "Ảnh đại diện"}
+                    className="max-h-[80vh] max-w-[80vw] object-contain"
+                    onClick={(event) => event.stopPropagation()}
+                />
+            ) : (
+                <p className="m-0 text-sm text-white" role="status">
+                    {message || "Đang mở ảnh…"}
+                </p>
+            )}
         </div>
     );
 }
@@ -125,15 +138,18 @@ function AvatarViewer({
 function ProfileScreenContent({
     root,
     username,
+    userId,
 }: {
     root: ShellRoot;
     username?: string;
+    userId?: string;
 }): JSX.Element {
     const dispatch = useAppDispatch();
+    const auth = useAuth();
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
-    const own = username === undefined;
+    const own = username === undefined && userId === undefined;
     const [profile, setProfile] = useState<Profile | null>(null);
     const [draft, setDraft] = useState<ProfileInput>(EMPTY);
     const [editing, setEditing] = useState(false);
@@ -142,11 +158,19 @@ function ProfileScreenContent({
     const [postedTick, setPostedTick] = useState(0);
     const [cropSrc, setCropSrc] = useState<string | null>(null);
     const [avatarPending, setAvatarPending] = useState(false);
+    const [shared, setShared] = useState<SharedAvatar | null>(null);
+    const [sharedNote, setSharedNote] = useState("");
+    const [localPreview, setLocalPreview] = useState<string | null>(null);
     const fileRef = useRef<HTMLInputElement>(null);
+    const avatarParam = searchParams.get("avatar");
 
     useEffect(() => {
         let active = true;
-        const request = own ? getOwnProfile() : getPublicProfile(username ?? "");
+        const request = userId
+            ? getProfileById(userId)
+            : own
+              ? getOwnProfile()
+              : getPublicProfile(username ?? "");
         void request
             .then((next) => {
                 if (!active) return;
@@ -170,7 +194,59 @@ function ProfileScreenContent({
         return () => {
             active = false;
         };
-    }, [own, username]);
+    }, [own, username, userId]);
+
+    useEffect(() => {
+        if (!avatarParam) {
+            setShared(null);
+            setSharedNote("");
+            return;
+        }
+        if (!isUuid(avatarParam)) {
+            setShared(null);
+            setSharedNote("Không tìm thấy ảnh đại diện.");
+            return;
+        }
+        let active = true;
+        setShared(null);
+        setSharedNote("");
+        void getSharedAvatar(avatarParam)
+            .then((next) => {
+                if (active) setShared(next);
+            })
+            .catch((error: unknown) => {
+                if (!active) return;
+                setShared(null);
+                setSharedNote(
+                    error instanceof AuthApiError
+                        ? error.message
+                        : "Không tìm thấy ảnh đại diện.",
+                );
+            });
+        return () => {
+            active = false;
+        };
+    }, [avatarParam]);
+
+    function closeSharedAvatar(): void {
+        if (!shared) {
+            const params = new URLSearchParams(searchParams.toString());
+            params.delete("avatar");
+            const query = params.toString();
+            router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+            return;
+        }
+        const mine = shared.userId === auth.user?.userId;
+        if (mine) {
+            router.replace(auth.user?.role === "admin" ? "/admin/profile" : "/app/profile");
+            return;
+        }
+        router.replace(
+            shared.username
+                ? profileHref("/app", shared.username)
+                : `/app/profile/${shared.userId}`,
+        );
+    }
 
     function update<Key extends keyof ProfileInput>(
         key: Key,
@@ -211,6 +287,14 @@ function ProfileScreenContent({
                 <p role={message ? "alert" : "status"} className="m-0 px-4 py-8 text-sm">
                     {message || "Đang tải hồ sơ…"}
                 </p>
+                {avatarParam && !editing ? (
+                    <AvatarViewer
+                        src={shared?.avatarUrl ?? null}
+                        name={shared?.displayName ?? ""}
+                        message={sharedNote}
+                        onClose={closeSharedAvatar}
+                    />
+                ) : null}
             </main>
         );
     }
@@ -225,9 +309,12 @@ function ProfileScreenContent({
                                 editing={own && editing}
                                 pending={avatarPending}
                                 onView={() => {
-                                    const params = new URLSearchParams(searchParams.toString());
-                                    params.set("avatar", "1");
-                                    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+                                    const fileId = avatarFileId(profile.avatarUrl);
+                                    if (!fileId) {
+                                        if (profile.avatarUrl) setLocalPreview(profile.avatarUrl);
+                                        return;
+                                    }
+                                    router.push(`/app/profile?avatar=${fileId}`);
                                 }}
                                 onChange={() => fileRef.current?.click()}
                             />
@@ -288,7 +375,7 @@ function ProfileScreenContent({
                                         className="inline-flex min-h-11 shrink-0 items-center gap-2 border border-current bg-transparent px-4 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
                                         onClick={() => {
                                             setEditing(true);
-                                            if (searchParams.get("avatar") !== "1") return;
+                                            if (!searchParams.get("avatar")) return;
                                             const params = new URLSearchParams(searchParams.toString());
                                             params.delete("avatar");
                                             const query = params.toString();
@@ -437,7 +524,7 @@ function ProfileScreenContent({
                 {own && root === "/app" && profile.username ? (
                     <p className="mt-8 mb-0 border-t border-charcoal/15 pt-6 text-sm">
                         <Link
-                            href={`/app/profile/${profile.username}`}
+                            href={profileHref("/app", profile.username)}
                             className="font-semibold underline underline-offset-4"
                         >
                             Xem hồ sơ công khai
@@ -473,16 +560,19 @@ function ProfileScreenContent({
                     }}
                 />
             ) : null}
-            {searchParams.get("avatar") === "1" && !editing && profile.avatarUrl ? (
+            {avatarParam && !editing ? (
                 <AvatarViewer
-                    src={profile.avatarUrl}
+                    src={shared?.avatarUrl ?? null}
+                    name={shared?.displayName ?? ""}
+                    message={sharedNote}
+                    onClose={closeSharedAvatar}
+                />
+            ) : null}
+            {localPreview ? (
+                <AvatarViewer
+                    src={localPreview}
                     name={profile.displayName}
-                    onClose={() => {
-                        const params = new URLSearchParams(searchParams.toString());
-                        params.delete("avatar");
-                        const query = params.toString();
-                        router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
-                    }}
+                    onClose={() => setLocalPreview(null)}
                 />
             ) : null}
         </main>
@@ -525,6 +615,7 @@ function AvatarControl({
 export default function ProfileScreen(props: {
     root: ShellRoot;
     username?: string;
+    userId?: string;
 }): JSX.Element {
     return (
         <Suspense

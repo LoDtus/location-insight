@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, Patch, Post, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Req,
+} from '@nestjs/common';
 import { RequirePermission } from '../../common/decorators/access.decorator.js';
 import type { RequestWithPrincipal } from './auth.guard.js';
 import { PrepareAvatarDto, UpdateProfileDto } from './dto/profile.dto.js';
@@ -36,6 +45,18 @@ export class ProfileController {
   @Post('me/avatar/complete')
   completeAvatar(@Req() request: RequestWithPrincipal) {
     return this.profiles.completeAvatar(request.principal?.userId as string);
+  }
+
+  @RequirePermission('profile:read')
+  @Get('avatars/:fileId')
+  getSharedAvatar(@Param('fileId', ParseUUIDPipe) fileId: string) {
+    return this.profiles.getSharedAvatar(fileId);
+  }
+
+  @RequirePermission('profile:read')
+  @Get('id/:userId')
+  getById(@Param('userId', ParseUUIDPipe) userId: string) {
+    return this.profiles.getById(userId);
   }
 
   @RequirePermission('profile:read')

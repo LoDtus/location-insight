@@ -117,7 +117,7 @@ export function FollowListDialog({
                             <PersonAvatar name={item.displayName} url={item.avatarUrl} size={44} />
                             <span className="min-w-0 flex-1">
                                 {item.username ? (
-                                    <Link href={`${root}/profile/${item.username}`} onClick={onClose} className="block truncate font-semibold text-inherit no-underline">
+                                    <Link href={`${root}/profile/@${item.username}`} onClick={onClose} className="block truncate font-semibold text-inherit no-underline">
                                         {item.displayName}
                                     </Link>
                                 ) : (

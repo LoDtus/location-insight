@@ -21,6 +21,7 @@ import {
     type PublishedFrequency,
 } from "@/features/articles/articles.api";
 import { getConfirmModal } from "@/shared/utils/confirm.utils";
+import { restorePaneScroll } from "@/shared/utils/scroll.utils";
 
 const STATUS_OPTIONS = [
     { id: "draft", label: "Nháp" },
@@ -153,9 +154,8 @@ export default function ArticleAdminList() {
 
     useLayoutEffect(() => {
         if (!restored) return;
-        const pane = document.getElementById("noi-dung");
-        if (pane) pane.scrollTop = restored.scrollTop;
         sessionStorage.removeItem(BLOG_RETURN_KEY);
+        return restorePaneScroll("noi-dung", restored.scrollTop);
         // Chỉ khôi phục vị trí cuộn một lần lúc vừa dựng lại.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);

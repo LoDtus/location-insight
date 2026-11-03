@@ -22,6 +22,7 @@ import {
 import { AuthApiError } from "@/features/auth/auth.api";
 import { formatVnd } from "@/features/billing/billing.api";
 import { getConfirmModal } from "@/shared/utils/confirm.utils";
+import { restorePaneScroll } from "@/shared/utils/scroll.utils";
 
 const STATUS_OPTIONS: { id: DirectoryStatus; label: string }[] = [
     { id: "active", label: "Đang hoạt động" },
@@ -160,8 +161,7 @@ export default function UserDirectory(): JSX.Element {
 
     useLayoutEffect(() => {
         if (!restored) return;
-        const pane = document.getElementById("noi-dung");
-        if (pane) pane.scrollTop = restored.scrollTop;
+        return restorePaneScroll("noi-dung", restored.scrollTop);
         // Chỉ khôi phục vị trí cuộn một lần lúc vừa dựng lại.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);

@@ -4,6 +4,7 @@ import { allowedPushEndpoint, keyByteLength, plain, safeLink, topicOf } from './
 describe('đường dẫn thông báo', () => {
   it('chỉ nhận đường dẫn trong ứng dụng', () => {
     expect(safeLink('/app/feed/abc')).toBe('/app/feed/abc');
+    expect(safeLink('/app/profile/@lan-anh')).toBe('/app/profile/@lan-anh');
     expect(safeLink('/admin/messaging')).toBe('/admin/messaging');
     expect(safeLink('https://evil.example/app/feed')).toBeNull();
     expect(safeLink('/bai-viet/tin')).toBeNull();

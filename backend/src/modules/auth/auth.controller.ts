@@ -119,7 +119,12 @@ export class AuthController {
       ipAddress: clientIp(request.ip),
     });
     if (result.ok && result.issued) {
-      this.setRefreshCookie(response, result.issued.refreshToken);
+      this.setRefreshCookie(
+        response,
+        result.issued.refreshToken,
+        result.issued.session.rememberMe,
+        result.issued.session.absoluteExpiresAt,
+      );
     }
     const target = new URL(result.redirectTo, this.authConfig.websiteOrigin);
     if (!result.ok) {
@@ -162,7 +167,17 @@ export class AuthController {
     await this.limits.assertLoginAccount(body.email);
     try {
       const user = await this.passwords.login(body.email, body.password);
-      return await this.issue(user, AuthProvider.PASSWORD, request, response);
+      const native = request.header('x-client') === 'native';
+      const rememberMe = native
+        ? body.remember !== false
+        : body.remember === true;
+      return await this.issue(
+        user,
+        AuthProvider.PASSWORD,
+        request,
+        response,
+        rememberMe,
+      );
     } catch (error) {
       await this.limits.noteLoginFailure(body.email);
       throw error;
@@ -207,11 +222,21 @@ export class AuthController {
         HttpStatus.UNAUTHORIZED,
       );
     }
-    const issued = await this.sessions.rotate(
-      refreshToken,
-      clientIp(request.ip),
-    );
-    return this.present(issued, request, response);
+    try {
+      const issued = await this.sessions.rotate(
+        refreshToken,
+        clientIp(request.ip),
+      );
+      return this.present(issued, request, response);
+    } catch (error) {
+      if (
+        error instanceof BusinessException &&
+        error.getStatus() === HttpStatus.UNAUTHORIZED
+      ) {
+        this.clearRefreshCookie(response);
+      }
+      throw error;
+    }
   }
 
   @AuthenticatedOnly()
@@ -396,6 +421,7 @@ export class AuthController {
     method: AuthProvider,
     request: Request,
     response: Response,
+    rememberMe: boolean,
   ) {
     const issued = await this.sessions.open({
       user,
@@ -404,6 +430,7 @@ export class AuthController {
       deviceLabel: deviceLabelFromAgent(request.header('user-agent')),
       userAgent: request.header('user-agent') ?? null,
       ipAddress: clientIp(request.ip),
+      rememberMe,
     });
     return this.present(issued, request, response);
   }
@@ -423,7 +450,12 @@ export class AuthController {
         user: await this.sessions.summary(issued.user),
       };
     }
-    this.setRefreshCookie(response, issued.refreshToken);
+    this.setRefreshCookie(
+      response,
+      issued.refreshToken,
+      issued.session.rememberMe,
+      issued.session.absoluteExpiresAt,
+    );
     return {
       accessToken: issued.accessToken,
       tokenType: 'Bearer',
@@ -474,13 +506,19 @@ export class AuthController {
     }
   }
 
-  private setRefreshCookie(response: Response, token: string): void {
+  private setRefreshCookie(
+    response: Response,
+    token: string,
+    rememberMe: boolean,
+    absoluteExpiresAt: Date,
+  ): void {
+    const remaining = absoluteExpiresAt.getTime() - Date.now();
     response.cookie(REFRESH_COOKIE, token, {
       httpOnly: true,
       secure: true,
       sameSite: 'strict',
       path: this.authConfig.cookiePath,
-      maxAge: AUTH_LIMITS.absoluteDays * 24 * 60 * 60 * 1000,
+      ...(rememberMe ? { maxAge: Math.max(1000, remaining) } : {}),
     });
   }
 

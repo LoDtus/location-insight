@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 import {
     AUTH_BUTTON_CLASS,
@@ -13,11 +13,20 @@ import {
 } from "@/app/auth/form-class";
 import { AuthApiError, login } from "@/features/auth/auth.api";
 import { destinationFor } from "@/features/auth/role-home";
+import { useAuth } from "@/features/auth/use-auth";
 
 export default function Page() {
     const router = useRouter();
+    const auth = useAuth();
     const [message, setMessage] = useState("");
     const [pending, setPending] = useState(false);
+    const [remember, setRemember] = useState(true);
+
+    useEffect(() => {
+        if (auth.status !== "authenticated" || !auth.user) return;
+        const next = new URLSearchParams(window.location.search).get("next") || "";
+        router.replace(destinationFor(auth.user.role, next));
+    }, [auth.status, auth.user, router]);
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
         event.preventDefault();
@@ -28,6 +37,7 @@ export default function Page() {
             const session = await login(
                 String(form.get("email") || ""),
                 String(form.get("password") || ""),
+                remember,
             );
             const next = new URLSearchParams(window.location.search).get("next") || "";
             router.push(destinationFor(session.user.role, next));
@@ -40,6 +50,15 @@ export default function Page() {
         } finally {
             setPending(false);
         }
+    }
+
+    if (auth.status !== "anonymous") {
+        return (
+            <section className={AUTH_FORM_CLASS}>
+                <h1 className={AUTH_TITLE_CLASS}>Đăng nhập</h1>
+                <p className="m-0 text-sm">Đang kiểm tra phiên…</p>
+            </section>
+        );
     }
 
     return (
@@ -70,6 +89,20 @@ export default function Page() {
                     autoComplete="current-password"
                     required
                 />
+            </label>
+            <label className="m-0 flex items-start gap-2 text-sm leading-snug">
+                <input
+                    className="mt-0.5"
+                    type="checkbox"
+                    checked={remember}
+                    onChange={(event) => setRemember(event.target.checked)}
+                />
+                <span>
+                    Duy trì đăng nhập
+                    <span className="mt-1 block">
+                        Giữ phiên trên thiết bị này sau khi đóng trình duyệt. Bỏ chọn thì phiên kết thúc khi đóng trình duyệt. Đăng xuất vẫn chỉ áp dụng cho từng thiết bị.
+                    </span>
+                </span>
             </label>
             {message ? <p className="m-0 text-sm">{message}</p> : null}
             <button className={AUTH_BUTTON_CLASS} type="submit" disabled={pending}>

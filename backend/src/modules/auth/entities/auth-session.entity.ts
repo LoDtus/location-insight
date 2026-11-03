@@ -51,6 +51,9 @@ export class AuthSessionEntity extends AppBaseEntity {
   @Column({ type: 'varchar', length: 10, name: 'client_type', default: 'web' })
   clientType: 'web' | 'native';
 
+  @Column({ type: 'boolean', name: 'remember_me', default: true })
+  rememberMe: boolean;
+
   @Column({ type: 'varchar', length: 80, name: 'device_label' })
   deviceLabel: string;
 

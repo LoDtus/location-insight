@@ -177,6 +177,7 @@ export class GoogleOAuthService {
       deviceLabel: meta.userAgent ? meta.userAgent.slice(0, 80) : 'Google',
       userAgent: meta.userAgent,
       ipAddress: meta.ipAddress,
+      rememberMe: true,
     });
     return {
       ok: true,

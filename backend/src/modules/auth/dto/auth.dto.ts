@@ -39,6 +39,10 @@ export class LoginDto {
   @IsString()
   @MaxLength(128)
   password: string;
+
+  @IsOptional()
+  @IsBoolean()
+  remember?: boolean;
 }
 
 export class EmailDto {

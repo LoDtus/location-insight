@@ -7,6 +7,9 @@ export const AUTH_LIMITS = {
   refreshGraceSeconds: 10,
   idleDays: 14,
   absoluteDays: 30,
+  /** Phiên không chọn duy trì: cookie theo phiên trình duyệt, hạn server ngắn hơn. */
+  sessionIdleHours: 12,
+  sessionAbsoluteDays: 1,
   maxSessions: 10,
   recentAuthSeconds: 600,
   oauthStateTtlSeconds: 10 * 60,

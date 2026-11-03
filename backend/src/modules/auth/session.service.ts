@@ -66,10 +66,20 @@ export class SessionService {
     deviceLabel: string;
     userAgent: string | null;
     ipAddress: string | null;
+    rememberMe: boolean;
   }): Promise<IssuedSession> {
     await this.evictOverflow(input.user.id);
     const now = new Date();
     const refreshToken = randomToken();
+    const absoluteExpiresAt = addDays(
+      now,
+      input.rememberMe
+        ? AUTH_LIMITS.absoluteDays
+        : AUTH_LIMITS.sessionAbsoluteDays,
+    );
+    const idleMs = input.rememberMe
+      ? AUTH_LIMITS.idleDays * 24 * 60 * 60 * 1000
+      : AUTH_LIMITS.sessionIdleHours * 60 * 60 * 1000;
     const session = this.sessions.create({
       userId: input.user.id,
       refreshHash: sha256(refreshToken),
@@ -78,14 +88,17 @@ export class SessionService {
       authMethod: input.method,
       authTime: now,
       clientType: input.clientType,
+      rememberMe: input.rememberMe,
       deviceLabel: input.deviceLabel,
       userAgent: input.userAgent,
       ipAddress: input.ipAddress,
       lastIpAddress: input.ipAddress,
       countryCode: null,
       lastSeenAt: now,
-      idleExpiresAt: addDays(now, AUTH_LIMITS.idleDays),
-      absoluteExpiresAt: addDays(now, AUTH_LIMITS.absoluteDays),
+      idleExpiresAt: new Date(
+        Math.min(now.getTime() + idleMs, absoluteExpiresAt.getTime()),
+      ),
+      absoluteExpiresAt,
       revokedAt: null,
       revokedReason: null,
     });
@@ -169,11 +182,11 @@ export class SessionService {
       session.rotatedAt = now;
       session.lastSeenAt = now;
       session.lastIpAddress = ipAddress;
+      const idleMs = session.rememberMe
+        ? AUTH_LIMITS.idleDays * 24 * 60 * 60 * 1000
+        : AUTH_LIMITS.sessionIdleHours * 60 * 60 * 1000;
       session.idleExpiresAt = new Date(
-        Math.min(
-          addDays(now, AUTH_LIMITS.idleDays).getTime(),
-          session.absoluteExpiresAt.getTime(),
-        ),
+        Math.min(now.getTime() + idleMs, session.absoluteExpiresAt.getTime()),
       );
       await manager.save(session);
       const user = await manager.findOneByOrFail(UserEntity, {

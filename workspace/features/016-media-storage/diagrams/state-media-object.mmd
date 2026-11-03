@@ -1,0 +1,12 @@
+stateDiagram-v2
+    [*] --> Pending: khởi tạo upload (dòng DB, chưa chắc có đối tượng)
+    Pending --> Ready: complete đạt (tồn tại, đúng kích thước, đúng chữ ký)
+    Pending --> [*]: complete không đạt (xóa đối tượng và dòng)
+    Pending --> [*]: job dọn (pending quá 1 giờ)
+    Ready --> Attached: gắn vào nội dung (bài, tin nhắn, phản hồi)
+    Attached --> [*]: nội dung bị xóa (xóa dòng và đối tượng)
+    Ready --> [*]: không được gắn (job dọn theo hạn của module)
+    note right of Attached
+      Lỗi xóa đối tượng không chặn xóa nội dung.
+      Đối tượng thừa do job đối soát báo cáo.
+    end note

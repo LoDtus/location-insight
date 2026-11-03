@@ -1,0 +1,30 @@
+sequenceDiagram
+  participant U as Trình duyệt
+  participant API as Backend (module)
+  participant DB as PostgreSQL
+  participant S as Kho S3 (MinIO hoặc R2)
+  U->>API: POST /{module}/media (loại, kích thước khai báo)
+  API->>API: Kiểm quyền, danh sách loại cho phép, giới hạn, hạn mức pending
+  API->>DB: Tạo dòng status=pending, object_key do server sinh
+  API->>S: Ký URL PUT (kèm Content-Type, hạn ≤ 10 phút)
+  API-->>U: id, uploadUrl, expiresAt
+  U->>S: PUT tệp (trực tiếp, qua CORS)
+  U->>API: POST /{module}/media/{id}/complete
+  API->>DB: Lấy dòng của đúng người gọi
+  API->>S: HEAD (kích thước thực)
+  API->>S: GET Range 0..31 (magic bytes)
+  alt Hợp lệ
+    API->>DB: status=ready, size_bytes thực
+    opt Ảnh (FR-12)
+      API->>S: Đọc, bỏ EXIF, ghi đè cùng khóa
+    end
+    API-->>U: 200 ready
+  else Thiếu tệp
+    API-->>U: 409 thử lại trong hạn
+  else Sai chữ ký hoặc vượt kích thước
+    API->>S: DELETE đối tượng
+    API->>DB: Xóa dòng
+    API-->>U: 422
+  end
+  U->>API: Tạo nội dung kèm mediaId
+  API->>DB: Gắn tệp ready của đúng người đăng

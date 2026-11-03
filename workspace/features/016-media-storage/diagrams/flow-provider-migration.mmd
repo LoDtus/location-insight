@@ -1,0 +1,16 @@
+flowchart TD
+  A[Quyết định chuyển MinIO sang R2] --> B[Tạo bucket R2, token giới hạn bucket, CORS]
+  B --> C[Sao chép lần 1: rclone sync MinIO sang R2, ứng dụng vẫn chạy]
+  C --> D{Đối chiếu số lượng và dung lượng}
+  D -- Lệch --> C
+  D -- Khớp --> E[Chọn khung giờ thấp tải]
+  E --> F[Tạm dừng upload mới: bật cờ bảo trì]
+  F --> G[Sao chép lần 2: chỉ phần chênh]
+  G --> H[Đổi S3_ENDPOINT, S3_PUBLIC_ENDPOINT, S3_REGION=auto, khóa, bucket trong .env gốc]
+  H --> I[Khởi động lại backend]
+  I --> J{Kiểm thử: upload, complete, xem, xóa}
+  J -- Lỗi --> K[Quay lại env cũ, MinIO vẫn nguyên]
+  J -- Đạt --> L[Mở lại upload]
+  L --> M[Giữ MinIO chế độ chỉ đọc một thời gian]
+  M --> N[Xóa dữ liệu MinIO sau khi chắc chắn]
+  O[DB không đổi: chỉ lưu object_key] -.-> H

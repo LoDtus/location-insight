@@ -1,0 +1,15 @@
+sequenceDiagram
+  participant U as Trình duyệt
+  participant API as Backend (module)
+  participant DB as PostgreSQL
+  participant S as Kho S3 (MinIO hoặc R2)
+  U->>API: GET danh sách nội dung
+  API->>DB: Lấy nội dung và dòng media status=ready
+  API->>API: Kiểm quyền xem từng nội dung
+  loop Mỗi media được phép xem
+    API->>S: Ký URL GET (hạn 10 phút đến 1 giờ, tùy loại)
+  end
+  API-->>U: Nội dung kèm url đã ký (không kèm object_key)
+  U->>S: GET url (trực tiếp)
+  S-->>U: Byte tệp
+  Note over U,S: URL là bearer ngắn hạn. Hết hạn thì tải lại danh sách để lấy URL mới.

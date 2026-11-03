@@ -3,7 +3,7 @@
 import { Button, ConfigProvider, Dropdown, Input, Select, Table, Tag, type TableColumnsType } from "antd";
 import viVN from "antd/locale/vi_VN";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState, type JSX } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX } from "react";
 
 import {
     cancelDirectoryUser,
@@ -53,6 +53,17 @@ const SORT_OPTIONS: { id: DirectorySort; label: string }[] = [
 ];
 
 const DEFAULT_SORT: DirectorySort = "created_desc";
+
+/**
+ * Ảnh chụp danh sách (kèm vị trí cuộn) lúc rời trang, để quay lại dựng ngay đúng trang
+ * và đúng vị trí cuộn, không qua khoảng trống chờ tải. Chỉ sống trong phiên điều hướng phía client.
+ */
+let returnSnapshot: { search: string; list: DirectoryResponse; scrollTop: number } | null = null;
+
+function snapshotFor(searchParams: URLSearchParams): typeof returnSnapshot {
+    if (!returnSnapshot) return null;
+    return new URLSearchParams(returnSnapshot.search).toString() === searchParams.toString() ? returnSnapshot : null;
+}
 
 const DAY = new Intl.DateTimeFormat("vi-VN", {
     day: "2-digit",
@@ -135,11 +146,25 @@ export default function UserDirectory(): JSX.Element {
     const [plan, setPlan] = useState<DirectoryPlan | "">(() => parsePlan(search.get("plan")));
     const [query, setQuery] = useState(() => search.get("q") ?? "");
     const [committedQuery, setCommittedQuery] = useState(() => search.get("q") ?? "");
-    const [list, setList] = useState<DirectoryResponse | null>(null);
+    const [restored] = useState(() => snapshotFor(search));
+    const [list, setList] = useState<DirectoryResponse | null>(restored?.list ?? null);
+    const latest = useRef({ list, search: "" });
     const [selected, setSelected] = useState<string[]>([]);
     const [message, setMessage] = useState("");
     const [reloadKey, setReloadKey] = useState(0);
     const [busy, setBusy] = useState(false);
+
+    useEffect(() => {
+        latest.current = { list, search: listSearch({ page, q: committedQuery, status, plan, sort }) };
+    }, [list, page, committedQuery, status, plan, sort]);
+
+    useLayoutEffect(() => {
+        if (!restored) return;
+        const pane = document.getElementById("noi-dung");
+        if (pane) pane.scrollTop = restored.scrollTop;
+        // Chỉ khôi phục vị trí cuộn một lần lúc vừa dựng lại.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
         const handle = window.setTimeout(() => setCommittedQuery(query), 200);
@@ -445,6 +470,10 @@ export default function UserDirectory(): JSX.Element {
                                 if (!(target instanceof Element)) return;
                                 if (target.closest("button, a, input, label, .ant-checkbox, .ant-table-selection-column, .ant-dropdown")) return;
                                 if (!row.username) return;
+                                const { list: current, search: currentSearch } = latest.current;
+                                returnSnapshot = current
+                                    ? { search: currentSearch, list: current, scrollTop: document.getElementById("noi-dung")?.scrollTop ?? 0 }
+                                    : null;
                                 router.push(`/app/profile/@${row.username}`);
                             },
                         })}

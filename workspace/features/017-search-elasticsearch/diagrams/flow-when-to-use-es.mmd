@@ -1,0 +1,18 @@
+flowchart TD
+  A[Yêu cầu danh sách từ người dùng] --> B{Có chữ tìm kiếm q?}
+  B -- Không --> P[PostgreSQL: lọc, sắp xếp, phân trang như hiện nay]
+  B -- Có --> C[Chuẩn hóa q: NFC, gộp khoảng trắng, cắt 120 ký tự và 8 từ]
+  C --> D{q còn từ 2 ký tự trở lên?}
+  D -- Không --> P
+  D -- Có --> E{Profile nằm trong ELASTICSEARCH_PROFILES và ELASTICSEARCH_ENABLED?}
+  E -- Không --> F[PostgreSQL: truy vấn dự phòng của module, ví dụ ILIKE]
+  E -- Có --> G{Ngắt mạch đang mở hoặc ES không khỏe?}
+  G -- Có --> F
+  G -- Không --> H[Elasticsearch: truy vấn nhiều tầng + bộ lọc]
+  H --> I{Thành công trong 2 giây?}
+  I -- Không --> J[Ghi nhận lỗi, tăng bộ đếm ngắt mạch] --> F
+  I -- Có --> K[Danh sách id có điểm, đã cắt nhiễu]
+  K --> L[PostgreSQL: nạp bản ghi theo id, kiểm quyền, giữ thứ tự]
+  F --> M[Trả kết quả source=database, degraded=true]
+  L --> N[Trả kết quả source=elasticsearch]
+  P --> O[Trả kết quả không qua ES]

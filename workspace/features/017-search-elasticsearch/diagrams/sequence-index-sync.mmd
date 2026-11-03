@@ -1,0 +1,25 @@
+sequenceDiagram
+  participant M as Module nghiệp vụ
+  participant DB as PostgreSQL
+  participant W as Worker đồng bộ (trong backend)
+  participant ES as Elasticsearch
+  M->>DB: BEGIN
+  M->>DB: Ghi bản ghi (tạo, sửa, xóa hoặc ẩn)
+  M->>DB: INSERT search_outbox ... ON CONFLICT (profile, doc_id) DO UPDATE
+  M->>DB: COMMIT
+  loop Mỗi ELASTICSEARCH_SYNC_INTERVAL_MS
+    W->>DB: Nhận lô (FOR UPDATE SKIP LOCKED, tối đa 200), đặt processing
+    W->>DB: loadByIds theo profile (trạng thái HIỆN TẠI)
+    alt Bản ghi còn và toDocument khác null
+      W->>ES: Bulk index (id = id bản ghi)
+    else Bản ghi mất hoặc toDocument null
+      W->>ES: Bulk delete
+    end
+    alt Bulk thành công
+      W->>DB: Xóa các dòng outbox đã xử lý
+    else Lỗi từng phần hoặc ES không phản hồi
+      W->>DB: attempts + 1, next_attempt_at lùi theo cấp số nhân
+      Note over W,DB: Quá 8 lần: status dead, phát cảnh báo
+    end
+  end
+  Note over M,ES: Độ trễ mục tiêu: chu kỳ worker + refresh_interval, tức khoảng 5 giây

@@ -1,0 +1,14 @@
+flowchart TD
+  A[Đổi analyzer hoặc mapping: tăng version của profile] --> B[Tạo index mới name-vN+1 với settings, analyzer, mapping dynamic strict]
+  B --> C[Ghi lại mốc startedAt]
+  C --> D[Nạp từ PostgreSQL theo lô keyset 1000 dòng, toDocument, Bulk vào index mới]
+  D --> E[Alias vẫn trỏ index cũ: tìm kiếm không gián đoạn, worker vẫn ghi index cũ]
+  E --> F[Bù thay đổi: nạp lại các dòng có updated_at lớn hơn hoặc bằng startedAt trừ 1 phút vào index mới]
+  F --> G[refresh index mới]
+  G --> H{Số document khớp số dòng nguồn đủ điều kiện?}
+  H -- Lệch --> F
+  H -- Khớp --> I[Một yêu cầu aliases: remove index cũ, add index mới, nguyên tử]
+  I --> J[Worker ghi qua alias nên từ đây ghi vào index mới]
+  J --> K[Giữ index cũ 24 giờ để quay lui]
+  K --> L[Xóa index cũ]
+  I -. lỗi sau đổi .-> R[Đổi alias ngược về index cũ]

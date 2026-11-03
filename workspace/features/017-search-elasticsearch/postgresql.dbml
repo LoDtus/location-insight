@@ -1,0 +1,38 @@
+// Outbox đồng bộ PostgreSQL -> Elasticsearch (017-search-elasticsearch).
+// Quy ước tên: snake_case số nhiều (naming.md). Chỉ mô tả; chưa có migration.
+
+Enum search_outbox_op {
+  upsert
+  delete
+}
+
+Enum search_outbox_status {
+  pending
+  processing
+  dead
+}
+
+Table search_outbox {
+  id bigint [pk, increment]
+  profile varchar(64) [not null, note: 'Tên profile, ví dụ discussion-topics']
+  doc_id varchar(64) [not null, note: 'Khóa chính của bản ghi nguồn (uuid dạng chuỗi)']
+  op search_outbox_op [not null]
+  status search_outbox_status [not null, default: 'pending']
+  attempts int [not null, default: 0]
+  next_attempt_at timestamptz [not null, default: `now()`]
+  last_error varchar(200) [note: 'Tên lỗi, không chứa nội dung bản ghi']
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    // Gộp: mỗi (profile, doc_id) chỉ có tối đa một dòng đang chờ; thay đổi mới ghi đè op/next_attempt_at.
+    (profile, doc_id) [unique, name: 'uk_search_outbox_profile_doc_id', note: 'Gộp thay đổi trùng; INSERT ... ON CONFLICT DO UPDATE']
+    (status, next_attempt_at) [name: 'idx_search_outbox_status_next_attempt_at', note: 'Worker lấy lô: WHERE status IN (pending, processing) AND next_attempt_at <= now() ... FOR UPDATE SKIP LOCKED']
+  }
+
+  Note: '''
+  Vòng đời: pending -> processing (khóa thuê, hết hạn thì nhận lại) -> xóa dòng khi ES xác nhận.
+  Quá số lần thử tối đa (đề xuất 8, lùi theo cấp số nhân): chuyển dead và phát cảnh báo; dựng lại bằng search:reindex.
+  Bảng nhỏ, dọn dòng dead > 30 ngày. Không lưu payload: worker luôn đọc trạng thái hiện tại từ bảng nguồn.
+  '''
+}

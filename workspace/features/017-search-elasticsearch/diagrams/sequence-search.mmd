@@ -1,0 +1,32 @@
+sequenceDiagram
+  participant U as Người dùng
+  participant C as Controller của module
+  participant S as SearchService
+  participant ES as Elasticsearch
+  participant DB as PostgreSQL
+  U->>C: GET /module?q=hoan keim&city=hn
+  C->>S: search(profile, q, filters, viewer, page)
+  S->>S: Chuẩn hóa q, kiểm profile bật, kiểm ngắt mạch
+  alt Không đủ điều kiện dùng ES
+    S-->>C: null
+    C->>DB: Truy vấn lọc, sắp xếp thường
+    DB-->>C: Danh sách
+  else Dùng ES
+    S->>ES: _search (bool.should nhiều tầng, filter city + quyền xem, timeout 2s, _source false)
+    alt ES lỗi hoặc quá hạn
+      S->>DB: fallback(request) của profile
+      DB-->>S: Danh sách (ILIKE)
+      S-->>C: source=database, degraded=true
+    else Thành công
+      ES-->>S: id + _score
+      S->>S: Cắt kết quả điểm dưới 15% điểm cao nhất
+      S->>DB: loadByIds(ids)
+      DB-->>S: Các bản ghi hiện có
+      S->>S: Giữ thứ tự ES, loại bản ghi mất hoặc không được xem
+      opt Có id lệch
+        S->>DB: enqueue delete (ghi outbox)
+      end
+      S-->>C: source=elasticsearch
+    end
+  end
+  C-->>U: Danh sách kết quả

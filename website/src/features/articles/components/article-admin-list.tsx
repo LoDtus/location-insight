@@ -46,6 +46,17 @@ const ARTICLE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 
 const DEFAULT_SORT: ArticleSort = "updated_desc";
 
+/**
+ * Ảnh chụp danh sách lúc rời trang (kèm vị trí cuộn) để quay lại dựng ngay, không qua
+ * khoảng trống chờ định vị trang và tải lại. Chỉ sống trong phiên điều hướng phía client.
+ */
+let returnSnapshot: { focus: string; search: string; list: AdminArticleList; scrollTop: number } | null = null;
+
+function snapshotFor(focus: string | null, searchParams: URLSearchParams): typeof returnSnapshot {
+    if (!focus || !returnSnapshot || returnSnapshot.focus !== focus) return null;
+    return new URLSearchParams(returnSnapshot.search).toString() === searchParams.toString() ? returnSnapshot : null;
+}
+
 const WHEN = new Intl.DateTimeFormat("vi-VN", {
     day: "2-digit",
     month: "2-digit",
@@ -116,12 +127,13 @@ export default function ArticleAdminList() {
     const router = useRouter();
     const search = useSearchParams();
     const focusFromUrl = search.get("focus");
+    const [restored] = useState(() => snapshotFor(focusFromUrl, search));
     const [query, setQuery] = useState(() => search.get("q") ?? "");
     const [statuses, setStatuses] = useState<StatusFilter[]>(() => parseStatuses(search.get("status")));
     const [sort, setSort] = useState<ArticleSort>(() => parseSort(search.get("sort")));
     const [page, setPage] = useState(() => parsePage(search.get("page")));
     const [pageSize, setPageSize] = useState(() => parsePageSize(search.get("pageSize")));
-    const [list, setList] = useState<AdminArticleList | null>(null);
+    const [list, setList] = useState<AdminArticleList | null>(restored?.list ?? null);
     const [message, setMessage] = useState("");
     const [selected, setSelected] = useState<string[]>([]);
     const [reloadKey, setReloadKey] = useState(0);
@@ -130,12 +142,26 @@ export default function ArticleAdminList() {
     const [frequency, setFrequency] = useState<PublishedFrequency | null>(null);
     const [frequencyMessage, setFrequencyMessage] = useState("");
     const [highlightId, setHighlightId] = useState<string | null>(() => (focusFromUrl && ARTICLE_ID.test(focusFromUrl) ? focusFromUrl : null));
-    const [anchorReady, setAnchorReady] = useState(() => !(focusFromUrl && ARTICLE_ID.test(focusFromUrl)));
-    const [placed, setPlaced] = useState(() => !(focusFromUrl && ARTICLE_ID.test(focusFromUrl)));
+    const [anchorReady, setAnchorReady] = useState(() => Boolean(restored) || !(focusFromUrl && ARTICLE_ID.test(focusFromUrl)));
+    const [placed, setPlaced] = useState(() => Boolean(restored) || !(focusFromUrl && ARTICLE_ID.test(focusFromUrl)));
     const listContext = useRef({ page: 1, pageSize: 10, q: "", statuses: [] as StatusFilter[], sort: DEFAULT_SORT as ArticleSort });
     listContext.current = { page, pageSize, q: query, statuses, sort };
+    const latestList = useRef(list);
+    useEffect(() => {
+        latestList.current = list;
+    }, [list]);
+
+    useLayoutEffect(() => {
+        if (!restored) return;
+        const pane = document.getElementById("noi-dung");
+        if (pane) pane.scrollTop = restored.scrollTop;
+        sessionStorage.removeItem(BLOG_RETURN_KEY);
+        // Chỉ khôi phục vị trí cuộn một lần lúc vừa dựng lại.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
+        if (restored) return;
         const focus = search.get("focus");
         if (!focus || !ARTICLE_ID.test(focus)) return;
         const q = search.get("q") ?? "";
@@ -330,6 +356,10 @@ export default function ArticleAdminList() {
     function rememberArticle(id: string): void {
         const searchValue = listSearch({ ...listContext.current, focus: id });
         sessionStorage.setItem(BLOG_RETURN_KEY, searchValue);
+        const current = latestList.current;
+        returnSnapshot = current
+            ? { focus: id, search: searchValue, list: current, scrollTop: document.getElementById("noi-dung")?.scrollTop ?? 0 }
+            : null;
         window.history.replaceState(window.history.state, "", `/admin/blogs?${searchValue}`);
     }
 

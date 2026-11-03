@@ -60,11 +60,17 @@ export function standaloneDisplay(): boolean {
     return ios || window.matchMedia("(display-mode: standalone)").matches;
 }
 
-export function needsInstallGuide(): boolean {
+/** Điện thoại và máy tính bảng. Laptop, PC không hiện nút cài ứng dụng. */
+export function isHandheld(): boolean {
+    if (typeof navigator === "undefined") return false;
     const ua = navigator.userAgent;
-    const iOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-    const safari = /Safari/.test(ua) && !/Chrome|Chromium|Edg|OPR|Firefox/.test(ua);
-    return iOS || (safari && /Macintosh/.test(ua));
+    if (/Android|iPhone|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua)) return true;
+    if (/iPad/.test(ua)) return true;
+    return navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+}
+
+export function needsInstallGuide(): boolean {
+    return isHandheld() && /iPad|iPhone|iPod|Mac/.test(navigator.userAgent + navigator.platform);
 }
 
 export function deviceId(): string {

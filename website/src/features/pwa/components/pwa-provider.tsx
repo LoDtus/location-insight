@@ -12,6 +12,7 @@ import { recordPwaMetric, registerServiceWorker, serviceWorkerDisabled, skipWait
 import {
     installEligible,
     installLater,
+    isHandheld,
     needsInstallGuide,
     noteNotificationVisit,
     noteSession,
@@ -51,6 +52,7 @@ export function PwaProvider({ children }: { children: ReactNode }): JSX.Element 
     const [guide, setGuide] = useState(false);
     const [updateReady, setUpdateReady] = useState(false);
     const guideNeeded = useSyncExternalStore(emptySubscribe, needsInstallGuide, () => false);
+    const handheld = useSyncExternalStore(emptySubscribe, isHandheld, () => false);
 
     useEffect(() => {
         noteSession();
@@ -73,7 +75,7 @@ export function PwaProvider({ children }: { children: ReactNode }): JSX.Element 
         function onInstallable(event: Event): void {
             event.preventDefault();
             setInstallEvent(event as InstallEvent);
-            setOffer(!standaloneDisplay() && installEligible());
+            setOffer(isHandheld() && !standaloneDisplay() && installEligible());
         }
         function onInstalled(): void {
             setInstallEvent(null);
@@ -111,9 +113,10 @@ export function PwaProvider({ children }: { children: ReactNode }): JSX.Element 
 
     const value = useMemo<PwaValue>(
         () => ({
-            canInstall: Boolean(installEvent) && !standaloneDisplay(),
-            showGuide: guideNeeded && !standaloneDisplay(),
+            canInstall: handheld && Boolean(installEvent) && !standaloneDisplay(),
+            showGuide: handheld && guideNeeded && !standaloneDisplay(),
             requestInstall: () => {
+                if (!isHandheld()) return;
                 if (guideNeeded) {
                     setGuide(true);
                     return;
@@ -121,14 +124,14 @@ export function PwaProvider({ children }: { children: ReactNode }): JSX.Element 
                 void installEvent?.prompt();
             },
         }),
-        [guideNeeded, installEvent],
+        [guideNeeded, handheld, installEvent],
     );
 
     return (
         <PwaContext.Provider value={value}>
             {children}
             {updateReady ? <UpdateBanner onReload={() => void skipWaitingAndReload()} /> : null}
-            {offer && installEvent ? (
+            {handheld && offer && installEvent ? (
                 <InstallPrompt
                     onInstall={() => {
                         void installEvent.prompt().then(() => setOffer(false));

@@ -8,7 +8,7 @@ import {
     responseIsPrivate,
     withNotificationId,
 } from "@/features/pwa/sw-policy";
-import { installAllowed, installEligible, noteNotificationVisit, noteSession } from "@/features/pwa/pwa-state";
+import { installAllowed, installEligible, isHandheld, needsInstallGuide, noteNotificationVisit, noteSession } from "@/features/pwa/pwa-state";
 
 const origin = "https://diathe.local";
 
@@ -57,6 +57,35 @@ describe("điều kiện gợi ý cài đặt", () => {
         window.sessionStorage.clear();
         noteSession();
         expect(installEligible()).toBe(true);
+    });
+
+    it("chỉ coi điện thoại và máy tính bảng là thiết bị cầm tay", () => {
+        const original = {
+            userAgent: navigator.userAgent,
+            platform: navigator.platform,
+            maxTouchPoints: navigator.maxTouchPoints,
+        };
+        const setNavigator = (userAgent: string, platform: string, maxTouchPoints: number): void => {
+            Object.defineProperty(navigator, "userAgent", { value: userAgent, configurable: true });
+            Object.defineProperty(navigator, "platform", { value: platform, configurable: true });
+            Object.defineProperty(navigator, "maxTouchPoints", { value: maxTouchPoints, configurable: true });
+        };
+        try {
+            setNavigator("Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0", "Win32", 0);
+            expect(isHandheld()).toBe(false);
+            expect(needsInstallGuide()).toBe(false);
+            setNavigator("Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) Safari/605.1.15", "MacIntel", 0);
+            expect(isHandheld()).toBe(false);
+            expect(needsInstallGuide()).toBe(false);
+            setNavigator("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Safari/605.1.15", "iPhone", 5);
+            expect(isHandheld()).toBe(true);
+            expect(needsInstallGuide()).toBe(true);
+            setNavigator("Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) Safari/605.1.15", "MacIntel", 5);
+            expect(isHandheld()).toBe(true);
+            expect(needsInstallGuide()).toBe(true);
+        } finally {
+            setNavigator(original.userAgent, original.platform, original.maxTouchPoints);
+        }
     });
 
     it("ẩn 30 ngày sau khi chọn để sau", () => {

@@ -118,7 +118,7 @@ export default function NewListingScreen({ root }: { root: ShellRoot }): JSX.Ele
     const props = { form, errors, set, vi };
 
     return (
-        <form noValidate onSubmit={publish} className="flex min-h-full w-full flex-col bg-cream/40">
+        <form noValidate onSubmit={publish} className="flex min-h-full w-full flex-col bg-white">
             <div className="flex-1 px-4 pt-6 sm:px-6">
                 <p className="m-0 text-sm">
                     <Link href={`${root}/properties`} className="font-semibold text-green no-underline">
@@ -145,7 +145,7 @@ export default function NewListingScreen({ root }: { root: ShellRoot }): JSX.Ele
                     </aside>
                 </div>
             </div>
-            <div className="sticky bottom-0 z-10 mt-6 border-t border-charcoal/15 bg-white/95 px-4 py-3 backdrop-blur sm:px-6">
+            <div className="sticky bottom-0 z-10 mt-6 border-t border-charcoal/15 bg-white px-4 py-3 sm:px-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <p role={message ? "alert" : undefined} className="m-0 min-h-5 text-sm text-red-700">
                         {message}

@@ -45,7 +45,7 @@ export function MapSection(props: SectionProps): JSX.Element {
     const t = (viText: string, enText: string): string => (vi ? viText : enText);
     return (
         <SectionCard id="vi-tri" step={6} title={t("Vị trí trên bản đồ", "Map location")} hint={t("Không bắt buộc. Có tọa độ thì tin dùng được bản đồ và phân tích vị trí.", "Optional. With coordinates the listing works with the map and location analysis.")}>
-            <div className="rounded-xl bg-cream/60 p-4">
+            <div className="rounded-xl border border-charcoal/15 bg-white p-4">
                 <p className="m-0 text-sm font-semibold">{t("Tọa độ trên bản đồ", "Map coordinates")}</p>
                 <p className="mt-1 mb-3 text-xs text-charcoal/70">
                     {t(

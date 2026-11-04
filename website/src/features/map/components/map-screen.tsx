@@ -355,7 +355,7 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
 
     if (configState.status === "loading") {
         return (
-            <div className="flex h-full w-full items-center justify-center bg-neutral-100" role="status">
+            <div className="flex h-full w-full items-center justify-center bg-white" role="status">
                 <Loader2 className="animate-spin text-charcoal/60" aria-hidden />
                 <span className="ml-2 text-sm text-charcoal/70">Đang tải bản đồ…</span>
             </div>
@@ -363,7 +363,7 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
     }
     if (configState.status === "error" || !configState.config.tilesEnabled) {
         return (
-            <div className="flex h-full w-full items-center justify-center bg-neutral-100 p-6 text-center" role="alert">
+            <div className="flex h-full w-full items-center justify-center bg-white p-6 text-center" role="alert">
                 <p className="m-0 max-w-sm text-sm text-charcoal/80">
                     {configState.status === "error"
                         ? configState.message
@@ -522,7 +522,7 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
 /** `useSearchParams` cần Suspense để trang vẫn prerender được. */
 export default function MapScreen(props: MapScreenProps) {
     return (
-        <Suspense fallback={<div className="h-full w-full bg-neutral-100" />}>
+        <Suspense fallback={<div className="h-full w-full bg-white" />}>
             <MapScreenInner {...props} />
         </Suspense>
     );

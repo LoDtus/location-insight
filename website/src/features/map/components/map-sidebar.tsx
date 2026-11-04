@@ -14,7 +14,7 @@ export default function MapSidebar({ onSettings }: MapSidebarProps) {
     return (
         <aside
             aria-label="Thao tác bản đồ"
-            className="pointer-events-auto flex h-full w-[4.25rem] shrink-0 flex-col items-center border-r border-neutral-200 bg-neutral-50 py-3"
+            className="pointer-events-auto flex h-full w-[4.25rem] shrink-0 flex-col items-center border-r border-neutral-200 bg-white py-3"
         >
             <div className="flex flex-col items-center gap-5">
                 {SIDEBAR_ACTIONS.map((action) => {

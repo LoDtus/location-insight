@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ReactNode } from "react";
 
+import AppBreadcrumbs from "@/features/app/components/breadcrumbs";
 import AppSidebar from "@/features/app/components/app-sidebar";
 import { RequireSession } from "@/features/auth/route-gate";
 import { MessagingProvider } from "@/features/messaging/messaging-provider";
@@ -21,7 +22,7 @@ export default function Layout({
         <RequireSession>
             <MessagingProvider>
                 <PwaProvider>
-                    <SidebarLayout sidebar={<AppSidebar surface="app" />}>{children}</SidebarLayout>
+                    <SidebarLayout sidebar={<AppSidebar surface="app" />} header={<AppBreadcrumbs />}>{children}</SidebarLayout>
                 </PwaProvider>
             </MessagingProvider>
         </RequireSession>

@@ -24,14 +24,14 @@ export function isFocusPath(pathname: string): boolean {
     return FOCUS_PATHS.some((path) => rest === path || rest.startsWith(`${path}/`));
 }
 
-/** Khung có sidebar bên trái; phần nội dung chọn focus hoặc full-width theo đường dẫn. */
-export default function SidebarLayout({ sidebar, children }: { sidebar: ReactNode; children: ReactNode }): JSX.Element {
+/** Khung có sidebar bên trái; `header` nằm đầu vùng cuộn; phần nội dung chọn focus hoặc full-width theo đường dẫn. */
+export default function SidebarLayout({ sidebar, header, children }: { sidebar: ReactNode; header?: ReactNode; children: ReactNode }): JSX.Element {
     const pathname = usePathname();
     return (
         <div className="flex h-full min-h-0 w-full bg-white pb-[env(safe-area-inset-bottom)] text-charcoal">
             {sidebar}
             <div className="h-full min-h-0 min-w-0 flex-1">
-                {isFocusPath(pathname) ? <FocusLayout>{children}</FocusLayout> : <FullWidthLayout>{children}</FullWidthLayout>}
+                {isFocusPath(pathname) ? <FocusLayout>{header}{children}</FocusLayout> : <FullWidthLayout>{header}{children}</FullWidthLayout>}
             </div>
         </div>
     );

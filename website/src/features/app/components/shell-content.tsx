@@ -11,7 +11,6 @@ import { FullWidthLayout } from "@/features/app/components/full-width-layout";
  * Các tab còn lại (nhà đất, bản đồ, bảng số liệu) dùng hết chiều ngang.
  */
 const FOCUS_PATHS = [
-    "/messages",
     "/notification",
     "/feed",
     "/discussions",

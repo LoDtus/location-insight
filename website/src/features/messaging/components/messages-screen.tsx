@@ -15,8 +15,11 @@ import { SettingsDialog } from "./settings-dialog";
 import { Thread } from "./thread";
 
 const INFO_KEY = "messaging-info-open";
-/** Danh sách 340 px + hội thoại + cột thông tin 320 px. Cột hẹp của shell không đủ thì mở dạng ngăn trượt. */
+/** Danh sách 340 px + hội thoại + cột thông tin 320 px. Khung hẹp hơn thì thông tin mở dạng ngăn trượt. */
 const COLUMN_MIN = 1100;
+/** Chỉ khung hội thoại được giới hạn và căn giữa. Trang tin nhắn vẫn full width. */
+const THREAD_MAX_PX = 960;
+const THREAD_MAX = "max-w-[960px]";
 
 function usePaneWide(minWidth: number): { ref: (node: HTMLElement | null) => void; wide: boolean } {
     const [node, setNode] = useState<HTMLElement | null>(null);
@@ -52,7 +55,8 @@ function writeInfoPreference(open: boolean): void {
 }
 
 /**
- * Ba cột trên màn rộng (danh sách + hội thoại + thông tin); hai cột trên máy tính vừa, nơi thông tin mở dạng ngăn trượt;
+ * Trang trải hết chiều ngang. Khung hội thoại căn giữa, tối đa 960 px.
+ * Ba cột trên màn rộng (danh sách + hội thoại + thông tin); thông tin mở dạng ngăn trượt khi khung hẹp hơn;
  * một cột theo tầng trên điện thoại.
  */
 export function MessagesScreen({
@@ -66,6 +70,8 @@ export function MessagesScreen({
     const auth = useAuth();
     const pane = usePaneWide(COLUMN_MIN);
     const wide = pane.wide;
+    // Ô giữa rộng hơn 960 px thì khung đã chạm trần và còn khoảng trống hai bên.
+    const threadSlot = usePaneWide(THREAD_MAX_PX + 1);
     const [chosen, setChosen] = useState<{ id: string | null; folder: Folder } | null>(null);
     const [composing, setComposing] = useState(false);
     const [settings, setSettings] = useState(false);
@@ -118,31 +124,38 @@ export function MessagesScreen({
                     onSettings={() => setSettings(true)}
                 />
             </div>
-            <div className={`${conversationId ? "flex" : "hidden md:flex"} h-full min-h-0 min-w-0 flex-1`}>
-                {conversationId ? (
-                    <Thread
-                        key={conversationId}
-                        conversationId={conversationId}
-                        root={root}
-                        infoOpen={infoOpen}
-                        onToggleInfo={toggleInfo}
-                        onBack={() => router.push(`${root}/messages`)}
-                        onGone={leave}
-                    />
-                ) : (
-                    <div className="flex h-full w-full flex-col items-center justify-center gap-3 p-6 text-center text-charcoal/70">
-                        <MessageCircle className="size-12" aria-hidden="true" />
-                        <p className="m-0 text-lg font-semibold text-charcoal">Tin nhắn của bạn</p>
-                        <p className="m-0 max-w-sm text-sm">Chọn một hội thoại ở bên trái hoặc bắt đầu một cuộc trò chuyện mới.</p>
-                        <button
-                            type="button"
-                            className="min-h-11 rounded-full bg-green px-6 font-semibold text-cream focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
-                            onClick={() => setComposing(true)}
-                        >
-                            Tin nhắn mới
-                        </button>
-                    </div>
-                )}
+            <div
+                ref={threadSlot.ref}
+                className={`${conversationId ? "flex" : "hidden md:flex"} h-full min-h-0 min-w-0 flex-1 justify-center`}
+            >
+                <div
+                    className={`flex h-full min-h-0 w-full min-w-0 ${THREAD_MAX} ${threadSlot.wide ? "border-x border-charcoal/10" : ""}`}
+                >
+                    {conversationId ? (
+                        <Thread
+                            key={conversationId}
+                            conversationId={conversationId}
+                            root={root}
+                            infoOpen={infoOpen}
+                            onToggleInfo={toggleInfo}
+                            onBack={() => router.push(`${root}/messages`)}
+                            onGone={leave}
+                        />
+                    ) : (
+                        <div className="flex h-full w-full flex-col items-center justify-center gap-3 p-6 text-center text-charcoal/70">
+                            <MessageCircle className="size-12" aria-hidden="true" />
+                            <p className="m-0 text-lg font-semibold text-charcoal">Tin nhắn của bạn</p>
+                            <p className="m-0 max-w-sm text-sm">Chọn một hội thoại ở bên trái hoặc bắt đầu một cuộc trò chuyện mới.</p>
+                            <button
+                                type="button"
+                                className="min-h-11 rounded-full bg-green px-6 font-semibold text-cream focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
+                                onClick={() => setComposing(true)}
+                            >
+                                Tin nhắn mới
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
             {conversationId && wide && columnOpen ? (
                 <div className="h-full min-h-0 w-[320px] shrink-0 border-l border-charcoal/10">

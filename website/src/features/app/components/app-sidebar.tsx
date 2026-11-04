@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type JSX } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type JSX } from "react";
 
 import { logout } from "@/features/auth/auth.api";
 import { usePwaInstall } from "@/features/pwa/components/pwa-provider";
@@ -58,6 +58,23 @@ function isMapPath(pathname: string): boolean {
     return pathname === "/app/map" || pathname.startsWith("/app/map/") || pathname === "/admin/map" || pathname.startsWith("/admin/map/");
 }
 
+function accountMenuStyle(anchor: HTMLElement | null, compact: boolean): CSSProperties {
+    const rect = anchor?.getBoundingClientRect();
+    if (!rect) return { visibility: "hidden" };
+    if (compact) {
+        return {
+            left: rect.right + 12,
+            bottom: window.innerHeight - rect.bottom,
+            width: 224,
+        };
+    }
+    return {
+        left: rect.left,
+        bottom: window.innerHeight - rect.top + 12,
+        width: rect.width,
+    };
+}
+
 function initialsOf(name: string): string {
     const parts = name.trim().split(/\s+/).filter((part) => part.length > 0);
     if (parts.length === 0) return "?";
@@ -83,6 +100,7 @@ export default function AppSidebar({
     const [signingOut, setSigningOut] = useState(false);
     const [accountOpen, setAccountOpen] = useState(false);
     const accountRef = useRef<HTMLDivElement>(null);
+    const closeAccountTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const onMap = isMapPath(pathname);
     const wasOnMap = useRef(onMap);
     const vi = locale === "vi";
@@ -117,6 +135,31 @@ export default function AppSidebar({
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
     }, [drawerOpen]);
+
+    function cancelAccountClose(): void {
+        if (closeAccountTimer.current === null) return;
+        clearTimeout(closeAccountTimer.current);
+        closeAccountTimer.current = null;
+    }
+
+    function openAccountMenu(): void {
+        cancelAccountClose();
+        setAccountOpen(true);
+    }
+
+    function scheduleAccountClose(): void {
+        cancelAccountClose();
+        closeAccountTimer.current = setTimeout(() => {
+            setAccountOpen(false);
+            closeAccountTimer.current = null;
+        }, 140);
+    }
+
+    useEffect(() => {
+        return () => {
+            if (closeAccountTimer.current !== null) clearTimeout(closeAccountTimer.current);
+        };
+    }, []);
 
     useEffect(() => {
         if (!accountOpen) return;
@@ -377,7 +420,18 @@ export default function AppSidebar({
             </nav>
 
             <div className="border-t border-charcoal/15 p-3">
-                <div ref={accountRef} className="relative">
+                <div
+                    ref={accountRef}
+                    className="relative"
+                    onMouseEnter={openAccountMenu}
+                    onMouseLeave={scheduleAccountClose}
+                    onFocusCapture={openAccountMenu}
+                    onBlurCapture={(event) => {
+                        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                            scheduleAccountClose();
+                        }
+                    }}
+                >
                     <button
                         type="button"
                         className={`flex min-h-14 w-full items-center rounded-xl text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green ${
@@ -390,7 +444,7 @@ export default function AppSidebar({
                         aria-haspopup="menu"
                         aria-expanded={accountOpen}
                         aria-controls={accountOpen ? "menu-tai-khoan" : undefined}
-                        onClick={() => setAccountOpen((open) => !open)}
+                        onClick={openAccountMenu}
                     >
                         {user?.avatarUrl ? (
                             // Ảnh đại diện đã lưu của chính người dùng.
@@ -420,11 +474,9 @@ export default function AppSidebar({
                         <div
                             id="menu-tai-khoan"
                             role="menu"
-                            className={
-                                compact
-                                    ? "absolute bottom-0 left-full z-30 ml-3 w-56 rounded-2xl border border-charcoal/15 bg-white p-2 shadow-[0_20px_55px_rgba(16,17,17,0.16)]"
-                                    : "absolute bottom-full left-0 right-0 z-30 mb-3 rounded-2xl border border-charcoal/15 bg-white p-2 shadow-[0_20px_55px_rgba(16,17,17,0.16)]"
-                            }
+                            className="fixed z-[70] rounded-2xl border border-charcoal/15 bg-white p-2 shadow-[0_20px_55px_rgba(16,17,17,0.16)]"
+                            style={accountMenuStyle(accountRef.current, compact)}
+                            onMouseEnter={openAccountMenu}
                         >
                             <Link
                                 href={profileHref}
@@ -448,7 +500,7 @@ export default function AppSidebar({
                             <button
                                 type="button"
                                 role="menuitem"
-                                className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-semibold text-charcoal hover:bg-green/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green disabled:cursor-wait disabled:opacity-60"
+                                className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-semibold text-red-700 hover:bg-red-700/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700 disabled:cursor-wait disabled:opacity-60"
                                 disabled={signingOut}
                                 onClick={() => {
                                     void handleLogout();

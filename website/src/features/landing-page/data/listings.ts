@@ -1,3 +1,5 @@
+import type { ListingExtra } from "@/features/properties/listing-extra";
+
 export const LISTING_IMAGES = [
     "/images/temp-002.jpg",
     "/images/temp-003.jpg",
@@ -43,6 +45,8 @@ export type Listing = {
     updatedAt: string;
     images: readonly string[];
     watchers: number;
+    /** Chỉ có ở tin do người dùng đăng qua form; tin mẫu không có. */
+    extra?: ListingExtra;
 };
 
 export const SALE_PRICE_RANGES = [

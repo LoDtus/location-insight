@@ -31,6 +31,15 @@ import {
     listingPath,
     type Listing,
 } from "@/features/landing-page/data/listings";
+import { formatPhone, telHref } from "@/features/properties/listing-contact";
+import {
+    DIRECTION_LABEL,
+    FURNISHING_LABEL,
+    LEGAL_LABEL,
+    ROLE_LABEL,
+} from "@/features/properties/components/listing-form/option-labels";
+import RichTextContent from "@/shared/components/editor/rich-text-content";
+import { isRichTextDoc, isRichTextEmpty } from "@/shared/components/editor/rich-text.utils";
 import { useLocale, useLocaleMessages } from "@/shared/hooks/useLocale";
 import { getLocaleValue } from "@/shared/utils/locale.utils";
 
@@ -84,7 +93,23 @@ export default function ListingDetail({
         signedIn ? `${shell}/properties/${item.slug}` : listingPath(item);
     const price = formatListingPrice(listing, locale);
     const perArea = formatPricePerArea(listing, locale);
-    const phone = revealed ? PHONE_SHOWN : PHONE_HIDDEN;
+    const extra = listing.extra;
+    const contact = extra?.contact;
+    const phone = contact
+        ? formatPhone(contact.phone, contact.hidePhone && !revealed)
+        : revealed
+          ? PHONE_SHOWN
+          : PHONE_HIDDEN;
+    const callHref = revealed || !contact?.hidePhone ? (contact ? telHref(contact.phone) : "tel:0912345678") : "#lien-he";
+    const posterName = contact?.name ?? text(messages, "poster");
+    const posterRole = contact
+        ? `${locale === "vi" ? ROLE_LABEL[contact.role].vi : ROLE_LABEL[contact.role].en} · ${text(messages, "legalChip").toLowerCase()}`
+        : text(messages, "posterRole");
+    const posterInitials = contact
+        ? contact.name.split(/\s+/).filter(Boolean).slice(-2).map((part) => part[0]?.toUpperCase() ?? "").join("")
+        : "ĐT";
+    const customDescription = isRichTextDoc(extra?.description) && !isRichTextEmpty(extra?.description) ? extra.description : null;
+    const legalKind = extra?.legal ? (locale === "vi" ? LEGAL_LABEL[extra.legal.kind].vi : LEGAL_LABEL[extra.legal.kind].en) : null;
     const code = `${listing.updatedAt.replaceAll("-", "")}-${listing.id.slice(-4)}`;
     const kind = getLocaleValue(messages, ["catalog", "kinds", listing.kind]);
     const purpose = getLocaleValue(messages, [
@@ -112,6 +137,23 @@ export default function ListingDetail({
         facts.push({ label: text(messages, "baths"), value: String(listing.baths) });
     }
     facts.push({ label: text(messages, "district"), value: listing.district });
+    const vi = locale === "vi";
+    if (extra?.floors) facts.push({ label: vi ? "Số tầng" : "Floors", value: String(extra.floors) });
+    if (extra?.direction) {
+        facts.push({ label: vi ? "Hướng nhà" : "Direction", value: vi ? DIRECTION_LABEL[extra.direction].vi : DIRECTION_LABEL[extra.direction].en });
+    }
+    if (extra?.balconyDirection) {
+        facts.push({ label: vi ? "Hướng ban công" : "Balcony direction", value: vi ? DIRECTION_LABEL[extra.balconyDirection].vi : DIRECTION_LABEL[extra.balconyDirection].en });
+    }
+    if (extra?.frontageM) facts.push({ label: vi ? "Mặt tiền" : "Frontage", value: `${extra.frontageM} m` });
+    if (extra?.roadWidthM) facts.push({ label: vi ? "Đường vào" : "Access road", value: `${extra.roadWidthM} m` });
+    if (extra?.furnishing) {
+        facts.push({ label: vi ? "Nội thất" : "Furnishing", value: vi ? FURNISHING_LABEL[extra.furnishing].vi : FURNISHING_LABEL[extra.furnishing].en });
+    }
+    if (extra?.negotiable) facts.push({ label: vi ? "Giá" : "Price", value: vi ? "Có thương lượng" : "Negotiable" });
+    if (extra?.depositMonths) {
+        facts.push({ label: vi ? "Đặt cọc" : "Deposit", value: vi ? `${extra.depositMonths} tháng` : `${extra.depositMonths} months` });
+    }
 
     const specs: { icon: LucideIcon; value: string; hint?: string }[] = [
         {
@@ -318,14 +360,20 @@ export default function ListingDetail({
                         <h2 id="mo-ta" className="m-0 text-[22px] font-semibold">
                             {text(messages, "description")}
                         </h2>
-                        <p
-                            className={`m-0 mt-4 max-w-[68ch] text-charcoal ${descriptionOpen ? "" : "line-clamp-6"}`}
-                        >
-                            {fill(text(messages, "descriptionBody"), {
-                                location: listing.location,
-                                area: formatArea(listing.areaM2, locale),
-                            })}
-                        </p>
+                        {customDescription ? (
+                            <div className={`mt-4 max-w-[68ch] ${descriptionOpen ? "" : "max-h-40 overflow-hidden"}`}>
+                                <RichTextContent doc={customDescription} />
+                            </div>
+                        ) : (
+                            <p
+                                className={`m-0 mt-4 max-w-[68ch] text-charcoal ${descriptionOpen ? "" : "line-clamp-6"}`}
+                            >
+                                {fill(text(messages, "descriptionBody"), {
+                                    location: listing.location,
+                                    area: formatArea(listing.areaM2, locale),
+                                })}
+                            </p>
+                        )}
                         <button
                             type="button"
                             aria-expanded={descriptionOpen}
@@ -379,6 +427,12 @@ export default function ListingDetail({
                             <Shield size={14} aria-hidden="true" />
                             {text(messages, "legalChip")}
                         </p>
+                        {legalKind ? (
+                            <p className="m-0 mt-3 text-base font-semibold">
+                                {legalKind}
+                                {extra?.legal?.note ? <span className="block text-sm font-normal text-charcoal/80">{extra.legal.note}</span> : null}
+                            </p>
+                        ) : null}
                         <div className="mt-4 flex gap-3 rounded-xl bg-cream p-4 text-sm">
                             <Info size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
                             <p className="m-0">{text(messages, "legalNote")}</p>
@@ -619,7 +673,7 @@ export default function ListingDetail({
                         </p>
                         <div className="mt-4 grid gap-2">
                             <a
-                                href={revealed ? "tel:0912345678" : "#lien-he"}
+                                href={callHref}
                                 aria-label={fill(text(messages, "call"), { phone })}
                                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-green px-6 text-cream no-underline"
                             >
@@ -649,12 +703,12 @@ export default function ListingDetail({
                                 aria-hidden="true"
                                 className="inline-flex size-11 items-center justify-center rounded-full bg-green/15 font-semibold text-green"
                             >
-                                ĐT
+                                {posterInitials}
                             </span>
                             <div>
-                                <b>{text(messages, "poster")}</b>
+                                <b>{posterName}</b>
                                 <span className="block text-sm text-charcoal/70">
-                                    {text(messages, "posterRole")}
+                                    {posterRole}
                                 </span>
                             </div>
                         </div>
@@ -674,7 +728,7 @@ export default function ListingDetail({
 
             <div className="fixed inset-x-0 bottom-0 z-30 flex gap-2 border-t border-charcoal/15 bg-white p-3 lg:hidden">
                 <a
-                    href={revealed ? "tel:0912345678" : "#lien-he"}
+                    href={callHref}
                     className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-green px-6 text-cream no-underline"
                 >
                     <Phone size={18} aria-hidden="true" />

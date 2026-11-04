@@ -43,7 +43,8 @@ function isListing(value: unknown): value is Listing {
         typeof item.watchers === "number" &&
         Array.isArray(item.images) &&
         item.images.every((image) => typeof image === "string") &&
-        item.images.length > 0
+        item.images.length > 0 &&
+        (item.extra === undefined || (typeof item.extra === "object" && item.extra !== null))
     );
 }
 

@@ -198,6 +198,18 @@ export function toPlaceFromPlace(raw: unknown): MapPlace | null {
   };
 }
 
+const EARTH_RADIUS_M = 6371008.8;
+
+/** Khoảng cách đường chim bay (mét) giữa hai điểm, công thức haversine. */
+export function haversineM(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const rad = (deg: number): number => (deg * Math.PI) / 180;
+  const dLat = rad(b.lat - a.lat);
+  const dLng = rad(b.lng - a.lng);
+  const h =
+    Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
 export function toPlaceFromReverse(raw: unknown): MapPlace | null {
   if (!Array.isArray(raw) || !isObject(raw[0])) return null;
   const item = raw[0];

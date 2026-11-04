@@ -14,6 +14,8 @@ export interface MapPlace {
     address: string;
     addressOld: string | null;
     display: string;
+    /** Mét từ điểm bấm tới địa điểm tìm được (chỉ có khi lấy từ reverse). */
+    distanceM?: number | null;
 }
 
 export type Congestion = "low" | "moderate" | "heavy" | "severe" | "unknown";

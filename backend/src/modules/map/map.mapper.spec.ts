@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   cleanText,
   normalizeDepartAt,
+  haversineM,
   parseLatLng,
   redactUrl,
   reverseCacheKey,
@@ -234,5 +235,16 @@ describe('simplify', () => {
     expect(out).toHaveLength(100);
     expect(out[0]).toEqual([0, 0]);
     expect(out[99]).toEqual([999, 999]);
+  });
+});
+
+describe('haversineM', () => {
+  it('cùng điểm là 0', () => {
+    expect(haversineM({ lat: 21.0285, lng: 105.8542 }, { lat: 21.0285, lng: 105.8542 })).toBe(0);
+  });
+  it('0,0001 độ vĩ ≈ 11,1 m', () => {
+    const d = haversineM({ lat: 21.0285, lng: 105.8542 }, { lat: 21.0286, lng: 105.8542 });
+    expect(d).toBeGreaterThan(11);
+    expect(d).toBeLessThan(11.3);
   });
 });

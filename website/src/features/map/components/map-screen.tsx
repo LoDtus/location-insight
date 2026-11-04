@@ -11,9 +11,11 @@ import MapCanvas, {
     type MapInitialView,
     type MapViewport,
 } from "@/features/map/components/map-canvas";
+import MapContextMenu, { type ContextAction } from "@/features/map/components/map-context-menu";
 import MapDirectionsPanel from "@/features/map/components/map-directions-panel";
 import MapFilterChips from "@/features/map/components/map-filter-chips";
 import MapLayerPicker from "@/features/map/components/map-layer-picker";
+import MapNearbyBar from "@/features/map/components/map-nearby-bar";
 import MapPlaceDetail from "@/features/map/components/map-place-detail";
 import MapPlacePanel from "@/features/map/components/map-place-panel";
 import MapScaleBar from "@/features/map/components/map-scale-bar";
@@ -34,6 +36,13 @@ import {
     type MapUrlState,
     type SearchFilters,
 } from "@/features/map/map-url";
+import {
+    NEARBY_RADIUS,
+    PRECISE_PLACE_M,
+    circleBounds,
+    formatCoordinates,
+    placeLink,
+} from "@/features/map/map.geo";
 import { isAbortError, reverseGeocode } from "@/features/map/map.service";
 import type {
     MapConfig,
@@ -120,6 +129,10 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
     const [failed, setFailed] = useState(false);
     const [locating, setLocating] = useState(false);
     const [notice, setNotice] = useState<string | null>(null);
+    const [menu, setMenu] = useState<{ point: MapPoint; at: { x: number; y: number }; size: { width: number; height: number } } | null>(null);
+    const [nearby, setNearby] = useState<{ center: MapPoint; radiusM: number } | null>(null);
+    const [searchFocus, setSearchFocus] = useState(0);
+    const rootRef = useRef<HTMLDivElement>(null);
     const lastWrittenRef = useRef(canonicalQuery(paramsString));
     const isAdmin = root === "/admin";
     const focus: MapPoint = { lat: viewport.lat, lng: viewport.lng };
@@ -283,6 +296,125 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
         [directions.open, directions.from, directions.to, picking, selectPoint],
     );
 
+    // Thông báo tự tắt sau vài giây.
+    useEffect(() => {
+        if (!notice) return;
+        const timer = setTimeout(() => setNotice(null), 5000);
+        return () => clearTimeout(timer);
+    }, [notice]);
+
+    // Menu chuột phải đóng khi bản đồ di chuyển.
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- đóng menu khi khung nhìn đổi
+        setMenu(null);
+    }, [viewport.lat, viewport.lng, viewport.zoom, viewport.bearing, viewport.pitch]);
+
+    // Vừa mở chế độ lân cận hoặc đổi bán kính: đưa cả vòng tròn vào khung nhìn.
+    const nearbyCenter = nearby?.center;
+    const nearbyRadius = nearby?.radiusM;
+    useEffect(() => {
+        if (!nearbyCenter || !nearbyRadius) return;
+        const timer = setTimeout(() => mapRef.current?.fitBounds(circleBounds(nearbyCenter, nearbyRadius)), 250);
+        return () => clearTimeout(timer);
+    }, [nearbyCenter, nearbyRadius]);
+
+    const openMenu = useCallback((point: MapPoint, at: { x: number; y: number }): void => {
+        const box = rootRef.current?.getBoundingClientRect();
+        mapRef.current?.dropPin(point);
+        setMenu({ point, at, size: { width: box?.width ?? 0, height: box?.height ?? 0 } });
+    }, []);
+
+    const closeMenu = useCallback((): void => {
+        setMenu(null);
+        mapRef.current?.dropPin(nearby ? nearby.center : null);
+    }, [nearby]);
+
+    async function copyText(text: string, done: string): Promise<void> {
+        try {
+            await navigator.clipboard.writeText(text);
+            setNotice(done);
+        } catch {
+            setNotice("Không sao chép được. Hãy cấp quyền clipboard cho trang này.");
+        }
+    }
+
+    function directionsTo(point: MapPoint): void {
+        clear();
+        if (!directions.open) {
+            directions.setOpen(true);
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const here = { lat: position.coords.latitude, lng: position.coords.longitude };
+                        directions.setFrom({ ...here, label: "Vị trí của tôi" });
+                        mapRef.current?.showMyLocation(here);
+                    },
+                    () => setNotice("Không xác định được vị trí của bạn. Hãy chọn điểm đi."),
+                    { timeout: 8000, maximumAge: 60000 },
+                );
+            } else {
+                setNotice("Trình duyệt không hỗ trợ định vị. Hãy chọn điểm đi.");
+            }
+        }
+        labelPoint("to", point);
+        setPanel("directions");
+    }
+
+    function whereIsThis(point: MapPoint): void {
+        setNotice("Đang xác định địa điểm…");
+        reverseGeocode(point)
+            .then((place) => {
+                const distance = place?.distanceM ?? null;
+                if (place && distance !== null && distance <= PRECISE_PLACE_M) {
+                    setNotice(null);
+                    directions.close();
+                    setPicking(null);
+                    selectPoint(point, place);
+                    setPanel("place");
+                    return;
+                }
+                setNotice(
+                    distance === null || !place
+                        ? "Không có thông tin địa điểm tại đây."
+                        : `Chưa có địa điểm chính xác tại đây (địa chỉ gần nhất cách khoảng ${Math.round(distance)} m).`,
+                );
+            })
+            .catch((error: unknown) => {
+                if (!isAbortError(error)) setNotice("Không lấy được thông tin địa điểm, vui lòng thử lại.");
+            });
+    }
+
+    function runContextAction(action: ContextAction): void {
+        if (!menu) return;
+        const { point } = menu;
+        setMenu(null);
+        if (action === "copy-coordinates") {
+            void copyText(formatCoordinates(point), "Đã sao chép tọa độ.");
+        } else if (action === "copy-link") {
+            void copyText(placeLink(window.location.origin, pathname, point), "Đã sao chép liên kết tới địa điểm.");
+        } else if (action === "directions") {
+            mapRef.current?.dropPin(null);
+            directionsTo(point);
+            return;
+        } else if (action === "where") {
+            mapRef.current?.dropPin(null);
+            whereIsThis(point);
+            return;
+        } else {
+            clear();
+            setPanel(null);
+            setNearby({ center: point, radiusM: NEARBY_RADIUS.initial });
+            setSearchFocus((value) => value + 1);
+            return;
+        }
+        mapRef.current?.dropPin(nearby ? nearby.center : null);
+    }
+
+    function exitNearby(): void {
+        setNearby(null);
+        mapRef.current?.dropPin(null);
+    }
+
     function onSearchSelect(place: MapPlace): void {
         const point = { lat: place.lat, lng: place.lng };
         selectPoint(point, place);
@@ -423,7 +555,7 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
         ) : null;
 
     return (
-        <div className="relative h-full w-full">
+        <div ref={rootRef} className="relative h-full w-full">
             <MapCanvas
                 handleRef={mapRef}
                 config={readyConfig}
@@ -435,7 +567,9 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                 to={directions.open ? directions.to : null}
                 routes={directions.routes}
                 activeRoute={directions.active}
+                circle={nearby}
                 onMapClick={onMapClick}
+                onContextMenu={openMenu}
                 onPinDrag={(point) => selectPoint(point)}
                 onViewport={(next) => {
                     setViewport(next);
@@ -454,12 +588,14 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                                 <div className="pointer-events-auto absolute top-2 right-2 left-2 z-10 flex max-w-md items-center gap-2">
                                     <PlaceSearchBox
                                         className="min-w-0 flex-1"
-                                        label="Tìm kiếm địa điểm"
-                                        placeholder="Tìm kiếm địa điểm, địa chỉ"
+                                        label={nearby ? "Tìm kiếm lân cận" : "Tìm kiếm địa điểm"}
+                                        placeholder={nearby ? `Tìm quanh đây trong ${nearby.radiusM} m` : "Tìm kiếm địa điểm, địa chỉ"}
                                         value={queryValue}
                                         searchOnValue
-                                        filters={filters}
-                                        focus={focus}
+                                        filters={nearby ? { ...filters, radius: nearby.radiusM } : filters}
+                                        focus={nearby ? nearby.center : focus}
+                                        searchKey={nearby ? `${nearby.center.lat},${nearby.center.lng},${nearby.radiusM}` : ""}
+                                        focusSignal={searchFocus}
                                         onQueryChange={setQuery}
                                         onSelect={onSearchSelect}
                                     />
@@ -481,6 +617,14 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                                 </p>
                             )}
                             <div className="pointer-events-none absolute top-14 right-2 left-2 z-10 flex max-w-md flex-col gap-2">
+                                {nearby ? (
+                                    <MapNearbyBar
+                                        center={nearby.center}
+                                        radiusM={nearby.radiusM}
+                                        onRadius={(radiusM) => setNearby({ ...nearby, radiusM })}
+                                        onExit={exitNearby}
+                                    />
+                                ) : null}
                                 <MapFilterChips filters={filters} onClear={() => setFilters({})} />
                                 <MapUrlErrors errors={urlErrors} onDismiss={() => setUrlErrors([])} />
                                 {failed ? (
@@ -514,6 +658,7 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                     </div>
                     {sidePanel}
                 </div>
+                {menu ? <MapContextMenu at={menu.at} bounds={menu.size} onSelect={runContextAction} onClose={closeMenu} /> : null}
             </div>
         </div>
     );

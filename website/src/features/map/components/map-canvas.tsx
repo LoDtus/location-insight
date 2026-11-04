@@ -10,6 +10,7 @@ import { useEffect, useImperativeHandle, useRef, type Ref } from "react";
 
 import {
     CONGESTION_COLORS,
+    circleToPolygon,
     emptyFeatures,
     routeToFeatures,
     type RouteFeatureCollection,
@@ -26,6 +27,8 @@ export interface MapHandle {
     fitBounds: (bbox: [number, number, number, number], paddingLeft?: number) => void;
     /** Hiện chấm "vị trí của tôi" và bay tới đó. */
     showMyLocation: (point: MapPoint) => void;
+    /** Thả (hoặc gỡ, khi null) ghim của chuột phải, kèm hiệu ứng bật xuống. */
+    dropPin: (point: MapPoint | null) => void;
     /** Đặt lại camera tức thì (khi URL đổi từ bên ngoài). */
     setView: (view: Partial<MapPoint> & { zoom?: number; bearing?: number; pitch?: number }) => void;
 }
@@ -55,7 +58,11 @@ interface MapCanvasProps {
     to: MapPoint | null;
     routes: MapRoute[];
     activeRoute: number;
+    /** Vòng tròn tìm lân cận (mét). */
+    circle: { center: MapPoint; radiusM: number } | null;
     onMapClick: (point: MapPoint) => void;
+    /** Chuột phải: điểm trên bản đồ và vị trí pixel so với khung bản đồ. */
+    onContextMenu: (point: MapPoint, at: { x: number; y: number }) => void;
     onPinDrag: (point: MapPoint) => void;
     onViewport: (viewport: MapViewport) => void;
     onFailure: (failed: boolean) => void;
@@ -67,6 +74,9 @@ const SRC_ALT = "li-route-alt";
 const LAYER_CASING = "li-route-casing";
 const LAYER_ALT = "li-route-alt-line";
 const LAYER_ACTIVE = "li-route-active-line";
+const SRC_CIRCLE = "li-nearby-circle";
+const LAYER_CIRCLE_FILL = "li-nearby-fill";
+const LAYER_CIRCLE_LINE = "li-nearby-line";
 const MARKER_ATTR = "data-map-marker";
 const PIN_COLOR = "#026a4e";
 const DROPPED_PIN_SRC = "/icons/map-pin.svg";
@@ -111,7 +121,9 @@ export default function MapCanvas({
     to,
     routes,
     activeRoute,
+    circle,
     onMapClick,
+    onContextMenu,
     onPinDrag,
     onViewport,
     onFailure,
@@ -136,9 +148,9 @@ export default function MapCanvas({
     const appliedStyleRef = useRef(styleId);
 
     // Giá trị mới nhất cho trình xử lý sự kiện của bản đồ (tránh gắn lại sự kiện).
-    const latest = useRef({ routes, activeRoute, trafficOn, pin, from, to, onMapClick, onPinDrag, onViewport, onFailure });
+    const latest = useRef({ routes, activeRoute, trafficOn, pin, from, to, circle, onMapClick, onContextMenu, onPinDrag, onViewport, onFailure });
     useEffect(() => {
-        latest.current = { routes, activeRoute, trafficOn, pin, from, to, onMapClick, onPinDrag, onViewport, onFailure };
+        latest.current = { routes, activeRoute, trafficOn, pin, from, to, circle, onMapClick, onContextMenu, onPinDrag, onViewport, onFailure };
     });
 
     useImperativeHandle(
@@ -163,6 +175,28 @@ export default function MapCanvas({
                     ],
                     { padding: { top: 80, bottom: 80, left: 80 + paddingLeft, right: 80 }, maxZoom: 17 },
                 );
+            },
+            dropPin: (point) => {
+                const map = mapRef.current;
+                const lib = libRef.current;
+                markersRef.current.drop?.remove();
+                markersRef.current.drop = null;
+                if (!point || !map || !lib) return;
+                // Tạo phần tử mới mỗi lần để hiệu ứng chạy lại từ đầu.
+                const element = document.createElement("div");
+                element.setAttribute(MARKER_ATTR, "drop");
+                element.setAttribute("role", "img");
+                element.setAttribute("aria-label", "Điểm đã chọn bằng chuột phải");
+                element.className = "h-10 w-10";
+                const image = document.createElement("img");
+                image.src = DROPPED_PIN_SRC;
+                image.alt = "";
+                image.draggable = false;
+                image.className = "map-pin-drop pointer-events-none h-full w-full";
+                element.append(image);
+                markersRef.current.drop = new lib.Marker({ element, anchor: "bottom" })
+                    .setLngLat([point.lng, point.lat])
+                    .addTo(map);
             },
             setView: (view) => {
                 const map = mapRef.current;
@@ -212,6 +246,19 @@ export default function MapCanvas({
         if (altSource && "setData" in altSource) {
             (altSource as unknown as { setData: (d: unknown) => void }).setData(altData);
         }
+    }
+
+    function ensureCircleLayers(map: VietmapMap): void {
+        const circleNow = latest.current.circle;
+        const data = (circleNow ? circleToPolygon(circleNow.center, circleNow.radiusM) : emptyFeatures()) as never;
+        const source = map.getSource(SRC_CIRCLE);
+        if (source && "setData" in source) {
+            (source as unknown as { setData: (d: unknown) => void }).setData(data);
+            return;
+        }
+        map.addSource(SRC_CIRCLE, { type: "geojson", data });
+        map.addLayer({ id: LAYER_CIRCLE_FILL, type: "fill", source: SRC_CIRCLE, paint: { "fill-color": PIN_COLOR, "fill-opacity": 0.12 } });
+        map.addLayer({ id: LAYER_CIRCLE_LINE, type: "line", source: SRC_CIRCLE, paint: { "line-color": PIN_COLOR, "line-width": 2, "line-dasharray": [2, 1] } });
     }
 
     function ensureRouteLayers(map: VietmapMap): void {
@@ -326,6 +373,7 @@ export default function MapCanvas({
                 };
                 const setup = (): void => {
                     if (!map) return;
+                    ensureCircleLayers(map);
                     ensureRouteLayers(map);
                     void ensureTraffic(map);
                 };
@@ -337,7 +385,7 @@ export default function MapCanvas({
                 });
                 map.on("styledata", () => {
                     // setStyle xóa mọi nguồn/lớp tùy biến: thiếu nguồn tuyến nghĩa là style mới vừa thay vào.
-                    if (!map || map.getSource(SRC_ACTIVE)) return;
+                    if (!map || map.getSource(SRC_ACTIVE) || map.getSource(SRC_CIRCLE)) return;
                     trafficIdsRef.current = { sources: [], layers: [] };
                     try {
                         setup();
@@ -360,23 +408,10 @@ export default function MapCanvas({
                     const canvas = map.getCanvas();
                     const rect = canvas.getBoundingClientRect();
                     const point = map.unproject([event.clientX - rect.left, event.clientY - rect.top]);
-                    let marker = markersRef.current.drop;
-                    if (!marker) {
-                        const element = document.createElement("div");
-                        element.setAttribute(MARKER_ATTR, "drop");
-                        element.setAttribute("role", "img");
-                        element.setAttribute("aria-label", "Điểm đã ghim");
-                        element.className = "h-10 w-10";
-                        const image = document.createElement("img");
-                        image.src = DROPPED_PIN_SRC;
-                        image.alt = "";
-                        image.draggable = false;
-                        image.className = "pointer-events-none h-full w-full";
-                        element.append(image);
-                        marker = new lib.Marker({ element, anchor: "bottom" });
-                        markersRef.current.drop = marker;
-                    }
-                    marker.setLngLat([point.lng, point.lat]).addTo(map);
+                    latest.current.onContextMenu(
+                        { lat: point.lat, lng: point.lng },
+                        { x: event.clientX - rect.left, y: event.clientY - rect.top },
+                    );
                 };
                 container.addEventListener("contextmenu", onContextMenu);
                 map.getCanvas().style.cursor = "crosshair";
@@ -415,6 +450,14 @@ export default function MapCanvas({
         else removeTraffic(map);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [trafficOn]);
+
+    // Vòng tròn tìm lân cận.
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map || !map.isStyleLoaded()) return;
+        ensureCircleLayers(map);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [circle]);
 
     // Vẽ tuyến.
     useEffect(() => {

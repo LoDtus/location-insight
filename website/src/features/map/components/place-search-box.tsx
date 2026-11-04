@@ -31,6 +31,10 @@ interface PlaceSearchBoxProps {
     filters?: SearchFilters;
     /** Khi `value` đổi từ bên ngoài (vd. URL có `q`), tự chạy tìm kiếm. */
     searchOnValue?: boolean;
+    /** Đổi giá trị này (vd. bán kính mới) để chạy lại tìm kiếm với chuỗi đang gõ. */
+    searchKey?: string;
+    /** Tăng giá trị này để đưa con trỏ vào ô tìm kiếm. */
+    focusSignal?: number;
     className?: string;
 }
 
@@ -44,6 +48,8 @@ export default function PlaceSearchBox({
     onQueryChange,
     filters,
     searchOnValue = false,
+    searchKey = "",
+    focusSignal = 0,
     className = "",
 }: PlaceSearchBoxProps) {
     const listId = useId();
@@ -59,6 +65,11 @@ export default function PlaceSearchBox({
     const filtersRef = useRef<SearchFilters>(filters ?? {});
     const searchRef = useRef<AbortController | null>(null);
     const resolveRef = useRef<AbortController | null>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (focusSignal > 0) inputRef.current?.focus();
+    }, [focusSignal]);
 
     useEffect(() => {
         focusRef.current = focus;
@@ -110,7 +121,7 @@ export default function PlaceSearchBox({
                 });
         }, DEBOUNCE_MS);
         return () => clearTimeout(timer);
-    }, [query]);
+    }, [query, searchKey]);
 
     function choose(suggestion: MapSuggestion): void {
         resolveRef.current?.abort();
@@ -165,6 +176,7 @@ export default function PlaceSearchBox({
                     <Search size={18} className="shrink-0 text-charcoal/60" aria-hidden />
                 )}
                 <input
+                    ref={inputRef}
                     type="text"
                     role="combobox"
                     aria-label={label}

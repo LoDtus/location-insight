@@ -127,3 +127,48 @@ export function signLabel(sign: number): string {
             return "•";
     }
 }
+
+/** Địa điểm cách điểm bấm không quá ngần này mét mới coi là "chính xác tại đó". */
+export const PRECISE_PLACE_M = 10;
+export const NEARBY_RADIUS = { min: 100, max: 5000, step: 100, initial: 500 } as const;
+
+const EARTH_RADIUS_M = 6371008.8;
+
+/** Đa giác xấp xỉ hình tròn bán kính `radiusM` quanh `center` (GeoJSON, [lng, lat]). */
+export function circleToPolygon(center: MapPoint, radiusM: number, steps = 64): CircleFeatureCollection {
+    const latRad = (center.lat * Math.PI) / 180;
+    const angular = radiusM / EARTH_RADIUS_M;
+    const ring: Array<[number, number]> = [];
+    for (let index = 0; index <= steps; index += 1) {
+        const bearing = (index / steps) * 2 * Math.PI;
+        const dLat = angular * Math.cos(bearing);
+        const dLng = (angular * Math.sin(bearing)) / Math.cos(latRad);
+        ring.push([center.lng + (dLng * 180) / Math.PI, center.lat + (dLat * 180) / Math.PI]);
+    }
+    return {
+        type: "FeatureCollection",
+        features: [{ type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [ring] } }],
+    };
+}
+
+export interface CircleFeatureCollection {
+    type: "FeatureCollection";
+    features: Array<{
+        type: "Feature";
+        properties: Record<string, never>;
+        geometry: { type: "Polygon"; coordinates: Array<Array<[number, number]>> };
+    }>;
+}
+
+/** Hộp bao [minLng, minLat, maxLng, maxLat] của hình tròn. */
+export function circleBounds(center: MapPoint, radiusM: number): [number, number, number, number] {
+    const ring = circleToPolygon(center, radiusM, 8).features[0].geometry.coordinates[0];
+    const lngs = ring.map((point) => point[0]);
+    const lats = ring.map((point) => point[1]);
+    return [Math.min(...lngs), Math.min(...lats), Math.max(...lngs), Math.max(...lats)];
+}
+
+/** Link mở bản đồ tại điểm (mức zoom mặc định của ghim). */
+export function placeLink(origin: string, pathname: string, point: MapPoint): string {
+    return `${origin}${pathname}?pin=${Number(point.lat.toFixed(5))},${Number(point.lng.toFixed(5))}`;
+}

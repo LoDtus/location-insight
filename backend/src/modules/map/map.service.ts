@@ -23,6 +23,7 @@ import {
   searchCacheKey,
   type SearchFilters,
   hash,
+  haversineM,
   normalizeDepartAt,
   toPlaceFromPlace,
   toPlaceFromReverse,
@@ -124,7 +125,7 @@ export class MapService {
 
   async reverse(userId: string, lat: number, lng: number): Promise<MapPlace | null> {
     await this.limits.consumeUser('reverse', userId);
-    return this.cached('reverse', reverseCacheKey(lat, lng), async () => {
+    const place = await this.cached('reverse', reverseCacheKey(lat, lng), async () => {
       const result = await this.client.get('/api/reverse/v4', {
         lat: String(lat),
         lng: String(lng),
@@ -132,6 +133,8 @@ export class MapService {
       });
       return toPlaceFromReverse(result.body);
     });
+    // Khoảng cách tính theo đúng điểm được hỏi, không đưa vào cache (khóa cache làm tròn 5 chữ số).
+    return place ? { ...place, distanceM: Math.round(haversineM({ lat, lng }, place) * 10) / 10 } : null;
   }
 
   async route(

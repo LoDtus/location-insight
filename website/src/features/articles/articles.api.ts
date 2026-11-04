@@ -40,6 +40,26 @@ export type PublishedFrequency = {
     points: { bucket: string; count: number }[];
 };
 
+export type ArticleAuthor = { name: string; username: string | null; avatarUrl: string | null };
+export type ArticleStats = { upvotes: number; downvotes: number; comments: number };
+export type ArticleVote = 1 | -1 | 0;
+
+export type ArticleComment = {
+    id: string;
+    parentId: string | null;
+    body: string;
+    removed: boolean;
+    author: ArticleAuthor | null;
+    createdAt: string;
+    editedAt: string | null;
+    likes: number;
+    mine: boolean;
+};
+
+export type ArticleThread = ArticleComment & { replies: ArticleComment[] };
+
+export type ArticleCommentPage = { items: ArticleThread[]; page: number; pageSize: number; total: number };
+
 export type ArticleWrite = {
     title: string;
     slug: string;
@@ -126,3 +146,46 @@ export function restoreAdminArticle(id: string): Promise<AdminArticle> {
 }
 
 export { ARTICLE_TOPICS };
+
+export function publishAdminArticle(id: string): Promise<AdminArticle> {
+    return apiRequest<AdminArticle>(`/admin/blogs/${id}/publish`, { method: "POST" });
+}
+
+export function getAdminArticleBySlug(slug: string): Promise<AdminArticle> {
+    return apiRequest<AdminArticle>(`/admin/blogs/by-slug/${encodeURIComponent(slug)}`);
+}
+
+const articlePath = (slug: string): string => `/articles/${encodeURIComponent(slug)}`;
+
+export function getArticleMe(slug: string): Promise<{ myVote: ArticleVote; likedCommentIds: string[] }> {
+    return apiRequest(`${articlePath(slug)}/me`);
+}
+
+export function voteArticle(slug: string, value: ArticleVote): Promise<ArticleStats & { myVote: ArticleVote }> {
+    return apiRequest(`${articlePath(slug)}/vote`, { method: "PUT", body: JSON.stringify({ value }) });
+}
+
+export function listArticleComments(slug: string, sort: "new" | "top", page: number): Promise<ArticleCommentPage> {
+    const params = new URLSearchParams({ sort, page: String(page) });
+    return apiRequest(`${articlePath(slug)}/comments?${params}`);
+}
+
+export function createArticleComment(slug: string, body: string, parentId?: string): Promise<ArticleComment> {
+    return apiRequest(`${articlePath(slug)}/comments`, { method: "POST", body: JSON.stringify({ body, parentId }) });
+}
+
+export function editArticleComment(id: string, body: string): Promise<ArticleComment> {
+    return apiRequest(`/articles/comments/${id}`, { method: "PATCH", body: JSON.stringify({ body }) });
+}
+
+export function deleteArticleComment(id: string): Promise<{ id: string }> {
+    return apiRequest(`/articles/comments/${id}`, { method: "DELETE" });
+}
+
+export function likeArticleComment(id: string, liked: boolean): Promise<{ id: string; likes: number; liked: boolean }> {
+    return apiRequest(`/articles/comments/${id}/like`, { method: "PUT", body: JSON.stringify({ liked }) });
+}
+
+export function getArticleStats(slug: string): Promise<ArticleStats> {
+    return apiRequest(`${articlePath(slug)}/stats`);
+}

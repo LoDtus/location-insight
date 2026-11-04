@@ -53,6 +53,13 @@ export class ArticlesController {
   }
 
   @Public()
+  @Get(':slug/stats')
+  async stats(@Param('slug') slug: string) {
+    const article = await this.articles.findVisible(slug);
+    return this.engagement.stats(article.id);
+  }
+
+  @Public()
   @Get(':slug/related')
   related(@Param('slug') slug: string) {
     return this.articles.related(slug);

@@ -1,40 +1,76 @@
 import type { Metadata } from "next";
-import Image from "next/image";
-import Link from "next/link";
-import { notFound } from "next/navigation";
 
-import ArticleMarkdown from "@/features/articles/components/article-markdown";
-import { loadPublishedArticle } from "@/features/articles/server/load-articles";
+import { ARTICLE_TOPICS } from "@/features/articles/articles";
+import ArticleView, { type ArticleViewText } from "@/features/articles/components/article-view";
+import UnpublishedArticle from "@/features/articles/components/unpublished-article";
+import { loadPublishedArticle, loadRelatedArticles } from "@/features/articles/server/load-articles";
 import { getLandingMessages } from "@/features/landing-page/server/get-landing-messages";
+import ENV from "@/shared/constants/env.constant";
 import { getLocale } from "@/shared/services/locale.service";
 import { getLocaleValue } from "@/shared/utils/locale.utils";
 
-export async function generateMetadata({
-    params,
-}: {
-    params: Promise<{ slug: string }>;
-}): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
     const { slug } = await params;
     const article = await loadPublishedArticle(slug);
-    if (!article) return { title: "Bài viết" };
+    // Bài chưa công khai không được lập chỉ mục.
+    if (!article) return { title: "Bài viết", robots: { index: false, follow: false } };
 
+    const title = article.seoTitle || article.title;
+    const description = article.seoDescription || article.lede;
     return {
-        title: article.seoTitle || article.title,
-        description: article.seoDescription || article.lede,
+        title,
+        description,
+        alternates: { canonical: `${ENV.WEBSITE_URL}/bai-viet/${article.slug}` },
+        openGraph: {
+            type: "article",
+            title,
+            description,
+            publishedTime: article.publishedAt ?? undefined,
+            modifiedTime: article.updatedAt,
+            authors: [article.author.name],
+            images: article.coverImage?.startsWith("/") ? [`${ENV.WEBSITE_URL}${article.coverImage}`] : undefined,
+        },
     };
 }
 
-export default async function Page({
-    params,
-}: {
-    params: Promise<{ slug: string }>;
-}) {
-    const { slug } = await params;
-    const article = await loadPublishedArticle(slug);
-    if (!article) notFound();
+/** JSON-LD an toàn khi nhúng vào thẻ script: `<` được thoát nên chuỗi không đóng được thẻ. */
+function jsonLd(value: unknown): string {
+    return JSON.stringify(value).replace(/</g, "\\u003c");
+}
 
-    const [messages, locale] = await Promise.all([getLandingMessages(), getLocale()]);
-    const topic = getLocaleValue(messages, ["articles", "topics", article.topic]);
+export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
+    const { slug } = await params;
+    const [article, messages, locale] = await Promise.all([loadPublishedArticle(slug), getLandingMessages(), getLocale()]);
+    const vi = locale !== "en";
+    const t = (viText: string, enText: string): string => (vi ? viText : enText);
+    const topics = Object.fromEntries(ARTICLE_TOPICS.map((topic) => [topic, getLocaleValue(messages, ["articles", "topics", topic])]));
+    const baseText: ArticleViewText = {
+        back: getLocaleValue(messages, ["articles", "title"]),
+        topic: "",
+        toc: t("Trong bài này", "On this page"),
+        related: t("Bài viết liên quan", "Related articles"),
+        byline: t("Tác giả", "Author"),
+        published: "",
+        preview: t("Bản xem trước, chưa công khai", "Preview, not public"),
+    };
+
+    if (!article) {
+        return (
+            <UnpublishedArticle
+                slug={slug}
+                topics={topics}
+                locale={locale}
+                text={baseText}
+                missing={{
+                    title: t("Không có bài này", "Article not found"),
+                    body: t("Bài viết không tồn tại hoặc chưa được đăng.", "This article does not exist or is not published yet."),
+                    back: t("Về danh sách bài viết", "Back to articles"),
+                }}
+            />
+        );
+    }
+
+    const related = await loadRelatedArticles(slug);
     const published = article.publishedAt
         ? new Intl.DateTimeFormat(locale === "en" ? "en-GB" : "vi-VN", {
               day: "numeric",
@@ -45,38 +81,30 @@ export default async function Page({
         : "";
 
     return (
-        <article className="box-border px-4 py-8 sm:px-8 xl:px-50">
-            <p className="m-0">
-                <Link
-                    href="/bai-viet"
-                    className="inline-flex min-h-11 items-center text-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
-                >
-                    {getLocaleValue(messages, ["articles", "title"])}
-                </Link>
-            </p>
-            <header className="mt-4 max-w-3xl">
-                <p className="m-0 text-sm text-charcoal/75">
-                    {topic}
-                    {published ? ` · ${published}` : ""}
-                </p>
-                <h1 className="mt-2 mb-0 text-3xl leading-tight font-semibold tracking-tight md:text-4xl">
-                    {article.title}
-                </h1>
-                <p className="mt-3 text-base leading-relaxed text-charcoal/75">{article.lede}</p>
-            </header>
-            {article.coverImage?.startsWith("/") ? (
-                <Image
-                    src={article.coverImage}
-                    alt=""
-                    width={1200}
-                    height={675}
-                    priority
-                    className="mt-6 aspect-video w-full max-w-3xl rounded-2xl object-cover"
-                />
-            ) : null}
-            <div className="mt-6 max-w-3xl">
-                <ArticleMarkdown source={article.body} />
-            </div>
-        </article>
+        <>
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{
+                    __html: jsonLd({
+                        "@context": "https://schema.org",
+                        "@type": "Article",
+                        headline: article.title,
+                        description: article.seoDescription || article.lede,
+                        datePublished: article.publishedAt,
+                        dateModified: article.updatedAt,
+                        author: { "@type": "Organization", name: article.author.name },
+                        mainEntityOfPage: `${ENV.WEBSITE_URL}/bai-viet/${article.slug}`,
+                        image: article.coverImage?.startsWith("/") ? `${ENV.WEBSITE_URL}${article.coverImage}` : undefined,
+                    }),
+                }}
+            />
+            <ArticleView
+                article={article}
+                related={related}
+                topics={topics}
+                locale={locale}
+                text={{ ...baseText, topic: topics[article.topic] ?? article.topic, published }}
+            />
+        </>
     );
 }

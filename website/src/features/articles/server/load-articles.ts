@@ -8,7 +8,12 @@ import {
     type PublishedList,
 } from "@/features/articles/articles";
 
-export type PublishedArticle = PublicArticle & { body: string };
+export type PublishedArticle = PublicArticle & {
+    body: string;
+    updatedAt: string;
+    author: { name: string; username: string | null; avatarUrl: string | null };
+    stats: { upvotes: number; downvotes: number; comments: number };
+};
 
 type Envelope<T> = {
     success?: boolean;
@@ -70,5 +75,13 @@ export async function loadPublishedArticle(slug: string): Promise<PublishedArtic
         return await readJson<PublishedArticle>(`/articles/${encodeURIComponent(slug)}`);
     } catch {
         return null;
+    }
+}
+
+export async function loadRelatedArticles(slug: string): Promise<PublicArticle[]> {
+    try {
+        return (await readJson<PublicArticle[]>(`/articles/${encodeURIComponent(slug)}/related`)) ?? [];
+    } catch {
+        return [];
     }
 }

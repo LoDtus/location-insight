@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { JSX } from "react";
 
-import { Field, Segmented, SectionCard, Toggle } from "@/features/properties/components/listing-form/form-primitives";
+import { Field, Segmented, SectionCard, Toggle } from "@/shared/components/form/form-primitives";
 import {
     DIRECTION_LABEL,
     FURNISHING_LABEL,

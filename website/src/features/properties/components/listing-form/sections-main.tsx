@@ -2,7 +2,7 @@
 
 import type { JSX } from "react";
 
-import { Field, SectionCard } from "@/features/properties/components/listing-form/form-primitives";
+import { Field, SectionCard } from "@/shared/components/form/form-primitives";
 import PhotoUploader from "@/features/properties/components/listing-form/photo-uploader";
 import type { SectionProps } from "@/features/properties/components/listing-form/section-types";
 import { DESCRIPTION_MAX, DESCRIPTION_MIN } from "@/features/properties/listing-form";

@@ -17,10 +17,13 @@ export const FOCUS_PATHS = [
     "/feedback",
     "/settings",
     "/properties/new",
+    "/blogs/new",
 ] as const;
 
 export function isFocusPath(pathname: string): boolean {
     const rest = pathname.replace(/^\/(app|admin)(?=\/|$)/, "") || "/";
+    // Sửa bài: /blogs/<mã>. Danh sách /blogs vẫn full-width.
+    if (/^\/blogs\/[^/]+$/.test(rest)) return true;
     return FOCUS_PATHS.some((path) => rest === path || rest.startsWith(`${path}/`));
 }
 

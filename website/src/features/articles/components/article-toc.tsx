@@ -1,0 +1,44 @@
+"use client";
+
+import { useEffect, useState, type JSX } from "react";
+
+import type { RichTextHeading } from "@/shared/components/editor/rich-text-markdown";
+
+/** Mục lục bên trái bài: bám theo tiêu đề đang đọc, nhảy tới tiêu đề khi bấm. */
+export default function ArticleToc({ headings, title }: { headings: RichTextHeading[]; title: string }): JSX.Element | null {
+    const [active, setActive] = useState(headings[0]?.id ?? "");
+
+    useEffect(() => {
+        const nodes = headings.map((heading) => document.getElementById(heading.id)).filter((node): node is HTMLElement => node !== null);
+        if (nodes.length === 0) return;
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+                if (visible) setActive(visible.target.id);
+            },
+            { rootMargin: "-10% 0px -70% 0px" },
+        );
+        nodes.forEach((node) => observer.observe(node));
+        return () => observer.disconnect();
+    }, [headings]);
+
+    if (headings.length === 0) return null;
+    return (
+        <nav aria-label={title} className="text-sm">
+            <p className="m-0 mb-3 text-xs font-semibold tracking-wide text-charcoal/60 uppercase">{title}</p>
+            <ol className="m-0 grid list-none gap-0.5 border-l border-charcoal/15 p-0">
+                {headings.map((heading) => (
+                    <li key={heading.id}>
+                        <a
+                            href={`#${heading.id}`}
+                            aria-current={active === heading.id ? "location" : undefined}
+                            className={`-ml-px block border-l-2 py-1.5 leading-snug no-underline focus-visible:outline-2 focus-visible:outline-green ${heading.level === 3 ? "pl-6" : "pl-3"} ${active === heading.id ? "border-green font-semibold text-green" : "border-transparent text-charcoal/75 hover:text-charcoal"}`}
+                        >
+                            {heading.text}
+                        </a>
+                    </li>
+                ))}
+            </ol>
+        </nav>
+    );
+}

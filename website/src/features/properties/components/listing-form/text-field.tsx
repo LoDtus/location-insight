@@ -2,7 +2,7 @@
 
 import type { JSX } from "react";
 
-import { Field, INPUT_CLASS } from "@/features/properties/components/listing-form/form-primitives";
+import { Field, INPUT_CLASS } from "@/shared/components/form/form-primitives";
 import type { SectionProps } from "@/features/properties/components/listing-form/section-types";
 import type { ListingForm } from "@/features/properties/listing-form";
 

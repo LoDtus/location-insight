@@ -3,7 +3,7 @@
 import type { JSX } from "react";
 
 import { DISTRICTS, LISTING_KINDS, type ListingKind, type ListingPurpose } from "@/features/landing-page/data/listings";
-import { Field, INPUT_CLASS, Segmented, SectionCard, Toggle } from "@/features/properties/components/listing-form/form-primitives";
+import { Field, INPUT_CLASS, Segmented, SectionCard, Toggle } from "@/shared/components/form/form-primitives";
 import { KIND_LABEL } from "@/features/properties/components/listing-form/option-labels";
 import SelectField from "@/features/properties/components/listing-form/select-field";
 import type { SectionProps } from "@/features/properties/components/listing-form/section-types";

@@ -2,7 +2,8 @@
 
 import type { JSX, ReactNode } from "react";
 
-import type { FieldError } from "@/features/properties/listing-form";
+/** Thông báo lỗi hai ngôn ngữ của một trường. */
+export type FieldError = { vi: string; en: string };
 
 export const INPUT_CLASS =
     "box-border min-h-11 w-full rounded-xl border border-charcoal/20 bg-white px-4 text-sm text-charcoal placeholder:text-charcoal/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green aria-[invalid=true]:border-red-600";

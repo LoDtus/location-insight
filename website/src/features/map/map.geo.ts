@@ -130,6 +130,8 @@ export function signLabel(sign: number): string {
 
 /** Địa điểm cách điểm bấm không quá ngần này mét mới coi là "chính xác tại đó". */
 export const PRECISE_PLACE_M = 10;
+/** Mức zoom khi mở một ghim. */
+export const PIN_ZOOM = 16;
 export const NEARBY_RADIUS = { min: 100, max: 5000, step: 100, initial: 500 } as const;
 
 const EARTH_RADIUS_M = 6371008.8;
@@ -168,7 +170,8 @@ export function circleBounds(center: MapPoint, radiusM: number): [number, number
     return [Math.min(...lngs), Math.min(...lats), Math.max(...lngs), Math.max(...lats)];
 }
 
-/** Link mở bản đồ tại điểm (mức zoom mặc định của ghim). */
+/** Link mở bản đồ đúng điểm: tâm, mức zoom mặc định của ghim và ghim, đều 6 chữ số thập phân (~0,1 m). */
 export function placeLink(origin: string, pathname: string, point: MapPoint): string {
-    return `${origin}${pathname}?pin=${Number(point.lat.toFixed(5))},${Number(point.lng.toFixed(5))}`;
+    const at = `${Number(point.lat.toFixed(6))},${Number(point.lng.toFixed(6))}`;
+    return `${origin}${pathname}?c=${at}&z=${PIN_ZOOM}&pin=${at}`;
 }

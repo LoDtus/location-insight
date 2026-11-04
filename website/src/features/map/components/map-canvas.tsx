@@ -53,17 +53,16 @@ interface MapCanvasProps {
     initialView: MapInitialView;
     styleId: MapStyleId;
     trafficOn: boolean;
-    pin: MapPoint | null;
     from: MapPoint | null;
     to: MapPoint | null;
     routes: MapRoute[];
     activeRoute: number;
     /** Vòng tròn tìm lân cận (mét). */
     circle: { center: MapPoint; radiusM: number } | null;
+    /** Chuột trái; màn hình chỉ xử lý khi đang chọn điểm đi/đến trên bản đồ. */
     onMapClick: (point: MapPoint) => void;
     /** Chuột phải: điểm trên bản đồ và vị trí pixel so với khung bản đồ. */
     onContextMenu: (point: MapPoint, at: { x: number; y: number }) => void;
-    onPinDrag: (point: MapPoint) => void;
     onViewport: (viewport: MapViewport) => void;
     onFailure: (failed: boolean) => void;
     handleRef: Ref<MapHandle>;
@@ -116,7 +115,6 @@ export default function MapCanvas({
     initialView,
     styleId,
     trafficOn,
-    pin,
     from,
     to,
     routes,
@@ -124,7 +122,6 @@ export default function MapCanvas({
     circle,
     onMapClick,
     onContextMenu,
-    onPinDrag,
     onViewport,
     onFailure,
     handleRef,
@@ -133,24 +130,24 @@ export default function MapCanvas({
     const mapRef = useRef<VietmapMap | null>(null);
     const libRef = useRef<VietmapModule | null>(null);
     const markersRef = useRef<{
-        pin: VietmapMarker | null;
         from: VietmapMarker | null;
         to: VietmapMarker | null;
         me: VietmapMarker | null;
         drop: VietmapMarker | null;
-    }>({ pin: null, from: null, to: null, me: null, drop: null });
+    }>({ from: null, to: null, me: null, drop: null });
     const trafficIdsRef = useRef<{ sources: string[]; layers: string[] }>({
         sources: [],
         layers: [],
     });
     const trafficStyleRef = useRef<Promise<{ sources: Record<string, unknown>; layers: Array<{ id: string }> } | null> | null>(null);
+    const dropRef = useRef<MapPoint | null>(null);
     const initialStyleRef = useRef(styleId);
     const appliedStyleRef = useRef(styleId);
 
     // Giá trị mới nhất cho trình xử lý sự kiện của bản đồ (tránh gắn lại sự kiện).
-    const latest = useRef({ routes, activeRoute, trafficOn, pin, from, to, circle, onMapClick, onContextMenu, onPinDrag, onViewport, onFailure });
+    const latest = useRef({ routes, activeRoute, trafficOn, from, to, circle, onMapClick, onContextMenu, onViewport, onFailure });
     useEffect(() => {
-        latest.current = { routes, activeRoute, trafficOn, pin, from, to, circle, onMapClick, onContextMenu, onPinDrag, onViewport, onFailure };
+        latest.current = { routes, activeRoute, trafficOn, from, to, circle, onMapClick, onContextMenu, onViewport, onFailure };
     });
 
     useImperativeHandle(
@@ -177,26 +174,8 @@ export default function MapCanvas({
                 );
             },
             dropPin: (point) => {
-                const map = mapRef.current;
-                const lib = libRef.current;
-                markersRef.current.drop?.remove();
-                markersRef.current.drop = null;
-                if (!point || !map || !lib) return;
-                // Tạo phần tử mới mỗi lần để hiệu ứng chạy lại từ đầu.
-                const element = document.createElement("div");
-                element.setAttribute(MARKER_ATTR, "drop");
-                element.setAttribute("role", "img");
-                element.setAttribute("aria-label", "Điểm đã chọn bằng chuột phải");
-                element.className = "h-10 w-10";
-                const image = document.createElement("img");
-                image.src = DROPPED_PIN_SRC;
-                image.alt = "";
-                image.draggable = false;
-                image.className = "map-pin-drop pointer-events-none h-full w-full";
-                element.append(image);
-                markersRef.current.drop = new lib.Marker({ element, anchor: "bottom" })
-                    .setLngLat([point.lng, point.lat])
-                    .addTo(map);
+                dropRef.current = point;
+                placeDrop();
             },
             setView: (view) => {
                 const map = mapRef.current;
@@ -246,6 +225,30 @@ export default function MapCanvas({
         if (altSource && "setData" in altSource) {
             (altSource as unknown as { setData: (d: unknown) => void }).setData(altData);
         }
+    }
+
+    /** Đặt ghim thả tại điểm đã yêu cầu; tạo phần tử mới để hiệu ứng rơi chạy lại. */
+    function placeDrop(): void {
+        const map = mapRef.current;
+        const lib = libRef.current;
+        markersRef.current.drop?.remove();
+        markersRef.current.drop = null;
+        const point = dropRef.current;
+        if (!point || !map || !lib) return;
+        const element = document.createElement("div");
+        element.setAttribute(MARKER_ATTR, "drop");
+        element.setAttribute("role", "img");
+        element.setAttribute("aria-label", "Điểm đã chọn");
+        element.className = "h-10 w-10";
+        const image = document.createElement("img");
+        image.src = DROPPED_PIN_SRC;
+        image.alt = "";
+        image.draggable = false;
+        image.className = "map-pin-drop pointer-events-none h-full w-full";
+        element.append(image);
+        markersRef.current.drop = new lib.Marker({ element, anchor: "bottom" })
+            .setLngLat([point.lng, point.lat])
+            .addTo(map);
     }
 
     function ensureCircleLayers(map: VietmapMap): void {
@@ -381,6 +384,7 @@ export default function MapCanvas({
                     latest.current.onFailure(false);
                     setup();
                     syncMarkers();
+                    placeDrop();
                     report();
                 });
                 map.on("styledata", () => {
@@ -471,13 +475,12 @@ export default function MapCanvas({
         const map = mapRef.current;
         const lib = libRef.current;
         if (!map || !lib) return;
-        const { pin: pinPoint, from: fromPoint, to: toPoint } = latest.current;
-        const slots: Array<["pin" | "from" | "to", MapPoint | null, string, boolean]> = [
-            ["pin", pinPoint, PIN_COLOR, true],
-            ["from", fromPoint, "#2563eb", false],
-            ["to", toPoint, "#c0392b", false],
+        const { from: fromPoint, to: toPoint } = latest.current;
+        const slots: Array<["from" | "to", MapPoint | null, string]> = [
+            ["from", fromPoint, "#2563eb"],
+            ["to", toPoint, "#c0392b"],
         ];
-        for (const [slot, point, color, draggable] of slots) {
+        for (const [slot, point, color] of slots) {
             const existing = markersRef.current[slot];
             if (!point) {
                 existing?.remove();
@@ -488,14 +491,8 @@ export default function MapCanvas({
                 existing.setLngLat([point.lng, point.lat]);
                 continue;
             }
-            const marker = new lib.Marker({ color, draggable });
+            const marker = new lib.Marker({ color });
             marker.getElement().setAttribute(MARKER_ATTR, slot);
-            if (draggable) {
-                marker.on("dragend", () => {
-                    const position = marker.getLngLat();
-                    latest.current.onPinDrag({ lat: position.lat, lng: position.lng });
-                });
-            }
             marker.setLngLat([point.lng, point.lat]).addTo(map);
             markersRef.current[slot] = marker;
         }
@@ -504,7 +501,7 @@ export default function MapCanvas({
     // Ghim và điểm đi/đến.
     useEffect(() => {
         syncMarkers();
-    }, [pin, from, to]);
+    }, [from, to]);
 
     // `.vietmapgl-map` đặt position:relative nên không dùng chung với absolute: bọc ngoài để giữ kích thước.
     return (

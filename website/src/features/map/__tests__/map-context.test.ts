@@ -30,9 +30,9 @@ describe("circleToPolygon", () => {
 });
 
 describe("placeLink", () => {
-    it("chỉ mang ghim, không mang mức zoom nên dùng zoom mặc định", () => {
+    it("mang đủ tâm, zoom mặc định và ghim với 6 chữ số thập phân", () => {
         expect(placeLink("https://x.vn", "/app/map", { lat: 21.028512345, lng: 105.854212345 })).toBe(
-            "https://x.vn/app/map?pin=21.02851,105.85421",
+            "https://x.vn/app/map?c=21.028512,105.854212&z=16&pin=21.028512,105.854212",
         );
     });
 });

@@ -258,8 +258,8 @@ export function parseMapUrl(params: URLSearchParams): MapUrlParseResult {
 /** Giữ dấu phẩy và hai chấm cho dễ đọc (đều hợp lệ trong query). */
 const ENCODE_KEEP_COMMA = (value: string): string => encodeURIComponent(value).replace(/%2C/g, ",").replace(/%3A/g, ":");
 
-function fmtPoint(point: MapPoint): string {
-    return `${Number(point.lat.toFixed(5))},${Number(point.lng.toFixed(5))}`;
+function fmtPoint(point: MapPoint, digits = 5): string {
+    return `${Number(point.lat.toFixed(digits))},${Number(point.lng.toFixed(digits))}`;
 }
 
 /** Dựng chuỗi query (không có `?`), thứ tự ổn định, bỏ giá trị mặc định. */
@@ -280,7 +280,7 @@ export function buildMapUrl(state: MapUrlState): string {
     if (f.wardId) pairs.push(["ward", String(f.wardId)]);
     if (f.radius) pairs.push(["r", String(f.radius)]);
     const directions = state.from !== null || state.to !== null;
-    if (!directions && state.pin) pairs.push(["pin", fmtPoint(state.pin)]);
+    if (!directions && state.pin) pairs.push(["pin", fmtPoint(state.pin, 6)]);
     if (state.from) pairs.push(["from", fmtPoint(state.from)]);
     if (state.to) pairs.push(["to", fmtPoint(state.to)]);
     if (directions) {

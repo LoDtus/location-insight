@@ -38,6 +38,7 @@ import {
 } from "@/features/map/map-url";
 import {
     NEARBY_RADIUS,
+    PIN_ZOOM,
     PRECISE_PLACE_M,
     circleBounds,
     formatCoordinates,
@@ -61,7 +62,6 @@ type Panel = "place" | "directions" | "usage" | "detail" | null;
 
 const POINT_LABEL_FALLBACK = "Điểm đã chọn";
 const URL_WRITE_DELAY_MS = 500;
-const PIN_ZOOM = 16;
 
 function toWaypoint(place: MapPlace): Waypoint {
     return { lat: place.lat, lng: place.lng, label: place.name || place.display || POINT_LABEL_FALLBACK };
@@ -279,22 +279,26 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
         [directions.setFrom, directions.setTo],
     );
 
+    // Chuột trái chỉ dùng để chọn điểm đi/đến khi người dùng bấm "chọn trên bản đồ".
     const onMapClick = useCallback(
         (point: MapPoint): void => {
+            if (!picking || !directions.open) return;
             setNotice(null);
-            if (directions.open) {
-                const target = picking ?? (!directions.from ? "from" : !directions.to ? "to" : null);
-                if (!target) return;
-                labelPoint(target, point);
-                setPicking(null);
-                return;
-            }
-            selectPoint(point);
-            setPanel("place");
+            labelPoint(picking, point);
+            setPicking(null);
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps -- labelPoint đọc state mới nhất qua closure mỗi lần render
-        [directions.open, directions.from, directions.to, picking, selectPoint],
+        [picking, directions.open],
     );
+
+    // Chỉ một ghim duy nhất: điểm vừa bấm chuột phải, rồi điểm đang chọn, rồi tâm tìm lân cận.
+    const dropped =
+        menu?.point ?? (selection.status === "none" || directions.open ? null : selection.point) ?? nearby?.center ?? null;
+    const droppedLat = dropped?.lat;
+    const droppedLng = dropped?.lng;
+    useEffect(() => {
+        mapRef.current?.dropPin(droppedLat !== undefined && droppedLng !== undefined ? { lat: droppedLat, lng: droppedLng } : null);
+    }, [droppedLat, droppedLng, config]);
 
     // Thông báo tự tắt sau vài giây.
     useEffect(() => {
@@ -320,14 +324,10 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
 
     const openMenu = useCallback((point: MapPoint, at: { x: number; y: number }): void => {
         const box = rootRef.current?.getBoundingClientRect();
-        mapRef.current?.dropPin(point);
         setMenu({ point, at, size: { width: box?.width ?? 0, height: box?.height ?? 0 } });
     }, []);
 
-    const closeMenu = useCallback((): void => {
-        setMenu(null);
-        mapRef.current?.dropPin(nearby ? nearby.center : null);
-    }, [nearby]);
+    const closeMenu = useCallback((): void => setMenu(null), []);
 
     async function copyText(text: string, done: string): Promise<void> {
         try {
@@ -393,11 +393,9 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
         } else if (action === "copy-link") {
             void copyText(placeLink(window.location.origin, pathname, point), "Đã sao chép liên kết tới địa điểm.");
         } else if (action === "directions") {
-            mapRef.current?.dropPin(null);
             directionsTo(point);
             return;
         } else if (action === "where") {
-            mapRef.current?.dropPin(null);
             whereIsThis(point);
             return;
         } else {
@@ -407,12 +405,10 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
             setSearchFocus((value) => value + 1);
             return;
         }
-        mapRef.current?.dropPin(nearby ? nearby.center : null);
     }
 
     function exitNearby(): void {
         setNearby(null);
-        mapRef.current?.dropPin(null);
     }
 
     function onSearchSelect(place: MapPlace): void {
@@ -505,7 +501,6 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
         );
     }
     const readyConfig = configState.config;
-    const pin = selection.status === "none" || directions.open ? null : selection.point;
     const sidePanel =
         panel === "directions" ? (
             <MapDirectionsPanel
@@ -562,7 +557,6 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                 initialView={computeInitialView(init, readyConfig)}
                 styleId={styleId}
                 trafficOn={trafficOn}
-                pin={pin}
                 from={directions.open ? directions.from : null}
                 to={directions.open ? directions.to : null}
                 routes={directions.routes}
@@ -570,7 +564,6 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                 circle={nearby}
                 onMapClick={onMapClick}
                 onContextMenu={openMenu}
-                onPinDrag={(point) => selectPoint(point)}
                 onViewport={(next) => {
                     setViewport(next);
                     setViewportReady(true);

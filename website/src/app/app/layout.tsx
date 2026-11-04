@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ReactNode } from "react";
 
 import AppSidebar from "@/features/app/components/app-sidebar";
+import { ShellContent } from "@/features/app/components/shell-content";
 import { RequireSession } from "@/features/auth/route-gate";
 import { MessagingProvider } from "@/features/messaging/messaging-provider";
 import { PwaProvider } from "@/features/pwa/components/pwa-provider";
@@ -23,7 +24,7 @@ export default function Layout({
                     <div className="flex h-full min-h-0 w-full bg-white pb-[env(safe-area-inset-bottom)] text-charcoal">
                         <AppSidebar surface="app" />
                         <div id="noi-dung" className="h-full min-h-0 min-w-0 flex-1">
-                            {children}
+                            <ShellContent>{children}</ShellContent>
                         </div>
                     </div>
                 </PwaProvider>

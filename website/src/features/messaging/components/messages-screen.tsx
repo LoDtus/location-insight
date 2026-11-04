@@ -8,7 +8,6 @@ import { useAuth } from "@/features/auth/use-auth";
 
 import type { Folder } from "../messaging.reducers";
 import { useMessagingState } from "../messaging.store";
-import { useMediaQuery } from "../use-media-query";
 import { ConversationInfoPanel } from "./conversation-info-panel";
 import { ConversationList } from "./conversation-list";
 import { NewMessageDialog } from "./new-message-dialog";
@@ -16,8 +15,25 @@ import { SettingsDialog } from "./settings-dialog";
 import { Thread } from "./thread";
 
 const INFO_KEY = "messaging-info-open";
-/** Đủ rộng cho menu 272 px + danh sách 340 px + khung hội thoại + cột thông tin 320 px. */
-const WIDE_QUERY = "(min-width: 1440px)";
+/** Danh sách 340 px + hội thoại + cột thông tin 320 px. Cột hẹp của shell không đủ thì mở dạng ngăn trượt. */
+const COLUMN_MIN = 1100;
+
+function usePaneWide(minWidth: number): { ref: (node: HTMLElement | null) => void; wide: boolean } {
+    const [node, setNode] = useState<HTMLElement | null>(null);
+    const [wide, setWide] = useState(false);
+
+    useEffect(() => {
+        if (!node) return;
+        const observer = new ResizeObserver((entries) => {
+            const next = (entries[0]?.contentRect.width ?? 0) >= minWidth;
+            setWide((current) => (current === next ? current : next));
+        });
+        observer.observe(node);
+        return () => observer.disconnect();
+    }, [node, minWidth]);
+
+    return { ref: setNode, wide };
+}
 
 function readInfoPreference(): boolean {
     try {
@@ -48,7 +64,8 @@ export function MessagesScreen({
 }): JSX.Element {
     const router = useRouter();
     const auth = useAuth();
-    const wide = useMediaQuery(WIDE_QUERY);
+    const pane = usePaneWide(COLUMN_MIN);
+    const wide = pane.wide;
     const [chosen, setChosen] = useState<{ id: string | null; folder: Folder } | null>(null);
     const [composing, setComposing] = useState(false);
     const [settings, setSettings] = useState(false);
@@ -90,7 +107,7 @@ export function MessagesScreen({
     }
 
     return (
-        <main className="flex h-full min-h-0 w-full bg-white" aria-label="Tin nhắn">
+        <main ref={pane.ref} className="flex h-full min-h-0 w-full bg-white" aria-label="Tin nhắn">
             <div className={`${conversationId ? "hidden md:flex" : "flex"} h-full min-h-0 w-full md:w-auto`}>
                 <ConversationList
                     root={root}

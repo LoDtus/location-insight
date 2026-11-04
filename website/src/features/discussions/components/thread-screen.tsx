@@ -140,7 +140,7 @@ export function ThreadScreen({ id, root }: { id: string; root: ShellRoot }): JSX
 
     return (
         <main ref={scroller} className="h-full overflow-auto bg-white">
-            <div className="mx-auto min-h-full w-full max-w-[640px] border-x border-charcoal/10 bg-white">
+            <div className="min-h-full w-full border-x border-charcoal/10 bg-white">
                 <p className="m-0 border-b border-charcoal/10 px-4 py-3 text-sm">
                     <Link href={`${root}/feed`} className="font-semibold text-green no-underline">
                         Diễn đàn

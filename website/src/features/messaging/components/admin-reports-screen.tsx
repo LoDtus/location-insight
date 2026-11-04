@@ -59,7 +59,7 @@ export function AdminReportsScreen(): JSX.Element {
 
     return (
         <main className="box-border h-full overflow-auto bg-white px-4 py-6 sm:px-8">
-            <div className="mx-auto w-full max-w-4xl">
+            <div className="w-full">
                 <h1 className="m-0 text-2xl font-semibold">Báo cáo tin nhắn</h1>
                 <p className="mt-2 mb-4 text-sm text-charcoal/70">
                     Chỉ thấy tin bị báo cáo và tối đa 10 tin xung quanh, chụp lại lúc báo cáo. Mọi xử lý được ghi nhật ký kèm lý do.

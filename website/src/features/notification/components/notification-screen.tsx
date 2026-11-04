@@ -72,7 +72,7 @@ export function NotificationScreen(): JSX.Element {
 
     return (
         <main className="h-full overflow-auto bg-white">
-            <div className="mx-auto box-border flex w-full max-w-3xl flex-col gap-4 px-4 py-6 sm:px-8">
+            <div className="box-border flex w-full flex-col gap-4 px-4 py-6 sm:px-8">
                 <div className="flex items-center justify-between gap-3">
                     <h1 className="m-0 text-2xl font-semibold">Thông báo</h1>
                     <button

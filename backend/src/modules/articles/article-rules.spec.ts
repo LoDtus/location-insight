@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   articleIssues,
+  cleanCommentBody,
   foldText,
   likePattern,
   slugifyTitle,
@@ -41,5 +42,14 @@ describe('article rules', () => {
 
   it('cho nháp ngắn', () => {
     expect(articleIssues(draft({ status: 'draft', body: 'Nháp', lede: '' }))).toEqual([]);
+  });
+});
+
+describe('cleanCommentBody', () => {
+  it('bỏ ký tự điều khiển, gộp dòng trống và cắt hai đầu', () => {
+    expect(cleanCommentBody('  xin\u0000 chào\r\n\r\n\r\n\r\nbạn  ')).toBe('xin chào\n\nbạn');
+  });
+  it('chuỗi chỉ có khoảng trắng thành rỗng', () => {
+    expect(cleanCommentBody(' \n\t ')).toBe('');
   });
 });

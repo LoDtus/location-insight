@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsIn,
   IsInt,
   IsISO8601,
@@ -189,4 +190,45 @@ export class ArticleFrequencyQueryDto {
   @IsString()
   @Matches(/^\d{4}(-\d{2}(-\d{2})?)?$/)
   to: string;
+}
+
+export class ArticleVoteDto {
+  @IsIn([-1, 0, 1])
+  value: -1 | 0 | 1;
+}
+
+export class CommentListQueryDto {
+  @IsOptional()
+  @IsIn(['new', 'top'])
+  sort?: 'new' | 'top';
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(1000)
+  page?: number;
+}
+
+export class CommentWriteDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(2000)
+  body: string;
+
+  @IsOptional()
+  @IsUUID()
+  parentId?: string;
+}
+
+export class CommentEditDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(2000)
+  body: string;
+}
+
+export class CommentLikeDto {
+  @IsBoolean()
+  liked: boolean;
 }

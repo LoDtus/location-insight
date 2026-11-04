@@ -120,3 +120,12 @@ function isCoverImage(value: string): boolean {
 function hasInternalLink(body: string): boolean {
   return /\]\((\/nha-dat|\/phap-ly|\/bai-viet\/)/.test(body);
 }
+
+/** Bình luận là văn bản thuần: bỏ ký tự điều khiển, gộp dòng trống thừa, cắt hai đầu. */
+export function cleanCommentBody(value: string): string {
+  return value
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/g, '')
+    .replace(/\r\n?/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}

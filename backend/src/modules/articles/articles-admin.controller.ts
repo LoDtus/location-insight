@@ -44,6 +44,12 @@ export class ArticlesAdminController {
   }
 
   @RequirePermission('admin:access')
+  @Get('by-slug/:slug')
+  bySlug(@Param('slug') slug: string) {
+    return this.articles.getAdminBySlug(slug);
+  }
+
+  @RequirePermission('admin:access')
   @Get(':id')
   one(@Param('id', ParseUUIDPipe) id: string) {
     return this.articles.getAdmin(id);
@@ -69,6 +75,12 @@ export class ArticlesAdminController {
     @Req() request: RequestWithPrincipal,
   ) {
     return this.articles.update(id, request.principal?.userId ?? null, body);
+  }
+
+  @RequirePermission('admin:access')
+  @Post(':id/publish')
+  publish(@Param('id', ParseUUIDPipe) id: string) {
+    return this.articles.publish(id);
   }
 
   @RequirePermission('admin:access')

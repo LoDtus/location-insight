@@ -11,6 +11,8 @@ const SAFE_LINK_PROTOCOLS = new Set(["http:", "https:", "mailto:", "tel:"]);
 export function normalizeLinkUrl(raw: string): string | null {
     const value = raw.trim();
     if (!value || /\s/.test(value)) return null;
+    // Đường dẫn nội bộ của chính trang (vd. /nha-dat); "//" là địa chỉ theo giao thức nên không nhận.
+    if (value.startsWith("/") && !value.startsWith("//")) return value;
     const candidate = /^[a-z][a-z0-9+.-]*:/i.test(value) ? value : `https://${value}`;
     try {
         const url = new URL(candidate);

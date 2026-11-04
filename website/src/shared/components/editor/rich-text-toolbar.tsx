@@ -151,6 +151,12 @@ export default function RichTextToolbar({
         ],
     ];
 
+    const available = new Set(editor.extensionManager.extensions.map((extension) => extension.name));
+    const needs: Record<string, string> = { underline: "underline", left: "textAlign", center: "textAlign", right: "textAlign" };
+    const visible = groups
+        .map((group) => group.filter((spec) => !needs[spec.key] || available.has(needs[spec.key])))
+        .filter((group) => group.length > 0);
+
     function applyLink(event: FormEvent<HTMLFormElement>): void {
         event.preventDefault();
         event.stopPropagation();
@@ -167,7 +173,7 @@ export default function RichTextToolbar({
     return (
         <div className="border-b border-charcoal/15 bg-cream/60">
             <div role="toolbar" aria-label={names.toolbar} className="flex flex-wrap items-center gap-1.5 px-2 py-1.5">
-                {groups.map((group) => (
+                {visible.map((group) => (
                     <Group key={group[0].key}>
                         {group.map((spec) => (
                             <ToolButton key={spec.key} spec={spec} />

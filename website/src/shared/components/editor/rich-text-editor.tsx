@@ -13,6 +13,9 @@ import { useLocale } from "@/shared/hooks/useLocale";
 type RichTextEditorProps = {
     /** Nội dung ban đầu. Chỉ đọc lúc dựng; sau đó trình soạn tự giữ trạng thái. */
     initialValue?: RichTextDoc;
+    /** Chế độ Markdown: nội dung vào/ra là chuỗi Markdown (`initialMarkdown`, `change.markdown`). */
+    markdown?: boolean;
+    initialMarkdown?: string;
     onChange: (change: RichTextChange) => void;
     ariaLabel: string;
     placeholder?: string;
@@ -28,6 +31,8 @@ type RichTextEditorProps = {
  */
 export default function RichTextEditor({
     initialValue = EMPTY_RICH_TEXT,
+    markdown = false,
+    initialMarkdown = "",
     onChange,
     ariaLabel,
     placeholder,
@@ -38,10 +43,11 @@ export default function RichTextEditor({
 }: RichTextEditorProps): JSX.Element {
     const { locale } = useLocale();
     const vi = locale === "vi";
-    const extensions = useMemo(() => buildRichTextExtensions({ placeholder, maxLength }), [placeholder, maxLength]);
+    const extensions = useMemo(() => buildRichTextExtensions({ placeholder, maxLength, markdown }), [placeholder, maxLength, markdown]);
     const editor = useEditor({
         extensions,
-        content: initialValue,
+        content: markdown ? initialMarkdown : initialValue,
+        ...(markdown ? { contentType: "markdown" as const } : {}),
         immediatelyRender: false,
         editorProps: {
             attributes: {
@@ -57,6 +63,7 @@ export default function RichTextEditor({
             onChange({
                 doc: current.getJSON() as RichTextDoc,
                 characters: current.storage.characterCount.characters(),
+                ...(markdown ? { markdown: current.getMarkdown() } : {}),
             });
         },
     });

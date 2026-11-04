@@ -22,6 +22,11 @@ import {
   IngestArticleDto,
 } from './dto/article.dto.js';
 import { ArticleEntity } from './entities/article.entity.js';
+import {
+  ArticleEngagementService,
+  type ArticleAuthor,
+  type ArticleStats,
+} from './article-engagement.service.js';
 
 const PUBLIC_PAGE_SIZE = 6;
 const ADMIN_PAGE_SIZES = [10, 20, 50] as const;
@@ -43,6 +48,13 @@ export type ArticlePublicView = {
   coverImage: string | null;
   seoTitle: string | null;
   seoDescription: string | null;
+};
+
+export type ArticleDetailView = ArticlePublicView & {
+  body: string;
+  updatedAt: Date;
+  author: ArticleAuthor;
+  stats: ArticleStats;
 };
 
 export type ArticleAdminView = ArticlePublicView & {
@@ -68,6 +80,7 @@ export class ArticlesService {
   constructor(
     @InjectRepository(ArticleEntity)
     private readonly articles: Repository<ArticleEntity>,
+    private readonly engagement: ArticleEngagementService,
   ) {}
 
   async listPublic(query: ArticleListQueryDto) {
@@ -89,12 +102,71 @@ export class ArticlesService {
     };
   }
 
-  async getPublic(slug: string): Promise<ArticlePublicView & { body: string }> {
-    const row = await this.visibleQuery()
-      .andWhere('article.slug = :slug', { slug })
-      .getOne();
+  async getPublic(slug: string): Promise<ArticleDetailView> {
+    const row = await this.findVisible(slug);
+    const [author, stats] = await Promise.all([
+      this.engagement.authorOf(row.authorUserId),
+      this.engagement.stats(row.id),
+    ]);
+    return { ...this.toPublic(row), body: row.body, updatedAt: row.updatedAt, author, stats };
+  }
+
+  /** Mã bài đang công khai theo slug; bài nháp/ẩn/đã xóa không có đường vào từ API công khai. */
+  async findVisible(slug: string): Promise<ArticleEntity> {
+    const row = await this.visibleQuery().andWhere('article.slug = :slug', { slug }).getOne();
     if (!row) throw new NotFoundException('Không có bài này.');
-    return { ...this.toPublic(row), body: row.body };
+    return row;
+  }
+
+  /** Bài cùng chủ đề trước, thiếu thì bù bằng bài mới nhất của chủ đề khác. */
+  async related(slug: string, limit = 5): Promise<ArticlePublicView[]> {
+    const current = await this.findVisible(slug);
+    const same = await this.visibleQuery()
+      .andWhere('article.id <> :id AND article.topic = :topic', { id: current.id, topic: current.topic })
+      .orderBy('article.publishedAt', 'DESC')
+      .take(limit)
+      .getMany();
+    let rows = same;
+    if (rows.length < limit) {
+      const others = await this.visibleQuery()
+        .andWhere('article.id <> :id AND article.topic <> :topic', { id: current.id, topic: current.topic })
+        .orderBy('article.publishedAt', 'DESC')
+        .take(limit - rows.length)
+        .getMany();
+      rows = [...rows, ...others];
+    }
+    return rows.map((row) => this.toPublic(row));
+  }
+
+  async getAdminBySlug(slug: string): Promise<ArticleAdminView> {
+    const row = await this.articles.findOne({ where: { slug }, withDeleted: true });
+    if (!row) throw new NotFoundException('Không có bài này.');
+    return this.toAdmin(row);
+  }
+
+  /** Công bố ngay. Giữ giờ đăng cũ nếu đã qua, không thì lấy giờ hiện tại. Vẫn phải qua kiểm tra chất lượng. */
+  async publish(id: string): Promise<ArticleAdminView> {
+    const current = await this.articles.findOne({ where: { id } });
+    if (!current) throw new NotFoundException('Không có bài này.');
+    const now = new Date();
+    const publishedAt = current.publishedAt && current.publishedAt.getTime() <= now.getTime() ? current.publishedAt : now;
+    const draft: ArticleDraft = {
+      title: current.title,
+      slug: current.slug,
+      lede: current.lede,
+      body: current.body,
+      topic: current.topic,
+      status: 'published',
+      publishedAt,
+      coverImage: current.coverImage,
+      seoTitle: current.seoTitle,
+      seoDescription: current.seoDescription,
+    };
+    this.assertIssues(draft);
+    current.status = 'published';
+    current.publishedAt = publishedAt;
+    current.reviewNote = null;
+    return this.toAdmin(await this.articles.save(current));
   }
 
   async listAdmin(query: ArticleListQueryDto) {

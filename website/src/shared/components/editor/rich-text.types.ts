@@ -13,4 +13,6 @@ export type RichTextChange = {
     doc: RichTextDoc;
     /** Số ký tự chữ thực tế, không tính định dạng. */
     characters: number;
+    /** Chỉ có khi trình soạn chạy ở chế độ Markdown. */
+    markdown?: string;
 };

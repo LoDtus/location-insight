@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useEffect, useRef, useState, type JSX } from "react";
 
 import type { SearchFilters } from "@/features/map/map-url";
@@ -39,7 +39,7 @@ interface MapFilterPanelProps {
     onClose: () => void;
 }
 
-/** Bộ lọc tìm kiếm, mở ở bên trái bản đồ. Chọn rồi bấm "Áp dụng". */
+/** Bộ lọc tìm kiếm, mở ở bên trái bản đồ. Mỗi thay đổi áp dụng ngay (mã nhóm: khi đúng định dạng). */
 export default function MapFilterPanel({ filters, onApply, onClose }: MapFilterPanelProps): JSX.Element {
     const [scopes, setScopes] = useState<string[]>(splitList(filters.scope));
     const [cats, setCats] = useState(filters.cats ?? "");
@@ -52,13 +52,20 @@ export default function MapFilterPanel({ filters, onApply, onClose }: MapFilterP
         ref.current?.querySelector<HTMLInputElement>("input")?.focus();
     }, []);
 
-    function apply(): void {
-        if (catsError) return;
+    function apply(nextScopes: string[], nextCats: string): void {
+        const cleanCats = nextCats.replace(/\s+/g, "");
+        if (cleanCats !== "" && !CATS_PATTERN.test(cleanCats)) return;
         onApply({
             ...filters,
-            scope: scopes.length > 0 ? SCOPE_OPTIONS.map((option) => option.id).filter((id) => scopes.includes(id)).join(",") : undefined,
-            cats: catsClean || undefined,
+            scope: nextScopes.length > 0 ? SCOPE_OPTIONS.map((option) => option.id).filter((id) => nextScopes.includes(id)).join(",") : undefined,
+            cats: cleanCats || undefined,
         });
+    }
+
+    function toggleScope(id: string): void {
+        const next = scopes.includes(id) ? scopes.filter((item) => item !== id) : [...scopes, id];
+        setScopes(next);
+        apply(next, cats);
     }
 
     return (
@@ -97,9 +104,7 @@ export default function MapFilterPanel({ filters, onApply, onClose }: MapFilterP
                                 <input
                                     type="checkbox"
                                     checked={checked}
-                                    onChange={() =>
-                                        setScopes((current) => (checked ? current.filter((id) => id !== option.id) : [...current, option.id]))
-                                    }
+                                    onChange={() => toggleScope(option.id)}
                                     className="size-4 accent-green"
                                 />
                                 {option.label}
@@ -119,7 +124,10 @@ export default function MapFilterPanel({ filters, onApply, onClose }: MapFilterP
                         placeholder="Ví dụ: 1002-1,3001"
                         aria-invalid={catsError}
                         aria-describedby="bo-loc-nhom-goi-y"
-                        onChange={(event) => setCats(event.target.value)}
+                        onChange={(event) => {
+                            setCats(event.target.value);
+                            apply(scopes, event.target.value);
+                        }}
                         className="w-full rounded-lg border border-charcoal/15 px-3 py-2 text-sm outline-none placeholder:text-charcoal/40 focus:border-green focus:ring-2 focus:ring-green/20 aria-[invalid=true]:border-red-500"
                     />
                     <p id="bo-loc-nhom-goi-y" className={`m-0 text-xs ${catsError ? "text-red-700" : "text-charcoal/55"}`}>
@@ -127,25 +135,21 @@ export default function MapFilterPanel({ filters, onApply, onClose }: MapFilterP
                     </p>
                 </div>
             </div>
-            <div className="flex shrink-0 items-center gap-2 border-t border-charcoal/10 p-3">
+            <div className="flex shrink-0 items-center gap-2 border-t border-charcoal/10 px-3 py-2.5">
+                <p className="m-0 text-xs text-charcoal/55" aria-live="polite">
+                    {pending > 0 ? `Đang áp dụng ${pending} bộ lọc` : "Chưa áp dụng bộ lọc nào"}
+                </p>
                 <button
                     type="button"
                     disabled={pending === 0}
                     onClick={() => {
                         setScopes([]);
                         setCats("");
+                        apply([], "");
                     }}
-                    className="rounded-lg bg-transparent px-3 py-2 text-sm font-semibold text-charcoal/70 hover:bg-charcoal/5 hover:text-charcoal disabled:opacity-40"
+                    className="ml-auto rounded-lg bg-transparent px-3 py-1.5 text-sm font-semibold text-charcoal/70 hover:bg-charcoal/5 hover:text-charcoal disabled:opacity-40"
                 >
                     Bỏ chọn tất cả
-                </button>
-                <button
-                    type="button"
-                    disabled={catsError}
-                    onClick={apply}
-                    className="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-green px-4 py-2 text-sm font-semibold text-cream hover:bg-green/90 disabled:opacity-50"
-                >
-                    <Check size={15} aria-hidden /> Áp dụng{pending > 0 ? ` (${pending})` : ""}
                 </button>
             </div>
         </section>

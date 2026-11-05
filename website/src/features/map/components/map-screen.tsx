@@ -1,6 +1,6 @@
 "use client";
 
-import { Bookmark, Loader2, Navigation, Settings, SlidersHorizontal } from "lucide-react";
+import { Bookmark, Loader2, Settings, SlidersHorizontal } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -868,18 +868,6 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                                     >
                                         <Bookmark size={18} aria-hidden className={panel === "saved" ? "fill-green/20" : ""} />
                                     </TopButton>
-                                    <button
-                                        type="button"
-                                        aria-label="Chỉ đường"
-                                        title="Chỉ đường"
-                                        className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-green text-cream shadow-sm hover:bg-green/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
-                                        onClick={() => {
-                                            directions.setOpen(true);
-                                            setPanel("directions");
-                                        }}
-                                    >
-                                        <Navigation size={18} aria-hidden />
-                                    </button>
                                     {isAdmin ? (
                                         <TopButton label="Mức dùng Vietmap" pressed={panel === "usage"} onClick={() => setPanel((current) => (current === "usage" ? null : "usage"))}>
                                             <Settings size={18} aria-hidden />
@@ -897,16 +885,7 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                                     <MapFilterPanel
                                         filters={filters}
                                         onClose={() => setFilterOpen(false)}
-                                        onApply={(next) => {
-                                            setFilters(next);
-                                            setFilterOpen(false);
-                                            const count = countFilters(next);
-                                            showToast({
-                                                title: count > 0 ? `Đã áp dụng ${count} bộ lọc` : "Đã bỏ bộ lọc",
-                                                description: count > 0 ? "Gợi ý và kết quả tìm kiếm sẽ theo bộ lọc này." : undefined,
-                                                tone: "info",
-                                            });
-                                        }}
+                                        onApply={setFilters}
                                     />
                                 </div>
                             ) : null}
@@ -983,7 +962,7 @@ function TopButton({
             title={label}
             aria-pressed={pressed}
             onClick={onClick}
-            className={`relative inline-flex size-10 shrink-0 items-center justify-center rounded-full shadow-sm ring-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green ${pressed ? "bg-green/10 text-green ring-green/40" : "bg-white text-charcoal/80 ring-charcoal/15 hover:text-charcoal"}`}
+            className={`relative inline-flex size-10 shrink-0 items-center justify-center rounded-full shadow-sm ring-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green ${pressed ? "bg-white text-green ring-2 ring-green" : "bg-white text-charcoal/80 ring-charcoal/15 hover:bg-[#f4f4f4] hover:text-charcoal"}`}
         >
             {children}
             {badge > 0 ? (

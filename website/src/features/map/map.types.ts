@@ -35,6 +35,24 @@ export interface SavedPlace {
     address: string;
     kind: MapPlaceKind | null;
     createdAt: string;
+    /** Lượt đánh giá gần nhất của chính người dùng; null nếu chưa đánh giá. */
+    evaluation: EvaluationSummary | null;
+}
+
+export interface EvaluationSummary {
+    overall: number | null;
+    rating: string;
+    datasetVersion: number;
+    outdated: boolean;
+    evaluatedAt: string;
+}
+
+export interface DatasetVersion {
+    version: number;
+    note: string;
+    releasedBy: string | null;
+    releasedAt: string;
+    current: boolean;
 }
 
 export type CriterionGroup = "walk" | "move" | "health" | "env";
@@ -68,6 +86,13 @@ export interface PlaceEvaluation {
     weaknesses: { points: number; items: EvaluatedCriterion[] };
     skipped: EvaluatedCriterion[];
     criteriaCount: number;
+    /** Phiên bản dữ liệu của lượt đánh giá này. */
+    datasetVersion: number;
+    /** Phiên bản dữ liệu hiện hành của hệ thống. */
+    currentDatasetVersion: number;
+    /** Đã có phiên bản dữ liệu mới hơn: có thể "Đánh giá lại". */
+    outdated: boolean;
+    evaluatedAt: string;
 }
 
 export type Congestion = "low" | "moderate" | "heavy" | "severe" | "unknown";

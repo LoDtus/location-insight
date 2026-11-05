@@ -13,14 +13,17 @@ export type RouteVehicle = (typeof ROUTE_VEHICLES)[number];
 
 export type MapApi = 'autocomplete' | 'place' | 'reverse' | 'route';
 /** Thao tác chỉ chạy trong hệ thống (không gọi Vietmap) nhưng vẫn giới hạn theo người dùng. */
-export type MapLocalApi = 'config' | 'evaluate' | 'saved';
+export type MapLocalApi = 'config' | 'evaluate' | 'evaluation-read' | 'saved';
 
 /** Giới hạn mỗi người dùng (cửa sổ cố định theo giây). */
 export const MAP_USER_LIMITS: Readonly<
   Record<MapApi | MapLocalApi, { limit: number; windowSeconds: number }>
 > = {
   config: { limit: 30, windowSeconds: 60 },
-  evaluate: { limit: 60, windowSeconds: 60 },
+  /** Lượt bấm đánh giá (tính phí) và chỉnh tiêu chí. */
+  evaluate: { limit: 30, windowSeconds: 60 },
+  /** Đọc lại kết quả của chính mình (không tính phí, không tính toán). */
+  'evaluation-read': { limit: 120, windowSeconds: 60 },
   saved: { limit: 60, windowSeconds: 60 },
   autocomplete: { limit: 90, windowSeconds: 60 },
   place: { limit: 30, windowSeconds: 60 },
@@ -56,8 +59,8 @@ export type MapPlaceKind = (typeof MAP_PLACE_KINDS)[number];
 
 /** Mỗi người lưu tối đa chừng này địa điểm. */
 export const MAP_SAVED_MAX = 200;
-/** Cache số đo tiêu chí tại một điểm (giây): dữ liệu nền đổi theo ngày. */
-export const MAP_EVALUATION_TTL = 24 * 60 * 60;
+/** Cache kết quả phân tích dùng chung (giây). Bản gốc nằm ở DB nên hết hạn chỉ tốn một lần đọc DB. */
+export const MAP_ANALYSIS_TTL = 24 * 60 * 60;
 
 export const MAP_BREAKER = { failures: 5, openSeconds: 30 } as const;
 
@@ -69,5 +72,7 @@ export const MAP_REDIS_KEYS = {
   hits: (day: string, api: MapApi) => `map:hits:${day}:${api}`,
   breakerFails: 'map:breaker:fails',
   breakerOpen: 'map:breaker:open',
-  evaluation: (placeKey: string) => `cache:map:evaluation:${placeKey}`,
+  /** Kết quả phân tích dùng chung theo (phiên bản dữ liệu, tọa độ); chỉ đọc nội bộ, không trả thẳng cho client. */
+  analysis: (version: number, placeKey: string) => `cache:map:analysis:v${version}:${placeKey}`,
+  datasetCurrent: 'map:dataset:current',
 };

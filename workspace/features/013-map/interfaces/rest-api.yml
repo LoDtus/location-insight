@@ -116,15 +116,48 @@ paths:
         "404": { description: Không có hoặc không thuộc người dùng }
   /map/places/evaluation:
     get:
-      summary: Đánh giá địa điểm theo 19 tiêu chí (hiện là số liệu minh họa, sample=true), đã gộp chỉnh tay
+      summary: Lượt đánh giá gần nhất của CHÍNH người dùng tại điểm này (null nếu chưa bấm). Không tính toán, không tính phí
       x-permission: map:use
-      x-rate-limit: 60/phút/người dùng (nhóm evaluate)
-      x-cache: Redis cache:map:evaluation:{lat5,lng5} 24 giờ (số đo tự động)
+      x-rate-limit: 120/phút/người dùng (evaluation-read)
       parameters:
         - { name: lat, in: query, required: true, schema: { type: number, minimum: 8, maximum: 24 } }
         - { name: lng, in: query, required: true, schema: { type: number, minimum: 102, maximum: 110 } }
       responses:
-        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/PlaceEvaluation" } } } }
+        "200":
+          description: OK (Cache-Control private, no-store)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  evaluation: { nullable: true, allOf: [{ $ref: "#/components/schemas/PlaceEvaluation" }] }
+                  currentDatasetVersion: { type: integer }
+    post:
+      summary: Bấm "Đánh giá"/"Đánh giá lại" (lượt tính phí). Lượt gần nhất đã ở phiên bản hiện hành → trả lại, charged=false
+      x-permission: map:use
+      x-rate-limit: 30/phút/người dùng (evaluate)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [lat, lng]
+              additionalProperties: false
+              properties:
+                lat: { type: number, minimum: 8, maximum: 24 }
+                lng: { type: number, minimum: 102, maximum: 110 }
+      responses:
+        "201":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  evaluation: { $ref: "#/components/schemas/PlaceEvaluation" }
+                  charged: { type: boolean, description: true = tạo lượt mới (tính phí) }
+        "400": { description: Sai schema hoặc có trường lạ }
   /map/places/evaluation/criteria/{criterionId}:
     put:
       summary: Bỏ qua tiêu chí và/hoặc đặt điểm tay; trả về đánh giá đã tính lại
@@ -145,7 +178,7 @@ paths:
                 score: { type: number, nullable: true, minimum: 0, maximum: 10, description: "Làm tròn bước 0,5; null = về điểm tự động" }
       responses:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/PlaceEvaluation" } } } }
-        "404": { description: Tiêu chí không tồn tại }
+        "404": { description: Tiêu chí không tồn tại, hoặc người dùng chưa có lượt đánh giá tại điểm này }
     delete:
       summary: Khôi phục tiêu chí về mặc định
       x-permission: map:use
@@ -155,8 +188,31 @@ paths:
         - { name: lng, in: query, required: true, schema: { type: number } }
       responses:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/PlaceEvaluation" } } } }
+  /admin/map/dataset-versions:
+    get:
+      summary: Danh sách phiên bản dữ liệu đánh giá
+      x-permission: admin:access
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/DatasetVersion" } } } } }
+    post:
+      summary: Phát hành phiên bản mới = hiện hành + 1 (lượt cũ của người dùng không tự cập nhật)
+      x-permission: admin:access
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [note], properties: { note: { type: string, minLength: 3, maxLength: 500 } } } } }
+      responses:
+        "201": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/DatasetVersion" } } } }
+        "403": { description: Không phải admin }
 components:
   schemas:
+    DatasetVersion:
+      type: object
+      properties:
+        version: { type: integer }
+        note: { type: string }
+        releasedBy: { type: string, format: uuid, nullable: true }
+        releasedAt: { type: string, format: date-time }
+        current: { type: boolean }
     MapConfig:
       type: object
       properties:
@@ -199,6 +255,16 @@ components:
         address: { type: string }
         kind: { type: string, nullable: true }
         createdAt: { type: string, format: date-time }
+        evaluation:
+          nullable: true
+          description: Tóm tắt lượt đánh giá gần nhất của chính người dùng
+          type: object
+          properties:
+            overall: { type: number, nullable: true }
+            rating: { type: string }
+            datasetVersion: { type: integer }
+            outdated: { type: boolean }
+            evaluatedAt: { type: string, format: date-time }
     EvaluatedCriterion:
       type: object
       properties:
@@ -227,6 +293,10 @@ components:
         weaknesses: { type: object, properties: { points: { type: number }, items: { type: array, items: { $ref: "#/components/schemas/EvaluatedCriterion" } } } }
         skipped: { type: array, items: { $ref: "#/components/schemas/EvaluatedCriterion" } }
         criteriaCount: { type: integer }
+        datasetVersion: { type: integer, description: Phiên bản dữ liệu của lượt này }
+        currentDatasetVersion: { type: integer }
+        outdated: { type: boolean, description: Đã có phiên bản mới hơn }
+        evaluatedAt: { type: string, format: date-time }
     MapRoute:
       type: object
       properties:

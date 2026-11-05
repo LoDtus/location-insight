@@ -1,16 +1,18 @@
 "use client";
 
 import { Check, Eye, EyeOff, Loader2, MapPinned, Pencil, RotateCcw, Sparkles, X } from "lucide-react";
-import { Fragment, useId, useState, type FormEvent, type JSX } from "react";
+import { Fragment, useEffect, useId, useState, type FormEvent, type JSX } from "react";
 
-import { evaluatePlace, isAbortError, mapErrorMessage, overrideCriterion, resetCriterion } from "@/features/map/map.service";
+import { getMyEvaluation, isAbortError, mapErrorMessage, overrideCriterion, resetCriterion, runEvaluation } from "@/features/map/map.service";
 import { showToast } from "@/shared/components/toast/toast-store";
 import ScoreRing, { formatScore as score, scoreTone } from "@/features/map/components/score-ring";
 import { CRITERION_ICON } from "@/features/map/criteria-icons";
 import type { EvaluatedCriterion, MapPoint, PlaceEvaluation } from "@/features/map/map.types";
 
 type State =
-    | { status: "idle" }
+    /** Đang đọc lượt đánh giá cũ của chính người dùng (không tính phí). */
+    | { status: "checking" }
+    | { status: "idle"; currentDatasetVersion: number | null }
     | { status: "loading" }
     | { status: "ready"; evaluation: PlaceEvaluation }
     /** Đánh giá lại: giữ nguyên kết quả cũ trên màn hình, chỉ khu vực đánh giá hiện đang tải. */
@@ -31,6 +33,12 @@ const TONE_BADGE: Record<ReturnType<typeof scoreTone>, string> = {
     none: "bg-charcoal/5 text-charcoal/70",
 };
 
+function formatEvaluatedAt(iso: string): string {
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
 const ICON_BUTTON =
     "inline-flex size-8 items-center justify-center rounded-md bg-transparent text-charcoal/60 hover:bg-charcoal/5 hover:text-charcoal focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-green disabled:opacity-40";
 
@@ -42,6 +50,7 @@ export default function MapPlaceEvaluation({
     point,
     placeName,
     onCriterionSelect,
+    onEvaluated,
 }: {
     point: MapPoint;
     /** Tên địa điểm dùng trong thông báo. */
@@ -51,8 +60,27 @@ export default function MapPlaceEvaluation({
      * trường gần nhất cho tiêu chí "Trường học". null = bỏ chọn.
      */
     onCriterionSelect?: (criterion: EvaluatedCriterion | null) => void;
+    /** Gọi sau mỗi lượt đánh giá mới (vd. để danh sách "Đã lưu" cập nhật điểm). */
+    onEvaluated?: () => void;
 }): JSX.Element {
-    const [state, setState] = useState<State>({ status: "idle" });
+    const [state, setState] = useState<State>({ status: "checking" });
+
+    // Mở địa điểm: tự hiện lượt đánh giá gần nhất của CHÍNH người dùng (nếu có). Không tự đánh giá lại.
+    useEffect(() => {
+        const controller = new AbortController();
+        getMyEvaluation(point, controller.signal)
+            .then((result) =>
+                setState(
+                    result.evaluation
+                        ? { status: "ready", evaluation: result.evaluation }
+                        : { status: "idle", currentDatasetVersion: result.currentDatasetVersion },
+                ),
+            )
+            .catch((reason: unknown) => {
+                if (!isAbortError(reason)) setState({ status: "idle", currentDatasetVersion: null });
+            });
+        return () => controller.abort();
+    }, [point]);
     const [selected, setSelected] = useState<string | null>(null);
 
     function select(item: EvaluatedCriterion): void {
@@ -69,15 +97,24 @@ export default function MapPlaceEvaluation({
         const previous = state.status === "ready" || state.status === "refreshing" ? state.evaluation : null;
         setState(previous ? { status: "refreshing", evaluation: previous } : { status: "loading" });
         setError(null);
-        evaluatePlace(point)
-            .then((evaluation) => {
+        runEvaluation(point)
+            .then(({ evaluation, charged }) => {
                 setState({ status: "ready", evaluation });
+                if (!charged) {
+                    showToast({
+                        title: "Kết quả đã theo dữ liệu mới nhất",
+                        description: `Bạn đã đánh giá điểm này với dữ liệu v${evaluation.datasetVersion}; không tạo lượt mới.`,
+                        tone: "info",
+                    });
+                    return;
+                }
+                onEvaluated?.();
                 showToast({
                     title: previous ? "AI đã đánh giá lại địa điểm" : "AI đã đánh giá xong địa điểm",
                     description:
                         evaluation.overall === null
-                            ? placeName
-                            : `${placeName}: ${score(evaluation.overall)}/10, mức ${evaluation.rating.toLowerCase()}.`,
+                            ? `${placeName} · dữ liệu v${evaluation.datasetVersion}`
+                            : `${placeName}: ${score(evaluation.overall)}/10, mức ${evaluation.rating.toLowerCase()} · dữ liệu v${evaluation.datasetVersion}.`,
                 });
             })
             .catch((reason: unknown) => {
@@ -108,6 +145,14 @@ export default function MapPlaceEvaluation({
         }
     }
 
+    if (state.status === "checking") {
+        return (
+            <section aria-label="Đánh giá địa điểm" aria-busy="true" className="border-t border-charcoal/10 pt-3">
+                <div className="h-11 animate-pulse rounded-lg bg-charcoal/5 motion-reduce:animate-none" />
+            </section>
+        );
+    }
+
     if (state.status === "idle" || state.status === "error") {
         return (
             <section aria-label="Đánh giá địa điểm" className="border-t border-charcoal/10 pt-3">
@@ -118,7 +163,11 @@ export default function MapPlaceEvaluation({
                 >
                     <Sparkles size={16} aria-hidden /> Đánh giá địa điểm
                 </button>
-                <p className="m-0 mt-1.5 text-xs text-charcoal/60">Chấm theo 19 tiêu chí: tiện ích đi bộ, đi lại, y tế, dân cư và môi trường.</p>
+                <p className="m-0 mt-1.5 text-xs text-charcoal/60">
+                    Chấm theo 19 tiêu chí: tiện ích đi bộ, đi lại, y tế, dân cư và môi trường
+                    {state.status === "idle" && state.currentDatasetVersion ? ` · dữ liệu v${state.currentDatasetVersion}` : ""}. Kết quả được lưu
+                    riêng cho bạn.
+                </p>
                 {state.status === "error" ? (
                     <p role="alert" className="m-0 mt-2 text-sm text-red-700">
                         {state.message}
@@ -155,7 +204,8 @@ export default function MapPlaceEvaluation({
                 <button
                     type="button"
                     onClick={run}
-                    disabled={refreshing}
+                    disabled={refreshing || !evaluation.outdated}
+                    title={evaluation.outdated ? `Đánh giá lại theo dữ liệu v${evaluation.currentDatasetVersion}` : "Kết quả đã theo dữ liệu mới nhất"}
                     className={`${ICON_BUTTON} w-auto gap-1 px-2 text-xs font-semibold`}
                     aria-label="Đánh giá lại"
                 >
@@ -164,6 +214,16 @@ export default function MapPlaceEvaluation({
                 </button>
             </div>
             <div className={`transition-opacity duration-200 motion-reduce:transition-none ${refreshing ? "pointer-events-none opacity-50" : ""}`}>
+                <p className="m-0 mt-1 text-xs text-charcoal/60">
+                    Đánh giá lúc {formatEvaluatedAt(evaluation.evaluatedAt)} · dữ liệu v{evaluation.datasetVersion}
+                    {evaluation.outdated ? "" : " (mới nhất)"}
+                </p>
+                {evaluation.outdated ? (
+                    <p className="m-0 mt-2 rounded-md bg-gold/15 px-2.5 py-1.5 text-xs text-charcoal/85">
+                        Đã có dữ liệu v{evaluation.currentDatasetVersion}. Kết quả bên dưới vẫn theo v{evaluation.datasetVersion}; bấm “Đánh giá lại” để
+                        cập nhật (tính một lượt đánh giá).
+                    </p>
+                ) : null}
                 {evaluation.sample ? (
                     <p className="m-0 mt-1 text-xs text-charcoal/60">Số liệu minh họa, chưa phải kết quả đo thật. Riêng khoảng cách tới Hồ Gươm là số thật.</p>
                 ) : null}

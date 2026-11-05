@@ -196,3 +196,13 @@ export class CriterionOverrideDto extends PlacePointDto {
 export class CriterionResetQueryDto extends PlacePointDto {}
 
 export class EvaluationQueryDto extends PlacePointDto {}
+
+/** Thân yêu cầu bấm "Đánh giá" / "Đánh giá lại". */
+export class EvaluationRunDto extends PlacePointDto {}
+
+export class ReleaseDatasetDto {
+  @IsString()
+  @MinLength(3)
+  @MaxLength(500)
+  note: string;
+}

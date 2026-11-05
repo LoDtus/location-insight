@@ -630,6 +630,7 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                             );
                         });
                 }}
+                onEvaluated={saved.reload}
                 onNearby={() => {
                     const point = selection.point;
                     clear();

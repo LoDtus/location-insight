@@ -29,6 +29,8 @@ interface MapPlacePanelProps {
     onCopyLink: () => void;
     /** Chọn tiêu chí trong phần đánh giá: chỗ nối để sau này vẽ dẫn chứng của tiêu chí lên bản đồ. */
     onCriterionSelect?: (criterion: EvaluatedCriterion | null) => void;
+    /** Sau một lượt đánh giá mới. */
+    onEvaluated?: () => void;
 }
 
 function Row({ label, children }: { label: string; children: ReactNode }): JSX.Element {
@@ -56,6 +58,7 @@ export default function MapPlacePanel({
     onNearby,
     onCopyLink,
     onCriterionSelect,
+    onEvaluated,
 }: MapPlacePanelProps) {
     const [copied, setCopied] = useState(false);
     const [viewer, setViewer] = useState<number | null>(null);
@@ -229,6 +232,7 @@ export default function MapPlacePanel({
                     point={selection.point}
                     placeName={place?.name || coordinates}
                     onCriterionSelect={onCriterionSelect}
+                    onEvaluated={onEvaluated}
                 /> : null}
 
             <p className="m-0 text-xs text-charcoal/55">Địa chỉ có thể lệch vài chục mét. Phân tích bám tọa độ của ghim, không bám chuỗi địa chỉ.</p>

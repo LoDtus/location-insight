@@ -92,9 +92,12 @@ Xem `interfaces/rest-api.yml`. Tiền tố `/api/v1`; quyền `map:use` (mọi n
 | GET | `/map/saved` | Địa điểm đã lưu của người dùng (mới nhất trước, tối đa 200) | — (DB) | 60/phút (chung `saved`) |
 | POST | `/map/saved` `{lat,lng,name,address?,kind?}` | Lưu địa điểm; lưu lại cùng tọa độ thì trả bản cũ (idempotent) | — | 60/phút |
 | DELETE | `/map/saved/:id` | Bỏ lưu (chỉ của chính người dùng) | — | 60/phút |
-| GET | `/map/places/evaluation?lat&lng` | Đánh giá địa điểm theo bộ tiêu chí (§4b) đã gộp chỉnh tay của người dùng | Số đo 24 giờ ở Redis `cache:map:evaluation:{lat5,lng5}` | 60/phút (chung `evaluate`) |
-| PUT | `/map/places/evaluation/criteria/:criterionId` `{lat,lng,skipped?,score?}` | Bỏ qua tiêu chí và/hoặc đặt điểm tay 0–10 (bước 0,5; `score:null` = về điểm tự động). Trả đánh giá đã tính lại | — | 60/phút |
-| DELETE | `/map/places/evaluation/criteria/:criterionId?lat&lng` | Khôi phục tiêu chí về mặc định | — | 60/phút |
+| GET | `/map/places/evaluation?lat&lng` | Lượt đánh giá **gần nhất của chính người dùng** (§4c); `{ evaluation: null }` nếu chưa bấm. Chỉ đọc, không tính toán, không tính phí | — (`private, no-store`) | 120/phút (`evaluation-read`) |
+| POST | `/map/places/evaluation` `{lat,lng}` | Bấm "Đánh giá"/"Đánh giá lại" (lượt tính phí). Lượt gần nhất đã ở phiên bản hiện hành → trả lại, `charged:false` | Bản phân tích dùng chung `cache:map:analysis:v{n}:{place_key}` 24 giờ | 30/phút (`evaluate`) |
+| PUT | `/map/places/evaluation/criteria/:criterionId` `{lat,lng,skipped?,score?}` | Bỏ qua tiêu chí và/hoặc đặt điểm tay 0–10 (bước 0,5; `score:null` = về điểm tự động) trên lượt của chính mình; chưa có lượt → 404 | — | 30/phút |
+| DELETE | `/map/places/evaluation/criteria/:criterionId?lat&lng` | Khôi phục tiêu chí về mặc định (cần lượt của chính mình) | — | 30/phút |
+| GET | `/admin/map/dataset-versions` | Danh sách phiên bản dữ liệu (`admin:access`) | — | — |
+| POST | `/admin/map/dataset-versions` `{note}` | Admin phát hành phiên bản mới = hiện hành + 1 (`admin:access`) | Xóa `map:dataset:current` | — |
 
 Quy ước: phản hồi bọc envelope chung của dự án; lỗi nghiệp vụ dùng `BusinessException` (mã `VALIDATION_ERROR`, `TOO_MANY_REQUESTS`, `EXTERNAL_SERVICE_TIMEOUT`, `EXTERNAL_SERVICE_ERROR`, `SERVICE_UNAVAILABLE`).
 
@@ -131,8 +134,12 @@ interface MapRoute {
 | --- | --- | --- |
 | Postgres | `map_saved_places` (unique `user_id + place_key`) | Địa điểm đã lưu: `lat/lng` (6 chữ số), tên, địa chỉ, `kind`. Không lưu `ref_id` |
 | Postgres | `map_criterion_overrides` (khóa `user_id + place_key + criterion_id`) | Chỉnh tay: `skipped`, `score` (null = điểm tự động). Khôi phục mặc định thì xóa hàng |
-| Redis | `cache:map:evaluation:{place_key}` TTL 24 giờ | Số đo tự động của 19 tiêu chí, dùng chung mọi người; Redis lỗi thì tính trực tiếp |
-| Redis | `ratelimit:map:{evaluate|saved}:{userId}` | Giới hạn 60 lần/phút mỗi nhóm |
+| Postgres | `map_dataset_versions` (khóa `version`) | Phiên bản bộ dữ liệu đánh giá: `note`, `released_by`, `released_at`. Hiện hành = số lớn nhất. Hệ thống tự tạo v1 |
+| Postgres | `map_place_analyses` (unique `place_key + dataset_version`) | Bản phân tích dùng chung theo (tọa độ, phiên bản), tạo bởi lượt đầu tiên của phiên bản đó. **Không bao giờ trả thẳng cho client** |
+| Postgres | `map_place_evaluation_runs` (index `user_id, place_key, created_at`) | Mỗi lần bấm đánh giá (lượt tính phí): `user_id`, `analysis_id`, `dataset_version`. Lượt mới nhất theo (user, place) là thứ người dùng thấy |
+| Redis | `cache:map:analysis:v{n}:{place_key}` TTL 24 giờ | Bản sao của `map_place_analyses`; Redis lỗi thì đọc DB |
+| Redis | `map:dataset:current` TTL 60 s | Phiên bản hiện hành; xóa ngay khi admin phát hành |
+| Redis | `ratelimit:map:{evaluate|evaluation-read|saved}:{userId}` | 30 / 120 / 60 lần mỗi phút |
 
 `place_key` = `lat.toFixed(5),lng.toFixed(5)` (~1 m), dùng chung cho cache, chỉnh tay và địa điểm đã lưu.
 
@@ -157,6 +164,17 @@ Bộ tiêu chí lấy đúng mục "Hệ thống tự tính từ ghim" của [`0
 - **Hiển thị điểm**: vòng tròn kiểu ScoreCircle (nền xám, cung màu theo tỷ lệ điểm/10: ≥ 7 xanh, > 5 vàng, ≤ 5 đỏ, số ở giữa). Điểm tổng vòng lớn 84 px, mỗi tiêu chí vòng 42 px.
 - **Chọn tiêu chí (chuẩn bị dẫn chứng trên bản đồ)**: rê chuột lên tiêu chí → nền nhạt + biểu tượng bản đồ; bấm → tiêu chí được chọn (viền xanh) và gọi `onCriterionSelect(criterion)`. Bước sau: vẽ dẫn chứng theo tiêu chí, vd. "Trường học" vẽ tuyến từ địa điểm tới các trường gần nhất (Route v4/Matrix), "Bệnh viện" vẽ vòng 2 km và điểm bệnh viện.
 - **Giai đoạn hiện tại là số liệu minh họa** (`sample: true`, UI ghi rõ). Số đo sinh ổn định theo tọa độ, nghiêng theo mức đô thị (gần Hồ Gươm thì tiện ích dày hơn). Khi có PostGIS/AI: thay `generateCriteria` bằng truy vấn thật hoặc lời gọi AI; hợp đồng `PlaceEvaluation`, phần gộp chỉnh tay và UI giữ nguyên.
+
+## 4c. Lượt đánh giá theo người dùng và phiên bản dữ liệu
+
+Mỗi lần đánh giá là một lượt tính phí. Quy tắc:
+
+1. **Người đã bấm thì tự thấy lại.** Mở lại địa điểm (trên bản đồ hoặc từ "Đã lưu") → `GET /map/places/evaluation` trả lượt gần nhất của chính họ; có lưu hay không đều vậy. Danh sách "Đã lưu" kèm tóm tắt (điểm, mức, phiên bản) của lượt đó.
+2. **Người khác không thấy, phải tự bấm.** Mọi truy vấn lọc theo `user_id` lấy từ token; không có endpoint nào nhận `userId`, `runId` hay `analysisId` từ client. Người chưa bấm nhận `{ evaluation: null }` dù bản phân tích đã có sẵn; bấm thì tạo lượt riêng (tính phí) và dùng lại bản phân tích của phiên bản đó.
+3. **Phiên bản.** Lượt đầu tiên của một phiên bản tạo `map_place_analyses` cho (tọa độ, phiên bản) đó. Phiên bản mới chỉ có khi admin chủ động phát hành (`POST /admin/map/dataset-versions`, có bước xác nhận trong UI "Cài đặt").
+4. **Không tự cập nhật.** Khi có phiên bản mới, lượt cũ giữ nguyên (`outdated: true`, UI ghi "Đã có dữ liệu vN… bấm Đánh giá lại để cập nhật"). Không có đánh giá lại tự động. "Đánh giá lại" chỉ bật khi `outdated`; bấm khi đã ở phiên bản mới nhất thì backend trả lại lượt cũ, `charged: false`, không tạo lượt mới.
+
+Bảo mật: chỉnh/khôi phục tiêu chí khi chưa có lượt của chính mình → 404 với cùng thông điệp ("Bạn chưa đánh giá địa điểm này."), không lộ việc người khác đã đánh giá. Phản hồi đánh giá `Cache-Control: private, no-store`; service worker không cache `/api/*`; client chỉ giữ kết quả trong bộ nhớ (không localStorage/sessionStorage), nên trình duyệt dùng chung không còn bản đánh giá của người trước sau khi đăng xuất. DTO `whitelist` + `forbidNonWhitelisted` chặn gửi kèm trường lạ (400).
 
 ## 5. Giao diện
 
@@ -270,3 +288,6 @@ Backend `backend/src/modules/map/` (controller, service, client, mapper có test
 | AC12 | Thẻ Địa điểm có: ảnh (nếu có tin rao khớp), tên, phân loại, địa chỉ chính xác (+ địa chỉ trước sáp nhập), tọa độ sao chép được, số người quan tâm (nếu có tin rao), "Tìm tin rao" mở `{root}/properties?q={tên}` với ô tìm đã điền, "Chỉ đường", "Đi từ đây", "Lưu địa điểm". |
 | AC13 | "Đánh giá địa điểm" → điểm tổng, tóm tắt, Điểm mạnh (+điểm), Điểm yếu (−điểm), mỗi tiêu chí có tên, kết quả, điểm /10, nút đổi điểm và bỏ qua; đổi/bỏ qua được lưu và tải lại vẫn còn. |
 | AC14 | "Lưu địa điểm" → xuất hiện trong "Đã lưu" ở sidebar; bấm mục đã lưu → bay tới và mở thẻ; bỏ lưu được. |
+| AC15 | Người A bấm đánh giá → mở lại (tải lại trang hoặc từ "Đã lưu") tự thấy kết quả và "dữ liệu v1", không tạo lượt mới. Người B mở cùng điểm chỉ thấy nút "Đánh giá địa điểm". |
+| AC16 | Admin phát hành v2 → A mở lại vẫn thấy kết quả v1 kèm thông báo có dữ liệu v2; "Đánh giá lại" bật; bấm → kết quả v2 "(mới nhất)" và nút tắt lại. |
+| AC17 | Người không phải admin gọi `/admin/map/dataset-versions` → 403; chỉnh tiêu chí khi chưa có lượt của mình → 404; gửi kèm `userId` → 400. |

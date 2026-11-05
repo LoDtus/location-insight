@@ -1,6 +1,7 @@
 import { AuthApiError, apiRequest } from "@/features/auth/auth.api";
 import type { SearchFilters } from "@/features/map/map-url";
 import type {
+    DatasetVersion,
     MapConfig,
     MapPlace,
     MapPoint,
@@ -115,9 +116,26 @@ export function removeSavedPlace(id: string): Promise<{ id: string }> {
     return apiRequest(`/map/saved/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
-/** Đánh giá địa điểm theo tiêu chí (hiện là số liệu minh họa từ backend). */
-export function evaluatePlace(point: MapPoint, signal?: AbortSignal): Promise<PlaceEvaluation> {
+/** Lượt đánh giá gần nhất của chính người dùng tại điểm này (null nếu chưa bấm). Chỉ đọc, không tính phí. */
+export function getMyEvaluation(point: MapPoint, signal?: AbortSignal): Promise<{ evaluation: PlaceEvaluation | null; currentDatasetVersion: number }> {
     return apiRequest(`/map/places/evaluation?${pointQuery(point)}`, withSignal(signal));
+}
+
+/**
+ * Bấm "Đánh giá" / "Đánh giá lại" (lượt tính phí). Nếu lượt gần nhất đã theo phiên bản dữ liệu hiện hành,
+ * backend trả lại lượt đó với `charged: false`.
+ */
+export function runEvaluation(point: MapPoint): Promise<{ evaluation: PlaceEvaluation; charged: boolean }> {
+    return apiRequest("/map/places/evaluation", { method: "POST", body: JSON.stringify({ lat: point.lat, lng: point.lng }) });
+}
+
+export function listDatasetVersions(signal?: AbortSignal): Promise<DatasetVersion[]> {
+    return apiRequest("/admin/map/dataset-versions", withSignal(signal));
+}
+
+/** Admin phát hành phiên bản dữ liệu mới (hiện hành + 1). */
+export function releaseDatasetVersion(note: string): Promise<DatasetVersion> {
+    return apiRequest("/admin/map/dataset-versions", { method: "POST", body: JSON.stringify({ note }) });
 }
 
 /** Bỏ qua tiêu chí hoặc đặt điểm tay (score: null = về điểm tự động). Trả về đánh giá đã tính lại. */

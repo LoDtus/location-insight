@@ -4,6 +4,7 @@ import { Bookmark, Loader2, MapPin, Trash2 } from "lucide-react";
 import type { JSX } from "react";
 
 import MapPanel from "@/features/map/components/map-panel";
+import ScoreRing, { formatScore } from "@/features/map/components/score-ring";
 import { PLACE_KIND_LABEL } from "@/features/map/map-place-match";
 import type { SavedState } from "@/features/map/hooks/use-saved-places";
 import type { SavedPlace } from "@/features/map/map.types";
@@ -53,13 +54,28 @@ export default function MapSavedPanel({
                                 className="flex min-w-0 flex-1 items-start gap-2.5 rounded-md bg-transparent px-1 py-2.5 text-left hover:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-green"
                             >
                                 <MapPin size={16} className="mt-0.5 shrink-0 text-green" aria-hidden />
-                                <span className="min-w-0">
+                                <span className="min-w-0 flex-1">
                                     <span className="block truncate text-sm font-semibold">{item.name}</span>
                                     <span className="block truncate text-xs text-charcoal/60">
                                         {item.kind ? `${PLACE_KIND_LABEL[item.kind]} · ` : ""}
                                         {item.address || `${item.lat.toFixed(5)}, ${item.lng.toFixed(5)}`}
                                     </span>
+                                    {item.evaluation ? (
+                                        <span className="mt-0.5 block text-xs text-charcoal/60">
+                                            Đã đánh giá · {item.evaluation.rating.toLowerCase()} · dữ liệu v{item.evaluation.datasetVersion}
+                                            {item.evaluation.outdated ? <span className="ml-1 rounded bg-gold/20 px-1 font-semibold text-charcoal/80">có dữ liệu mới</span> : null}
+                                        </span>
+                                    ) : (
+                                        <span className="mt-0.5 block text-xs text-charcoal/45">Chưa đánh giá</span>
+                                    )}
                                 </span>
+                                {item.evaluation ? (
+                                    <ScoreRing
+                                        value={item.evaluation.overall}
+                                        size={34}
+                                        label={item.evaluation.overall === null ? "Chưa có điểm" : `Điểm ${formatScore(item.evaluation.overall)} trên 10`}
+                                    />
+                                ) : null}
                             </button>
                             <button
                                 type="button"

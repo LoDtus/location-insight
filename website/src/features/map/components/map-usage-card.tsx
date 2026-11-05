@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import MapDatasetVersions from "@/features/map/components/map-dataset-versions";
 import MapPanel from "@/features/map/components/map-panel";
 import { getMapUsage, isAbortError, mapErrorMessage } from "@/features/map/map.service";
 import type { MapUsage } from "@/features/map/map.types";
@@ -62,6 +63,7 @@ export default function MapUsageCard({ onClose }: { onClose: () => void }) {
                     </p>
                 </>
             ) : null}
+            <MapDatasetVersions />
         </MapPanel>
     );
 }

@@ -1,4 +1,5 @@
 import { store } from "@/store/store";
+import { clearSearchHistory } from "@/features/map/map-search-history";
 import { clearSavedMapView } from "@/features/map/map-view-memory";
 
 import { sessionCleared, sessionStarted, type AuthUser } from "./auth.slice";
@@ -168,8 +169,10 @@ export async function logout(): Promise<void> {
         await preparePwaLogout();
         await apiRequest("/auth/logout", { method: "POST" }, false);
     } finally {
-        // Khung nhìn bản đồ nhớ trong phiên chỉ xóa khi đăng xuất.
+        // Khung nhìn bản đồ nhớ trong phiên, lịch sử tìm kiếm và danh sách đã lưu chỉ xóa khi đăng xuất.
         clearSavedMapView();
+        clearSearchHistory();
+        void import("@/features/map/hooks/use-saved-places").then((module) => module.resetSavedPlaces());
         store.dispatch(sessionCleared());
     }
 }

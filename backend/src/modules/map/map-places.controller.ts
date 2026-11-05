@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Header, Param, ParseUUIDPipe, Post, Put, Query, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, Param, ParseUUIDPipe, Patch, Post, Put, Query, Req } from '@nestjs/common';
 import { RequirePermission } from '../../common/decorators/access.decorator.js';
 import type { RequestWithPrincipal } from '../auth/auth.guard.js';
 import {
@@ -8,6 +8,7 @@ import {
   EvaluationRunDto,
   ReleaseDatasetDto,
   SavePlaceDto,
+  UpdateSavedPlaceDto,
 } from './dto/map.dto.js';
 import { MapDatasetService } from './map-dataset.service.js';
 import { MapEvaluationService } from './map-evaluation.service.js';
@@ -38,6 +39,25 @@ export class MapPlacesController {
   @Post('saved')
   save(@Body() body: SavePlaceDto, @Req() request: RequestWithPrincipal) {
     return this.places.save(userId(request), body);
+  }
+
+  @RequirePermission('map:use')
+  @Header('Cache-Control', 'private, no-store')
+  @Patch('saved/:id')
+  update(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: UpdateSavedPlaceDto,
+    @Req() request: RequestWithPrincipal,
+  ) {
+    return this.places.update(userId(request), id, body);
+  }
+
+  /** Bảng so sánh: các địa điểm đã lưu được đánh dấu so sánh, kèm đánh giá của chính người dùng. */
+  @RequirePermission('map:use')
+  @Header('Cache-Control', 'private, no-store')
+  @Get('compare')
+  compare(@Req() request: RequestWithPrincipal) {
+    return this.places.compare(userId(request));
   }
 
   @RequirePermission('map:use')

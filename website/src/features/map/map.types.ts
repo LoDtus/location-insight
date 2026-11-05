@@ -35,9 +35,25 @@ export interface SavedPlace {
     name: string;
     address: string;
     kind: MapPlaceKind | null;
+    /** Tên gợi nhớ người dùng tự đặt; null = dùng `name`. */
+    label: string | null;
+    /** Ghi chú riêng (nhiều dòng). */
+    note: string;
+    /** Đang nằm trong danh sách so sánh. */
+    compared: boolean;
     createdAt: string;
     /** Lượt đánh giá gần nhất của chính người dùng; null nếu chưa đánh giá. */
     evaluation: EvaluationSummary | null;
+}
+
+/** Một cột của bảng so sánh: đánh giá đầy đủ từ lượt gần nhất của chính người dùng (null nếu chưa đánh giá). */
+export interface CompareItem extends Omit<SavedPlace, "evaluation"> {
+    evaluation: PlaceEvaluation | null;
+}
+
+/** Một kết quả khi tìm theo loại hình ("ngân hàng"): được ghim lên bản đồ cùng các kết quả khác. */
+export interface PinResult extends MapPlace {
+    refId: string;
 }
 
 export interface EvaluationSummary {

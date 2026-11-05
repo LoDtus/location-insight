@@ -146,6 +146,24 @@ export class MapEvaluationService {
   /** Tóm tắt lượt gần nhất của chính người dùng cho nhiều địa điểm (danh sách "Đã lưu"), theo placeId. */
   async summaries(userId: string, placeIds: string[]): Promise<Map<string, EvaluationSummary>> {
     const result = new Map<string, EvaluationSummary>();
+    for (const [placeId, view] of await this.latestViews(userId, placeIds)) {
+      result.set(placeId, {
+        overall: view.overall,
+        rating: view.rating,
+        datasetVersion: view.datasetVersion,
+        outdated: view.outdated,
+        evaluatedAt: view.evaluatedAt,
+      });
+    }
+    return result;
+  }
+
+  /**
+   * Lượt đánh giá gần nhất của CHÍNH người dùng cho từng địa điểm (đã áp điểm tự chỉnh). Chỉ đọc, không gọi AI.
+   * Địa điểm người dùng chưa tự bấm đánh giá thì không có trong kết quả (không lộ bản phân tích của người khác).
+   */
+  async latestViews(userId: string, placeIds: string[]): Promise<Map<string, EvaluationView>> {
+    const result = new Map<string, EvaluationView>();
     if (placeIds.length === 0) return result;
     const runs = await this.runs.find({ where: { userId, placeId: In(placeIds) }, order: { createdAt: 'DESC' } });
     const latest = new Map<string, MapPlaceEvaluationRunEntity>();
@@ -160,17 +178,11 @@ export class MapEvaluationService {
     for (const [placeId, run] of latest) {
       const row = byId.get(run.analysisId);
       if (!row) continue;
-      const view = this.compose(run, toCached(row), overrides.filter((item) => item.placeId === placeId), current);
-      result.set(placeId, {
-        overall: view.overall,
-        rating: view.rating,
-        datasetVersion: view.datasetVersion,
-        outdated: view.outdated,
-        evaluatedAt: view.evaluatedAt,
-      });
+      result.set(placeId, this.compose(run, toCached(row), overrides.filter((item) => item.placeId === placeId), current));
     }
     return result;
   }
+
 
   private assertCriterion(criterionId: string): void {
     if (!CRITERION_IDS.has(criterionId)) {

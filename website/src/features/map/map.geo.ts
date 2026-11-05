@@ -132,7 +132,6 @@ export function signLabel(sign: number): string {
 export const PRECISE_PLACE_M = 10;
 /** Mức zoom khi mở một ghim. */
 export const PIN_ZOOM = 16;
-export const NEARBY_RADIUS = { min: 100, max: 5000, step: 100, initial: 500 } as const;
 
 const EARTH_RADIUS_M = 6371008.8;
 
@@ -174,4 +173,18 @@ export function circleBounds(center: MapPoint, radiusM: number): [number, number
 export function placeLink(origin: string, pathname: string, point: MapPoint): string {
     const at = `${Number(point.lat.toFixed(6))},${Number(point.lng.toFixed(6))}`;
     return `${origin}${pathname}?c=${at}&z=${PIN_ZOOM}&pin=${at}`;
+}
+
+/** Phạm vi tìm kiếm quanh điểm ghim/tâm bản đồ (mét). Trần khớp MAP_RADIUS_RANGE.max ở backend. */
+export const SEARCH_RADIUS = { min: 500, max: 50000, step: 500, initial: 10000 } as const;
+
+/** Đưa bán kính về khoảng hợp lệ, làm tròn theo bước 100 m. */
+export function clampSearchRadius(meters: number): number {
+    if (!Number.isFinite(meters)) return SEARCH_RADIUS.initial;
+    return Math.min(SEARCH_RADIUS.max, Math.max(SEARCH_RADIUS.min, Math.round(meters / 100) * 100));
+}
+
+/** "10 km", "2,5 km", "800 m". */
+export function formatRadius(meters: number): string {
+    return meters >= 1000 ? `${(meters / 1000).toString().replace(".", ",")} km` : `${meters} m`;
 }

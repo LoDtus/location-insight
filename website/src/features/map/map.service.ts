@@ -1,6 +1,7 @@
 import { AuthApiError, apiRequest } from "@/features/auth/auth.api";
 import type { SearchFilters } from "@/features/map/map-url";
 import type {
+    CompareItem,
     DatasetVersion,
     MapConfig,
     MapPlace,
@@ -9,6 +10,7 @@ import type {
     MapSuggestion,
     MapPlaceKind,
     MapUsage,
+    PinResult,
     PlaceEvaluation,
     RouteVehicle,
     SavedPlace,
@@ -45,6 +47,15 @@ export function searchPlaces(
     if (filters.wardId) query.set("wardId", String(filters.wardId));
     if (filters.radius) query.set("radius", String(filters.radius));
     return apiRequest(`/map/search?${query.toString()}`, withSignal(signal));
+}
+
+/** Tìm theo loại hình: mọi kết quả liên quan trong phạm vi, kèm tọa độ để ghim lên bản đồ. */
+export function searchPinResults(text: string, focus: MapPoint, filters: SearchFilters, signal?: AbortSignal): Promise<PinResult[]> {
+    const query = new URLSearchParams({ text, lat: String(focus.lat), lng: String(focus.lng) });
+    if (filters.cats) query.set("cats", filters.cats);
+    if (filters.scope) query.set("scope", filters.scope);
+    if (filters.radius) query.set("radius", String(filters.radius));
+    return apiRequest(`/map/search/pins?${query.toString()}`, withSignal(signal));
 }
 
 export function resolvePlace(refId: string, signal?: AbortSignal): Promise<MapPlace> {
@@ -110,6 +121,15 @@ export function listSavedPlaces(signal?: AbortSignal): Promise<SavedPlace[]> {
 
 export function savePlace(input: { lat: number; lng: number; name: string; address: string; kind?: MapPlaceKind }): Promise<SavedPlace> {
     return apiRequest("/map/saved", { method: "POST", body: JSON.stringify(input) });
+}
+
+/** Đặt tên gợi nhớ (null/"" = bỏ), ghi chú, hoặc bật/tắt so sánh cho một mục đã lưu. */
+export function updateSavedPlace(id: string, patch: { label?: string | null; note?: string; compared?: boolean }): Promise<SavedPlace> {
+    return apiRequest(`/map/saved/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(patch) });
+}
+
+export function getCompare(signal?: AbortSignal): Promise<CompareItem[]> {
+    return apiRequest("/map/compare", withSignal(signal));
 }
 
 export function removeSavedPlace(id: string): Promise<{ id: string }> {

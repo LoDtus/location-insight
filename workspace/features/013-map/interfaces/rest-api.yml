@@ -106,6 +106,28 @@ paths:
         "201": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/SavedPlace" } } } }
         "409": { description: Đã lưu tối đa 200 địa điểm (limit_reached) }
   /map/saved/{id}:
+    patch:
+      summary: Tên gợi nhớ, ghi chú, bật/tắt so sánh (chỉ mục của chính mình)
+      x-permission: map:use
+      x-rate-limit: 60/phút/người dùng (nhóm saved)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                label: { type: string, nullable: true, maxLength: 80, description: "null hoặc rỗng = dùng tên gốc" }
+                note: { type: string, maxLength: 1000 }
+                compared: { type: boolean }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/SavedPlace" } } } }
+        "400": { description: Trường lạ hoặc quá dài }
+        "404": { description: Không có hoặc không thuộc người dùng }
+        "409": { description: Đã so sánh tối đa 6 địa điểm (limit_reached) }
     delete:
       summary: Bỏ lưu
       x-permission: map:use
@@ -114,6 +136,27 @@ paths:
       responses:
         "200": { description: OK }
         "404": { description: Không có hoặc không thuộc người dùng }
+  /map/compare:
+    get:
+      summary: Mục đã lưu đang so sánh (thứ tự thêm, tối đa 6) kèm đánh giá đầy đủ từ lượt gần nhất của CHÍNH người dùng (null nếu chưa)
+      x-permission: map:use
+      x-rate-limit: 60/phút/người dùng (nhóm saved)
+      responses:
+        "200": { description: "OK (Cache-Control: private, no-store)" }
+  /map/search/pins:
+    get:
+      summary: Tìm theo loại hình; tối đa 10 kết quả kèm tọa độ để ghim, bỏ kết quả ngoài radius
+      x-permission: map:use
+      x-rate-limit: 10/phút/người dùng (search-pins)
+      parameters:
+        - { name: text, in: query, required: true, schema: { type: string, minLength: 2, maxLength: 120 } }
+        - { name: lat, in: query, schema: { type: number, minimum: 8, maximum: 24 } }
+        - { name: lng, in: query, schema: { type: number, minimum: 102, maximum: 110 } }
+        - { name: radius, in: query, schema: { type: integer, minimum: 50, maximum: 50000 } }
+        - { name: cats, in: query, schema: { type: string } }
+        - { name: scope, in: query, schema: { type: string } }
+      responses:
+        "200": { description: "Mảng MapPlace + refId + distanceM (mét tới tâm)" }
   /map/places/evaluation:
     get:
       summary: Lượt đánh giá gần nhất của CHÍNH người dùng tại điểm này (null nếu chưa bấm). Không tính toán, không tính phí
@@ -255,6 +298,9 @@ components:
         name: { type: string }
         address: { type: string }
         kind: { type: string, nullable: true }
+        label: { type: string, nullable: true, description: Tên gợi nhớ }
+        note: { type: string }
+        compared: { type: boolean }
         createdAt: { type: string, format: date-time }
         evaluation:
           nullable: true

@@ -30,6 +30,18 @@ export class MapSavedPlaceEntity {
   @Column({ type: 'varchar', length: 20, nullable: true })
   kind: string | null;
 
+  /** Tên gợi nhớ người dùng tự đặt; null = dùng tên gốc. */
+  @Column({ type: 'varchar', length: 80, nullable: true })
+  label: string | null;
+
+  /** Ghi chú riêng của người dùng (nhiều dòng). */
+  @Column({ type: 'varchar', length: 1000, default: '' })
+  note: string;
+
+  /** Lúc đưa vào danh sách so sánh; null = không so sánh. */
+  @Column({ type: 'timestamptz', name: 'compared_at', nullable: true })
+  comparedAt: Date | null;
+
   @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
   createdAt: Date;
 }

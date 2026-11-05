@@ -14,6 +14,8 @@ import {
 } from 'class-validator';
 import {
   MAP_CATS_PATTERN,
+  MAP_LABEL_MAX,
+  MAP_NOTE_MAX,
   MAP_MAX_SUGGESTIONS,
   MAP_PLACE_KINDS,
   type MapPlaceKind,
@@ -177,6 +179,24 @@ export class SavePlaceDto extends PlacePointDto {
   @IsOptional()
   @IsIn(MAP_PLACE_KINDS)
   kind?: MapPlaceKind;
+}
+
+/** Sửa mục đã lưu: tên gợi nhớ, ghi chú, có so sánh hay không. Chỉ nhận đúng ba trường này. */
+export class UpdateSavedPlaceDto {
+  /** null hoặc chuỗi rỗng = bỏ tên gợi nhớ. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(MAP_LABEL_MAX)
+  label?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(MAP_NOTE_MAX)
+  note?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  compared?: boolean;
 }
 
 export class CriterionOverrideDto extends PlacePointDto {

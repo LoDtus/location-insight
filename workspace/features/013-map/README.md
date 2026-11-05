@@ -91,7 +91,10 @@ Xem `interfaces/rest-api.yml`. Tiền tố `/api/v1`; quyền `map:use` (mọi n
 | GET | `/admin/map/usage` | Bộ đếm hôm nay theo API | — | — |
 | GET | `/map/saved` | Địa điểm đã lưu của người dùng (mới nhất trước, tối đa 200) | — (DB) | 60/phút (chung `saved`) |
 | POST | `/map/saved` `{lat,lng,name,address?,kind?}` | Lưu địa điểm; lưu lại cùng tọa độ thì trả bản cũ (idempotent) | — | 60/phút |
+| PATCH | `/map/saved/:id` `{label?,note?,compared?}` | Tên gợi nhớ (≤ 80, `null`/rỗng = dùng tên gốc), ghi chú nhiều dòng (≤ 1000), bật/tắt so sánh (tối đa 6 → 409). Chỉ mục của chính mình (không thì 404); trường lạ → 400 | — (`private, no-store`) | 60/phút |
 | DELETE | `/map/saved/:id` | Bỏ lưu (chỉ của chính người dùng) | — | 60/phút |
+| GET | `/map/compare` | Bảng so sánh: mục đã lưu đang so sánh (theo thứ tự thêm) + đánh giá đầy đủ từ lượt gần nhất **của chính người dùng** (`null` nếu chưa đánh giá) | — (`private, no-store`) | 60/phút |
+| GET | `/map/search/pins?text&lat&lng&radius&cats&scope` | Tìm theo loại hình ("ngân hàng"): tối đa 10 kết quả liên quan nhất kèm tọa độ để ghim, bỏ kết quả ngoài `radius` | Gợi ý 5 phút + Place 1 giờ (mỗi lượt tối đa 1 Autocomplete + 10 Place) | 10/phút (`search-pins`) |
 | GET | `/map/places/evaluation?lat&lng` | Lượt đánh giá **gần nhất của chính người dùng** (§4c); `{ evaluation: null }` nếu chưa bấm. Chỉ đọc, không tính toán, không tính phí | — (`private, no-store`) | 120/phút (`evaluation-read`) |
 | POST | `/map/places/evaluation` `{lat,lng,fresh?}` | Bấm "Đánh giá" (`fresh=false`: nhận bản phân tích mới nhất của địa điểm, chưa có thì AI chạy) hoặc "Đánh giá lại" (`fresh=true`: AI luôn chạy). Trả `{ evaluation, source: fresh|shared }` | Bản phân tích theo id `cache:map:analysis:{id}` 24 giờ | 30/phút (`evaluate`) |
 | PUT | `/map/places/evaluation/criteria/:criterionId` `{lat,lng,skipped?,score?}` | Bỏ qua tiêu chí và/hoặc đặt điểm tay 0–10 (bước 0,5; `score:null` = về điểm tự động) trên lượt của chính mình; chưa có lượt → 404 | — | 30/phút |
@@ -132,7 +135,7 @@ interface MapRoute {
 
 | Nơi | Khóa/bảng | Nội dung |
 | --- | --- | --- |
-| Postgres | `map_saved_places` (unique `user_id + place_key`) | Địa điểm đã lưu: `lat/lng` (6 chữ số), tên, địa chỉ, `kind`. Không lưu `ref_id` |
+| Postgres | `map_saved_places` (unique `user_id + place_id`) | Địa điểm đã lưu: `lat/lng` (6 chữ số), tên, địa chỉ, `kind`, `label` (tên gợi nhớ), `note`, `compared_at` (null = không so sánh). Không lưu `ref_id` |
 | Postgres | `map_criterion_overrides` (khóa `user_id + place_key + criterion_id`) | Chỉnh tay: `skipped`, `score` (null = điểm tự động). Khôi phục mặc định thì xóa hàng |
 | Postgres | `map_dataset_versions` (khóa `version`) | Phiên bản bộ dữ liệu đánh giá: `note`, `released_by`, `released_at`. Hiện hành = số lớn nhất. Hệ thống tự tạo v1 |
 | Postgres | `map_places` (index `lat,lng` và `address_key`) | Địa điểm chuẩn hóa (§4d) |
@@ -140,7 +143,8 @@ interface MapRoute {
 | Postgres | `map_place_evaluation_runs` (index `user_id, place_id, created_at`) | Mỗi lần bấm (lượt tính phí): `analysis_id`, `source` (`fresh`/`shared`). Lượt mới nhất theo (user, place) là thứ người dùng thấy |
 | Redis | `cache:map:analysis:{id}` TTL 24 giờ | Bản sao bất biến của một bản phân tích; Redis lỗi thì đọc DB |
 | Redis | `map:dataset:current` TTL 60 s | Phiên bản hiện hành; xóa ngay khi admin phát hành |
-| Redis | `ratelimit:map:{evaluate|evaluation-read|saved}:{userId}` | 30 / 120 / 60 lần mỗi phút |
+| Redis | `ratelimit:map:{evaluate|evaluation-read|saved|search-pins}:{userId}` | 30 / 120 / 60 / 10 lần mỗi phút |
+| Trình duyệt | `localStorage["li:map-search-history"]` | Lịch sử tìm kiếm gần nhất (tối đa 8: địa điểm đã chọn hoặc từ khóa loại hình). Xóa khi đăng xuất, đọc lại có kiểm tra hình dạng và tọa độ |
 
 Chỉnh tay (`map_criterion_overrides`) và "Đã lưu" khóa theo `place_id` (§4d), không theo tọa độ.
 
@@ -192,6 +196,19 @@ Lệch 1–2 m không được coi là địa điểm khác. Một cú bấm đ�
 3. **Không có thì tạo mới** tại điểm bấm. Địa điểm tạo từ điểm chưa có địa chỉ sẽ được bổ sung địa chỉ ở lần bấm sau.
 
 Tên và địa chỉ của địa điểm do server lấy, client chỉ gửi `lat/lng`. Khi tạo địa điểm có advisory lock theo ô lưới khoảng 100 m để tránh tạo trùng. Bản phân tích đo tại tọa độ chuẩn của địa điểm, nên mọi cú bấm trong cùng địa điểm cho cùng kết quả. "Đã lưu" cũng là duy nhất theo địa điểm (`user_id + place_id`).
+
+## 4e. Tên gợi nhớ, ghi chú và so sánh
+
+- Chỉ địa điểm **đã lưu** mới có tên gợi nhớ, ghi chú và so sánh (đều nằm trên `map_saved_places` của chính người dùng).
+- Ghi chú giữ xuống dòng, bỏ ký tự điều khiển, gộp quá 2 dòng trống, cắt 1000 ký tự. Tên gợi nhớ là một dòng, ≤ 80 ký tự.
+- Danh sách so sánh tối đa **6** địa điểm (mỗi địa điểm một cột). Bảng so sánh chỉ dùng lượt đánh giá của chính người dùng; địa điểm chưa đánh giá hiện "Chưa đánh giá" và liên kết mở bản đồ. Không bao giờ lấy bản phân tích của người khác cho người chưa bấm.
+- Đăng xuất xóa danh sách đã lưu đang giữ trong bộ nhớ trình duyệt và lịch sử tìm kiếm.
+
+## 4f. Tìm kiếm theo phạm vi và ghim nhiều kết quả
+
+- Phạm vi mặc định **10 km**, chỉnh 0,5–50 km (thanh trượt + ô số, tham số URL `r`; mặc định thì không ghi). Tâm là **điểm đang ghim**, không có thì tâm bản đồ.
+- Enter: đang chọn gợi ý → mở gợi ý đó; chuỗi khớp đúng một địa điểm (chỉ một gợi ý, hoặc đúng tên một gợi ý sau khi bỏ dấu) → mở địa điểm; còn lại (vd. "ngân hàng") → gọi `/map/search/pins`, ghim các kết quả bằng ghim tròn đỏ đánh số, mở danh sách kết quả, và kéo bản đồ về tâm + chỉnh zoom vừa vòng tròn phạm vi.
+- Ghim điểm: chuột phải ghim luôn điểm đó; bỏ ghim bằng mục đỏ "Bỏ ghim điểm này" cuối menu chuột phải hoặc bấm chuột trái chỗ khác trên bản đồ (thẻ Địa điểm của điểm đó đóng theo).
 
 ## 5. Giao diện
 
@@ -304,9 +321,13 @@ Backend `backend/src/modules/map/` (controller, service, client, mapper có test
 | AC11 | Chuột phải trên bản đồ → mục đầu tiên, được tô nổi, là "Xem thông tin địa điểm này"; chọn → mở thẻ Địa điểm (kể cả khi chỉ có địa chỉ gần đúng, thẻ ghi rõ khoảng cách). |
 | AC12 | Thẻ Địa điểm có: ảnh (nếu có tin rao khớp), tên, phân loại, địa chỉ chính xác (+ địa chỉ trước sáp nhập), tọa độ sao chép được, số người quan tâm (nếu có tin rao), "Tìm tin rao" mở `{root}/properties?q={tên}` với ô tìm đã điền, "Chỉ đường", "Đi từ đây", "Lưu địa điểm". |
 | AC13 | "Đánh giá địa điểm" → điểm tổng, tóm tắt, Điểm mạnh (+điểm), Điểm yếu (−điểm), mỗi tiêu chí có tên, kết quả, điểm /10, nút đổi điểm và bỏ qua; đổi/bỏ qua được lưu và tải lại vẫn còn. |
-| AC14 | "Lưu địa điểm" → xuất hiện trong "Đã lưu" ở sidebar; bấm mục đã lưu → bay tới và mở thẻ; bỏ lưu được. |
+| AC14 | "Lưu địa điểm" → xuất hiện trong "Đã lưu" (nút cạnh ô tìm); bấm mục đã lưu → bay tới và mở thẻ; bỏ lưu được. |
 | AC15 | Người A bấm đánh giá → mở lại (tải lại trang hoặc từ "Đã lưu") tự thấy kết quả và "dữ liệu v1", không tạo lượt mới. Người B mở cùng điểm chỉ thấy nút "Đánh giá địa điểm". |
 | AC16 | Admin phát hành v2 ở `/admin/datasets` → A mở lại vẫn thấy kết quả v1 kèm thông báo có dữ liệu v2; bấm "Đánh giá lại" → AI chạy, kết quả v2. "Đánh giá lại" luôn bật. |
 | AC18 | B bấm "Đánh giá lại" tại địa điểm X → C (chưa từng bấm) bấm "Đánh giá địa điểm" tại X (lệch 1–3 m) → nhận đúng kết quả lần đánh giá lại của B (`source: shared`), AI không chạy. |
 | AC19 | Hai nhà liền kề có số nhà khác nhau là hai địa điểm; hai cú bấm cùng địa chỉ trong 150 m là một địa điểm. |
+| AC20 | Sau khi lưu, thẻ Địa điểm có nút bút chì (tên gợi nhớ) và ghi chú ngay trước nút X, và nút "So sánh". Danh sách "Đã lưu" có cùng các nút; ghi chú hiện dưới địa điểm, tối đa 2 dòng, dài thì "…". Người khác sửa mục của mình → 404. |
+| AC21 | Thêm vào so sánh → badge của tab "So sánh" (ngay dưới "Bản đồ" ở thanh bên) tăng; `/…/compare` hiện bảng 1–6 cột theo điểm tổng và 19 tiêu chí, ô cao nhất mỗi hàng được tô; thêm cột thứ 7 → 409. |
+| AC22 | Bấm ô tìm khi chưa gõ → popover có lịch sử gần nhất và phạm vi (mặc định 10 km); kéo/nhập bán kính → vòng tròn hiện, dừng thì mờ dần. Mở popover thì bộ lọc đóng và ngược lại; bộ lọc có badge số lựa chọn đã áp dụng. |
+| AC23 | Đang ghim rồi kéo bản đồ đi chỗ khác, gõ "ngân hàng" + Enter → bản đồ về đúng điểm ghim, zoom vừa phạm vi, ghim các ngân hàng trong phạm vi bằng ghim khác ghim chính. |
 | AC17 | Người không phải admin gọi `/admin/map/dataset-versions` → 403; chỉnh tiêu chí khi chưa có lượt của mình → 404; gửi kèm `userId` → 400. |

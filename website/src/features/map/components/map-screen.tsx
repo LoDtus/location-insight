@@ -1,8 +1,8 @@
 "use client";
 
-import { Loader2, Navigation } from "lucide-react";
+import { Bookmark, Loader2, Navigation, Settings, SlidersHorizontal } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { ShellRoot } from "@/features/app/shell";
 import { MAP_PLACE_SLUG } from "@/features/landing-page/data/listings";
@@ -13,18 +13,17 @@ import MapCanvas, {
 } from "@/features/map/components/map-canvas";
 import MapContextMenu, { type ContextAction } from "@/features/map/components/map-context-menu";
 import MapDirectionsPanel from "@/features/map/components/map-directions-panel";
-import MapFilterChips from "@/features/map/components/map-filter-chips";
+import MapFilterPanel, { countFilters } from "@/features/map/components/map-filter-panel";
 import MapLayerPicker from "@/features/map/components/map-layer-picker";
-import MapNearbyBar from "@/features/map/components/map-nearby-bar";
 import MapPlaceDetail from "@/features/map/components/map-place-detail";
 import MapPlacePanel from "@/features/map/components/map-place-panel";
+import MapResultsPanel, { type ResultsState } from "@/features/map/components/map-results-panel";
 import MapSavedPanel from "@/features/map/components/map-saved-panel";
+import MapSearchBar from "@/features/map/components/map-search-bar";
 import MapScaleBar from "@/features/map/components/map-scale-bar";
-import MapSidebar from "@/features/map/components/map-sidebar";
 import MapUrlErrors from "@/features/map/components/map-url-errors";
 import MapUsageCard from "@/features/map/components/map-usage-card";
 import MapZoomControls from "@/features/map/components/map-zoom-controls";
-import PlaceSearchBox from "@/features/map/components/place-search-box";
 import { useDirections } from "@/features/map/hooks/use-directions";
 import { useMapConfig } from "@/features/map/hooks/use-map-config";
 import { usePlaceSelection } from "@/features/map/hooks/use-place-selection";
@@ -40,13 +39,14 @@ import {
     type SearchFilters,
 } from "@/features/map/map-url";
 import {
-    NEARBY_RADIUS,
     PIN_ZOOM,
+    SEARCH_RADIUS,
     circleBounds,
+    formatRadius,
     formatCoordinates,
     placeLink,
 } from "@/features/map/map.geo";
-import { isAbortError, reverseGeocode } from "@/features/map/map.service";
+import { isAbortError, mapErrorMessage, reverseGeocode, searchPinResults } from "@/features/map/map.service";
 import {
     DEFAULT_MAP_CENTER,
     DEFAULT_MAP_ZOOM,
@@ -59,6 +59,8 @@ import type {
     MapPlace,
     MapPoint,
     MapStyleId,
+    PinResult,
+    SavedPlace,
     Waypoint,
 } from "@/features/map/map.types";
 
@@ -67,9 +69,10 @@ interface MapScreenProps {
     root?: ShellRoot;
 }
 
-type Panel = "place" | "directions" | "usage" | "detail" | "saved" | null;
+type Panel = "place" | "directions" | "usage" | "detail" | "saved" | "results" | null;
 
 const POINT_LABEL_FALLBACK = "Điểm đã chọn";
+const NO_RESULTS: PinResult[] = [];
 const URL_WRITE_DELAY_MS = 500;
 
 function toWaypoint(place: MapPlace): Waypoint {
@@ -164,12 +167,25 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
     const [locating, setLocating] = useState(false);
     const [notice, setNotice] = useState<string | null>(null);
     const [menu, setMenu] = useState<{ point: MapPoint; at: { x: number; y: number }; size: { width: number; height: number } } | null>(null);
-    const [nearby, setNearby] = useState<{ center: MapPoint; radiusM: number } | null>(null);
+    /** Điểm đang ghim (chuột phải, chọn địa điểm…): tâm tìm kiếm lân cận. Bỏ bằng menu chuột phải hoặc bấm chuột trái chỗ khác. */
+    const [ping, setPing] = useState<MapPoint | null>(init.pin);
     const [searchFocus, setSearchFocus] = useState(0);
+    const [popoverOpen, setPopoverOpen] = useState(false);
+    const [filterOpen, setFilterOpen] = useState(false);
+    const [results, setResults] = useState<ResultsState | null>(null);
+    const resultsRef = useRef<AbortController | null>(null);
     const rootRef = useRef<HTMLDivElement>(null);
     const lastWrittenRef = useRef(canonicalQuery(paramsString));
     const isAdmin = root === "/admin";
     const focus: MapPoint = { lat: viewport.lat, lng: viewport.lng };
+    const radiusM = filters.radius ?? SEARCH_RADIUS.initial;
+    const searchCenter: MapPoint = ping ?? focus;
+    const filterCount = countFilters(filters);
+    const resultPins = results?.status === "ready" ? results.items : NO_RESULTS;
+    const resultMarkers = useMemo(
+        () => resultPins.map((item) => ({ id: item.refId, lat: item.lat, lng: item.lng, name: item.name })),
+        [resultPins],
+    );
     const config = configState.status === "ready" ? configState.config : null;
     const trafficAvailable = config?.trafficStyleUrl != null;
 
@@ -334,6 +350,7 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
             directions.setTo(null);
             if (state.pin) {
                 selectPoint(state.pin);
+                setPing(state.pin);
                 setPanel("place");
             } else {
                 clear();
@@ -364,21 +381,23 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
         [directions.setFrom, directions.setTo],
     );
 
-    // Chuột trái chỉ dùng để chọn điểm đi/đến khi người dùng bấm "chọn trên bản đồ".
+    // Chuột trái: chọn điểm đi/đến khi đang "chọn trên bản đồ"; còn lại bỏ điểm đang ghim (và thẻ Địa điểm của nó).
     const onMapClick = useCallback(
         (point: MapPoint): void => {
-            if (!picking || !directions.open) return;
-            setNotice(null);
-            labelPoint(picking, point);
-            setPicking(null);
+            if (picking && directions.open) {
+                setNotice(null);
+                labelPoint(picking, point);
+                setPicking(null);
+                return;
+            }
+            clearPing();
         },
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- labelPoint đọc state mới nhất qua closure mỗi lần render
-        [picking, directions.open],
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- labelPoint/clearPing đọc state mới nhất qua closure mỗi lần render
+        [picking, directions.open, panel],
     );
 
-    // Chỉ một ghim duy nhất: điểm vừa bấm chuột phải, rồi điểm đang chọn, rồi tâm tìm lân cận.
-    const dropped =
-        menu?.point ?? (selection.status === "none" || directions.open ? null : selection.point) ?? nearby?.center ?? null;
+    // Chỉ một ghim chính: điểm vừa bấm chuột phải, không thì điểm đang ghim (ẩn khi đang chỉ đường).
+    const dropped = menu?.point ?? (directions.open ? null : ping);
     const droppedLat = dropped?.lat;
     const droppedLng = dropped?.lng;
     useEffect(() => {
@@ -398,18 +417,14 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
         setMenu(null);
     }, [viewport.lat, viewport.lng, viewport.zoom, viewport.bearing, viewport.pitch]);
 
-    // Vừa mở chế độ lân cận hoặc đổi bán kính: đưa cả vòng tròn vào khung nhìn.
-    const nearbyCenter = nearby?.center;
-    const nearbyRadius = nearby?.radiusM;
-    useEffect(() => {
-        if (!nearbyCenter || !nearbyRadius) return;
-        const timer = setTimeout(() => mapRef.current?.fitBounds(circleBounds(nearbyCenter, nearbyRadius)), 250);
-        return () => clearTimeout(timer);
-    }, [nearbyCenter, nearbyRadius]);
+    useEffect(() => () => resultsRef.current?.abort(), []);
 
+    // Chuột phải: ghim luôn điểm đó (làm tâm tìm kiếm) và mở menu.
     const openMenu = useCallback((point: MapPoint, at: { x: number; y: number }): void => {
         const box = rootRef.current?.getBoundingClientRect();
         setMenu({ point, at, size: { width: box?.width ?? 0, height: box?.height ?? 0 } });
+        setPing(point);
+        setPopoverOpen(false);
     }, []);
 
     const closeMenu = useCallback((): void => setMenu(null), []);
@@ -450,9 +465,97 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
         setNotice(null);
         directions.close();
         setPicking(null);
-        setNearby(null);
+        setPing(point);
         selectPoint(point);
         setPanel("place");
+    }
+
+    /** Bỏ điểm đang ghim; thẻ Địa điểm của điểm đó đóng theo. */
+    function clearPing(): void {
+        setPing(null);
+        if (panel === "place") {
+            clear();
+            setPanel(null);
+        }
+    }
+
+    /** Mở ô tìm kiếm để tìm quanh điểm vừa ghim, hiện phạm vi hiện tại. */
+    function searchAround(point: MapPoint): void {
+        setPing(point);
+        setFilterOpen(false);
+        setSearchFocus((value) => value + 1);
+        mapRef.current?.flashRadius(point, radiusM);
+    }
+
+    function setRadius(next: number): void {
+        setFilters((current) => ({ ...current, radius: next === SEARCH_RADIUS.initial ? undefined : next }));
+        mapRef.current?.flashRadius(searchCenter, next);
+    }
+
+    /** Tìm theo loại hình: kéo bản đồ về điểm ghim, chỉnh zoom vừa phạm vi rồi ghim mọi kết quả liên quan. */
+    function searchAll(text: string): void {
+        const center = searchCenter;
+        resultsRef.current?.abort();
+        const controller = new AbortController();
+        resultsRef.current = controller;
+        setResults({ status: "loading", text, radiusM });
+        if (panel !== "directions") {
+            if (panel === "place") clear();
+            setPanel("results");
+        }
+        mapRef.current?.fitBounds(circleBounds(center, radiusM));
+        mapRef.current?.flashRadius(center, radiusM);
+        searchPinResults(text, center, { ...filters, radius: radiusM }, controller.signal)
+            .then((items) => setResults({ status: "ready", text, radiusM, items }))
+            .catch((error: unknown) => {
+                if (isAbortError(error)) return;
+                setResults({ status: "error", text, radiusM, message: mapErrorMessage(error, "Không tìm được lúc này, vui lòng thử lại.") });
+            });
+    }
+
+    function clearResults(): void {
+        resultsRef.current?.abort();
+        setResults(null);
+        setPanel((current) => (current === "results" ? null : current));
+    }
+
+    function openResult(item: PinResult, fly: boolean): void {
+        const point = { lat: item.lat, lng: item.lng };
+        directions.close();
+        setPicking(null);
+        setPing(point);
+        selectPoint(point, item);
+        setPanel("place");
+        if (fly) mapRef.current?.flyTo(point, PIN_ZOOM);
+    }
+
+    function openSavedItem(item: SavedPlace): void {
+        const point = { lat: item.lat, lng: item.lng };
+        directions.close();
+        setPicking(null);
+        setPing(point);
+        selectPoint(point);
+        setPanel("place");
+        mapRef.current?.flyTo(point, PIN_ZOOM);
+    }
+
+    async function updateSaved(item: SavedPlace, patch: { label?: string | null; note?: string }): Promise<string | null> {
+        return saved.update(item, patch);
+    }
+
+    function toggleCompare(item: SavedPlace): void {
+        const adding = !item.compared;
+        void saved.update(item, { compared: adding }).then((message) => {
+            if (message) {
+                showToast({ title: adding ? "Chưa thêm được vào so sánh" : "Chưa bỏ được khỏi so sánh", description: message, tone: "error" });
+                return;
+            }
+            showToast(
+                adding
+                    ? { title: "Đã thêm vào so sánh", description: `${item.label || item.name} · xem ở mục “So sánh” trên thanh bên.` }
+                    : { title: "Đã bỏ khỏi so sánh", description: item.label || item.name, tone: "info" },
+            );
+        });
     }
 
     function runContextAction(action: ContextAction): void {
@@ -469,21 +572,20 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
         } else if (action === "where") {
             whereIsThis(point);
             return;
+        } else if (action === "clear-pin") {
+            clearPing();
+            return;
         } else {
-            clear();
-            setPanel(null);
-            setNearby({ center: point, radiusM: NEARBY_RADIUS.initial });
-            setSearchFocus((value) => value + 1);
+            searchAround(point);
             return;
         }
     }
 
-    function exitNearby(): void {
-        setNearby(null);
-    }
-
     function onSearchSelect(place: MapPlace): void {
         const point = { lat: place.lat, lng: place.lng };
+        directions.close();
+        setPicking(null);
+        setPing(point);
         selectPoint(point, place);
         setPanel("place");
         mapRef.current?.flyTo(point, PIN_ZOOM);
@@ -605,7 +707,15 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
             <MapPlacePanel
                 selection={selection}
                 root={root}
-                saved={saved.find(selection.point) !== undefined}
+                savedItem={saved.find(selection.point)}
+                onUpdateSaved={(patch) => {
+                    const item = saved.find(selection.point);
+                    return item ? updateSaved(item, patch) : Promise.resolve("Hãy lưu địa điểm trước.");
+                }}
+                onToggleCompare={() => {
+                    const item = saved.find(selection.point);
+                    if (item) toggleCompare(item);
+                }}
                 saving={saved.busyKey !== null && saved.busyKey === (saved.find(selection.point)?.id ?? pendingKey(selection.point))}
                 onToggleSave={() => {
                     if (selection.status !== "ready") return;
@@ -626,7 +736,7 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                             showToast(
                                 wasSaved
                                     ? { title: "Đã bỏ lưu địa điểm", description: place?.name, tone: "info" }
-                                    : { title: "Đã lưu địa điểm", description: `${place?.name ?? "Địa điểm"} có trong mục "Đã lưu" ở thanh bên.` },
+                                    : { title: "Đã lưu địa điểm", description: `${place?.name ?? "Địa điểm"} có trong mục “Đã lưu” cạnh ô tìm kiếm. Bạn có thể đặt tên gợi nhớ, ghi chú và so sánh.` },
                             );
                         });
                 }}
@@ -635,8 +745,7 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                     const point = selection.point;
                     clear();
                     setPanel(null);
-                    setNearby({ center: point, radiusM: NEARBY_RADIUS.initial });
-                    setSearchFocus((value) => value + 1);
+                    searchAround(point);
                 }}
                 onCopyLink={() => {
                     void navigator.clipboard
@@ -658,14 +767,21 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
             <MapSavedPanel
                 state={saved.state}
                 busyKey={saved.busyKey}
-                onOpen={(item) => {
-                    const point = { lat: item.lat, lng: item.lng };
-                    directions.close();
-                    setPicking(null);
-                    selectPoint(point);
-                    setPanel("place");
-                    mapRef.current?.flyTo(point, PIN_ZOOM);
+                compareHref={`${root}/compare`}
+                onOpen={openSavedItem}
+                onUpdate={async (item, patch) => {
+                    const message = await updateSaved(item, patch);
+                    if (!message) {
+                        const field = patch.label !== undefined ? "label" : "note";
+                        const value = field === "label" ? patch.label : patch.note;
+                        showToast({
+                            title: field === "label" ? (value ? "Đã đặt tên gợi nhớ" : "Đã dùng lại tên gốc") : value ? "Đã lưu ghi chú" : "Đã xóa ghi chú",
+                            description: field === "label" ? value || item.name : item.label || item.name,
+                        });
+                    }
+                    return message;
                 }}
+                onToggleCompare={toggleCompare}
                 onRemove={(item) => {
                     void saved.remove(item).then((message) => {
                         if (message) setNotice(message);
@@ -673,6 +789,8 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                 }}
                 onClose={closePanel}
             />
+        ) : panel === "results" && results ? (
+            <MapResultsPanel state={results} onOpen={(item) => openResult(item, true)} onClose={clearResults} />
         ) : panel === "usage" ? (
             <MapUsageCard onClose={closePanel} />
         ) : panel === "detail" ? (
@@ -691,7 +809,12 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                 to={directions.open ? directions.to : null}
                 routes={directions.routes}
                 activeRoute={directions.active}
-                circle={nearby}
+                circle={null}
+                results={resultMarkers}
+                onResultClick={(id) => {
+                    const item = resultPins.find((entry) => entry.refId === id);
+                    if (item) openResult(item, false);
+                }}
                 onMapClick={onMapClick}
                 onContextMenu={openMenu}
                 onViewport={(next) => {
@@ -704,35 +827,52 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
             <div className="pointer-events-none absolute inset-0">
                 <div className="flex h-full w-full min-h-0">
                     <div className="relative flex min-h-0 min-w-0 flex-1">
-                        <div className="hidden h-full lg:block">
-                            <MapSidebar
-                                root={root}
-                                savedOpen={panel === "saved"}
-                                savedCount={saved.state.items.length}
-                                onSaved={() => setPanel((current) => (current === "saved" ? null : "saved"))}
-                                onSettings={isAdmin ? () => setPanel("usage") : undefined}
-                            />
-                        </div>
                         <div className="relative min-h-0 min-w-0 flex-1">
                             {readyConfig.searchEnabled ? (
-                                <div className="pointer-events-auto absolute top-2 right-2 left-2 z-10 flex max-w-md items-center gap-2">
-                                    <PlaceSearchBox
-                                        className="min-w-0 flex-1"
-                                        label={nearby ? "Tìm kiếm lân cận" : "Tìm kiếm địa điểm"}
-                                        placeholder={nearby ? `Tìm quanh đây trong ${nearby.radiusM} m` : "Tìm kiếm địa điểm, địa chỉ"}
+                                <div className="pointer-events-auto absolute top-2 right-2 left-2 z-20 flex max-w-xl items-start gap-2">
+                                    <MapSearchBar
                                         value={queryValue}
-                                        searchOnValue
-                                        filters={nearby ? { ...filters, radius: nearby.radiusM } : filters}
-                                        focus={nearby ? nearby.center : focus}
-                                        searchKey={nearby ? `${nearby.center.lat},${nearby.center.lng},${nearby.radiusM}` : ""}
+                                        center={searchCenter}
+                                        centerIsPin={ping !== null}
+                                        radiusM={radiusM}
+                                        filters={filters}
+                                        open={popoverOpen}
+                                        onOpenChange={(open) => {
+                                            setPopoverOpen(open);
+                                            if (open) setFilterOpen(false);
+                                        }}
                                         focusSignal={searchFocus}
                                         onQueryChange={setQuery}
-                                        onSelect={onSearchSelect}
+                                        onRadius={setRadius}
+                                        onSelectPlace={onSearchSelect}
+                                        onSearchAll={searchAll}
+                                        onClear={clearResults}
                                     />
+                                    <div className={`${popoverOpen ? "hidden sm:flex" : "flex"} shrink-0 items-start gap-2`}>
+                                    <TopButton
+                                        label={filterCount > 0 ? `Bộ lọc (${filterCount} đang áp dụng)` : "Bộ lọc"}
+                                        pressed={filterOpen}
+                                        badge={filterCount}
+                                        onClick={() => {
+                                            setPopoverOpen(false);
+                                            setFilterOpen((open) => !open);
+                                        }}
+                                    >
+                                        <SlidersHorizontal size={18} aria-hidden />
+                                    </TopButton>
+                                    <TopButton
+                                        label="Địa điểm đã lưu"
+                                        pressed={panel === "saved"}
+                                        badge={saved.state.items.length}
+                                        onClick={() => setPanel((current) => (current === "saved" ? null : "saved"))}
+                                    >
+                                        <Bookmark size={18} aria-hidden className={panel === "saved" ? "fill-green/20" : ""} />
+                                    </TopButton>
                                     <button
                                         type="button"
                                         aria-label="Chỉ đường"
-                                        className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-green text-cream shadow-sm"
+                                        title="Chỉ đường"
+                                        className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-green text-cream shadow-sm hover:bg-green/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
                                         onClick={() => {
                                             directions.setOpen(true);
                                             setPanel("directions");
@@ -740,22 +880,50 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                                     >
                                         <Navigation size={18} aria-hidden />
                                     </button>
+                                    {isAdmin ? (
+                                        <TopButton label="Mức dùng Vietmap" pressed={panel === "usage"} onClick={() => setPanel((current) => (current === "usage" ? null : "usage"))}>
+                                            <Settings size={18} aria-hidden />
+                                        </TopButton>
+                                    ) : null}
+                                    </div>
                                 </div>
                             ) : (
                                 <p className="pointer-events-auto absolute top-2 left-2 z-10 m-0 rounded-lg bg-white px-3 py-2 text-sm shadow-sm">
                                     Tìm kiếm chưa được cấu hình.
                                 </p>
                             )}
-                            <div className="pointer-events-none absolute top-14 right-2 left-2 z-10 flex max-w-md flex-col gap-2">
-                                {nearby ? (
-                                    <MapNearbyBar
-                                        center={nearby.center}
-                                        radiusM={nearby.radiusM}
-                                        onRadius={(radiusM) => setNearby({ ...nearby, radiusM })}
-                                        onExit={exitNearby}
+                            {filterOpen ? (
+                                <div className="pointer-events-none absolute top-14 bottom-2 left-2 z-20 flex w-[calc(100%-1rem)] items-start sm:w-auto">
+                                    <MapFilterPanel
+                                        filters={filters}
+                                        onClose={() => setFilterOpen(false)}
+                                        onApply={(next) => {
+                                            setFilters(next);
+                                            setFilterOpen(false);
+                                            const count = countFilters(next);
+                                            showToast({
+                                                title: count > 0 ? `Đã áp dụng ${count} bộ lọc` : "Đã bỏ bộ lọc",
+                                                description: count > 0 ? "Gợi ý và kết quả tìm kiếm sẽ theo bộ lọc này." : undefined,
+                                                tone: "info",
+                                            });
+                                        }}
                                     />
+                                </div>
+                            ) : null}
+                            <div className="pointer-events-none absolute top-14 right-2 left-2 z-10 flex max-w-md flex-col gap-2">
+                                {results?.status === "ready" && panel !== "results" ? (
+                                    <p className="pointer-events-auto m-0 flex items-center gap-2 self-start rounded-full bg-white py-1 pr-1 pl-3 text-xs shadow-sm ring-1 ring-charcoal/10">
+                                        <span>
+                                            {results.items.length} kết quả “{results.text}” trong {formatRadius(results.radiusM)}
+                                        </span>
+                                        <button type="button" onClick={() => setPanel("results")} className="rounded-full bg-charcoal/5 px-2 py-1 font-semibold hover:bg-charcoal/10">
+                                            Xem
+                                        </button>
+                                        <button type="button" onClick={clearResults} className="rounded-full bg-charcoal/5 px-2 py-1 font-semibold hover:bg-charcoal/10">
+                                            Bỏ ghim
+                                        </button>
+                                    </p>
                                 ) : null}
-                                <MapFilterChips filters={filters} onClear={() => setFilters({})} />
                                 <MapUrlErrors errors={urlErrors} onDismiss={() => setUrlErrors([])} />
                                 {failed ? (
                                     <p role="alert" className="pointer-events-auto m-0 rounded-lg bg-white px-3 py-2 text-sm text-red-700 shadow-sm">
@@ -791,6 +959,39 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                 {menu ? <MapContextMenu at={menu.at} bounds={menu.size} onSelect={runContextAction} onClose={closeMenu} /> : null}
             </div>
         </div>
+    );
+}
+
+/** Nút tròn trên thanh tìm kiếm, có badge số lượng. */
+function TopButton({
+    label,
+    pressed,
+    badge = 0,
+    onClick,
+    children,
+}: {
+    label: string;
+    pressed: boolean;
+    badge?: number;
+    onClick: () => void;
+    children: React.ReactNode;
+}) {
+    return (
+        <button
+            type="button"
+            aria-label={label}
+            title={label}
+            aria-pressed={pressed}
+            onClick={onClick}
+            className={`relative inline-flex size-10 shrink-0 items-center justify-center rounded-full shadow-sm ring-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green ${pressed ? "bg-green/10 text-green ring-green/40" : "bg-white text-charcoal/80 ring-charcoal/15 hover:text-charcoal"}`}
+        >
+            {children}
+            {badge > 0 ? (
+                <span className="absolute -top-1 -right-1 min-w-[18px] rounded-full bg-green px-1 text-center text-[10px] leading-[18px] font-semibold text-cream tabular-nums ring-2 ring-white">
+                    {badge > 99 ? "99+" : badge}
+                </span>
+            ) : null}
+        </button>
     );
 }
 

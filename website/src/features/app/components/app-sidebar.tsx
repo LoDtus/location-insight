@@ -6,6 +6,7 @@ import {
     Bell,
     Database,
     Download,
+    GitCompareArrows,
     House,
     Mail,
     LogOut,
@@ -31,6 +32,7 @@ import { logout } from "@/features/auth/auth.api";
 import { usePwaInstall } from "@/features/pwa/components/pwa-provider";
 import { useAuth } from "@/features/auth/use-auth";
 import { useFeedbackBadge } from "@/features/feedback/use-feedback-badge";
+import { useCompareCount } from "@/features/map/hooks/use-saved-places";
 import { useUnreadBadge } from "@/features/messaging/messaging-provider";
 import { useNotificationUnread } from "@/features/notification/notification-badge";
 import { useLocale } from "@/shared/hooks/useLocale";
@@ -96,6 +98,7 @@ export default function AppSidebar({
     const notices = useNotificationUnread();
     const pwa = usePwaInstall();
     const feedbackBadge = useFeedbackBadge(surface);
+    const compareCount = useCompareCount(Boolean(auth.user));
     const [collapsed, setCollapsed] = useState(false);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [signingOut, setSigningOut] = useState(false);
@@ -201,6 +204,13 @@ export default function AppSidebar({
                   },
                   {
                       kind: "item",
+                      href: "/admin/compare",
+                      icon: GitCompareArrows,
+                      label: vi ? "So sánh" : "Compare",
+                      badge: compareCount || undefined,
+                  },
+                  {
+                      kind: "item",
                       href: "/admin/feed",
                       icon: MessagesSquare,
                       label: vi ? "Diễn đàn" : "Discussions",
@@ -274,6 +284,13 @@ export default function AppSidebar({
                       href: "/app/map",
                       icon: Map,
                       label: vi ? "Bản đồ" : "Map",
+                  },
+                  {
+                      kind: "item",
+                      href: "/app/compare",
+                      icon: GitCompareArrows,
+                      label: vi ? "So sánh" : "Compare",
+                      badge: compareCount || undefined,
                   },
                   {
                       kind: "item",

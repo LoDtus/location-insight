@@ -43,6 +43,15 @@ export class MapController {
     return this.map.search(userId(request), text, lat, lng, limit, filters);
   }
 
+  /** Ghim mọi kết quả liên quan trong phạm vi (tìm theo loại hình, vd. "ngân hàng"). */
+  @RequirePermission('map:use')
+  @Header('Cache-Control', 'private, no-store')
+  @Get('search/pins')
+  searchPins(@Query() query: SearchQueryDto, @Req() request: RequestWithPrincipal) {
+    const { text, lat, lng, limit: _limit, ...filters } = query;
+    return this.map.searchPins(userId(request), text, lat, lng, filters);
+  }
+
   @RequirePermission('map:use')
   @Header('Cache-Control', 'private, no-store')
   @Get('places/resolve')

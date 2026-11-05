@@ -1,9 +1,9 @@
 "use client";
 
-import { Copy, Info, Link2, Radar, Route, type LucideIcon } from "lucide-react";
+import { Copy, Info, Link2, MapPinOff, Radar, Route, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, type JSX } from "react";
 
-export type ContextAction = "copy-coordinates" | "copy-link" | "directions" | "where" | "nearby";
+export type ContextAction = "copy-coordinates" | "copy-link" | "directions" | "where" | "nearby" | "clear-pin";
 
 interface MenuItem {
     id: ContextAction;
@@ -11,6 +11,8 @@ interface MenuItem {
     icon: LucideIcon;
     /** Thao tác chính: nằm đầu menu, nền nhấn và ngăn với phần còn lại. */
     primary?: boolean;
+    /** Thao tác gỡ bỏ: nằm cuối menu, chữ đỏ, ngăn với phần trên. */
+    danger?: boolean;
 }
 
 const ITEMS: readonly MenuItem[] = [
@@ -19,10 +21,11 @@ const ITEMS: readonly MenuItem[] = [
     { id: "nearby", label: "Tìm kiếm lân cận", icon: Radar },
     { id: "copy-coordinates", label: "Sao chép tọa độ", icon: Copy },
     { id: "copy-link", label: "Sao chép địa điểm", icon: Link2 },
+    { id: "clear-pin", label: "Bỏ ghim điểm này", icon: MapPinOff, danger: true },
 ];
 
 const MENU_WIDTH = 252;
-const MENU_HEIGHT = ITEMS.length * 40 + 22;
+const MENU_HEIGHT = ITEMS.length * 40 + 30;
 const EDGE = 8;
 
 interface MapContextMenuProps {
@@ -83,18 +86,24 @@ export default function MapContextMenu({ at, bounds, onSelect, onClose }: MapCon
             className="pointer-events-auto absolute z-30 m-0 list-none rounded-lg bg-white p-1.5 shadow-[0_8px_24px_rgba(16,17,17,0.16)] ring-1 ring-charcoal/10"
         >
             {ITEMS.map((item) => (
-                <li key={item.id} role="none" className={item.primary ? "mb-1 border-b border-charcoal/10 pb-1" : undefined}>
+                <li
+                    key={item.id}
+                    role="none"
+                    className={item.primary ? "mb-1 border-b border-charcoal/10 pb-1" : item.danger ? "mt-1 border-t border-charcoal/10 pt-1" : undefined}
+                >
                     <button
                         type="button"
                         role="menuitem"
                         onClick={() => onSelect(item.id)}
                         className={
-                            item.primary
+                            item.danger
+                                ? "flex min-h-10 w-full items-center gap-3 rounded-md border-0 bg-red-50 px-3 text-left text-sm font-semibold text-red-700 hover:bg-red-100 focus-visible:bg-red-100 focus-visible:outline-2 focus-visible:outline-red-600"
+                                : item.primary
                                 ? "flex min-h-10 w-full items-center gap-3 rounded-md border-0 bg-green/10 px-3 text-left text-sm font-semibold text-green hover:bg-green/15 focus-visible:bg-green/15 focus-visible:outline-2 focus-visible:outline-green"
                                 : "flex min-h-10 w-full items-center gap-3 rounded-md border-0 bg-transparent px-3 text-left text-sm font-medium text-charcoal hover:bg-charcoal/5 focus-visible:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-green"
                         }
                     >
-                        <item.icon size={16} aria-hidden className={item.primary ? "" : "text-charcoal/60"} />
+                        <item.icon size={16} aria-hidden className={item.primary || item.danger ? "" : "text-charcoal/60"} />
                         {item.label}
                     </button>
                 </li>

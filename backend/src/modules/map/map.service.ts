@@ -8,6 +8,7 @@ import {
   DEFAULT_CENTER,
   DEFAULT_ZOOM,
   MAP_CACHE_TTL,
+  MAP_PIN_RESULTS_MAX,
   MAP_REDIS_KEYS,
   MAP_STYLES,
   MAP_TEXT_MAX,
@@ -98,6 +99,44 @@ export class MapService {
     filters: SearchFilters = {},
   ): Promise<MapSuggestion[]> {
     await this.limits.consumeUser('autocomplete', userId);
+    return this.autocomplete(text, lat, lng, limit, filters);
+  }
+
+  /**
+   * Tìm theo loại hình ("ngân hàng", "trường học"): lấy các gợi ý trong phạm vi rồi lấy tọa độ từng cái để ghim
+   * hết lên bản đồ. Mỗi lượt tốn tối đa 1 Autocomplete + MAP_PIN_RESULTS_MAX Place, đều qua cache; giới hạn riêng.
+   */
+  async searchPins(
+    userId: string,
+    text: string,
+    lat: number | undefined,
+    lng: number | undefined,
+    filters: SearchFilters = {},
+  ): Promise<Array<MapPlace & { refId: string }>> {
+    await this.limits.consumeUser('search-pins', userId);
+    const focus = { lat: lat ?? DEFAULT_CENTER[1], lng: lng ?? DEFAULT_CENTER[0] };
+    const suggestions = await this.autocomplete(text, focus.lat, focus.lng, MAP_PIN_RESULTS_MAX, filters);
+    const settled = await Promise.allSettled(suggestions.map((item) => this.placeByRef(item.refId)));
+    const out: Array<MapPlace & { refId: string }> = [];
+    settled.forEach((result, index) => {
+      if (result.status !== 'fulfilled' || !result.value) return;
+      const suggestion = suggestions[index];
+      const distanceM = Math.round(haversineM(focus, result.value));
+      // Vietmap ưu tiên chứ không cắt theo vòng tròn: tự bỏ kết quả ngoài phạm vi.
+      if (filters.radius && distanceM > filters.radius) return;
+      if (out.some((item) => item.refId === suggestion.refId)) return;
+      out.push({ ...result.value, name: suggestion.name || result.value.name, distanceM, refId: suggestion.refId });
+    });
+    return out;
+  }
+
+  private async autocomplete(
+    text: string,
+    lat: number | undefined,
+    lng: number | undefined,
+    limit: number,
+    filters: SearchFilters,
+  ): Promise<MapSuggestion[]> {
     const clean = cleanText(text, MAP_TEXT_MAX);
     if (clean.length < 2) return [];
     const focusLat = lat ?? DEFAULT_CENTER[1];
@@ -122,12 +161,16 @@ export class MapService {
     });
   }
 
-  async resolve(userId: string, refId: string): Promise<MapPlace> {
-    await this.limits.consumeUser('place', userId);
-    const place = await this.cached('place', hash(refId), async () => {
+  private placeByRef(refId: string): Promise<MapPlace | null> {
+    return this.cached('place', hash(refId), async () => {
       const result = await this.client.get('/api/place/v4', { refid: refId });
       return toPlaceFromPlace(result.body);
     });
+  }
+
+  async resolve(userId: string, refId: string): Promise<MapPlace> {
+    await this.limits.consumeUser('place', userId);
+    const place = await this.placeByRef(refId);
     if (!place) {
       throw new BusinessException(
         ErrorCode.NOT_FOUND,

@@ -29,6 +29,11 @@ export interface MapHandle {
     showMyLocation: (point: MapPoint) => void;
     /** Thả (hoặc gỡ, khi null) ghim của chuột phải, kèm hiệu ứng bật xuống. */
     dropPin: (point: MapPoint | null) => void;
+    /**
+     * Hiện vòng tròn phạm vi tìm kiếm. Gọi liên tục khi đang kéo/nhập bán kính; dừng một lúc thì vòng tròn mờ dần
+     * rồi biến mất.
+     */
+    flashRadius: (center: MapPoint, radiusM: number) => void;
     /** Đặt lại camera tức thì (khi URL đổi từ bên ngoài). */
     setView: (view: Partial<MapPoint> & { zoom?: number; bearing?: number; pitch?: number }) => void;
 }
@@ -59,7 +64,11 @@ interface MapCanvasProps {
     activeRoute: number;
     /** Vòng tròn tìm lân cận (mét). */
     circle: { center: MapPoint; radiusM: number } | null;
-    /** Chuột trái; màn hình chỉ xử lý khi đang chọn điểm đi/đến trên bản đồ. */
+    /** Kết quả tìm theo loại hình: mỗi kết quả một ghim nhỏ, khác ghim chính. */
+    results: ReadonlyArray<{ id: string; lat: number; lng: number; name: string }>;
+    /** Bấm vào một ghim kết quả. */
+    onResultClick: (id: string) => void;
+    /** Chuột trái lên nền bản đồ (không trúng ghim). */
     onMapClick: (point: MapPoint) => void;
     /** Chuột phải: điểm trên bản đồ và vị trí pixel so với khung bản đồ. */
     onContextMenu: (point: MapPoint, at: { x: number; y: number }) => void;
@@ -76,6 +85,12 @@ const LAYER_ACTIVE = "li-route-active-line";
 const SRC_CIRCLE = "li-nearby-circle";
 const LAYER_CIRCLE_FILL = "li-nearby-fill";
 const LAYER_CIRCLE_LINE = "li-nearby-line";
+const SRC_RADIUS = "li-search-radius";
+const LAYER_RADIUS_FILL = "li-search-radius-fill";
+const LAYER_RADIUS_LINE = "li-search-radius-line";
+/** Đứng yên chừng này mili giây thì vòng tròn bắt đầu mờ; mờ trong RADIUS_FADE_MS. */
+const RADIUS_IDLE_MS = 900;
+const RADIUS_FADE_MS = 900;
 const MARKER_ATTR = "data-map-marker";
 const PIN_COLOR = "#026a4e";
 const DROPPED_PIN_SRC = "/icons/map-pin.svg";
@@ -107,6 +122,8 @@ export default function MapCanvas({
     routes,
     activeRoute,
     circle,
+    results,
+    onResultClick,
     onMapClick,
     onContextMenu,
     onViewport,
@@ -128,13 +145,16 @@ export default function MapCanvas({
     });
     const trafficStyleRef = useRef<Promise<{ sources: Record<string, unknown>; layers: Array<{ id: string }> } | null> | null>(null);
     const dropRef = useRef<MapPoint | null>(null);
+    const radiusRef = useRef<{ center: MapPoint; radiusM: number } | null>(null);
+    const radiusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const resultMarkersRef = useRef<VietmapMarker[]>([]);
     const initialStyleRef = useRef(styleId);
     const appliedStyleRef = useRef(styleId);
 
     // Giá trị mới nhất cho trình xử lý sự kiện của bản đồ (tránh gắn lại sự kiện).
-    const latest = useRef({ routes, activeRoute, trafficOn, from, to, circle, onMapClick, onContextMenu, onViewport, onFailure });
+    const latest = useRef({ routes, activeRoute, trafficOn, from, to, circle, results, onResultClick, onMapClick, onContextMenu, onViewport, onFailure });
     useEffect(() => {
-        latest.current = { routes, activeRoute, trafficOn, from, to, circle, onMapClick, onContextMenu, onViewport, onFailure };
+        latest.current = { routes, activeRoute, trafficOn, from, to, circle, results, onResultClick, onMapClick, onContextMenu, onViewport, onFailure };
     });
 
     useImperativeHandle(
@@ -163,6 +183,29 @@ export default function MapCanvas({
             dropPin: (point) => {
                 dropRef.current = point;
                 placeDrop();
+            },
+            flashRadius: (center, radiusM) => {
+                radiusRef.current = { center, radiusM };
+                const map = mapRef.current;
+                if (!map) return;
+                try {
+                    // isStyleLoaded() là false khi tile còn đang tải: vẫn vẽ được nếu style đã có.
+                    ensureRadiusLayers(map);
+                    setRadiusOpacity(map, 1);
+                } catch {
+                    return;
+                }
+                if (radiusTimerRef.current) clearTimeout(radiusTimerRef.current);
+                radiusTimerRef.current = setTimeout(() => {
+                    radiusTimerRef.current = null;
+                    const current = mapRef.current;
+                    if (!current?.getLayer(LAYER_RADIUS_FILL)) return;
+                    setRadiusOpacity(current, 0);
+                    radiusTimerRef.current = setTimeout(() => {
+                        radiusTimerRef.current = null;
+                        radiusRef.current = null;
+                    }, RADIUS_FADE_MS);
+                }, RADIUS_IDLE_MS);
             },
             setView: (view) => {
                 const map = mapRef.current;
@@ -249,6 +292,65 @@ export default function MapCanvas({
         map.addSource(SRC_CIRCLE, { type: "geojson", data });
         map.addLayer({ id: LAYER_CIRCLE_FILL, type: "fill", source: SRC_CIRCLE, paint: { "fill-color": PIN_COLOR, "fill-opacity": 0.12 } });
         map.addLayer({ id: LAYER_CIRCLE_LINE, type: "line", source: SRC_CIRCLE, paint: { "line-color": PIN_COLOR, "line-width": 2, "line-dasharray": [2, 1] } });
+    }
+
+    /** Vòng tròn phạm vi tìm kiếm; độ mờ có transition để mờ dần. */
+    function ensureRadiusLayers(map: VietmapMap): void {
+        const current = radiusRef.current;
+        const data = (current ? circleToPolygon(current.center, current.radiusM) : emptyFeatures()) as never;
+        const source = map.getSource(SRC_RADIUS);
+        if (source && "setData" in source) {
+            (source as unknown as { setData: (d: unknown) => void }).setData(data);
+            return;
+        }
+        map.addSource(SRC_RADIUS, { type: "geojson", data });
+        const transition = { duration: RADIUS_FADE_MS, delay: 0 };
+        map.addLayer({
+            id: LAYER_RADIUS_FILL,
+            type: "fill",
+            source: SRC_RADIUS,
+            paint: { "fill-color": PIN_COLOR, "fill-opacity": 0, "fill-opacity-transition": transition },
+        });
+        map.addLayer({
+            id: LAYER_RADIUS_LINE,
+            type: "line",
+            source: SRC_RADIUS,
+            paint: { "line-color": PIN_COLOR, "line-width": 2, "line-opacity": 0, "line-opacity-transition": transition },
+        });
+    }
+
+    /** Hiện lên gần như tức thì, mờ đi chậm. */
+    function setRadiusOpacity(map: VietmapMap, value: 0 | 1): void {
+        if (!map.getLayer(LAYER_RADIUS_FILL)) return;
+        const transition = { duration: value === 1 ? 120 : RADIUS_FADE_MS, delay: 0 };
+        map.setPaintProperty(LAYER_RADIUS_FILL, "fill-opacity-transition", transition);
+        map.setPaintProperty(LAYER_RADIUS_LINE, "line-opacity-transition", transition);
+        map.setPaintProperty(LAYER_RADIUS_FILL, "fill-opacity", value * 0.12);
+        map.setPaintProperty(LAYER_RADIUS_LINE, "line-opacity", value * 0.9);
+    }
+
+    /** Ghim kết quả: chấm tròn đỏ có viền trắng, nhỏ hơn ghim chính; bấm để mở thẻ Địa điểm. */
+    function syncResults(): void {
+        const map = mapRef.current;
+        const lib = libRef.current;
+        for (const marker of resultMarkersRef.current) marker.remove();
+        resultMarkersRef.current = [];
+        if (!map || !lib) return;
+        latest.current.results.forEach((result, index) => {
+            const element = document.createElement("button");
+            element.type = "button";
+            element.setAttribute(MARKER_ATTR, "result");
+            element.setAttribute("aria-label", `Kết quả ${index + 1}: ${result.name}`);
+            element.title = result.name;
+            element.className =
+                "map-result-pin flex size-7 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-[#c0392b] p-0 text-[11px] font-bold text-white shadow-[0_2px_6px_rgba(16,17,17,0.35)] hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c0392b]";
+            element.textContent = String(index + 1);
+            element.addEventListener("click", (event) => {
+                event.stopPropagation();
+                latest.current.onResultClick(result.id);
+            });
+            resultMarkersRef.current.push(new lib.Marker({ element }).setLngLat([result.lng, result.lat]).addTo(map));
+        });
     }
 
     function ensureRouteLayers(map: VietmapMap): void {
@@ -364,6 +466,7 @@ export default function MapCanvas({
                 const setup = (): void => {
                     if (!map) return;
                     ensureCircleLayers(map);
+                    ensureRadiusLayers(map);
                     ensureRouteLayers(map);
                     void ensureTraffic(map);
                 };
@@ -371,6 +474,7 @@ export default function MapCanvas({
                     latest.current.onFailure(false);
                     setup();
                     syncMarkers();
+                    syncResults();
                     placeDrop();
                     report();
                 });
@@ -418,6 +522,9 @@ export default function MapCanvas({
                 markers[key]?.remove();
                 markers[key] = null;
             }
+            for (const marker of resultMarkersRef.current) marker.remove();
+            resultMarkersRef.current = [];
+            if (radiusTimerRef.current) clearTimeout(radiusTimerRef.current);
             mapRef.current = null;
             map?.remove();
         };
@@ -484,6 +591,11 @@ export default function MapCanvas({
             markersRef.current[slot] = marker;
         }
     }
+
+    // Ghim kết quả tìm theo loại hình.
+    useEffect(() => {
+        syncResults();
+    }, [results]);
 
     // Ghim và điểm đi/đến.
     useEffect(() => {

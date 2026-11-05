@@ -5,31 +5,37 @@ Dùng chung component cho `/app/map` (root `/app`) và `/admin/map` (root `/admi
 ## Bố cục (desktop)
 
 ```
-┌─────────┬──────────────────────────────────────────────┬──────────────┐
-│ Sidebar │ [🔍 Ô tìm kiếm + gợi ý]        [Chỉ đường]   │  Panel phải  │
-│ Đã lưu  │                                              │  (địa điểm   │
-│ Rao bán │                bản đồ GL                      │   hoặc chỉ   │
-│         │                                              │   đường)     │
-│ Cài đặt │ [Lớp]  ─ scale ─                   [＋][－][◎]│              │
-└─────────┴──────────────────────────────────────────────┴──────────────┘
+┌──────────────────────────────────────────────────────────┬──────────────┐
+│ [🔍 Ô tìm kiếm ▾popover] [Lọc²] [Đã lưu⁴] [➤] [⚙ admin]  │  Panel phải  │
+│ ┌ Bộ lọc ┐                                               │  (địa điểm,  │
+│ │ (trái) │            bản đồ GL                           │   đã lưu,    │
+│ └────────┘                                               │   kết quả,   │
+│ [Lớp]  ─ scale ─                              [＋][－][◎] │   chỉ đường) │
+└──────────────────────────────────────────────────────────┴──────────────┘
 ```
 
-Mobile (< 1024 px): sidebar ẩn; panel phải thành **bottom sheet** (tối đa 60% chiều cao, kéo/đóng được); ô tìm chiếm cả bề rộng phía trên.
+Không còn sidebar trái riêng của bản đồ: "Đã lưu" (badge số lượng) nằm cạnh ô tìm; "Cài đặt" (mức dùng Vietmap) là nút bánh răng của admin; "Rao bán" đã có ở thanh bên ứng dụng. Thanh bên ứng dụng có thêm mục **So sánh** ngay dưới "Bản đồ", badge = số địa điểm đang so sánh.
+
+Mobile (< 1024 px): panel phải thành **bottom sheet** (tối đa 70% chiều cao); khi popover tìm kiếm mở, các nút cạnh ô tìm ẩn để popover chiếm cả bề rộng.
 
 ## Thành phần
 
 1. **Ô tìm** (`map-search`): `role="combobox"`, `aria-expanded`, `aria-controls`, `aria-activedescendant`; ↑/↓ chọn, Enter xác nhận, Esc đóng. Debounce 250 ms, ≥ 2 ký tự, hủy request cũ. Mỗi gợi ý: tên (đậm), địa chỉ hành chính (mới), dòng phụ nhỏ địa chỉ cũ nếu khác, khoảng cách "x,x km". Trạng thái: đang tải (spinner), không có kết quả ("Không tìm thấy địa điểm phù hợp"), lỗi (thông điệp + "Thử lại"), hết hạn mức ("Bạn tìm hơi nhanh, thử lại sau N giây").
-2. **Menu chuột phải** (`map-context-menu`): thứ tự "**Xem thông tin địa điểm này**" (mục chính: nền xanh nhạt, chữ đậm, ngăn bằng một đường kẻ), "Tìm đường tới đây", "Tìm kiếm lân cận", "Sao chép tọa độ", "Sao chép địa điểm". Mục chính luôn mở thẻ Địa điểm.
+1b. **Search Popover** (`map-search-bar`): mở khi bấm vào ô tìm. Trên cùng là **Phạm vi tìm kiếm**: thanh trượt 0,5–50 km + ô số (km) bên cạnh, ghi "quanh điểm đã ghim / quanh tâm bản đồ"; mỗi lần đổi, vòng tròn phạm vi hiện trên bản đồ, dừng ~0,9 s thì mờ dần trong ~0,9 s. Chưa gõ: **Tìm kiếm gần đây** (tối đa 8, biểu tượng ghim cho địa điểm, đồng hồ cho từ khóa; nút × xóa từng mục). Đang gõ: gợi ý trong phạm vi + dòng "Ghim mọi kết quả “…” trong N km" (Enter). Kết quả theo loại hình: ghim tròn đỏ đánh số 1–10, panel "Kết quả “…”" cùng số thứ tự; đóng panel còn chip "N kết quả … · Xem · Bỏ ghim".
+1c. **Bộ lọc** (`map-filter-panel`): nút cạnh ô tìm, badge = số lựa chọn đã áp dụng; mở thẻ ở **bên trái** bản đồ (Loại kết quả: 7 ô chọn; Mã nhóm địa điểm Vietmap, có kiểm tra định dạng); "Bỏ chọn tất cả", "Áp dụng (n)". Popover và bộ lọc loại trừ nhau.
+2. **Menu chuột phải** (`map-context-menu`): chuột phải ghim luôn điểm đó. Thứ tự "**Xem thông tin địa điểm này**" (mục chính: nền xanh nhạt, chữ đậm, ngăn bằng một đường kẻ), "Tìm đường tới đây", "Tìm kiếm lân cận" (mở popover với tâm là điểm này), "Sao chép tọa độ", "Sao chép địa điểm", rồi ngăn kẻ và "**Bỏ ghim điểm này**" (nền đỏ nhạt, chữ đỏ). Bấm chuột trái chỗ khác trên bản đồ cũng bỏ ghim.
 2b. **Thẻ Địa điểm** (`map-place-panel`, rộng 30rem trên desktop, bottom sheet tối đa 70% trên mobile; viền nhạt `charcoal/10–15`, **không viền đen** ở mọi phần tử của /map). Từ trên xuống: ảnh (lưới 1 lớn + 2 nhỏ, bấm mở trình xem ảnh dùng chung) nếu có tin rao khớp tên/tọa độ → chip phân loại → tên → địa chỉ hành chính → ghi chú vàng nhạt nếu chỉ là địa chỉ gần nhất → hàng nút "Chỉ đường" (chính) · "Đi từ đây" · "Lưu địa điểm/Đã lưu" → bảng thông tin (Địa chỉ chính xác, Tọa độ + sao chép, Người quan tâm, Tin rao "Tìm tin rao “tên”") → khối **Đánh giá địa điểm** (nút tối "Đánh giá địa điểm"; sau khi bấm: vòng điểm tổng (ScoreCircle) + mức + số tiêu chí, ghi chú "số liệu minh họa", tóm tắt, nhóm Điểm mạnh "+n điểm", nhóm Điểm yếu "−n điểm"). Mỗi tiêu chí: tên (+ chip "Chỉnh tay"), kết luận màu theo điểm + số đo, nhóm · nguồn, vòng điểm /10, nút bút (đổi điểm: ô số 0–10 bước 0,5, Lưu/Hủy/Về điểm tự động) và nút mắt gạch (bỏ qua ↔ tính lại). Tiêu chí bỏ qua ở nguyên vị trí: gạch ngang, chữ xám, vòng xám, chip "Đã bỏ qua". Rê chuột lên tiêu chí: nền nhạt + biểu tượng bản đồ; bấm: chọn tiêu chí (viền xanh), chỗ nối hiện dẫn chứng trên bản đồ. Trạng thái tải dùng khung xương, lỗi hiện `role="alert"`.
 2b'. **Lượt đánh giá đã có**: mở thẻ Địa điểm tự đọc lượt đánh giá của chính người dùng (khung xương một dòng khi đang đọc). Có thì hiện ngay kèm "Đánh giá lúc … · dữ liệu vN (mới nhất)"; phiên bản cũ thì có hộp vàng "Đã có dữ liệu vM… bấm Đánh giá lại để cập nhật". "Đánh giá lại" luôn bật (AI chạy lại mỗi lần bấm). Toast phân biệt "AI đã đánh giá…" (AI chạy) và "Đã có kết quả đánh giá địa điểm" (nhận bản mới nhất có sẵn).
 2b''. **Admin › Dữ liệu đánh giá** (`/admin/datasets`, mục trong nhóm Quản trị): đầu trang có phiên bản hiện hành và số nguồn có bản mới; 3 tab: **Phiên bản** (bảng phiên bản, ghi chú, thời điểm, "Quay về phiên bản này" có bước xác nhận — giao diện, chưa nối backend), **Nguồn dữ liệu** (bảng nguồn theo tieu-chi.md: dùng cho, bản đang dùng, bản mới, trạng thái, "Tải bản mới", nhập tệp — dữ liệu mẫu), **Chốt phát hành** (chọn nguồn có bản mới, ghi chú, "Chốt và phát hành vN" → xác nhận; gọi API phát hành thật). Panel "Cài đặt" của bản đồ chỉ còn liên kết sang tab này.
-2c. **Đã lưu** (`map-saved-panel`): nút "Đã lưu" ở sidebar có huy hiệu số lượng; panel liệt kê tên + phân loại + địa chỉ + tóm tắt đánh giá của chính người dùng (vòng điểm nhỏ, mức, "dữ liệu vN", nhãn "có dữ liệu mới" nếu cũ; "Chưa đánh giá" nếu chưa bấm), bấm để bay tới và mở thẻ, nút thùng rác để bỏ lưu; trạng thái trống hướng dẫn cách lưu. "Rao bán" ở sidebar mở `{root}/properties`.
+2e. **Sau khi lưu**: thanh tiêu đề thẻ Địa điểm có nút **bút chì** (tên gợi nhớ) và **ghi chú** ngay trước nút X; bấm mở ô sửa tại chỗ (đếm ký tự, Lưu/Hủy, Enter hoặc Ctrl+Enter để lưu, Esc hủy, "Dùng tên gốc"). Tên gợi nhớ thay tiêu đề, kèm "Tên gốc: …"; ghi chú hiện trong hộp vàng nhạt dưới địa chỉ. Hàng nút có thêm "So sánh / Đang so sánh".
+2c. **Đã lưu** (`map-saved-panel`): nút "Đã lưu" cạnh ô tìm có huy hiệu số lượng; mỗi mục có 4 nút nhỏ (tên gợi nhớ, ghi chú, so sánh, bỏ lưu), ghi chú hiện dưới địa điểm tối đa 2 dòng ("…" nếu dài); đầu danh sách có liên kết "So sánh N địa điểm". Panel liệt kê tên + phân loại + địa chỉ + tóm tắt đánh giá của chính người dùng (vòng điểm nhỏ, mức, "dữ liệu vN", nhãn "có dữ liệu mới" nếu cũ; "Chưa đánh giá" nếu chưa bấm), bấm để bay tới và mở thẻ, nút thùng rác để bỏ lưu; trạng thái trống hướng dẫn cách lưu. 
 2d. **Ghim**: chọn gợi ý, mục đã lưu hoặc "Xem thông tin địa điểm này" → ghim màu chính, **kéo được**; thả → Reverse. Panel: tên/địa chỉ (mới + cũ), tọa độ `lat, lng` (6 chữ số) + nút Sao chép, nút **Chỉ đường đến đây**, **Xuất phát từ đây**, **Đóng**. Dòng "Địa chỉ có thể lệch vài chục mét; phân tích bám tọa độ ghim" (đúng nguyên tắc README gốc).
 3. **Chỉ đường** (`map-directions`): hai ô Điểm đi / Điểm đến (dùng lại cơ chế gợi ý, có "Vị trí của tôi" và "Chọn trên bản đồ"), nút đảo chiều, chọn xe (Xe máy | Ô tô), tuyến thay thế (thẻ: thời gian, quãng đường, "Nhanh nhất"), danh sách bước (biểu tượng theo `sign`, nội dung tiếng Việt từ Vietmap, quãng đường), bấm bước → bản đồ bay tới đoạn đó. Vẽ tuyến chính nét đậm xanh, tuyến phụ xám; tô theo mức tắc nếu có (xanh/vàng/cam/đỏ). Lỗi: "Không tìm được đường" / "Điểm nằm ngoài vùng hỗ trợ".
 4. **Lớp bản đồ** (`map-layer-picker`): ô nhỏ xem trước; menu 4 nền (Đường phố `tm`, Sáng `lm`, Tối `dm`, Vệ tinh `hm`) + công tắc **Giao thông** (ẩn khi `MAP_TRAFFIC_ENABLED=false`). Giữ cơ chế mở/đóng hiện có (rê chuột, trễ 2 s) nhưng thêm phím (Enter mở, Esc đóng).
 5. **Điều khiển**: phóng/thu (`+`/`−`, cũng phím `+`/`-`), "Vị trí của tôi" (Geolocation, hỏi quyền khi bấm, xử lý từ chối), la bàn khi xoay (bấm = về hướng bắc), **thước tỷ lệ** tính từ `zoom` và vĩ độ giữa màn hình.
 6. **Trạng thái toàn bản đồ**: đang tải style (khung xám + spinner), thiếu cấu hình (`tilesEnabled=false`: "Bản đồ chưa được cấu hình"), lỗi tải tile liên tục (banner "Không tải được bản đồ — thử lại"), `prefers-reduced-motion` → dùng `jumpTo` thay `flyTo`.
-7. **Admin**: cùng bản đồ; mục "Cài đặt" của sidebar mở thẻ **Mức dùng hôm nay** (số lần gọi upstream theo API, cache hit, ngân sách còn lại) lấy từ `/admin/map/usage`.
+8. **So sánh** (`/app/compare`, `/admin/compare`): bảng cuộn ngang, cột đầu dính; mỗi cột một địa điểm (tên gợi nhớ/tên, địa chỉ, "Xem trên bản đồ", × bỏ khỏi so sánh); hàng Điểm tổng (vòng điểm, mức, "Cao nhất"), Tóm tắt, Điểm mạnh/yếu, Ghi chú, rồi 19 tiêu chí theo 4 nhóm (vòng điểm, kết luận, số đo; bỏ qua thì xám gạch ngang). Ô cao nhất mỗi hàng nền xanh nhạt. Trống: hướng dẫn cách thêm.
+7. **Admin**: cùng bản đồ; nút bánh răng cạnh ô tìm mở thẻ **Mức dùng hôm nay** (số lần gọi upstream theo API, cache hit, ngân sách còn lại) lấy từ `/admin/map/usage`.
 
 ## Đồng bộ URL và báo lỗi tham số
 

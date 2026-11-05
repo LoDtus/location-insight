@@ -1,15 +1,16 @@
 "use client";
 
-import { Bookmark, BookmarkCheck, Check, Copy, Eye, Images, Link2, Loader2, Navigation, Radar, Route, Search } from "lucide-react";
+import { Bookmark, BookmarkCheck, Check, Copy, Eye, GitCompareArrows, Images, Link2, Loader2, Navigation, NotebookPen, Pencil, Radar, Route, Search } from "lucide-react";
 import Link from "next/link";
 import { useState, type JSX, type ReactNode } from "react";
 
 import MapPanel from "@/features/map/components/map-panel";
 import MapPlaceEvaluation from "@/features/map/components/map-place-evaluation";
+import SavedPlaceEditor from "@/features/map/components/saved-place-editor";
 import { PRECISE_PLACE_M, formatCoordinates } from "@/features/map/map.geo";
 import { PLACE_KIND_LABEL, matchListings } from "@/features/map/map-place-match";
 import type { PlaceSelection } from "@/features/map/hooks/use-place-selection";
-import type { EvaluatedCriterion } from "@/features/map/map.types";
+import type { EvaluatedCriterion, SavedPlace } from "@/features/map/map.types";
 import ImageLightbox from "@/shared/components/lightbox/image-lightbox";
 import { showToast } from "@/shared/components/toast/toast-store";
 
@@ -17,9 +18,14 @@ interface MapPlacePanelProps {
     selection: Exclude<PlaceSelection, { status: "none" }>;
     /** `/app` hoặc `/admin`: nơi trang tin rao nằm. */
     root: string;
-    saved: boolean;
+    /** Mục đã lưu tương ứng (nếu đã lưu): có thêm tên gợi nhớ, ghi chú và so sánh. */
+    savedItem: SavedPlace | undefined;
     saving: boolean;
     onToggleSave: () => void;
+    /** Sửa tên gợi nhớ/ghi chú. Trả về thông báo lỗi hoặc null. */
+    onUpdateSaved: (patch: { label?: string | null; note?: string }) => Promise<string | null>;
+    /** Thêm/bỏ địa điểm khỏi danh sách so sánh. */
+    onToggleCompare: () => void;
     onClose: () => void;
     onDirectionsTo: () => void;
     onDirectionsFrom: () => void;
@@ -49,9 +55,11 @@ function Row({ label, children }: { label: string; children: ReactNode }): JSX.E
 export default function MapPlacePanel({
     selection,
     root,
-    saved,
+    savedItem,
     saving,
     onToggleSave,
+    onUpdateSaved,
+    onToggleCompare,
     onClose,
     onDirectionsTo,
     onDirectionsFrom,
@@ -62,6 +70,9 @@ export default function MapPlacePanel({
 }: MapPlacePanelProps) {
     const [copied, setCopied] = useState(false);
     const [viewer, setViewer] = useState<number | null>(null);
+    const [editing, setEditing] = useState<"label" | "note" | null>(null);
+    const saved = savedItem !== undefined;
+    const editingNow = saved ? editing : null;
     const coordinates = formatCoordinates(selection.point);
     const place = selection.status === "ready" ? selection.place : null;
     const match = matchListings(place, selection.point);
@@ -86,8 +97,48 @@ export default function MapPlacePanel({
     const secondary =
         "inline-flex min-h-10 items-center whitespace-nowrap justify-center gap-2 rounded-lg border border-charcoal/15 bg-white px-3 text-sm font-semibold text-charcoal hover:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-green disabled:opacity-60";
 
+    const headerButton =
+        "inline-flex size-10 items-center justify-center rounded-md bg-transparent text-charcoal/70 hover:bg-charcoal/5 hover:text-charcoal focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-green aria-pressed:bg-green/10 aria-pressed:text-green";
+    const actions = savedItem ? (
+        <>
+            <button
+                type="button"
+                aria-label="Đặt tên gợi nhớ"
+                title="Đặt tên gợi nhớ"
+                aria-pressed={editingNow === "label"}
+                onClick={() => setEditing((current) => (current === "label" ? null : "label"))}
+                className={headerButton}
+            >
+                <Pencil size={17} aria-hidden />
+            </button>
+            <button
+                type="button"
+                aria-label={savedItem.note ? "Sửa ghi chú" : "Thêm ghi chú"}
+                title={savedItem.note ? "Sửa ghi chú" : "Thêm ghi chú"}
+                aria-pressed={editingNow === "note"}
+                onClick={() => setEditing((current) => (current === "note" ? null : "note"))}
+                className={`${headerButton} relative`}
+            >
+                <NotebookPen size={17} aria-hidden />
+                {savedItem.note ? <span className="absolute top-2 right-2 size-1.5 rounded-full bg-green" aria-hidden /> : null}
+            </button>
+        </>
+    ) : null;
+
+    async function saveField(field: "label" | "note", value: string): Promise<string | null> {
+        const message = await onUpdateSaved(field === "label" ? { label: value || null } : { note: value });
+        if (!message) {
+            setEditing(null);
+            showToast({
+                title: field === "label" ? (value ? "Đã đặt tên gợi nhớ" : "Đã dùng lại tên gốc") : value ? "Đã lưu ghi chú" : "Đã xóa ghi chú",
+                description: field === "label" ? value || place?.name : undefined,
+            });
+        }
+        return message;
+    }
+
     return (
-        <MapPanel title="Địa điểm" titleId="tieu-de-dia-diem" onClose={onClose} size="wide">
+        <MapPanel title="Địa điểm" titleId="tieu-de-dia-diem" onClose={onClose} size="wide" actions={actions}>
             {selection.status === "loading" ? (
                 <div aria-busy="true" className="grid gap-2">
                     <p className="m-0 flex items-center gap-2 text-sm text-charcoal/70" role="status">
@@ -137,7 +188,10 @@ export default function MapPlacePanel({
                     <p className="m-0 inline-flex rounded-md bg-charcoal/5 px-2 py-0.5 text-xs font-semibold text-charcoal/75">
                         {PLACE_KIND_LABEL[kind]}
                     </p>
-                    <h3 className="m-0 mt-1.5 text-xl leading-snug font-semibold text-balance">{place?.name ?? "Điểm đã chọn"}</h3>
+                    <h3 className="m-0 mt-1.5 text-xl leading-snug font-semibold text-balance">
+                        {savedItem?.label || place?.name || "Điểm đã chọn"}
+                    </h3>
+                    {savedItem?.label && place?.name ? <p className="m-0 mt-0.5 text-xs text-charcoal/55">Tên gốc: {place.name}</p> : null}
                     {place ? <p className="m-0 mt-0.5 text-sm text-charcoal/70">{place.address || place.display}</p> : null}
                     {approximate ? (
                         <p className="m-0 mt-2 rounded-md bg-gold/15 px-2.5 py-1.5 text-xs text-charcoal/80">
@@ -146,6 +200,29 @@ export default function MapPlacePanel({
                     ) : null}
                     {!place ? <p className="m-0 mt-1 text-sm text-charcoal/70">Không có địa chỉ gần điểm này.</p> : null}
                 </div>
+            ) : null}
+
+            {savedItem && editingNow ? (
+                <SavedPlaceEditor
+                    key={editingNow}
+                    mode={editingNow}
+                    initial={editingNow === "label" ? (savedItem.label ?? "") : savedItem.note}
+                    placeholder={place?.name}
+                    onSave={(value) => saveField(editingNow, value)}
+                    onCancel={() => setEditing(null)}
+                />
+            ) : savedItem?.note ? (
+                <button
+                    type="button"
+                    onClick={() => setEditing("note")}
+                    title="Sửa ghi chú"
+                    className="grid gap-0.5 rounded-lg bg-gold/10 px-3 py-2 text-left hover:bg-gold/15 focus-visible:outline-2 focus-visible:outline-green"
+                >
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-charcoal/70">
+                        <NotebookPen size={13} aria-hidden /> Ghi chú của bạn
+                    </span>
+                    <span className="text-sm whitespace-pre-line text-charcoal">{savedItem.note}</span>
+                </button>
             ) : null}
 
             <div className="flex flex-wrap gap-2">
@@ -169,6 +246,19 @@ export default function MapPlacePanel({
                     {saving ? <Loader2 size={16} className="animate-spin" aria-hidden /> : saved ? <BookmarkCheck size={16} aria-hidden /> : <Bookmark size={16} aria-hidden />}
                     {saved ? "Đã lưu" : "Lưu địa điểm"}
                 </button>
+                {savedItem ? (
+                    <button
+                        type="button"
+                        aria-pressed={savedItem.compared}
+                        disabled={saving}
+                        title={savedItem.compared ? "Bỏ khỏi danh sách so sánh" : "Thêm vào danh sách so sánh"}
+                        onClick={onToggleCompare}
+                        className={`${secondary} flex-1 ${savedItem.compared ? "border-green/40 bg-green/5 text-green hover:bg-green/10" : ""}`}
+                    >
+                        <GitCompareArrows size={16} aria-hidden />
+                        {savedItem.compared ? "Đang so sánh" : "So sánh"}
+                    </button>
+                ) : null}
             </div>
 
             {/* Các thao tác còn lại của menu chuột phải. */}

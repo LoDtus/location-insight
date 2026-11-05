@@ -10,10 +10,12 @@ interface MapPanelProps {
     children: ReactNode;
     /** `wide` cho khung nhiều thông tin (địa điểm + đánh giá). */
     size?: "default" | "wide";
+    /** Nút phụ trên thanh tiêu đề, nằm ngay trước nút đóng. */
+    actions?: ReactNode;
 }
 
 /** Khung bên phải trên desktop, bottom sheet trên mobile. Viền nhạt, không dùng viền đen. */
-export default function MapPanel({ title, titleId, onClose, children, size = "default" }: MapPanelProps) {
+export default function MapPanel({ title, titleId, onClose, children, size = "default", actions }: MapPanelProps) {
     const width = size === "wide" ? "lg:w-[30rem]" : "lg:w-[24rem]";
     return (
         <div className={`pointer-events-auto absolute inset-x-2 bottom-2 z-20 max-h-[70%] lg:static lg:inset-auto lg:z-auto lg:h-full lg:max-h-none ${width} lg:shrink-0 lg:p-2`}>
@@ -25,6 +27,8 @@ export default function MapPanel({ title, titleId, onClose, children, size = "de
                     <h2 id={titleId} className="m-0 text-base font-semibold">
                         {title}
                     </h2>
+                    <div className="flex shrink-0 items-center gap-0.5">
+                    {actions}
                     <button
                         type="button"
                         aria-label="Đóng"
@@ -33,6 +37,7 @@ export default function MapPanel({ title, titleId, onClose, children, size = "de
                     >
                         <X size={18} aria-hidden />
                     </button>
+                    </div>
                 </div>
                 <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4 [scrollbar-width:thin]">{children}</div>
             </section>

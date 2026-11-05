@@ -24,6 +24,12 @@ describe("buildCrumbs", () => {
         expect(buildCrumbs("/app/properties/nha-pho", true)).toBeNull();
     });
 
+    it("diễn đàn không hiện đường dẫn ở trang gốc, trang chi tiết bài vẫn có", () => {
+        expect(buildCrumbs("/app/feed", true)).toBeNull();
+        expect(buildCrumbs("/admin/feed", true)).toBeNull();
+        expect(buildCrumbs("/app/feed/abc", true)?.map((c) => c.label)).toEqual(["Trang chủ", "Diễn đàn", "Chi tiết"]);
+    });
+
     it("tab không có trang con và bản đồ/tin nhắn không hiện", () => {
         expect(buildCrumbs("/app/notification", true)).toBeNull();
         expect(buildCrumbs("/app/map", true)).toBeNull();

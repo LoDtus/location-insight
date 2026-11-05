@@ -12,14 +12,14 @@ export default async function MuaBanNhaDatSection() {
             aria-labelledby="tieu-de-nha-dat"
             className="box-border scroll-mt-4 bg-charcoal px-5 py-14 text-cream sm:px-10 lg:px-24 lg:py-16 xl:px-40"
         >
-            <div className="grid items-end gap-4 lg:grid-cols-[1fr_1fr] lg:gap-16">
+            <div>
                 <h2
                     id="tieu-de-nha-dat"
-                    className="m-0 font-display text-[clamp(2.25rem,1.4rem+2.8vw,4rem)] leading-[0.98] font-semibold tracking-[-0.02em] text-balance"
+                    className="m-0 font-display text-[clamp(2.25rem,1.4rem+2.8vw,4rem)] leading-[0.98] font-semibold tracking-[-0.02em] text-balance sm:whitespace-nowrap"
                 >
                     {title}
                 </h2>
-                <p className="m-0 max-w-md text-base leading-relaxed text-cream/80 lg:justify-self-end">
+                <p className="m-0 mt-3 max-w-2xl text-base leading-relaxed text-cream/80">
                     {getLocaleValue(messages, ["listingsSection", "subtitle"])}
                 </p>
             </div>

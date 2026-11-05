@@ -16,21 +16,21 @@ export default async function CachHoatDongSection() {
             aria-labelledby="tieu-de-cach-hoat-dong"
             className="box-border scroll-mt-4 bg-white px-5 py-14 sm:px-10 lg:px-24 lg:py-16 xl:px-40"
         >
-            <div className="grid items-end gap-4 lg:grid-cols-[1.2fr_1fr] lg:gap-16">
+            <div>
                 <h2
                     id="tieu-de-cach-hoat-dong"
-                    className="m-0 max-w-[16ch] font-display text-[clamp(2.25rem,1.4rem+2.8vw,4rem)] leading-[0.98] font-semibold tracking-[-0.02em] text-balance"
+                    className="m-0 font-display text-[clamp(2.25rem,1.4rem+2.8vw,4rem)] leading-[0.98] font-semibold tracking-[-0.02em] text-balance md:whitespace-nowrap"
                 >
                     {t("title")}
                 </h2>
-                <p className="m-0 max-w-md text-base leading-relaxed text-charcoal/80">{t("lede")}</p>
+                <p className="m-0 mt-3 max-w-2xl text-base leading-relaxed text-charcoal/80">{t("lede")}</p>
             </div>
 
             {/* Bước nối bằng mũi tên: ngang từ trái sang phải trên màn rộng, dọc trên điện thoại. */}
             <ol className="m-0 mt-8 grid list-none gap-2 p-0 lg:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr] lg:items-stretch">
                 {STEPS.map((step, index) => (
                     <Fragment key={step.key}>
-                        <li className="flex flex-col rounded-lg border border-charcoal/15 bg-white p-5 shadow-[0_1px_2px_rgba(16,17,17,0.06),0_8px_24px_rgba(16,17,17,0.06)]">
+                        <li className="flex flex-col rounded-lg border border-charcoal/15 bg-white p-5 shadow-[0_1px_2px_rgba(16,17,17,0.06),0_8px_24px_rgba(16,17,17,0.06)] outline-2 outline-offset-2 outline-transparent transition-[outline-color] hover:outline-green motion-reduce:transition-none">
                             <div className="flex items-start gap-3">
                                 <span
                                     aria-hidden="true"

@@ -22,6 +22,7 @@ import {
 } from "@/features/discussions/discussions.api";
 import { PostCard, readSavedPosts, writeSavedPosts } from "@/features/discussions/components/post-card";
 import { PostComposer } from "@/features/discussions/components/post-composer";
+import { ALL_FEED, readFeedView, writeFeedView, type FeedView } from "@/features/discussions/feed-params";
 import { SharePostDialog } from "@/features/messaging/components/share-post-dialog";
 import { getConfirmModal } from "@/shared/utils/confirm.utils";
 
@@ -60,8 +61,12 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
 
     useEffect(() => {
         setSaved(readSavedPosts());
+        // Bộ lọc nằm trên URL để chia sẻ được; đọc một lần khi vào trang.
+        const initial = readFeedView(window.location.search);
+        setFilter(initial.topic);
+        setScope(initial.scope);
         let active = true;
-        void loadFirst("")
+        void loadFirst(initial.topic, initial.scope)
             .catch((error: unknown) => {
                 if (!active) return;
                 setMessage(error instanceof AuthApiError ? error.message : "Chưa tải được diễn đàn.");
@@ -109,6 +114,17 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
         observer.observe(target);
         return () => observer.disconnect();
     }, [cursor, loadMore]);
+
+    /** Đổi bộ lọc: ghi lên URL bằng replaceState (không thêm mục lịch sử) rồi tải lại trang đầu. */
+    function choose(view: FeedView): void {
+        setFilter(view.topic);
+        setScope(view.scope);
+        const query = writeFeedView(window.location.search, view);
+        window.history.replaceState(null, "", `${window.location.pathname}${query}${window.location.hash}`);
+        void loadFirst(view.topic, view.scope).catch((error: unknown) => {
+            setMessage(error instanceof AuthApiError ? error.message : "Chưa tải được.");
+        });
+    }
 
     async function publish(): Promise<void> {
         const images = files.filter((file) => file.type.startsWith("image/"));
@@ -183,42 +199,26 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
 
     return (
         <main ref={scroller} className="h-full overflow-auto bg-white">
-            <div className="mx-auto min-h-full w-full border-x border-charcoal/10 bg-white">
+            {/* Viền hai bên chỉ khi cột đã chạm max-w-960 của FocusLayout (3840px) cộng sidebar mở rộng (272px);
+                hẹp hơn thì cột sát sidebar và mép màn, viền sẽ chồng lên viền của hàng xóm. */}
+            <div className="mx-auto min-h-full w-full bg-white min-[4112px]:border-x min-[4112px]:border-charcoal/10">
                 <div className="sticky top-0 z-10 flex gap-2 overflow-x-auto border-b border-charcoal/10 bg-white px-4 py-3">
                     <TopicTab
                         label="Mới nhất"
                         current={filter === "" && scope === "all"}
-                        onClick={() => {
-                            setFilter("");
-                            setScope("all");
-                            void loadFirst("").catch((error: unknown) => {
-                                setMessage(error instanceof AuthApiError ? error.message : "Chưa tải được.");
-                            });
-                        }}
+                        onClick={() => choose(ALL_FEED)}
                     />
                     <TopicTab
                         label="Đang theo dõi"
                         current={scope === "following"}
-                        onClick={() => {
-                            setFilter("");
-                            setScope("following");
-                            void loadFirst("", "following").catch((error: unknown) => {
-                                setMessage(error instanceof AuthApiError ? error.message : "Chưa tải được.");
-                            });
-                        }}
+                        onClick={() => choose({ scope: "following", topic: "" })}
                     />
                     {topics.map((topic) => (
                         <TopicTab
                             key={topic.id}
                             label={topic.name}
                             current={filter === topic.slug && scope === "all"}
-                            onClick={() => {
-                                setFilter(topic.slug);
-                                setScope("all");
-                                void loadFirst(topic.slug).catch((error: unknown) => {
-                                    setMessage(error instanceof AuthApiError ? error.message : "Chưa tải được.");
-                                });
-                            }}
+                            onClick={() => choose({ scope: "all", topic: topic.slug })}
                         />
                     ))}
                 </div>

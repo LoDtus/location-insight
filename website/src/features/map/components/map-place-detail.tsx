@@ -15,21 +15,25 @@ import { useLocale, useLocaleMessages } from "@/shared/hooks/useLocale";
 import { getLocaleValue } from "@/shared/utils/locale.utils";
 
 interface MapPlaceDetailProps {
-    onClose: () => void;
+    /** Bỏ trống thì khung luôn mở: không có nút X, không đóng bằng Esc. */
+    onClose?: () => void;
     placement?: "overlay" | "beside";
     listingHref?: string;
+    /** Tin cần hiển thị; mặc định là tin mẫu của bản đồ. */
+    slug?: string;
 }
 
 export default function MapPlaceDetail({
     onClose,
     placement = "overlay",
     listingHref,
+    slug = MAP_PLACE_SLUG,
 }: MapPlaceDetailProps) {
     const panelRef = useRef<HTMLDivElement>(null);
     const beside = placement === "beside";
     const { locale } = useLocale();
     const messages = useLocaleMessages("landing");
-    const listing = getListingByParam(MAP_PLACE_SLUG);
+    const listing = getListingByParam(slug);
     const [analyzed, setAnalyzed] = useState(false);
 
     useEffect(() => {
@@ -39,13 +43,13 @@ export default function MapPlaceDetail({
     }, [beside]);
 
     useEffect(() => {
-        if (beside) {
+        if (beside || !onClose) {
             return;
         }
 
         function onKeyDown(event: KeyboardEvent): void {
             if (event.key === "Escape") {
-                onClose();
+                onClose?.();
             }
         }
 
@@ -76,20 +80,23 @@ export default function MapPlaceDetail({
                 role={beside ? "complementary" : "dialog"}
                 aria-labelledby="tieu-de-chi-tiet"
                 tabIndex={beside ? undefined : -1}
-                className="flex h-full flex-col rounded-lg border bg-white p-3 outline-none"
+                aria-live={beside ? "polite" : undefined}
+                className={`flex h-full flex-col bg-white outline-none ${beside ? "p-1 xl:pl-3" : "rounded-lg border p-3"}`}
             >
                 <div className="flex items-center justify-between gap-3">
-                    <h2 id="tieu-de-chi-tiet" className="m-0 text-base font-semibold">
+                    <h2 id="tieu-de-chi-tiet" className="m-0 flex min-h-11 items-center text-base font-semibold">
                         Chi tiết
                     </h2>
-                    <button
-                        type="button"
-                        aria-label="Đóng"
-                        className="inline-flex size-11 items-center justify-center rounded-lg border bg-white"
-                        onClick={onClose}
-                    >
-                        <X size={18} />
-                    </button>
+                    {onClose ? (
+                        <button
+                            type="button"
+                            aria-label="Đóng"
+                            className="inline-flex size-11 items-center justify-center rounded-lg border bg-white"
+                            onClick={onClose}
+                        >
+                            <X size={18} />
+                        </button>
+                    ) : null}
                 </div>
                 {listing ? (
                     <div className="mt-3 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">

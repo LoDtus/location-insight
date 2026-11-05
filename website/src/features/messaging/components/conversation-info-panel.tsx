@@ -25,7 +25,7 @@ import { ConfirmDialog } from "./confirm-dialog";
 import { Dialog } from "./dialog";
 import { IncomingDeleteDialog } from "./history-dialogs";
 import { InfoSearch } from "./info-search";
-import { SharedFull, SharedPreview, type SharedContext, type SharedTab } from "./info-shared";
+import { SharedTabs, type SharedContext } from "./info-shared";
 import { NicknameDialog } from "./nickname-dialog";
 import { PersonAvatar } from "./person-avatar";
 
@@ -36,7 +36,7 @@ const MUTE_OPTIONS: Array<{ label: string; hours: number | null }> = [
     { label: "Cho đến khi bật lại", hours: null },
 ];
 
-type View = { name: "main" } | { name: "search" } | { name: "shared"; tab: SharedTab };
+type View = { name: "main" } | { name: "search" };
 type Modal = "mute" | "nickname" | "block" | "deleteMine" | "deleteBoth" | "incoming" | null;
 
 /**
@@ -109,24 +109,6 @@ export function ConversationInfoPanel({
                     me={me}
                     peerName={name}
                     onJump={(seq) => void jump(seq)}
-                    onBack={() => setView({ name: "main" })}
-                />
-                {notice ? (
-                    <p role="status" className="m-0 border-t border-charcoal/10 bg-white px-4 py-2 text-sm">
-                        {notice}
-                    </p>
-                ) : null}
-            </aside>
-        );
-    }
-
-    if (view.name === "shared") {
-        return (
-            <aside className="flex h-full min-h-0 w-full flex-col bg-white" aria-label="Nội dung đã gửi">
-                <SharedFull
-                    context={context}
-                    tab={view.tab}
-                    onTab={(tab) => setView({ name: "shared", tab })}
                     onBack={() => setView({ name: "main" })}
                 />
                 {notice ? (
@@ -232,7 +214,7 @@ export function ConversationInfoPanel({
                     />
                 </Group>
 
-                <SharedPreview context={context} onOpenAll={(tab) => setView({ name: "shared", tab })} />
+                <SharedTabs context={context} />
 
                 <Group title="Quyền riêng tư và hỗ trợ">
                     {blocked ? (

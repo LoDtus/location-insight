@@ -286,9 +286,10 @@
         "askTitle": "Hỏi thêm",
         "askLede": "Gửi một câu. Trang trả lời ngay từ những gì đã viết ở bên trái. Câu này không được gửi cho người thật.",
         "questionLabel": "Câu hỏi",
-        "submit": "Xem câu trả lời",
+        "placeholder": "Ví dụ: Ghim đặt lệch khỏi nhà thì báo cáo có sai không?",
+        "submit": "Gửi câu trả lời",
         "answerTitle": "Trả lời",
-        "empty": "Nhập câu hỏi trước khi xem trả lời.",
+        "empty": "Nhập câu hỏi trước khi gửi.",
         "items": {
             "pin": {
                 "q": "Vì sao phải kéo ghim, không tin địa chỉ?",

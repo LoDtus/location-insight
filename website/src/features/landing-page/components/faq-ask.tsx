@@ -54,14 +54,14 @@ export default function FaqAsk() {
     }
 
     return (
-        <div>
+        <div className="flex flex-1 flex-col">
             <h2 className="m-0 font-display text-4xl leading-none font-semibold tracking-[-0.01em]">
                 {text(["faq", "askTitle"])}
             </h2>
             <p className="mt-3 max-w-prose text-base leading-relaxed text-cream/85">
                 {text(["faq", "askLede"])}
             </p>
-            <form className="mt-6" noValidate onSubmit={handleSubmit}>
+            <form className="mt-6 flex flex-1 flex-col" noValidate onSubmit={handleSubmit}>
                 <label htmlFor={fieldId} className="text-base font-semibold">
                     {text(["faq", "questionLabel"])}
                 </label>
@@ -73,8 +73,19 @@ export default function FaqAsk() {
                     required
                     aria-invalid={error !== ""}
                     aria-describedby={error ? errorId : undefined}
-                    className="mt-1 box-border min-h-32 w-full bg-white px-4 py-3 text-base text-charcoal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
-                    onChange={(event) => setQuestion(event.target.value)}
+                    placeholder={text(["faq", "placeholder"])}
+                    className="mt-1 box-border min-h-32 w-full flex-1 resize-none rounded-lg border-0 bg-white px-4 py-3 text-base text-charcoal placeholder:text-charcoal/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+                    onChange={(event) => {
+                        setQuestion(event.target.value);
+                        if (error) setError("");
+                    }}
+                    onKeyDown={(event) => {
+                        // Ctrl/⌘ + Enter gửi luôn; Enter thường vẫn xuống dòng.
+                        if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+                            event.preventDefault();
+                            event.currentTarget.form?.requestSubmit();
+                        }
+                    }}
                 />
                 {error ? (
                     <p id={errorId} role="alert" className="mt-2 mb-0 text-base font-semibold text-gold">
@@ -83,13 +94,13 @@ export default function FaqAsk() {
                 ) : null}
                 <button
                     type="submit"
-                    className="mt-4 inline-flex min-h-12 items-center bg-gold px-8 font-semibold tracking-wide text-charcoal transition-colors hover:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold motion-reduce:transition-none"
+                    className="mt-4 inline-flex min-h-12 items-center self-start rounded-md bg-gold px-8 font-semibold tracking-wide text-charcoal transition-colors hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold motion-reduce:transition-none"
                 >
                     {text(["faq", "submit"])}
                 </button>
             </form>
             {answer ? (
-                <div className="mt-8 bg-white p-6 text-charcoal">
+                <div className="mt-6 rounded-lg bg-white p-6 text-charcoal" aria-live="polite">
                     <h3
                         ref={answerRef}
                         tabIndex={-1}

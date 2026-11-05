@@ -39,6 +39,7 @@ export default function Header() {
     const shared = useLocaleMessages("shared");
     const { locale, setLocale, isPending } = useLocale();
     const [section, setSection] = useState("");
+    const nextLocale: Locale = locale === LOCALE.LOCALES.EN ? LOCALE.LOCALES.VI : LOCALE.LOCALES.EN;
 
     useEffect(() => {
         function onSection(event: Event): void {
@@ -76,9 +77,6 @@ export default function Header() {
         router.push(href, { scroll: false });
     }
 
-    function handleLocale(nextLocale: Locale): void {
-        setLocale(nextLocale);
-    }
 
     return (
         <div className="relative mx-auto flex w-full max-w-960 flex-wrap items-center gap-x-3 px-5 sm:px-10 xl:px-24">
@@ -126,33 +124,30 @@ export default function Header() {
                 >
                     {getLocaleValue(landing, ["login"])}
                 </a>
-                <div
-                    className="relative inline-grid min-w-[6.75rem] grid-cols-2 items-center rounded-full border border-current bg-transparent p-[3px]"
-                    role="radiogroup"
-                    aria-label={getLocaleValue(shared, ["localeSwitcher", "label"])}
+                {/* Một nút duy nhất: bấm vào bất kỳ đâu trên công tắc là chuyển sang ngôn ngữ còn lại. */}
+                <button
+                    type="button"
+                    role="switch"
+                    aria-checked={locale === LOCALE.LOCALES.EN}
+                    aria-label={`${getLocaleValue(shared, ["localeSwitcher", "label"])}: ${getLocaleValue(shared, ["localeSwitcher", nextLocale])}`}
+                    disabled={isPending}
+                    onClick={() => setLocale(nextLocale)}
+                    className="relative m-0 inline-grid min-w-[6.75rem] cursor-pointer grid-cols-2 items-center rounded-full border border-current bg-transparent p-[3px] text-cream focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-current disabled:cursor-wait"
                 >
                     <span
                         className={`pointer-events-none absolute top-[3px] bottom-[3px] left-[3px] w-[calc(50%-3px)] rounded-full bg-current transition-transform duration-150 motion-reduce:transition-none ${locale === LOCALE.LOCALES.EN ? "translate-x-full" : ""}`}
                         aria-hidden="true"
                     />
                     {SWITCH_OPTIONS.map((option) => (
-                        <button
+                        <span
                             key={option.id}
-                            type="button"
-                            role="radio"
-                            aria-checked={locale === option.id}
-                            aria-label={getLocaleValue(shared, [
-                                "localeSwitcher",
-                                option.id,
-                            ])}
-                            disabled={isPending}
-                            className={`relative z-[1] m-0 min-h-9 cursor-pointer rounded-full border-0 bg-transparent px-[0.7rem] text-xs font-semibold tracking-wide text-cream focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-current disabled:cursor-wait ${locale === option.id ? "text-green" : ""}`}
-                            onClick={() => handleLocale(option.id)}
+                            aria-hidden="true"
+                            className={`relative z-[1] inline-flex min-h-9 items-center justify-center px-[0.7rem] text-xs font-semibold tracking-wide ${locale === option.id ? "text-green" : "text-cream"}`}
                         >
                             {option.code}
-                        </button>
+                        </span>
                     ))}
-                </div>
+                </button>
             </div>
         </div>
     );

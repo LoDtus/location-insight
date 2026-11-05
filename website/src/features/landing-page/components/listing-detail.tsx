@@ -1,8 +1,10 @@
 "use client";
 
 import {
+    ArrowRight,
     Bath,
     Bed,
+    Building2,
     Copy,
     ExternalLink,
     Heart,
@@ -17,7 +19,7 @@ import {
     type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { useRef, useState, type JSX, type ReactNode } from "react";
+import { useEffect, useRef, useState, type JSX, type ReactNode } from "react";
 
 import {
     LISTINGS,
@@ -29,6 +31,10 @@ import {
     listingPath,
     type Listing,
 } from "@/features/landing-page/data/listings";
+import type { PublicArticle } from "@/features/articles/articles";
+import LoginDialog from "@/features/auth/components/login-dialog";
+import { useAuth } from "@/features/auth/use-auth";
+import ListingPhotoSlider from "@/features/landing-page/components/listing-photo-slider";
 import { DISTRICT_CENTERS } from "@/features/landing-page/data/district-centers";
 import VietmapView from "@/features/map/components/vietmap-view";
 import { formatPhone, telHref } from "@/features/properties/listing-contact";
@@ -39,6 +45,7 @@ import {
     ROLE_LABEL,
 } from "@/features/properties/components/listing-form/option-labels";
 import RichTextContent from "@/shared/components/editor/rich-text-content";
+import CardSlider from "@/shared/components/slider/card-slider";
 import { isRichTextDoc, isRichTextEmpty } from "@/shared/components/editor/rich-text.utils";
 import { useLocale, useLocaleMessages } from "@/shared/hooks/useLocale";
 import { getLocaleValue } from "@/shared/utils/locale.utils";
@@ -52,6 +59,31 @@ function fill(template: string, values: Record<string, string>): string {
 
 function text(messages: Record<string, unknown>, key: string): string {
     return getLocaleValue(messages, ["catalog", "detail", key]);
+}
+
+const SIMILAR_LIMIT = 12;
+
+/** Tin tương tự: cùng quận và cùng loại trước, rồi cùng quận, rồi cùng loại, rồi cùng mục đích. */
+function similarListings(listing: Listing): Listing[] {
+    const rank = (item: Listing): number =>
+        (item.district === listing.district ? 2 : 0) + (item.kind === listing.kind ? 1 : 0) + (item.purpose === listing.purpose ? 0.5 : 0);
+    return LISTINGS.filter((item) => item.id !== listing.id && rank(item) >= 1)
+        .sort((a, b) => rank(b) - rank(a))
+        .slice(0, SIMILAR_LIMIT);
+}
+
+/** Bài viết đã đăng mới nhất, lấy qua API công khai; lỗi mạng thì chỉ còn các bài hướng dẫn tĩnh. */
+function usePublishedArticles(): PublicArticle[] {
+    const [items, setItems] = useState<PublicArticle[]>([]);
+    useEffect(() => {
+        const controller = new AbortController();
+        void fetch("/api/v1/articles", { signal: controller.signal, headers: { accept: "application/json" } })
+            .then((response) => (response.ok ? (response.json() as Promise<{ data?: { items?: PublicArticle[] } }>) : null))
+            .then((body) => setItems(body?.data?.items ?? []))
+            .catch(() => undefined);
+        return () => controller.abort();
+    }, []);
+    return items;
 }
 
 export default function ListingDetail({
@@ -72,7 +104,11 @@ export default function ListingDetail({
     const [shareNote, setShareNote] = useState("");
     const [analyzed, setAnalyzed] = useState(false);
     const [photoIndex, setPhotoIndex] = useState(0);
+    const [loginOpen, setLoginOpen] = useState(false);
+    const [postsOpen, setPostsOpen] = useState(false);
     const lightbox = useRef<HTMLDialogElement>(null);
+    const auth = useAuth();
+    const articles = usePublishedArticles();
 
     if (!listing) {
         return null;
@@ -115,27 +151,23 @@ export default function ListingDetail({
         "catalog",
         listing.purpose === "ban" ? "purposeBan" : "purposeThue",
     ]);
-    const similar = LISTINGS.filter(
-        (item) =>
-            item.id !== listing.id &&
-            item.district === listing.district &&
-            item.kind === listing.kind,
-    ).slice(0, 3);
-    const facts: { label: string; value: string }[] = [
-        { label: text(messages, "kind"), value: kind },
-        { label: text(messages, "areaLabel"), value: formatArea(listing.areaM2, locale) },
+    const similar = similarListings(listing);
+    // Đầu mục cố định có icon; các mục người đăng tự bổ sung qua form (số tầng, hướng…) thì không.
+    const facts: { label: string; value: string; icon?: LucideIcon }[] = [
+        { label: text(messages, "kind"), value: kind, icon: Building2 },
+        { label: text(messages, "areaLabel"), value: formatArea(listing.areaM2, locale), icon: Ruler },
     ];
 
     if (listing.beds > 0) {
-        facts.push({ label: text(messages, "beds"), value: String(listing.beds) });
+        facts.push({ label: text(messages, "beds"), value: String(listing.beds), icon: Bed });
     }
     if (listing.living > 0) {
-        facts.push({ label: text(messages, "living"), value: String(listing.living) });
+        facts.push({ label: text(messages, "living"), value: String(listing.living), icon: Sofa });
     }
     if (listing.baths > 0) {
-        facts.push({ label: text(messages, "baths"), value: String(listing.baths) });
+        facts.push({ label: text(messages, "baths"), value: String(listing.baths), icon: Bath });
     }
-    facts.push({ label: text(messages, "district"), value: listing.district });
+    facts.push({ label: text(messages, "district"), value: listing.district, icon: MapPin });
     const vi = locale === "vi";
     const exactPoint = typeof extra?.lat === "number" && typeof extra?.lng === "number";
     const point = exactPoint ? { lat: extra.lat as number, lng: extra.lng as number } : DISTRICT_CENTERS[listing.district];
@@ -185,6 +217,18 @@ export default function ListingDetail({
         });
     }
 
+    const posts: { key: string; href: string | null; image: string; title: string; body: string }[] = [
+        ...articles.map((article) => ({
+            key: article.slug,
+            href: `/bai-viet/${article.slug}`,
+            image: article.coverImage ?? "/images/temp-003.jpg",
+            title: article.title,
+            body: article.lede,
+        })),
+        { key: "guide", href: legalDataHref, image: "/images/temp-003.jpg", title: text(messages, "postGuide"), body: text(messages, "postGuideBody") },
+        { key: "legal", href: legalPostHref, image: "/images/temp-004.jpg", title: text(messages, "postLegal"), body: text(messages, "postLegalBody") },
+    ];
+
     async function copy(value: string, note: string): Promise<void> {
         try {
             await navigator.clipboard.writeText(value);
@@ -192,6 +236,15 @@ export default function ListingDetail({
         } catch {
             setShareNote("");
         }
+    }
+
+    /** Khách chưa đăng nhập bấm "Lưu" thì mở hộp đăng nhập; đăng nhập xong thì lưu luôn. */
+    function toggleSave(): void {
+        if (auth.status !== "authenticated") {
+            setLoginOpen(true);
+            return;
+        }
+        setSaved((value) => !value);
     }
 
     function openPhoto(index: number): void {
@@ -250,20 +303,18 @@ export default function ListingDetail({
             {/* Hàng sản phẩm: ảnh bên trái, khung mua hàng bên phải. */}
             <div className={`${card} mt-2 grid gap-4 p-3 sm:p-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-6`}>
                 <section aria-label={text(messages, "photos")} className="min-w-0">
-                    <button
-                        type="button"
-                        onClick={() => openPhoto(photoIndex)}
-                        aria-label={fill(text(messages, "openPhoto"), {
-                            index: String(photoIndex + 1),
-                            total: String(listing.images.length),
-                        })}
-                        className="relative block aspect-[4/3] w-full overflow-hidden rounded-md bg-charcoal p-0"
-                    >
-                        <img src={listing.images[photoIndex]} alt={listing.title} className="h-full w-full object-cover" />
-                        <span className="absolute right-2 bottom-2 rounded-md bg-charcoal/75 px-2 py-1 text-xs font-semibold text-white tabular-nums">
-                            {photoIndex + 1}/{listing.images.length}
-                        </span>
-                    </button>
+                    <ListingPhotoSlider
+                        images={listing.images}
+                        title={listing.title}
+                        index={photoIndex}
+                        onIndexChange={setPhotoIndex}
+                        onOpen={openPhoto}
+                        openLabel={(index) =>
+                            fill(text(messages, "openPhoto"), { index: String(index + 1), total: String(listing.images.length) })
+                        }
+                        previousLabel={text(messages, "previousPhoto")}
+                        nextLabel={text(messages, "nextPhoto")}
+                    />
                     <div className="mt-2 flex gap-2 overflow-x-auto">
                         {listing.images.map((src, index) => (
                             <button
@@ -349,7 +400,7 @@ export default function ListingDetail({
                             {text(messages, "reveal")}
                         </button>
                         <div className="grid grid-cols-2 gap-2">
-                            <button type="button" aria-pressed={saved} onClick={() => setSaved((value) => !value)} className={ghostButton}>
+                            <button type="button" aria-pressed={saved} onClick={toggleSave} className={ghostButton}>
                                 <Heart size={16} aria-hidden="true" className={saved ? "fill-current text-green" : ""} />
                                 {saved ? text(messages, "saved") : text(messages, "save")}
                             </button>
@@ -408,33 +459,14 @@ export default function ListingDetail({
                         <dl className="m-0 mt-2 grid overflow-hidden rounded-md border border-charcoal/15 text-sm sm:grid-cols-2">
                             {facts.map((fact) => (
                                 <div key={fact.label} className="grid grid-cols-[minmax(0,0.9fr)_minmax(0,1fr)] border-b border-charcoal/10 sm:odd:border-r">
-                                    <dt className="bg-white px-3 py-2 text-charcoal/70">{fact.label}</dt>
+                                    <dt className="flex items-center gap-2 bg-white px-3 py-2 text-charcoal/70">
+                                        {fact.icon ? <fact.icon size={16} className="shrink-0 text-charcoal/55" aria-hidden="true" /> : null}
+                                        {fact.label}
+                                    </dt>
                                     <dd className="m-0 px-3 py-2 font-semibold">{fact.value}</dd>
                                 </div>
                             ))}
                         </dl>
-                    </section>
-
-                    <section aria-labelledby="phap-ly-tin" className={`${card} p-4 sm:p-5`}>
-                        <div className="flex flex-wrap items-center gap-2">
-                            <h2 id="phap-ly-tin" className={heading}>
-                                {text(messages, "legal")}
-                            </h2>
-                            <span className={`${chip} bg-green/15 text-green`}>
-                                <Shield size={12} aria-hidden="true" />
-                                {text(messages, "legalChip")}
-                            </span>
-                        </div>
-                        {legalKind ? (
-                            <p className="m-0 mt-2 text-sm font-semibold">
-                                {legalKind}
-                                {extra?.legal?.note ? <span className="block font-normal text-charcoal/80">{extra.legal.note}</span> : null}
-                            </p>
-                        ) : null}
-                        <div className="mt-2 flex gap-2 rounded-md bg-white p-3 text-sm">
-                            <Info size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
-                            <p className="m-0">{text(messages, "legalNote")}</p>
-                        </div>
                     </section>
 
                     <section id="vi-tri" aria-labelledby="vi-tri-tieu-de" className={`${card} scroll-mt-24 p-4 sm:p-5`}>
@@ -501,26 +533,59 @@ export default function ListingDetail({
                         )}
                     </section>
 
+                    <section aria-labelledby="phap-ly-tin" className={`${card} p-4 sm:p-5`}>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <h2 id="phap-ly-tin" className={heading}>
+                                {text(messages, "legal")}
+                            </h2>
+                            <span className={`${chip} bg-green/15 text-green`}>
+                                <Shield size={12} aria-hidden="true" />
+                                {text(messages, "legalChip")}
+                            </span>
+                        </div>
+                        {legalKind ? (
+                            <p className="m-0 mt-2 text-sm font-semibold">
+                                {legalKind}
+                                {extra?.legal?.note ? <span className="block font-normal text-charcoal/80">{extra.legal.note}</span> : null}
+                            </p>
+                        ) : null}
+                        <div className="mt-2 flex gap-2 rounded-md bg-white p-3 text-sm">
+                            <Info size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+                            <p className="m-0">{text(messages, "legalNote")}</p>
+                        </div>
+                    </section>
+
                     <section aria-labelledby="bai-viet" className={`${card} p-4 sm:p-5`}>
                         <h2 id="bai-viet" className={heading}>
                             {text(messages, "posts")}
                         </h2>
-                        <div className="mt-2 grid gap-3 md:grid-cols-2">
-                            <StayLink href={legalDataHref} className="grid grid-cols-[6rem_minmax(0,1fr)] gap-3 rounded-md p-1 text-inherit no-underline hover:bg-charcoal/5">
-                                <img src="/images/temp-003.jpg" alt="" className="h-20 w-full rounded-md object-cover" />
-                                <span>
-                                    <span className="block text-sm font-semibold">{text(messages, "postGuide")}</span>
-                                    <span className="mt-0.5 block text-xs text-charcoal/70">{text(messages, "postGuideBody")}</span>
-                                </span>
-                            </StayLink>
-                            <StayLink href={legalPostHref} className="grid grid-cols-[6rem_minmax(0,1fr)] gap-3 rounded-md p-1 text-inherit no-underline hover:bg-charcoal/5">
-                                <img src="/images/temp-004.jpg" alt="" className="h-20 w-full rounded-md object-cover" />
-                                <span>
-                                    <span className="block text-sm font-semibold">{text(messages, "postLegal")}</span>
-                                    <span className="mt-0.5 block text-xs text-charcoal/70">{text(messages, "postLegalBody")}</span>
-                                </span>
-                            </StayLink>
-                        </div>
+                        {/* Thu gọn: tối đa 2 dòng (2 bài trên điện thoại, 4 bài khi lưới 2 cột). */}
+                        <ul className="m-0 mt-2 grid list-none gap-3 p-0 md:grid-cols-2">
+                            {posts.map((post, index) => (
+                                <li key={post.key} className={postsOpen ? "" : index >= 4 ? "hidden" : index >= 2 ? "max-md:hidden" : ""}>
+                                    <StayLink
+                                        href={post.href}
+                                        className="grid h-full grid-cols-[6rem_minmax(0,1fr)] gap-3 rounded-md p-1 text-inherit no-underline hover:bg-charcoal/5"
+                                    >
+                                        <img src={post.image} alt="" loading="lazy" className="h-20 w-full rounded-md object-cover" />
+                                        <span className="min-w-0">
+                                            <span className="line-clamp-2 block text-sm font-semibold">{post.title}</span>
+                                            <span className="mt-0.5 line-clamp-2 block text-xs text-charcoal/70">{post.body}</span>
+                                        </span>
+                                    </StayLink>
+                                </li>
+                            ))}
+                        </ul>
+                        {posts.length > 2 ? (
+                            <button
+                                type="button"
+                                aria-expanded={postsOpen}
+                                onClick={() => setPostsOpen((value) => !value)}
+                                className={`mt-2 inline-flex min-h-9 items-center bg-transparent p-0 text-sm font-semibold text-green ${posts.length <= 4 ? "md:hidden" : ""}`}
+                            >
+                                {postsOpen ? (vi ? "Thu gọn" : "Show less") : vi ? "Xem thêm" : "Show more"}
+                            </button>
+                        ) : null}
                     </section>
                 </div>
 
@@ -582,6 +647,7 @@ export default function ListingDetail({
                     title={text(messages, "similar")}
                     note={text(messages, "similarNote")}
                     hrefFor={hrefFor}
+                    vi={vi}
                 />
             ) : null}
 
@@ -597,12 +663,19 @@ export default function ListingDetail({
                     type="button"
                     aria-pressed={saved}
                     aria-label={text(messages, "save")}
-                    onClick={() => setSaved((value) => !value)}
+                    onClick={toggleSave}
                     className="inline-flex size-11 items-center justify-center rounded-md border border-charcoal/25 bg-white"
                 >
                     <Heart size={16} aria-hidden="true" className={saved ? "fill-current text-green" : ""} />
                 </button>
             </div>
+
+            <LoginDialog
+                open={loginOpen}
+                reason={vi ? "Đăng nhập để lưu tin này và xem lại trong tài khoản." : "Sign in to save this listing to your account."}
+                onClose={() => setLoginOpen(false)}
+                onSignedIn={() => setSaved(true)}
+            />
 
             <dialog
                 ref={lightbox}
@@ -675,36 +748,60 @@ function SimilarListings({
     title,
     note,
     hrefFor,
+    vi,
 }: {
     listings: Listing[];
     locale: string;
     title: string;
     note: string;
     hrefFor: (item: Pick<Listing, "slug">) => string;
+    vi: boolean;
 }) {
     return (
         <section aria-labelledby="tuong-tu" className="mt-3 rounded-lg border border-charcoal/15 bg-white p-4 sm:p-5">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h2 id="tuong-tu" className="m-0 text-lg font-semibold">
-                    {title}
-                </h2>
-                <span className="text-sm text-charcoal/60">{note}</span>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                    <h2 id="tuong-tu" className="m-0 text-lg font-semibold">
+                        {title}
+                    </h2>
+                    <span className="text-sm text-charcoal/60">{note}</span>
+                </div>
+                <Link
+                    href="/bai-viet"
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-charcoal/25 px-3 text-sm font-semibold text-charcoal no-underline hover:bg-charcoal/5"
+                >
+                    {vi ? "Xem thêm" : "See more"}
+                    <ArrowRight size={16} aria-hidden="true" />
+                </Link>
             </div>
-            <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                {listings.map((item) => (
-                    <Link
-                        key={item.id}
-                        href={hrefFor(item)}
-                        className="grid content-start gap-1 overflow-hidden rounded-md border border-charcoal/15 pb-2 text-inherit no-underline hover:border-charcoal/30"
-                    >
-                        <img src={item.images[0]} alt="" className="aspect-[4/3] w-full object-cover" />
-                        <span className="line-clamp-2 px-2 text-sm font-semibold">{item.title}</span>
-                        <span className="px-2 font-semibold text-green tabular-nums">{formatListingPrice(item, locale)}</span>
-                        <span className="px-2 text-xs text-charcoal/70">
-                            {formatArea(item.areaM2, locale)} · {item.district}
-                        </span>
-                    </Link>
-                ))}
+            <div className="mt-3">
+                <CardSlider
+                    label={title}
+                    previousLabel={vi ? "Tin trước" : "Previous listings"}
+                    nextLabel={vi ? "Tin sau" : "Next listings"}
+                    breakpoints={{
+                        0: { slidesPerView: 1.6, spaceBetween: 12 },
+                        640: { slidesPerView: 3, spaceBetween: 12 },
+                        1024: { slidesPerView: 4, spaceBetween: 12 },
+                        1280: { slidesPerView: 5, spaceBetween: 12 },
+                    }}
+                    slides={listings.map((item) => ({
+                        key: item.id,
+                        node: (
+                            <Link
+                                href={hrefFor(item)}
+                                className="grid h-full content-start gap-1 overflow-hidden rounded-md border border-charcoal/15 pb-2 text-inherit no-underline hover:border-charcoal/30"
+                            >
+                                <img src={item.images[0]} alt="" loading="lazy" className="aspect-[4/3] w-full object-cover" />
+                                <span className="line-clamp-2 px-2 text-sm font-semibold">{item.title}</span>
+                                <span className="px-2 font-semibold text-green tabular-nums">{formatListingPrice(item, locale)}</span>
+                                <span className="px-2 text-xs text-charcoal/70">
+                                    {formatArea(item.areaM2, locale)} · {item.district}
+                                </span>
+                            </Link>
+                        ),
+                    }))}
+                />
             </div>
         </section>
     );

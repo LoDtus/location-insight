@@ -45,6 +45,13 @@ import {
     placeLink,
 } from "@/features/map/map.geo";
 import { isAbortError, reverseGeocode } from "@/features/map/map.service";
+import {
+    DEFAULT_MAP_CENTER,
+    DEFAULT_MAP_ZOOM,
+    readSavedMapView,
+    writeSavedMapView,
+    type SavedMapView,
+} from "@/features/map/map-view-memory";
 import type {
     MapConfig,
     MapPlace,
@@ -88,6 +95,20 @@ function computeInitialView(state: MapUrlState, config: MapConfig): MapInitialVi
     };
 }
 
+/** URL có chỉ định khung nhìn (tâm/zoom, ghim hoặc điểm đi-đến) → URL được ưu tiên hơn khung nhìn đã nhớ. */
+function hasUrlView(state: MapUrlState): boolean {
+    return state.c !== null || state.z !== null || state.pin !== null || state.from !== null || state.to !== null;
+}
+
+/**
+ * Khung nhìn khởi đầu khi URL không chỉ định: khung nhìn đã nhớ trong phiên, không có thì Hồ Hoàn Kiếm
+ * (rồi bay tới vị trí người dùng nếu trình duyệt cho phép).
+ */
+function sessionInitialView(saved: SavedMapView | null): MapInitialView {
+    const point = saved ?? DEFAULT_MAP_CENTER;
+    return { center: [point.lng, point.lat], zoom: saved?.zoom ?? DEFAULT_MAP_ZOOM, bearing: 0, pitch: 0 };
+}
+
 function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
     const router = useRouter();
     const pathname = usePathname();
@@ -102,6 +123,16 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
     const [initialParse] = useState<MapUrlParseResult>(() => parseMapUrl(new URLSearchParams(paramsString)));
     const init = initialParse.state;
     const hasDirectionsInUrl = init.from !== null || init.to !== null;
+    // Khung nhìn nhớ trong phiên (sessionStorage) chỉ dùng khi URL không chỉ định khung nhìn.
+    const [savedView] = useState<SavedMapView | null>(() => (hasUrlView(init) ? null : readSavedMapView()));
+    const needsGeolocation = !hasUrlView(init) && savedView === null;
+    // Chờ định vị lần đầu: chưa ghi nhớ khung nhìn mặc định để lần sau còn hỏi vị trí.
+    const geoRef = useRef<{ status: "pending" | "done"; point: MapPoint | null; mapLoaded: boolean; moved: boolean }>({
+        status: needsGeolocation ? "pending" : "done",
+        point: null,
+        mapLoaded: false,
+        moved: false,
+    });
 
     const directions = useDirections({
         open: hasDirectionsInUrl,
@@ -158,6 +189,57 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
         if (init.pin) selectPoint(init.pin);
         if (init.from) labelPoint("from", init.from);
         if (init.to) labelPoint("to", init.to);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ chạy một lần khi vào trang
+    }, []);
+
+    /** Bay tới vị trí vừa lấy được khi bản đồ đã tải xong và người dùng chưa tự kéo bản đồ. */
+    function applyGeolocation(): void {
+        const geo = geoRef.current;
+        if (!geo.point || !geo.mapLoaded || geo.moved) return;
+        const point = geo.point;
+        geo.point = null;
+        mapRef.current?.showMyLocation(point);
+    }
+
+    /** Mỗi lần khung nhìn đổi: nhớ lại trong phiên (trừ lúc còn chờ định vị lần đầu). */
+    function rememberViewport(next: MapViewport): void {
+        const geo = geoRef.current;
+        if (!geo.mapLoaded) {
+            geo.mapLoaded = true;
+            applyGeolocation();
+            if (geo.status === "pending") return;
+        } else if (geo.status === "pending") {
+            // Người dùng tự di chuyển trước khi có vị trí: không kéo bản đồ đi nữa.
+            geo.moved = true;
+        }
+        writeSavedMapView({ lat: next.lat, lng: next.lng, zoom: next.zoom });
+    }
+
+    // Lần đầu mở bản đồ trong phiên (không URL, chưa nhớ khung nhìn): bay tới vị trí người dùng nếu được phép.
+    useEffect(() => {
+        if (!needsGeolocation) return;
+        const geo = geoRef.current;
+        if (!("geolocation" in navigator)) {
+            geo.status = "done";
+            return;
+        }
+        let cancelled = false;
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                if (cancelled) return;
+                geo.status = "done";
+                geo.point = { lat: position.coords.latitude, lng: position.coords.longitude };
+                applyGeolocation();
+            },
+            () => {
+                // Bị từ chối/không khả dụng: giữ Hồ Hoàn Kiếm.
+                if (!cancelled) geo.status = "done";
+            },
+            { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 },
+        );
+        return () => {
+            cancelled = true;
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ chạy một lần khi vào trang
     }, []);
 
@@ -554,7 +636,7 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
             <MapCanvas
                 handleRef={mapRef}
                 config={readyConfig}
-                initialView={computeInitialView(init, readyConfig)}
+                initialView={hasUrlView(init) ? computeInitialView(init, readyConfig) : sessionInitialView(savedView)}
                 styleId={styleId}
                 trafficOn={trafficOn}
                 from={directions.open ? directions.from : null}
@@ -565,6 +647,7 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                 onMapClick={onMapClick}
                 onContextMenu={openMenu}
                 onViewport={(next) => {
+                    rememberViewport(next);
                     setViewport(next);
                     setViewportReady(true);
                 }}

@@ -286,9 +286,10 @@
         "askTitle": "Ask more",
         "askLede": "Send a question. The page answers at once from what is written on the left. The question is not sent to a person.",
         "questionLabel": "Question",
-        "submit": "See the answer",
+        "placeholder": "e.g. If the pin is off my house, is the report wrong?",
+        "submit": "Send the answer",
         "answerTitle": "Answer",
-        "empty": "Enter a question before asking for an answer.",
+        "empty": "Enter a question before sending.",
         "items": {
             "pin": {
                 "q": "Why drag the pin instead of trusting the address?",

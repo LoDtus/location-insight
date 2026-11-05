@@ -34,13 +34,12 @@ export default function Page() {
         setPending(true);
         setMessage("");
         try {
-            const session = await login(
+            // login() đưa phiên vào store ngay; effect phía trên chuyển trang trong lần render kế tiếp, không chờ hẹn giờ nào.
+            await login(
                 String(form.get("email") || ""),
                 String(form.get("password") || ""),
                 remember,
             );
-            const next = new URLSearchParams(window.location.search).get("next") || "";
-            router.push(destinationFor(session.user.role, next));
         } catch (error) {
             setMessage(
                 error instanceof AuthApiError
@@ -56,7 +55,7 @@ export default function Page() {
         return (
             <section className={AUTH_FORM_CLASS}>
                 <h1 className={AUTH_TITLE_CLASS}>Đăng nhập</h1>
-                <p className="m-0 text-sm">Đang kiểm tra phiên…</p>
+                <p className="m-0 text-sm">{auth.status === "authenticated" ? "Đã đăng nhập, đang chuyển trang…" : "Đang kiểm tra phiên…"}</p>
             </section>
         );
     }

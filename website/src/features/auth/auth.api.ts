@@ -1,4 +1,5 @@
 import { store } from "@/store/store";
+import { clearSavedMapView } from "@/features/map/map-view-memory";
 
 import { sessionCleared, sessionStarted, type AuthUser } from "./auth.slice";
 
@@ -167,6 +168,8 @@ export async function logout(): Promise<void> {
         await preparePwaLogout();
         await apiRequest("/auth/logout", { method: "POST" }, false);
     } finally {
+        // Khung nhìn bản đồ nhớ trong phiên chỉ xóa khi đăng xuất.
+        clearSavedMapView();
         store.dispatch(sessionCleared());
     }
 }

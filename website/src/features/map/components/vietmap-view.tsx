@@ -12,6 +12,22 @@ import type { MapPoint } from "@/features/map/map.types";
 
 const PIN_COLOR = "#026a4e";
 
+export type MapViewPin = { id: string; point: MapPoint; label: string };
+
+/** Ghim bấm được: nút thật để dùng bàn phím; ghim đang chọn to hơn và đổi màu. */
+function pinElement(pin: MapViewPin, onSelect: (id: string) => void): HTMLButtonElement {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.setAttribute("aria-label", pin.label);
+    button.title = pin.label;
+    button.className = "map-view-pin";
+    button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        onSelect(pin.id);
+    });
+    return button;
+}
+
 /**
  * Bản đồ VietMap nhúng trong trang (chi tiết tin, landing): kéo thả, nút phóng to/thu nhỏ, thước tỷ lệ.
  * Cuộn chuột chỉ phóng to sau khi người dùng bấm vào bản đồ, để không chặn việc cuộn trang.
@@ -23,6 +39,9 @@ export default function VietmapView({
     label = "Bản đồ",
     className = "",
     onMapClick,
+    pins,
+    activePin,
+    onPinClick,
 }: {
     center?: MapPoint;
     zoom?: number;
@@ -30,16 +49,30 @@ export default function VietmapView({
     label?: string;
     className?: string;
     onMapClick?: (point: MapPoint) => void;
+    /** Ghim có sẵn trên bản đồ (truyền mảng ổn định, ví dụ hằng số hoặc useMemo). */
+    pins?: readonly MapViewPin[];
+    activePin?: string;
+    onPinClick?: (id: string) => void;
 }): JSX.Element {
     const configState = useMapConfig(true);
     const containerRef = useRef<HTMLDivElement>(null);
     const clickRef = useRef(onMapClick);
+    const pinClickRef = useRef(onPinClick);
+    const pinNodes = useRef(new Map<string, HTMLButtonElement>());
     const [failed, setFailed] = useState(false);
     const lat = center?.lat;
     const lng = center?.lng;
 
     useEffect(() => {
         clickRef.current = onMapClick;
+        pinClickRef.current = onPinClick;
+    });
+
+    useEffect(() => {
+        for (const [id, node] of pinNodes.current) {
+            node.dataset.active = id === activePin ? "true" : "false";
+            node.setAttribute("aria-pressed", id === activePin ? "true" : "false");
+        }
     });
 
     useEffect(() => {
@@ -75,6 +108,15 @@ export default function VietmapView({
                     map?.scrollZoom.enable();
                     clickRef.current?.({ lat: event.lngLat.lat, lng: event.lngLat.lng });
                 });
+                pinNodes.current.clear();
+                for (const pin of pins ?? []) {
+                    const node = pinElement(pin, (id) => {
+                        map?.scrollZoom.enable();
+                        pinClickRef.current?.(id);
+                    });
+                    pinNodes.current.set(pin.id, node);
+                    new lib.Marker({ element: node, anchor: "bottom" }).setLngLat([pin.point.lng, pin.point.lat]).addTo(map);
+                }
                 map.on("error", () => {
                     if (map && !map.isStyleLoaded()) setFailed(true);
                 });
@@ -92,7 +134,7 @@ export default function VietmapView({
             cancelled = true;
             map?.remove();
         };
-    }, [configState, lat, lng, zoom, marker]);
+    }, [configState, lat, lng, zoom, marker, pins]);
 
     const unavailable = failed || configState.status === "error" || (configState.status === "ready" && !configState.config.tilesEnabled);
     return (

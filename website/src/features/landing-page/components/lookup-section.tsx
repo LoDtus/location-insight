@@ -18,7 +18,7 @@ export default async function BanDoSection() {
             >
                 {title}
             </h2>
-            <div className="mt-6 h-[34rem] rounded-lg border border-charcoal/15 bg-white p-2 shadow-[0_1px_2px_rgba(16,17,17,0.06),0_8px_24px_rgba(16,17,17,0.06)]">
+            <div className="mt-6 rounded-lg xl:h-[44rem] border border-charcoal/15 bg-white p-2 shadow-[0_1px_2px_rgba(16,17,17,0.06),0_8px_24px_rgba(16,17,17,0.06)]">
                 <MapPreview />
             </div>
         </section>

@@ -17,6 +17,9 @@ const TABS: Record<string, Names & { create?: Names }> = {
 /** Trang chi tiết tin đã có đường dẫn riêng ngay trong nội dung nên bỏ qua ở đây. */
 const OWN_TRAIL = new Set(["properties"]);
 
+/** Trang gốc của tab đã có thanh lọc riêng ở đầu cột nên không cần đường dẫn; trang con vẫn có. */
+const NO_ROOT_TRAIL = new Set(["feed"]);
+
 function safeDecode(value: string): string {
     try {
         return decodeURIComponent(value);
@@ -33,6 +36,7 @@ export function buildCrumbs(pathname: string, vi: boolean): Crumb[] | null {
     const names = tab ? TABS[tab] : undefined;
     if (!tab || !names) return null;
     if (sub && sub !== "new" && OWN_TRAIL.has(tab)) return null;
+    if (!sub && NO_ROOT_TRAIL.has(tab)) return null;
     const pick = (value: Names): string => (vi ? value.vi : value.en);
     const crumbs: Crumb[] = [
         { label: vi ? "Trang chủ" : "Home", href: `/${root}/properties` },

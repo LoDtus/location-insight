@@ -28,7 +28,7 @@ import PlaceSearchBox from "@/features/map/components/place-search-box";
 import { useDirections } from "@/features/map/hooks/use-directions";
 import { useMapConfig } from "@/features/map/hooks/use-map-config";
 import { usePlaceSelection } from "@/features/map/hooks/use-place-selection";
-import { placeKey, useSavedPlaces } from "@/features/map/hooks/use-saved-places";
+import { pendingKey, useSavedPlaces } from "@/features/map/hooks/use-saved-places";
 import { showToast } from "@/shared/components/toast/toast-store";
 import {
     buildMapUrl,
@@ -606,7 +606,7 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                 selection={selection}
                 root={root}
                 saved={saved.find(selection.point) !== undefined}
-                saving={saved.busyKey === placeKey(selection.point)}
+                saving={saved.busyKey !== null && saved.busyKey === (saved.find(selection.point)?.id ?? pendingKey(selection.point))}
                 onToggleSave={() => {
                     if (selection.status !== "ready") return;
                     const place = selection.place;

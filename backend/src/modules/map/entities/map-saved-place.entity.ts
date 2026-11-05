@@ -1,8 +1,8 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
-/** Địa điểm người dùng đã lưu trên bản đồ. Mỗi người lưu một tọa độ (làm tròn ~1 m) đúng một lần. */
+/** Địa điểm người dùng đã lưu trên bản đồ. Mỗi người lưu một địa điểm (map_places) đúng một lần. */
 @Entity('map_saved_places')
-@Index('uq_map_saved_places_user_key', ['userId', 'placeKey'], { unique: true })
+@Index('uq_map_saved_places_user_place', ['userId', 'placeId'], { unique: true })
 @Index('idx_map_saved_places_user_created', ['userId', 'createdAt'])
 export class MapSavedPlaceEntity {
   @PrimaryGeneratedColumn('uuid')
@@ -11,9 +11,8 @@ export class MapSavedPlaceEntity {
   @Column({ type: 'uuid', name: 'user_id' })
   userId: string;
 
-  /** `lat,lng` làm tròn 5 chữ số; trùng với khóa dùng cho đánh giá. */
-  @Column({ type: 'varchar', length: 32, name: 'place_key' })
-  placeKey: string;
+  @Column({ type: 'uuid', name: 'place_id' })
+  placeId: string;
 
   @Column({ type: 'double precision' })
   lat: number;

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 
-import MapDatasetVersions from "@/features/map/components/map-dataset-versions";
+import Link from "next/link";
+
 import MapPanel from "@/features/map/components/map-panel";
 import { getMapUsage, isAbortError, mapErrorMessage } from "@/features/map/map.service";
 import type { MapUsage } from "@/features/map/map.types";
@@ -63,7 +64,13 @@ export default function MapUsageCard({ onClose }: { onClose: () => void }) {
                     </p>
                 </>
             ) : null}
-            <MapDatasetVersions />
+            <p className="m-0 border-t border-charcoal/10 pt-3 text-sm">
+                Phiên bản dữ liệu đánh giá quản lý ở{" "}
+                <Link href="/admin/datasets" className="font-semibold text-green underline-offset-2 hover:underline">
+                    Dữ liệu đánh giá
+                </Link>
+                .
+            </p>
         </MapPanel>
     );
 }

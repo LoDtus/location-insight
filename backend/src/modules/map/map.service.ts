@@ -153,6 +153,23 @@ export class MapService {
     return place ? { ...place, distanceM: Math.round(haversineM({ lat, lng }, place) * 10) / 10 } : null;
   }
 
+  /**
+   * Reverse dùng nội bộ (nhận diện địa điểm khi đánh giá/lưu): chung cache với `reverse` nên thường là cache hit
+   * vì giao diện vừa hỏi đúng điểm này. Không trừ hạn mức người dùng; lỗi upstream thì trả null.
+   */
+  async reverseForPlace(lat: number, lng: number): Promise<MapPlace | null> {
+    try {
+      const place = await this.cached('reverse', reverseCacheKey(lat, lng), async () => {
+        const result = await this.client.get('/api/reverse/v4', { lat: String(lat), lng: String(lng), display_type: '6' });
+        return toPlaceFromReverse(result.body);
+      });
+      return place ? { ...place, distanceM: Math.round(haversineM({ lat, lng }, place) * 10) / 10 } : null;
+    } catch (error) {
+      this.logger.warn(`Reverse nội bộ lỗi, nhận diện theo bán kính: ${error instanceof Error ? error.message : String(error)}`);
+      return null;
+    }
+  }
+
   async route(
     userId: string,
     fromText: string,

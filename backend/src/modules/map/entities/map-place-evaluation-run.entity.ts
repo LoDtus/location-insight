@@ -5,7 +5,7 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 
  * chính mình; lượt mới nhất theo (user, place) là thứ hiển thị khi mở lại địa điểm.
  */
 @Entity('map_place_evaluation_runs')
-@Index('idx_map_eval_runs_user_place_created', ['userId', 'placeKey', 'createdAt'])
+@Index('idx_map_eval_runs_user_place_created', ['userId', 'placeId', 'createdAt'])
 export class MapPlaceEvaluationRunEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -13,8 +13,12 @@ export class MapPlaceEvaluationRunEntity {
   @Column({ type: 'uuid', name: 'user_id' })
   userId: string;
 
-  @Column({ type: 'varchar', length: 32, name: 'place_key' })
-  placeKey: string;
+  @Column({ type: 'uuid', name: 'place_id' })
+  placeId: string;
+
+  /** fresh = lượt này gọi AI tạo bản phân tích mới; shared = nhận bản mới nhất đã có của địa điểm. */
+  @Column({ type: 'varchar', length: 10, default: 'fresh' })
+  source: 'fresh' | 'shared';
 
   @Column({ type: 'uuid', name: 'analysis_id' })
   analysisId: string;

@@ -4,6 +4,7 @@ import Image from "next/image";
 import {
     BadgeCheck,
     Bell,
+    Database,
     Download,
     House,
     Mail,
@@ -241,6 +242,12 @@ export default function AppSidebar({
                       href: "/admin/blogs",
                       icon: Newspaper,
                       label: vi ? "Bài viết" : "Articles",
+                  },
+                  {
+                      kind: "item",
+                      href: "/admin/datasets",
+                      icon: Database,
+                      label: vi ? "Dữ liệu đánh giá" : "Datasets",
                   },
                   {
                       kind: "item",

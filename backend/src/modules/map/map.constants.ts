@@ -73,6 +73,6 @@ export const MAP_REDIS_KEYS = {
   breakerFails: 'map:breaker:fails',
   breakerOpen: 'map:breaker:open',
   /** Kết quả phân tích dùng chung theo (phiên bản dữ liệu, tọa độ); chỉ đọc nội bộ, không trả thẳng cho client. */
-  analysis: (version: number, placeKey: string) => `cache:map:analysis:v${version}:${placeKey}`,
+  analysis: (analysisId: string) => `cache:map:analysis:${analysisId}`,
   datasetCurrent: 'map:dataset:current',
 };

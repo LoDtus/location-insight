@@ -97,18 +97,18 @@ export default function MapPlaceEvaluation({
         const previous = state.status === "ready" || state.status === "refreshing" ? state.evaluation : null;
         setState(previous ? { status: "refreshing", evaluation: previous } : { status: "loading" });
         setError(null);
-        runEvaluation(point)
-            .then(({ evaluation, charged }) => {
+        // Có kết quả rồi thì nút là "Đánh giá lại": luôn để AI chạy lại.
+        runEvaluation(point, previous !== null)
+            .then(({ evaluation, source }) => {
                 setState({ status: "ready", evaluation });
-                if (!charged) {
+                onEvaluated?.();
+                if (source === "shared") {
                     showToast({
-                        title: "Kết quả đã theo dữ liệu mới nhất",
-                        description: `Bạn đã đánh giá điểm này với dữ liệu v${evaluation.datasetVersion}; không tạo lượt mới.`,
-                        tone: "info",
+                        title: "Đã có kết quả đánh giá địa điểm",
+                        description: `${placeName}: kết quả gần nhất lúc ${formatEvaluatedAt(evaluation.analyzedAt)}. Bấm “Đánh giá lại” nếu muốn AI chạy lại.`,
                     });
                     return;
                 }
-                onEvaluated?.();
                 showToast({
                     title: previous ? "AI đã đánh giá lại địa điểm" : "AI đã đánh giá xong địa điểm",
                     description:
@@ -204,8 +204,8 @@ export default function MapPlaceEvaluation({
                 <button
                     type="button"
                     onClick={run}
-                    disabled={refreshing || !evaluation.outdated}
-                    title={evaluation.outdated ? `Đánh giá lại theo dữ liệu v${evaluation.currentDatasetVersion}` : "Kết quả đã theo dữ liệu mới nhất"}
+                    disabled={refreshing}
+                    title="AI đánh giá lại địa điểm này (tính một lượt)"
                     className={`${ICON_BUTTON} w-auto gap-1 px-2 text-xs font-semibold`}
                     aria-label="Đánh giá lại"
                 >
@@ -215,13 +215,13 @@ export default function MapPlaceEvaluation({
             </div>
             <div className={`transition-opacity duration-200 motion-reduce:transition-none ${refreshing ? "pointer-events-none opacity-50" : ""}`}>
                 <p className="m-0 mt-1 text-xs text-charcoal/60">
-                    Đánh giá lúc {formatEvaluatedAt(evaluation.evaluatedAt)} · dữ liệu v{evaluation.datasetVersion}
+                    Kết quả AI lúc {formatEvaluatedAt(evaluation.analyzedAt)} · dữ liệu v{evaluation.datasetVersion}
                     {evaluation.outdated ? "" : " (mới nhất)"}
                 </p>
                 {evaluation.outdated ? (
                     <p className="m-0 mt-2 rounded-md bg-gold/15 px-2.5 py-1.5 text-xs text-charcoal/85">
                         Đã có dữ liệu v{evaluation.currentDatasetVersion}. Kết quả bên dưới vẫn theo v{evaluation.datasetVersion}; bấm “Đánh giá lại” để
-                        cập nhật (tính một lượt đánh giá).
+                        AI chạy với dữ liệu mới.
                     </p>
                 ) : null}
                 {evaluation.sample ? (

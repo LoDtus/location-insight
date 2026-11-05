@@ -81,11 +81,11 @@ export default function MapSavedPanel({
                                 type="button"
                                 aria-label={`Bỏ lưu ${item.name}`}
                                 title="Bỏ lưu"
-                                disabled={busyKey === item.placeKey}
+                                disabled={busyKey === item.id}
                                 onClick={() => onRemove(item)}
                                 className="inline-flex size-9 shrink-0 items-center justify-center rounded-md text-charcoal/55 hover:bg-red-50 hover:text-red-700 focus-visible:outline-2 focus-visible:outline-green disabled:opacity-40"
                             >
-                                {busyKey === item.placeKey ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Trash2 size={15} aria-hidden />}
+                                {busyKey === item.id ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Trash2 size={15} aria-hidden />}
                             </button>
                         </li>
                     ))}

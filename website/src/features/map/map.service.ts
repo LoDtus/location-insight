@@ -122,11 +122,11 @@ export function getMyEvaluation(point: MapPoint, signal?: AbortSignal): Promise<
 }
 
 /**
- * Bấm "Đánh giá" / "Đánh giá lại" (lượt tính phí). Nếu lượt gần nhất đã theo phiên bản dữ liệu hiện hành,
- * backend trả lại lượt đó với `charged: false`.
+ * Bấm "Đánh giá" (`fresh=false`: nhận bản phân tích mới nhất của địa điểm, chưa có thì AI chạy) hoặc
+ * "Đánh giá lại" (`fresh=true`: AI luôn chạy). Mỗi lần bấm là một lượt của người dùng.
  */
-export function runEvaluation(point: MapPoint): Promise<{ evaluation: PlaceEvaluation; charged: boolean }> {
-    return apiRequest("/map/places/evaluation", { method: "POST", body: JSON.stringify({ lat: point.lat, lng: point.lng }) });
+export function runEvaluation(point: MapPoint, fresh: boolean): Promise<{ evaluation: PlaceEvaluation; source: "fresh" | "shared" }> {
+    return apiRequest("/map/places/evaluation", { method: "POST", body: JSON.stringify({ lat: point.lat, lng: point.lng, fresh }) });
 }
 
 export function listDatasetVersions(signal?: AbortSignal): Promise<DatasetVersion[]> {

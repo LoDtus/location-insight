@@ -54,12 +54,15 @@ export class MapPlacesController {
     return this.evaluations.mine(userId(request), query.lat, query.lng);
   }
 
-  /** Bấm "Đánh giá" / "Đánh giá lại" (lượt tính phí). Cùng phiên bản dữ liệu thì trả lại lượt cũ, charged=false. */
+  /**
+   * Bấm "Đánh giá" (fresh=false: nhận bản phân tích mới nhất của địa điểm, chưa có thì gọi AI) hoặc
+   * "Đánh giá lại" (fresh=true: luôn gọi AI). Mỗi lần bấm là một lượt của người bấm.
+   */
   @RequirePermission('map:use')
   @Header('Cache-Control', 'private, no-store')
   @Post('places/evaluation')
   run(@Body() body: EvaluationRunDto, @Req() request: RequestWithPrincipal) {
-    return this.evaluations.run(userId(request), body.lat, body.lng);
+    return this.evaluations.run(userId(request), body.lat, body.lng, body.fresh === true);
   }
 
   @RequirePermission('map:use')

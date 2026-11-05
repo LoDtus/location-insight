@@ -1,16 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { FindOperator } from 'typeorm';
-import type { MapCriterionOverrideEntity } from './entities/map-criterion-override.entity.js';
-import type { MapPlaceAnalysisEntity } from './entities/map-place-analysis.entity.js';
-import type { MapPlaceEvaluationRunEntity } from './entities/map-place-evaluation-run.entity.js';
+import type { RedisService } from '../../integrations/redis/redis.service.js';
 import type { MapDatasetService } from './map-dataset.service.js';
 import { MapEvaluationService } from './map-evaluation.service.js';
 import type { MapLimitsService } from './map-limits.service.js';
-import type { RedisService } from '../../integrations/redis/redis.service.js';
+import type { MapPlaceResolver, ResolvedPlace } from './map-place-resolver.service.js';
+import { pickPlace } from './place-identity.js';
 
 /**
- * Đặc tả: workspace/features/013-map/README.md §4c (lượt đánh giá theo người dùng + phiên bản dữ liệu).
- * Repository giả trong bộ nhớ, đủ cho các truy vấn service dùng.
+ * Đặc tả: workspace/features/013-map/README.md §4c (lượt đánh giá, bản phân tích mới nhất của địa điểm,
+ * "Đánh giá lại" luôn gọi AI) và §4d (nhận diện địa điểm). Repository giả trong bộ nhớ.
  */
 type Row = { [key: string]: unknown };
 
@@ -24,135 +23,153 @@ function matches(row: Row, where: Row): boolean {
 let seq = 0;
 let clock = Date.parse('2026-11-05T00:00:00Z');
 
-function fakeRepo<T extends Row>() {
-  const rows: T[] = [];
-  return {
+function byNewest(a: Row, b: Row): number {
+  return (b.createdAt as Date).getTime() - (a.createdAt as Date).getTime();
+}
+
+function fakeRepo() {
+  const rows: Row[] = [];
+  const repo = {
     rows,
-    create: (value: Partial<T>) => ({ ...value }) as T,
-    async save(value: T): Promise<T> {
-      const saved = { id: `id-${++seq}`, createdAt: new Date((clock += 1000)), ...value } as T;
+    create: (value: Row) => ({ ...value }),
+    async save(value: Row): Promise<Row> {
+      const saved = { id: `id-${++seq}`, createdAt: new Date((clock += 1000)), ...value };
       rows.push(saved);
       return saved;
     },
-    async findOne({ where, order }: { where: Row; order?: Row }): Promise<T | null> {
+    async findOne({ where, order }: { where: Row; order?: Row }): Promise<Row | null> {
       const found = rows.filter((row) => matches(row, where));
-      if (order?.createdAt === 'DESC') found.sort((a, b) => (b.createdAt as Date).getTime() - (a.createdAt as Date).getTime());
+      if (order?.createdAt === 'DESC') found.sort(byNewest);
       return found[0] ?? null;
     },
-    async find({ where, order }: { where: Row; order?: Row }): Promise<T[]> {
+    async find({ where, order }: { where: Row; order?: Row }): Promise<Row[]> {
       const found = rows.filter((row) => matches(row, where));
-      if (order?.createdAt === 'DESC') found.sort((a, b) => (b.createdAt as Date).getTime() - (a.createdAt as Date).getTime());
+      if (order?.createdAt === 'DESC') found.sort(byNewest);
       return found;
     },
     async delete(where: Row): Promise<void> {
-      for (let i = rows.length - 1; i >= 0; i -= 1) if (matches(rows[i] as Row, where)) rows.splice(i, 1);
+      for (let i = rows.length - 1; i >= 0; i -= 1) if (matches(rows[i], where)) rows.splice(i, 1);
     },
-    async upsert(value: T, keys: string[]): Promise<void> {
+    async upsert(value: Row, keys: string[]): Promise<void> {
       const index = rows.findIndex((row) => keys.every((key) => row[key] === value[key]));
       if (index >= 0) rows[index] = { ...rows[index], ...value };
       else rows.push({ ...value });
     },
-    createQueryBuilder() {
-      let pending: T | null = null;
-      const builder = {
-        insert: () => builder,
-        values: (value: T) => {
-          pending = value;
-          return builder;
-        },
-        orIgnore: () => builder,
-        execute: async () => {
-          const value = pending as T;
-          const exists = rows.some((row) => row.placeKey === value.placeKey && row.datasetVersion === value.datasetVersion);
-          if (!exists) rows.push({ id: `analysis-${++seq}`, createdAt: new Date(), ...value });
-        },
-      };
-      return builder;
+    manager: {
+      transaction: async <T>(work: (manager: { query: () => Promise<void>; getRepository: () => unknown }) => Promise<T>) =>
+        work({ query: async () => undefined, getRepository: () => repo }),
+    },
+  };
+  return repo;
+}
+
+/** Bộ nhận diện giả: dùng đúng quy tắc pickPlace (không có địa chỉ Reverse). */
+function fakeResolver() {
+  const places: ResolvedPlace[] = [];
+  const find = async (lat: number, lng: number): Promise<ResolvedPlace | null> => {
+    const match = pickPlace({ lat, lng }, null, places.map((item) => ({ ...item, addressKey: null })));
+    return match ? (places.find((item) => item.id === match.id) ?? null) : null;
+  };
+  return {
+    places,
+    find,
+    async resolve(lat: number, lng: number): Promise<ResolvedPlace> {
+      const found = await find(lat, lng);
+      if (found) return found;
+      const created = { id: `place-${++seq}`, lat, lng, name: '', address: '' };
+      places.push(created);
+      return created;
     },
   };
 }
 
 function setup() {
-  const analyses = fakeRepo<MapPlaceAnalysisEntity & Row>();
-  const runs = fakeRepo<MapPlaceEvaluationRunEntity & Row>();
-  const overrides = fakeRepo<MapCriterionOverrideEntity & Row>();
+  const analyses = fakeRepo();
+  const runs = fakeRepo();
+  const overrides = fakeRepo();
   let version = 1;
-  const dataset = { current: async () => version } as unknown as MapDatasetService;
-  const limits = { consumeUser: async () => undefined } as unknown as MapLimitsService;
-  const redis = { get: async () => undefined, set: async () => undefined } as unknown as RedisService;
   const service = new MapEvaluationService(
     analyses as never,
     runs as never,
     overrides as never,
-    dataset,
-    limits,
-    redis,
+    fakeResolver() as unknown as MapPlaceResolver,
+    { current: async () => version } as unknown as MapDatasetService,
+    { consumeUser: async () => undefined } as unknown as MapLimitsService,
+    { get: async () => undefined, set: async () => undefined } as unknown as RedisService,
   );
-  return { service, analyses, runs, overrides, release: () => (version += 1) };
+  return { service, analyses, runs, release: () => (version += 1) };
 }
 
 const A = 'user-a';
 const B = 'user-b';
+const C = 'user-c';
 const lat = 21.0368;
 const lng = 105.8342;
+/** Cùng địa điểm, lệch ~2 m về phía bắc. */
+const nearLat = lat + 2 / 111_320;
 
 describe('MapEvaluationService', () => {
-  it('chưa bấm đánh giá thì GET trả null, không tạo bản phân tích', async () => {
+  it('chưa bấm thì GET trả null và không gọi AI', async () => {
     const { service, analyses } = setup();
-    const result = await service.mine(A, lat, lng);
-    expect(result.evaluation).toBeNull();
+    expect((await service.mine(A, lat, lng)).evaluation).toBeNull();
     expect(analyses.rows).toHaveLength(0);
   });
 
-  it('người khác không thấy đánh giá của người trước; phải tự bấm (tạo lượt riêng, dùng lại bản phân tích)', async () => {
-    const { service, analyses, runs } = setup();
-    const first = await service.run(A, lat, lng);
-    expect(first.charged).toBe(true);
-    expect((await service.mine(B, lat, lng)).evaluation).toBeNull();
-
-    const second = await service.run(B, lat, lng);
-    expect(second.charged).toBe(true);
-    expect(runs.rows.map((row) => row.userId)).toEqual([A, B]);
+  it('địa điểm chưa ai đánh giá: "Đánh giá" gọi AI (fresh)', async () => {
+    const { service, analyses } = setup();
+    const result = await service.run(A, lat, lng, false);
+    expect(result.source).toBe('fresh');
     expect(analyses.rows).toHaveLength(1);
-    expect(second.evaluation.overall).toBe(first.evaluation.overall);
   });
 
-  it('mở lại địa điểm thấy đúng lượt đã bấm, không tạo lượt mới', async () => {
-    const { service, runs } = setup();
-    await service.run(A, lat, lng);
-    const again = await service.mine(A, lat, lng);
-    expect(again.evaluation?.datasetVersion).toBe(1);
-    expect(runs.rows).toHaveLength(1);
+  it('người sau bấm "Đánh giá" nhận bản phân tích mới nhất, không gọi AI; người chưa bấm vẫn không thấy', async () => {
+    const { service, analyses, runs } = setup();
+    await service.run(A, lat, lng, false);
+    expect((await service.mine(B, lat, lng)).evaluation).toBeNull();
+    const second = await service.run(B, lat, lng, false);
+    expect(second.source).toBe('shared');
+    expect(analyses.rows).toHaveLength(1);
+    expect(runs.rows.map((row) => row.userId)).toEqual([A, B]);
   });
 
-  it('bấm lại khi vẫn cùng phiên bản dữ liệu: trả lượt cũ, không tính phí', async () => {
-    const { service, runs } = setup();
-    await service.run(A, lat, lng);
-    const again = await service.run(A, lat, lng);
-    expect(again.charged).toBe(false);
-    expect(runs.rows).toHaveLength(1);
+  it('"Đánh giá lại" luôn gọi AI và thành bản mới nhất cho người bấm "Đánh giá" sau đó', async () => {
+    const { service, analyses } = setup();
+    await service.run(A, lat, lng, false);
+    const again = await service.run(A, lat, lng, true);
+    const againTwice = await service.run(A, lat, lng, true);
+    expect(again.source).toBe('fresh');
+    expect(againTwice.source).toBe('fresh');
+    expect(analyses.rows).toHaveLength(3);
+    const later = await service.run(C, lat, lng, false);
+    expect(later.source).toBe('shared');
+    expect(later.evaluation.analyzedAt).toBe(againTwice.evaluation.analyzedAt);
   });
 
-  it('admin nâng phiên bản: lượt cũ giữ nguyên (outdated), không tự đánh giá lại; bấm lại mới tạo lượt phiên bản mới', async () => {
-    const { service, runs, analyses, release } = setup();
-    await service.run(A, lat, lng);
+  it('bấm lệch vài mét vẫn là cùng địa điểm (không gọi AI lại)', async () => {
+    const { service, analyses } = setup();
+    await service.run(A, lat, lng, false);
+    const nearby = await service.run(B, nearLat, lng, false);
+    expect(nearby.source).toBe('shared');
+    expect(analyses.rows).toHaveLength(1);
+    expect((await service.mine(A, nearLat, lng)).evaluation?.placeId).toBe(nearby.evaluation.placeId);
+  });
+
+  it('mở lại thấy đúng lượt gần nhất của mình; admin nâng phiên bản không tự đánh giá lại', async () => {
+    const { service, runs, release } = setup();
+    await service.run(A, lat, lng, false);
     release();
     const opened = await service.mine(A, lat, lng);
     expect(opened.evaluation?.datasetVersion).toBe(1);
     expect(opened.evaluation?.outdated).toBe(true);
-    expect(opened.currentDatasetVersion).toBe(2);
     expect(runs.rows).toHaveLength(1);
-
-    const rerun = await service.run(A, lat, lng);
-    expect(rerun.charged).toBe(true);
+    const rerun = await service.run(A, lat, lng, true);
     expect(rerun.evaluation.datasetVersion).toBe(2);
     expect(rerun.evaluation.outdated).toBe(false);
-    expect(analyses.rows.map((row) => row.datasetVersion)).toEqual([1, 2]);
   });
 
   it('chỉnh tiêu chí khi chưa có lượt của chính mình thì 404, kể cả khi người khác đã đánh giá', async () => {
     const { service } = setup();
-    await service.run(A, lat, lng);
+    await service.run(A, lat, lng, false);
     await expect(service.override(B, 'cho', { lat, lng, skipped: true })).rejects.toMatchObject({ status: 404 });
     const own = await service.override(A, 'cho', { lat, lng, skipped: true });
     expect(own.skipped.map((item) => item.id)).toEqual(['cho']);
@@ -160,9 +177,9 @@ describe('MapEvaluationService', () => {
 
   it('tóm tắt cho danh sách đã lưu chỉ gồm lượt của chính người dùng', async () => {
     const { service } = setup();
-    await service.run(A, lat, lng);
-    const key = `${lat.toFixed(5)},${lng.toFixed(5)}`;
-    expect((await service.summaries(A, [key])).get(key)?.datasetVersion).toBe(1);
-    expect((await service.summaries(B, [key])).size).toBe(0);
+    const result = await service.run(A, lat, lng, false);
+    const placeId = result.evaluation.placeId;
+    expect((await service.summaries(A, [placeId])).get(placeId)?.datasetVersion).toBe(1);
+    expect((await service.summaries(B, [placeId])).size).toBe(0);
   });
 });

@@ -133,7 +133,7 @@ paths:
                   evaluation: { nullable: true, allOf: [{ $ref: "#/components/schemas/PlaceEvaluation" }] }
                   currentDatasetVersion: { type: integer }
     post:
-      summary: Bấm "Đánh giá"/"Đánh giá lại" (lượt tính phí). Lượt gần nhất đã ở phiên bản hiện hành → trả lại, charged=false
+      summary: Bấm "Đánh giá" (fresh=false, nhận bản phân tích mới nhất của địa điểm; chưa có thì AI chạy) hoặc "Đánh giá lại" (fresh=true, AI luôn chạy)
       x-permission: map:use
       x-rate-limit: 30/phút/người dùng (evaluate)
       requestBody:
@@ -147,16 +147,17 @@ paths:
               properties:
                 lat: { type: number, minimum: 8, maximum: 24 }
                 lng: { type: number, minimum: 102, maximum: 110 }
+                fresh: { type: boolean, default: false }
       responses:
         "201":
-          description: OK
+          description: OK (luôn tạo một lượt cho người bấm)
           content:
             application/json:
               schema:
                 type: object
                 properties:
                   evaluation: { $ref: "#/components/schemas/PlaceEvaluation" }
-                  charged: { type: boolean, description: true = tạo lượt mới (tính phí) }
+                  source: { type: string, enum: [fresh, shared], description: fresh = AI chạy ở lượt này }
         "400": { description: Sai schema hoặc có trường lạ }
   /map/places/evaluation/criteria/{criterionId}:
     put:
@@ -248,7 +249,7 @@ components:
       type: object
       properties:
         id: { type: string, format: uuid }
-        placeKey: { type: string, example: "21.02870,105.85240" }
+        placeId: { type: string, format: uuid }
         lat: { type: number }
         lng: { type: number }
         name: { type: string }
@@ -293,7 +294,10 @@ components:
         weaknesses: { type: object, properties: { points: { type: number }, items: { type: array, items: { $ref: "#/components/schemas/EvaluatedCriterion" } } } }
         skipped: { type: array, items: { $ref: "#/components/schemas/EvaluatedCriterion" } }
         criteriaCount: { type: integer }
-        datasetVersion: { type: integer, description: Phiên bản dữ liệu của lượt này }
+        placeId: { type: string, format: uuid, description: Địa điểm chuẩn hóa }
+        source: { type: string, enum: [fresh, shared] }
+        analyzedAt: { type: string, format: date-time, description: Lúc AI tạo bản phân tích }
+        datasetVersion: { type: integer, description: Phiên bản dữ liệu của bản phân tích }
         currentDatasetVersion: { type: integer }
         outdated: { type: boolean, description: Đã có phiên bản mới hơn }
         evaluatedAt: { type: string, format: date-time }

@@ -8,11 +8,12 @@ import { MapLimitsService } from './map-limits.service.js';
 import { MapEvaluationService, type EvaluationSummary } from './map-evaluation.service.js';
 import { MAP_SAVED_MAX, type MapPlaceKind } from './map.constants.js';
 import { cleanText } from './map.mapper.js';
-import { placeKeyOf } from './place-evaluation.js';
+import { MapPlaceResolver } from './map-place-resolver.service.js';
 
 export interface SavedPlaceView {
   id: string;
-  placeKey: string;
+  /** Địa điểm chuẩn hóa (map_places). */
+  placeId: string;
   lat: number;
   lng: number;
   name: string;
@@ -26,7 +27,7 @@ export interface SavedPlaceView {
 function toView(row: MapSavedPlaceEntity, evaluation: EvaluationSummary | null = null): SavedPlaceView {
   return {
     id: row.id,
-    placeKey: row.placeKey,
+    placeId: row.placeId,
     lat: row.lat,
     lng: row.lng,
     name: row.name,
@@ -43,24 +44,26 @@ export class MapPlacesService {
   constructor(
     @InjectRepository(MapSavedPlaceEntity) private readonly saved: Repository<MapSavedPlaceEntity>,
     private readonly evaluations: MapEvaluationService,
+    private readonly resolver: MapPlaceResolver,
     private readonly limits: MapLimitsService,
   ) {}
 
   async listSaved(userId: string): Promise<SavedPlaceView[]> {
     await this.limits.consumeUser('saved', userId);
     const rows = await this.saved.find({ where: { userId }, order: { createdAt: 'DESC' }, take: MAP_SAVED_MAX });
-    const summaries = await this.evaluations.summaries(userId, rows.map((row) => row.placeKey));
-    return rows.map((row) => toView(row, summaries.get(row.placeKey) ?? null));
+    const summaries = await this.evaluations.summaries(userId, rows.map((row) => row.placeId));
+    return rows.map((row) => toView(row, summaries.get(row.placeId) ?? null));
   }
 
-  /** Lưu (idempotent theo tọa độ): đã lưu rồi thì trả lại bản cũ. */
+  /** Lưu (idempotent theo địa điểm chuẩn hóa: bấm lệch vài mét vẫn là một mục). Đã lưu rồi thì trả lại bản cũ. */
   async save(
     userId: string,
     input: { lat: number; lng: number; name: string; address?: string; kind?: MapPlaceKind },
   ): Promise<SavedPlaceView> {
     await this.limits.consumeUser('saved', userId);
-    const placeKey = placeKeyOf(input.lat, input.lng);
-    const existing = await this.saved.findOne({ where: { userId, placeKey } });
+    const place = await this.resolver.resolve(input.lat, input.lng);
+    const placeId = place.id;
+    const existing = await this.saved.findOne({ where: { userId, placeId } });
     if (existing) return toView(existing);
     const count = await this.saved.count({ where: { userId } });
     if (count >= MAP_SAVED_MAX) {
@@ -75,7 +78,7 @@ export class MapPlacesService {
     if (!name) throw new BusinessException(ErrorCode.VALIDATION_ERROR, 'Tên địa điểm không hợp lệ.');
     const row = this.saved.create({
       userId,
-      placeKey,
+      placeId,
       lat: Number(input.lat.toFixed(6)),
       lng: Number(input.lng.toFixed(6)),
       name,
@@ -86,7 +89,7 @@ export class MapPlacesService {
       return toView(await this.saved.save(row));
     } catch {
       // Hai yêu cầu lưu cùng lúc: hàng kia đã thắng ràng buộc unique.
-      const raced = await this.saved.findOne({ where: { userId, placeKey } });
+      const raced = await this.saved.findOne({ where: { userId, placeId } });
       if (raced) return toView(raced);
       throw new BusinessException(ErrorCode.CONFLICT, 'Không lưu được địa điểm, vui lòng thử lại.');
     }

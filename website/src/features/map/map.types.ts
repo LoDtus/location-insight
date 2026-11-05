@@ -28,7 +28,8 @@ export type MapPlaceKind = "poi" | "address" | "street" | "ward" | "district" | 
 
 export interface SavedPlace {
     id: string;
-    placeKey: string;
+    /** Địa điểm chuẩn hóa: các cú bấm lệch vài mét / cùng địa chỉ gom về một. */
+    placeId: string;
     lat: number;
     lng: number;
     name: string;
@@ -86,7 +87,13 @@ export interface PlaceEvaluation {
     weaknesses: { points: number; items: EvaluatedCriterion[] };
     skipped: EvaluatedCriterion[];
     criteriaCount: number;
-    /** Phiên bản dữ liệu của lượt đánh giá này. */
+    /** Địa điểm chuẩn hóa mà điểm bấm được gom vào. */
+    placeId: string;
+    /** fresh: lượt này gọi AI; shared: nhận bản phân tích mới nhất đã có của địa điểm. */
+    source: "fresh" | "shared";
+    /** Lúc bản phân tích được tạo (lần AI chạy). */
+    analyzedAt: string;
+    /** Phiên bản dữ liệu của bản phân tích này. */
     datasetVersion: number;
     /** Phiên bản dữ liệu hiện hành của hệ thống. */
     currentDatasetVersion: number;

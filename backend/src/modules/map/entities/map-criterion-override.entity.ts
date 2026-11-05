@@ -9,8 +9,8 @@ export class MapCriterionOverrideEntity {
   @PrimaryColumn({ type: 'uuid', name: 'user_id' })
   userId: string;
 
-  @PrimaryColumn({ type: 'varchar', length: 32, name: 'place_key' })
-  placeKey: string;
+  @PrimaryColumn({ type: 'uuid', name: 'place_id' })
+  placeId: string;
 
   @PrimaryColumn({ type: 'varchar', length: 32, name: 'criterion_id' })
   criterionId: string;

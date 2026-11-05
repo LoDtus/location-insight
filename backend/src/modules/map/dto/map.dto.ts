@@ -197,8 +197,12 @@ export class CriterionResetQueryDto extends PlacePointDto {}
 
 export class EvaluationQueryDto extends PlacePointDto {}
 
-/** Thân yêu cầu bấm "Đánh giá" / "Đánh giá lại". */
-export class EvaluationRunDto extends PlacePointDto {}
+/** Thân yêu cầu bấm "Đánh giá" (fresh=false) / "Đánh giá lại" (fresh=true). */
+export class EvaluationRunDto extends PlacePointDto {
+  @IsOptional()
+  @IsBoolean()
+  fresh?: boolean;
+}
 
 export class ReleaseDatasetDto {
   @IsString()

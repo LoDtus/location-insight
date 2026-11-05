@@ -89,6 +89,12 @@ Xem `interfaces/rest-api.yml`. Tiền tố `/api/v1`; quyền `map:use` (mọi n
 | GET | `/map/reverse?lat&lng` | Tọa độ → địa chỉ (Reverse v4) | 24 giờ, khóa = tọa độ làm tròn 5 chữ số (~1 m) | 30/phút |
 | GET | `/map/route?from&to&vehicle&alternatives&avoid&time` | Tuyến đường (Route v4) | 3 phút (giao thông thay đổi), khóa = điểm làm tròn 5 chữ số + loại xe | 20/phút |
 | GET | `/admin/map/usage` | Bộ đếm hôm nay theo API | — | — |
+| GET | `/map/saved` | Địa điểm đã lưu của người dùng (mới nhất trước, tối đa 200) | — (DB) | 60/phút (chung `saved`) |
+| POST | `/map/saved` `{lat,lng,name,address?,kind?}` | Lưu địa điểm; lưu lại cùng tọa độ thì trả bản cũ (idempotent) | — | 60/phút |
+| DELETE | `/map/saved/:id` | Bỏ lưu (chỉ của chính người dùng) | — | 60/phút |
+| GET | `/map/places/evaluation?lat&lng` | Đánh giá địa điểm theo bộ tiêu chí (§4b) đã gộp chỉnh tay của người dùng | Số đo 24 giờ ở Redis `cache:map:evaluation:{lat5,lng5}` | 60/phút (chung `evaluate`) |
+| PUT | `/map/places/evaluation/criteria/:criterionId` `{lat,lng,skipped?,score?}` | Bỏ qua tiêu chí và/hoặc đặt điểm tay 0–10 (bước 0,5; `score:null` = về điểm tự động). Trả đánh giá đã tính lại | — | 60/phút |
+| DELETE | `/map/places/evaluation/criteria/:criterionId?lat&lng` | Khôi phục tiêu chí về mặc định | — | 60/phút |
 
 Quy ước: phản hồi bọc envelope chung của dự án; lỗi nghiệp vụ dùng `BusinessException` (mã `VALIDATION_ERROR`, `TOO_MANY_REQUESTS`, `EXTERNAL_SERVICE_TIMEOUT`, `EXTERNAL_SERVICE_ERROR`, `SERVICE_UNAVAILABLE`).
 
@@ -103,7 +109,12 @@ interface MapSuggestion {
   display: string;          // nhãn đầy đủ
   distanceKm: number | null;// từ focus
 }
-interface MapPlace { lat: number; lng: number; name: string; address: string; addressOld: string | null; display: string; }
+interface MapPlace {
+  lat: number; lng: number; name: string; address: string; addressOld: string | null; display: string;
+  distanceM?: number | null;   // chỉ reverse: mét từ điểm bấm tới địa chỉ tìm được
+  kind?: 'poi'|'address'|'street'|'ward'|'district'|'city'|'village'|'unknown'; // suy từ ref_id `vm:POI:…`
+  categories?: string[];       // mã nhóm POI của Vietmap
+}
 interface MapRoute {
   distanceM: number; durationS: number;
   bbox: [number, number, number, number];            // [minLng,minLat,maxLng,maxLat]
@@ -113,6 +124,37 @@ interface MapRoute {
   congestion: Array<'low'|'moderate'|'heavy'|'severe'|'unknown'> | null;
 }
 ```
+
+## 4a. Lưu trữ
+
+| Nơi | Khóa/bảng | Nội dung |
+| --- | --- | --- |
+| Postgres | `map_saved_places` (unique `user_id + place_key`) | Địa điểm đã lưu: `lat/lng` (6 chữ số), tên, địa chỉ, `kind`. Không lưu `ref_id` |
+| Postgres | `map_criterion_overrides` (khóa `user_id + place_key + criterion_id`) | Chỉnh tay: `skipped`, `score` (null = điểm tự động). Khôi phục mặc định thì xóa hàng |
+| Redis | `cache:map:evaluation:{place_key}` TTL 24 giờ | Số đo tự động của 19 tiêu chí, dùng chung mọi người; Redis lỗi thì tính trực tiếp |
+| Redis | `ratelimit:map:{evaluate|saved}:{userId}` | Giới hạn 60 lần/phút mỗi nhóm |
+
+`place_key` = `lat.toFixed(5),lng.toFixed(5)` (~1 m), dùng chung cho cache, chỉnh tay và địa điểm đã lưu.
+
+## 4b. Đánh giá địa điểm
+
+Bộ tiêu chí lấy đúng mục "Hệ thống tự tính từ ghim" của [`000-ideas/tieu-chi.md`](../000-ideas/tieu-chi.md), 19 tiêu chí trong 4 nhóm:
+
+| Nhóm | Tiêu chí | Kết quả hiển thị (ví dụ) | Chấm điểm 0–10 |
+| --- | --- | --- | --- |
+| Tiện ích đi bộ 500 m | Chợ, Hiệu thuốc, Siêu thị, UBND, Cửa hàng vật tư, Công viên, Trường học | "Gần · Cách chợ gần nhất 320 m" | Nội suy tuyến tính theo khoảng cách: mốc "tốt" → 10, mốc "xa" → 0 |
+| | Quán ăn, cà phê | "Nhiều · 24 quán trong 500 m" | số quán / 3, tối đa 10 |
+| Đi lại và đường | Đường lớn, Ga metro (2 km), Điểm xe buýt | "Vừa · Cách ga metro gần nhất 1,2 km" | như trên |
+| | Nội đô | "Gần · Cách Hồ Gươm 2,4 km" (**số thật**, haversine tới 21.0285, 105.8520) | 3 km → 10, 20 km → 0 |
+| | Ồn giao thông | "Yên tĩnh · Cách đường trục 600 m" | càng xa đường trục càng cao |
+| Y tế | Bệnh viện (2 km) | "Xa · Cách bệnh viện gần nhất 2,8 km" | 800 m → 10, 2 km → 0 |
+| Dân cư, môi trường, địa hình | Mật độ dân cư, Không khí (PM2.5 + khoảng cách trạm), Độ cao tương đối, Ngập sông (mô hình), Mảng xanh | "Trung bình · PM2.5 42 µg/m³, trạm cách 2,1 km" | xem `place-evaluation.ts` |
+
+- **Điểm tổng** = trung bình điểm các tiêu chí không bỏ qua (1 chữ số thập phân). Mức: ≥ 8 Rất tốt, ≥ 6,5 Tốt, ≥ 5 Trung bình, còn lại Kém.
+- **Điểm mạnh** = tiêu chí > 5 điểm; tiêu đề nhóm ghi "+Σ(điểm − 5)". **Điểm yếu** = tiêu chí ≤ 5; ghi "−Σ(5 − điểm)".
+- **Tóm tắt nhận xét**: câu ghép từ điểm tổng, 3 điểm mạnh cao nhất, 3 điểm yếu thấp nhất. Không bịa thêm dữ kiện ngoài số đo.
+- **Chỉnh tay**: mỗi tiêu chí có "Thay đổi điểm" (0–10, bước 0,5; có "Về điểm tự động") và "Bỏ qua tiêu chí" (không tính vào điểm tổng, khôi phục được). Lưu theo người dùng + địa điểm.
+- **Giai đoạn hiện tại là số liệu minh họa** (`sample: true`, UI ghi rõ). Số đo sinh ổn định theo tọa độ, nghiêng theo mức đô thị (gần Hồ Gươm thì tiện ích dày hơn). Khi có PostGIS/AI: thay `generateCriteria` bằng truy vấn thật hoặc lời gọi AI; hợp đồng `PlaceEvaluation`, phần gộp chỉnh tay và UI giữ nguyên.
 
 ## 5. Giao diện
 
@@ -201,7 +243,8 @@ Các khóa dùng khi phát triển đã được ghi vào `.env.development` (b�
 | Xe tải/container, phí BOT | Người dùng mục tiêu là cá nhân đánh giá vị trí | Nếu có tính năng logistics |
 | Dẫn đường GPS từng bước | Cần SDK navigation + mobile | Khi làm `mobile/` |
 | Proxy tile qua backend | Tốn băng thông, mất cache; khóa Tilemap có hạn chế domain là đủ | Nếu Vietmap không hỗ trợ hạn chế domain cho gói đang dùng |
-| Lưu lịch sử tìm kiếm/địa điểm ở DB | Chưa có yêu cầu; vị trí là dữ liệu cá nhân | Khi làm "Đã lưu" (`place:save`) — sẽ lưu `lat/lng`, không lưu `ref_id` |
+| Lưu lịch sử tìm kiếm ở DB | Chưa có yêu cầu; vị trí là dữ liệu cá nhân | Khi có yêu cầu "tìm gần đây". (Địa điểm **đã lưu** đã làm: §4a, chỉ lưu `lat/lng`, không lưu `ref_id`) |
+| Đánh giá bằng AI và số đo thật | Chưa nhập PostGIS (OSM, WorldPop, FABDEM…) | Khi có dữ liệu nền; thay `generateCriteria` (§4b) |
 
 ## 10. Trạng thái triển khai (02/11/2026)
 
@@ -221,3 +264,7 @@ Backend `backend/src/modules/map/` (controller, service, client, mapper có test
 | AC8 | Vượt hạn mức người dùng → 429 có `retryAfter`; vượt `MAP_DAILY_BUDGET` → 503 thông điệp tiếng Việt, không gọi upstream. |
 | AC9 | Upstream timeout/5xx → thông điệp lỗi thân thiện, UI không treo; 5 lỗi liên tiếp → cầu dao mở 30 s. |
 | AC10 | Rời trang bản đồ → `map.remove()` được gọi, không còn WebGL context rò (điều hướng qua lại 10 lần không cảnh báo "Too many active WebGL contexts"). |
+| AC11 | Chuột phải trên bản đồ → mục đầu tiên, được tô nổi, là "Xem thông tin địa điểm này"; chọn → mở thẻ Địa điểm (kể cả khi chỉ có địa chỉ gần đúng, thẻ ghi rõ khoảng cách). |
+| AC12 | Thẻ Địa điểm có: ảnh (nếu có tin rao khớp), tên, phân loại, địa chỉ chính xác (+ địa chỉ trước sáp nhập), tọa độ sao chép được, số người quan tâm (nếu có tin rao), "Tìm tin rao" mở `{root}/properties?q={tên}` với ô tìm đã điền, "Chỉ đường", "Đi từ đây", "Lưu địa điểm". |
+| AC13 | "Đánh giá địa điểm" → điểm tổng, tóm tắt, Điểm mạnh (+điểm), Điểm yếu (−điểm), mỗi tiêu chí có tên, kết quả, điểm /10, nút đổi điểm và bỏ qua; đổi/bỏ qua được lưu và tải lại vẫn còn. |
+| AC14 | "Lưu địa điểm" → xuất hiện trong "Đã lưu" ở sidebar; bấm mục đã lưu → bay tới và mở thẻ; bỏ lưu được. |

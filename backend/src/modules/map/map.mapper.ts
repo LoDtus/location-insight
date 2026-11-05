@@ -2,8 +2,10 @@ import { createHash } from 'node:crypto';
 import {
   MAP_MAX_ROUTE_POINTS,
   MAP_MAX_SUGGESTIONS,
+  MAP_PLACE_KINDS,
   MAP_TEXT_MAX,
   VN_BOUNDS,
+  type MapPlaceKind,
 } from './map.constants.js';
 import type {
   Congestion,
@@ -210,6 +212,18 @@ export function haversineM(a: { lat: number; lng: number }, b: { lat: number; ln
   return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
+/** Loại địa điểm từ `ref_id` dạng `vm:POI:…` / `vm:ADDRESS:…`. */
+export function placeKindOf(refId: string): MapPlaceKind {
+  const match = /^vm:([A-Z]+):/.exec(refId);
+  const kind = match?.[1]?.toLowerCase() ?? '';
+  return (MAP_PLACE_KINDS as readonly string[]).includes(kind) ? (kind as MapPlaceKind) : 'unknown';
+}
+
+function categoriesOf(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((item): item is string => typeof item === 'string' && /^[\w-]{1,20}$/.test(item)).slice(0, 10);
+}
+
 export function toPlaceFromReverse(raw: unknown): MapPlace | null {
   if (!Array.isArray(raw) || !isObject(raw[0])) return null;
   const item = raw[0];
@@ -226,6 +240,8 @@ export function toPlaceFromReverse(raw: unknown): MapPlace | null {
     address: parts.address,
     addressOld: parts.addressOld,
     display: parts.display || name,
+    kind: placeKindOf(str(item.ref_id, 2000)),
+    categories: categoriesOf(item.categories),
   };
 }
 

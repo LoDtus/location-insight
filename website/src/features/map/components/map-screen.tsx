@@ -18,6 +18,7 @@ import MapLayerPicker from "@/features/map/components/map-layer-picker";
 import MapNearbyBar from "@/features/map/components/map-nearby-bar";
 import MapPlaceDetail from "@/features/map/components/map-place-detail";
 import MapPlacePanel from "@/features/map/components/map-place-panel";
+import MapSavedPanel from "@/features/map/components/map-saved-panel";
 import MapScaleBar from "@/features/map/components/map-scale-bar";
 import MapSidebar from "@/features/map/components/map-sidebar";
 import MapUrlErrors from "@/features/map/components/map-url-errors";
@@ -27,6 +28,7 @@ import PlaceSearchBox from "@/features/map/components/place-search-box";
 import { useDirections } from "@/features/map/hooks/use-directions";
 import { useMapConfig } from "@/features/map/hooks/use-map-config";
 import { usePlaceSelection } from "@/features/map/hooks/use-place-selection";
+import { placeKey, useSavedPlaces } from "@/features/map/hooks/use-saved-places";
 import {
     buildMapUrl,
     canonicalQuery,
@@ -39,7 +41,6 @@ import {
 import {
     NEARBY_RADIUS,
     PIN_ZOOM,
-    PRECISE_PLACE_M,
     circleBounds,
     formatCoordinates,
     placeLink,
@@ -65,7 +66,7 @@ interface MapScreenProps {
     root?: ShellRoot;
 }
 
-type Panel = "place" | "directions" | "usage" | "detail" | null;
+type Panel = "place" | "directions" | "usage" | "detail" | "saved" | null;
 
 const POINT_LABEL_FALLBACK = "Điểm đã chọn";
 const URL_WRITE_DELAY_MS = 500;
@@ -118,6 +119,7 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
     const mapRef = useRef<MapHandle>(null);
     const configState = useMapConfig();
     const { selection, selectPoint, clear } = usePlaceSelection();
+    const saved = useSavedPlaces();
 
     // URL được đọc đúng một lần khi vào trang; các lần đổi sau xử lý ở effect bên dưới.
     const [initialParse] = useState<MapUrlParseResult>(() => parseMapUrl(new URLSearchParams(paramsString)));
@@ -442,28 +444,14 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
         setPanel("directions");
     }
 
+    /** "Xem thông tin địa điểm này": luôn mở thẻ Địa điểm; thẻ tự ghi chú khi chỉ có địa chỉ gần đúng. */
     function whereIsThis(point: MapPoint): void {
-        setNotice("Đang xác định địa điểm…");
-        reverseGeocode(point)
-            .then((place) => {
-                const distance = place?.distanceM ?? null;
-                if (place && distance !== null && distance <= PRECISE_PLACE_M) {
-                    setNotice(null);
-                    directions.close();
-                    setPicking(null);
-                    selectPoint(point, place);
-                    setPanel("place");
-                    return;
-                }
-                setNotice(
-                    distance === null || !place
-                        ? "Không có thông tin địa điểm tại đây."
-                        : `Chưa có địa điểm chính xác tại đây (địa chỉ gần nhất cách khoảng ${Math.round(distance)} m).`,
-                );
-            })
-            .catch((error: unknown) => {
-                if (!isAbortError(error)) setNotice("Không lấy được thông tin địa điểm, vui lòng thử lại.");
-            });
+        setNotice(null);
+        directions.close();
+        setPicking(null);
+        setNearby(null);
+        selectPoint(point);
+        setPanel("place");
     }
 
     function runContextAction(action: ContextAction): void {
@@ -615,6 +603,23 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
         ) : panel === "place" && selection.status !== "none" ? (
             <MapPlacePanel
                 selection={selection}
+                root={root}
+                saved={saved.find(selection.point) !== undefined}
+                saving={saved.busyKey === placeKey(selection.point)}
+                onToggleSave={() => {
+                    if (selection.status !== "ready") return;
+                    const place = selection.place;
+                    void saved
+                        .toggle({
+                            point: selection.point,
+                            name: place?.name || formatCoordinates(selection.point),
+                            address: place?.display || place?.address || "",
+                            kind: place?.kind,
+                        })
+                        .then((message) => {
+                            if (message) setNotice(message);
+                        });
+                }}
                 onClose={closePanel}
                 onDirectionsTo={() => {
                     const target = currentWaypoint();
@@ -624,6 +629,25 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                     const target = currentWaypoint();
                     if (target) openDirections({ from: target });
                 }}
+            />
+        ) : panel === "saved" ? (
+            <MapSavedPanel
+                state={saved.state}
+                busyKey={saved.busyKey}
+                onOpen={(item) => {
+                    const point = { lat: item.lat, lng: item.lng };
+                    directions.close();
+                    setPicking(null);
+                    selectPoint(point);
+                    setPanel("place");
+                    mapRef.current?.flyTo(point, PIN_ZOOM);
+                }}
+                onRemove={(item) => {
+                    void saved.remove(item).then((message) => {
+                        if (message) setNotice(message);
+                    });
+                }}
+                onClose={closePanel}
             />
         ) : panel === "usage" ? (
             <MapUsageCard onClose={closePanel} />
@@ -657,7 +681,13 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                 <div className="flex h-full w-full min-h-0">
                     <div className="relative flex min-h-0 min-w-0 flex-1">
                         <div className="hidden h-full lg:block">
-                            <MapSidebar onSettings={isAdmin ? () => setPanel("usage") : undefined} />
+                            <MapSidebar
+                                root={root}
+                                savedOpen={panel === "saved"}
+                                savedCount={saved.state.items.length}
+                                onSaved={() => setPanel((current) => (current === "saved" ? null : "saved"))}
+                                onSettings={isAdmin ? () => setPanel("usage") : undefined}
+                            />
                         </div>
                         <div className="relative min-h-0 min-w-0 flex-1">
                             {readyConfig.searchEnabled ? (

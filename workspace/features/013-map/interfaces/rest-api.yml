@@ -79,6 +79,82 @@ paths:
       x-permission: admin:access
       responses:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/MapUsage" } } } }
+  /map/saved:
+    get:
+      summary: Địa điểm đã lưu của người dùng (mới nhất trước, tối đa 200)
+      x-permission: map:use
+      x-rate-limit: 60/phút/người dùng (nhóm saved)
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/SavedPlace" } } } } }
+    post:
+      summary: Lưu địa điểm (idempotent theo tọa độ làm tròn 5 chữ số)
+      x-permission: map:use
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [lat, lng, name]
+              properties:
+                lat: { type: number, minimum: 8, maximum: 24 }
+                lng: { type: number, minimum: 102, maximum: 110 }
+                name: { type: string, minLength: 1, maxLength: 200 }
+                address: { type: string, maxLength: 300 }
+                kind: { type: string, enum: [poi, address, street, ward, district, city, village, unknown] }
+      responses:
+        "201": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/SavedPlace" } } } }
+        "409": { description: Đã lưu tối đa 200 địa điểm (limit_reached) }
+  /map/saved/{id}:
+    delete:
+      summary: Bỏ lưu
+      x-permission: map:use
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: OK }
+        "404": { description: Không có hoặc không thuộc người dùng }
+  /map/places/evaluation:
+    get:
+      summary: Đánh giá địa điểm theo 19 tiêu chí (hiện là số liệu minh họa, sample=true), đã gộp chỉnh tay
+      x-permission: map:use
+      x-rate-limit: 60/phút/người dùng (nhóm evaluate)
+      x-cache: Redis cache:map:evaluation:{lat5,lng5} 24 giờ (số đo tự động)
+      parameters:
+        - { name: lat, in: query, required: true, schema: { type: number, minimum: 8, maximum: 24 } }
+        - { name: lng, in: query, required: true, schema: { type: number, minimum: 102, maximum: 110 } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/PlaceEvaluation" } } } }
+  /map/places/evaluation/criteria/{criterionId}:
+    put:
+      summary: Bỏ qua tiêu chí và/hoặc đặt điểm tay; trả về đánh giá đã tính lại
+      x-permission: map:use
+      parameters:
+        - { name: criterionId, in: path, required: true, schema: { type: string, example: benh-vien } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [lat, lng]
+              properties:
+                lat: { type: number }
+                lng: { type: number }
+                skipped: { type: boolean }
+                score: { type: number, nullable: true, minimum: 0, maximum: 10, description: "Làm tròn bước 0,5; null = về điểm tự động" }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/PlaceEvaluation" } } } }
+        "404": { description: Tiêu chí không tồn tại }
+    delete:
+      summary: Khôi phục tiêu chí về mặc định
+      x-permission: map:use
+      parameters:
+        - { name: criterionId, in: path, required: true, schema: { type: string } }
+        - { name: lat, in: query, required: true, schema: { type: number } }
+        - { name: lng, in: query, required: true, schema: { type: number } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/PlaceEvaluation" } } } }
 components:
   schemas:
     MapConfig:
@@ -109,6 +185,48 @@ components:
         address: { type: string }
         addressOld: { type: string, nullable: true }
         display: { type: string }
+        distanceM: { type: number, nullable: true }
+        kind: { type: string, enum: [poi, address, street, ward, district, city, village, unknown] }
+        categories: { type: array, items: { type: string } }
+    SavedPlace:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        placeKey: { type: string, example: "21.02870,105.85240" }
+        lat: { type: number }
+        lng: { type: number }
+        name: { type: string }
+        address: { type: string }
+        kind: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+    EvaluatedCriterion:
+      type: object
+      properties:
+        id: { type: string }
+        label: { type: string }
+        group: { type: string, enum: [walk, move, health, env] }
+        groupLabel: { type: string }
+        verdict: { type: string, example: Xa }
+        detail: { type: string, example: "Cách bệnh viện gần nhất 2,8 km" }
+        source: { type: string }
+        score: { type: number, minimum: 0, maximum: 10 }
+        autoScore: { type: number }
+        manual: { type: boolean }
+        skipped: { type: boolean }
+    PlaceEvaluation:
+      type: object
+      properties:
+        placeKey: { type: string }
+        lat: { type: number }
+        lng: { type: number }
+        sample: { type: boolean, description: true = số liệu minh họa }
+        overall: { type: number, nullable: true }
+        rating: { type: string }
+        summary: { type: string }
+        strengths: { type: object, properties: { points: { type: number }, items: { type: array, items: { $ref: "#/components/schemas/EvaluatedCriterion" } } } }
+        weaknesses: { type: object, properties: { points: { type: number }, items: { type: array, items: { $ref: "#/components/schemas/EvaluatedCriterion" } } } }
+        skipped: { type: array, items: { $ref: "#/components/schemas/EvaluatedCriterion" } }
+        criteriaCount: { type: integer }
     MapRoute:
       type: object
       properties:

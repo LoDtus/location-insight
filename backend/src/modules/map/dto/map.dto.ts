@@ -15,6 +15,8 @@ import {
 import {
   MAP_CATS_PATTERN,
   MAP_MAX_SUGGESTIONS,
+  MAP_PLACE_KINDS,
+  type MapPlaceKind,
   MAP_RADIUS_RANGE,
   MAP_REF_ID_MAX,
   MAP_REF_ID_PATTERN,
@@ -145,3 +147,52 @@ export class RouteQueryDto {
   @MaxLength(30)
   time?: string;
 }
+
+/** Tọa độ của một địa điểm trong thân yêu cầu. */
+class PlacePointDto {
+  @Type(() => Number)
+  @IsNumber()
+  @Min(MIN_LAT)
+  @Max(MAX_LAT)
+  lat: number;
+
+  @Type(() => Number)
+  @IsNumber()
+  @Min(MIN_LNG)
+  @Max(MAX_LNG)
+  lng: number;
+}
+
+export class SavePlaceDto extends PlacePointDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  name: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  address?: string;
+
+  @IsOptional()
+  @IsIn(MAP_PLACE_KINDS)
+  kind?: MapPlaceKind;
+}
+
+export class CriterionOverrideDto extends PlacePointDto {
+  @IsOptional()
+  @IsBoolean()
+  skipped?: boolean;
+
+  /** null = bỏ điểm tự đặt, quay về điểm tự động. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ allowNaN: false, allowInfinity: false })
+  @Min(0)
+  @Max(10)
+  score?: number | null;
+}
+
+export class CriterionResetQueryDto extends PlacePointDto {}
+
+export class EvaluationQueryDto extends PlacePointDto {}

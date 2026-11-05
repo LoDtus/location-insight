@@ -8,6 +8,7 @@ import {
   MAP_REDIS_KEYS,
   MAP_USER_LIMITS,
   type MapApi,
+  type MapLocalApi,
 } from './map.constants.js';
 
 const DAY_SECONDS = 24 * 60 * 60;
@@ -32,7 +33,7 @@ export class MapLimitsService {
   ) {}
 
   /** Giới hạn theo người dùng. Redis lỗi → 503 (không bỏ giới hạn, như 003-auth). */
-  async consumeUser(api: MapApi | 'config', userId: string): Promise<void> {
+  async consumeUser(api: MapApi | MapLocalApi, userId: string): Promise<void> {
     const rule = MAP_USER_LIMITS[api];
     try {
       const client = this.redis.getClient();

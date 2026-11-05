@@ -6,8 +6,11 @@ import type {
     MapPoint,
     MapRoute,
     MapSuggestion,
+    MapPlaceKind,
     MapUsage,
+    PlaceEvaluation,
     RouteVehicle,
+    SavedPlace,
 } from "@/features/map/map.types";
 
 function withSignal(signal?: AbortSignal): RequestInit {
@@ -94,4 +97,43 @@ export function mapErrorMessage(error: unknown, fallback: string): string {
         }
     }
     return fallback;
+}
+
+function pointQuery(point: MapPoint): string {
+    return new URLSearchParams({ lat: String(point.lat), lng: String(point.lng) }).toString();
+}
+
+export function listSavedPlaces(signal?: AbortSignal): Promise<SavedPlace[]> {
+    return apiRequest("/map/saved", withSignal(signal));
+}
+
+export function savePlace(input: { lat: number; lng: number; name: string; address: string; kind?: MapPlaceKind }): Promise<SavedPlace> {
+    return apiRequest("/map/saved", { method: "POST", body: JSON.stringify(input) });
+}
+
+export function removeSavedPlace(id: string): Promise<{ id: string }> {
+    return apiRequest(`/map/saved/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+/** Đánh giá địa điểm theo tiêu chí (hiện là số liệu minh họa từ backend). */
+export function evaluatePlace(point: MapPoint, signal?: AbortSignal): Promise<PlaceEvaluation> {
+    return apiRequest(`/map/places/evaluation?${pointQuery(point)}`, withSignal(signal));
+}
+
+/** Bỏ qua tiêu chí hoặc đặt điểm tay (score: null = về điểm tự động). Trả về đánh giá đã tính lại. */
+export function overrideCriterion(
+    point: MapPoint,
+    criterionId: string,
+    patch: { skipped?: boolean; score?: number | null },
+): Promise<PlaceEvaluation> {
+    return apiRequest(`/map/places/evaluation/criteria/${encodeURIComponent(criterionId)}`, {
+        method: "PUT",
+        body: JSON.stringify({ lat: point.lat, lng: point.lng, ...patch }),
+    });
+}
+
+export function resetCriterion(point: MapPoint, criterionId: string): Promise<PlaceEvaluation> {
+    return apiRequest(`/map/places/evaluation/criteria/${encodeURIComponent(criterionId)}?${pointQuery(point)}`, {
+        method: "DELETE",
+    });
 }

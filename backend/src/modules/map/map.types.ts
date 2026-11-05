@@ -1,3 +1,5 @@
+import type { MapPlaceKind } from './map.constants.js';
+
 export interface MapSuggestion {
   refId: string;
   name: string;
@@ -16,6 +18,10 @@ export interface MapPlace {
   display: string;
   /** Khoảng cách (mét) từ điểm người dùng bấm tới địa điểm tìm được; chỉ có ở reverse. */
   distanceM?: number | null;
+  /** Loại địa điểm suy từ `ref_id` của Vietmap. */
+  kind?: MapPlaceKind;
+  /** Mã nhóm POI của Vietmap (vd. "1002-1"); rỗng với địa chỉ. */
+  categories?: string[];
 }
 
 export type Congestion = 'low' | 'moderate' | 'heavy' | 'severe' | 'unknown';

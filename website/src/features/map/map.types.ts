@@ -16,6 +16,55 @@ export interface MapPlace {
     display: string;
     /** Mét từ điểm bấm tới địa điểm tìm được (chỉ có khi lấy từ reverse). */
     distanceM?: number | null;
+    /** Loại địa điểm theo Vietmap (suy từ ref_id). */
+    kind?: MapPlaceKind;
+    /** Mã nhóm POI của Vietmap. */
+    categories?: string[];
+}
+
+export type MapPlaceKind = "poi" | "address" | "street" | "ward" | "district" | "city" | "village" | "unknown";
+
+export interface SavedPlace {
+    id: string;
+    placeKey: string;
+    lat: number;
+    lng: number;
+    name: string;
+    address: string;
+    kind: MapPlaceKind | null;
+    createdAt: string;
+}
+
+export type CriterionGroup = "walk" | "move" | "health" | "env";
+
+export interface EvaluatedCriterion {
+    id: string;
+    label: string;
+    group: CriterionGroup;
+    groupLabel: string;
+    /** Kết luận ngắn: Gần / Vừa / Xa… */
+    verdict: string;
+    /** Số đo: "Cách bệnh viện gần nhất 1,4 km". */
+    detail: string;
+    source: string;
+    score: number;
+    autoScore: number;
+    manual: boolean;
+    skipped: boolean;
+}
+
+export interface PlaceEvaluation {
+    placeKey: string;
+    lat: number;
+    lng: number;
+    sample: boolean;
+    overall: number | null;
+    rating: string;
+    summary: string;
+    strengths: { points: number; items: EvaluatedCriterion[] };
+    weaknesses: { points: number; items: EvaluatedCriterion[] };
+    skipped: EvaluatedCriterion[];
+    criteriaCount: number;
 }
 
 export type Congestion = "low" | "moderate" | "heavy" | "severe" | "unknown";

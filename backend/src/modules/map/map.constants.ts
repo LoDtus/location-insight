@@ -12,12 +12,16 @@ export const ROUTE_VEHICLES = ['car', 'motorcycle'] as const;
 export type RouteVehicle = (typeof ROUTE_VEHICLES)[number];
 
 export type MapApi = 'autocomplete' | 'place' | 'reverse' | 'route';
+/** Thao tác chỉ chạy trong hệ thống (không gọi Vietmap) nhưng vẫn giới hạn theo người dùng. */
+export type MapLocalApi = 'config' | 'evaluate' | 'saved';
 
 /** Giới hạn mỗi người dùng (cửa sổ cố định theo giây). */
 export const MAP_USER_LIMITS: Readonly<
-  Record<MapApi | 'config', { limit: number; windowSeconds: number }>
+  Record<MapApi | MapLocalApi, { limit: number; windowSeconds: number }>
 > = {
   config: { limit: 30, windowSeconds: 60 },
+  evaluate: { limit: 60, windowSeconds: 60 },
+  saved: { limit: 60, windowSeconds: 60 },
   autocomplete: { limit: 90, windowSeconds: 60 },
   place: { limit: 30, windowSeconds: 60 },
   reverse: { limit: 30, windowSeconds: 60 },
@@ -46,6 +50,15 @@ export const MAP_REF_ID_PATTERN = /^[A-Za-z0-9_:.-]+$/;
 export const MAP_MAX_SUGGESTIONS = 10;
 export const MAP_MAX_ROUTE_POINTS = 20000;
 
+/** Loại địa điểm suy từ `ref_id` của Vietmap (vm:POI:…, vm:ADDRESS:…). */
+export const MAP_PLACE_KINDS = ['poi', 'address', 'street', 'ward', 'district', 'city', 'village', 'unknown'] as const;
+export type MapPlaceKind = (typeof MAP_PLACE_KINDS)[number];
+
+/** Mỗi người lưu tối đa chừng này địa điểm. */
+export const MAP_SAVED_MAX = 200;
+/** Cache số đo tiêu chí tại một điểm (giây): dữ liệu nền đổi theo ngày. */
+export const MAP_EVALUATION_TTL = 24 * 60 * 60;
+
 export const MAP_BREAKER = { failures: 5, openSeconds: 30 } as const;
 
 export const MAP_REDIS_KEYS = {
@@ -56,4 +69,5 @@ export const MAP_REDIS_KEYS = {
   hits: (day: string, api: MapApi) => `map:hits:${day}:${api}`,
   breakerFails: 'map:breaker:fails',
   breakerOpen: 'map:breaker:open',
+  evaluation: (placeKey: string) => `cache:map:evaluation:${placeKey}`,
 };

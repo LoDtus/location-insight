@@ -91,7 +91,7 @@ export default function MapPlaceDetail({
                         <button
                             type="button"
                             aria-label="Đóng"
-                            className="inline-flex size-11 items-center justify-center rounded-lg border bg-white"
+                            className="inline-flex size-11 items-center justify-center rounded-lg border bg-white border-charcoal/15"
                             onClick={onClose}
                         >
                             <X size={18} />
@@ -120,11 +120,11 @@ export default function MapPlaceDetail({
                                     <span className="inline-flex min-h-7 items-center rounded-full bg-green px-2.5 text-xs font-semibold text-cream">
                                         {purpose}
                                     </span>
-                                    <span className="inline-flex min-h-7 items-center rounded-full border border-charcoal/30 px-2.5 text-xs font-semibold">
+                                    <span className="inline-flex min-h-7 items-center rounded-full border border-charcoal/20 px-2.5 text-xs font-semibold">
                                         {formatArea(listing.areaM2, locale)}
                                     </span>
                                     {listing.beds > 0 ? (
-                                        <span className="inline-flex min-h-7 items-center rounded-full border border-charcoal/30 px-2.5 text-xs font-semibold">
+                                        <span className="inline-flex min-h-7 items-center rounded-full border border-charcoal/20 px-2.5 text-xs font-semibold">
                                             {listing.beds}{" "}
                                             {getLocaleValue(messages, ["catalog", "specBeds"])}
                                         </span>
@@ -134,7 +134,7 @@ export default function MapPlaceDetail({
                         </div>
                         <Link
                             href={listingHref ?? listingPath(listing)}
-                            className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-charcoal/30 bg-white px-4 text-sm font-semibold no-underline"
+                            className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-charcoal/20 bg-white px-4 text-sm font-semibold no-underline"
                         >
                             {getLocaleValue(messages, ["catalog", "detail", "fullPage"])}
                         </Link>

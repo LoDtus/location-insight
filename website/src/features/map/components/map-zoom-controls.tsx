@@ -9,7 +9,7 @@ interface MapZoomControlsProps {
     onResetNorth?: () => void;
 }
 
-const BUTTON = "rounded-lg border bg-white p-2 hover:bg-neutral-50";
+const BUTTON = "rounded-lg border border-charcoal/15 bg-white p-2 shadow-sm hover:bg-charcoal/5";
 
 export default function MapZoomControls({
     onZoomIn,

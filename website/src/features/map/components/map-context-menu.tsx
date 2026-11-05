@@ -9,18 +9,20 @@ interface MenuItem {
     id: ContextAction;
     label: string;
     icon: LucideIcon;
+    /** Thao tác chính: nằm đầu menu, nền nhấn và ngăn với phần còn lại. */
+    primary?: boolean;
 }
 
 const ITEMS: readonly MenuItem[] = [
+    { id: "where", label: "Xem thông tin địa điểm này", icon: Info, primary: true },
+    { id: "directions", label: "Tìm đường tới đây", icon: Route },
+    { id: "nearby", label: "Tìm kiếm lân cận", icon: Radar },
     { id: "copy-coordinates", label: "Sao chép tọa độ", icon: Copy },
     { id: "copy-link", label: "Sao chép địa điểm", icon: Link2 },
-    { id: "directions", label: "Tìm đường tới đây", icon: Route },
-    { id: "where", label: "Đây là đâu?", icon: Info },
-    { id: "nearby", label: "Tìm kiếm lân cận", icon: Radar },
 ];
 
-const MENU_WIDTH = 236;
-const MENU_HEIGHT = ITEMS.length * 40 + 12;
+const MENU_WIDTH = 252;
+const MENU_HEIGHT = ITEMS.length * 40 + 22;
 const EDGE = 8;
 
 interface MapContextMenuProps {
@@ -78,17 +80,21 @@ export default function MapContextMenu({ at, bounds, onSelect, onClose }: MapCon
             onKeyDown={onKeyDown}
             onContextMenu={(event) => event.preventDefault()}
             style={{ left, top, width: MENU_WIDTH }}
-            className="pointer-events-auto absolute z-30 m-0 list-none rounded-xl bg-white p-1.5 shadow-lg ring-1 ring-charcoal/15"
+            className="pointer-events-auto absolute z-30 m-0 list-none rounded-lg bg-white p-1.5 shadow-[0_8px_24px_rgba(16,17,17,0.16)] ring-1 ring-charcoal/10"
         >
             {ITEMS.map((item) => (
-                <li key={item.id} role="none">
+                <li key={item.id} role="none" className={item.primary ? "mb-1 border-b border-charcoal/10 pb-1" : undefined}>
                     <button
                         type="button"
                         role="menuitem"
                         onClick={() => onSelect(item.id)}
-                        className="flex min-h-10 w-full items-center gap-3 rounded-lg border-0 bg-transparent px-3 text-left text-sm font-medium text-charcoal hover:bg-charcoal/5 focus-visible:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-green"
+                        className={
+                            item.primary
+                                ? "flex min-h-10 w-full items-center gap-3 rounded-md border-0 bg-green/10 px-3 text-left text-sm font-semibold text-green hover:bg-green/15 focus-visible:bg-green/15 focus-visible:outline-2 focus-visible:outline-green"
+                                : "flex min-h-10 w-full items-center gap-3 rounded-md border-0 bg-transparent px-3 text-left text-sm font-medium text-charcoal hover:bg-charcoal/5 focus-visible:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-green"
+                        }
                     >
-                        <item.icon size={16} aria-hidden />
+                        <item.icon size={16} aria-hidden className={item.primary ? "" : "text-charcoal/60"} />
                         {item.label}
                     </button>
                 </li>

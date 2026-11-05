@@ -74,7 +74,7 @@ export default function MapDirectionsPanel(props: MapDirectionsPanelProps) {
                         type="button"
                         aria-label="Chọn điểm đi trên bản đồ"
                         aria-pressed={picking === "from"}
-                        className={`inline-flex size-10 shrink-0 items-center justify-center rounded-full border ${picking === "from" ? "bg-green text-cream" : "bg-white"}`}
+                        className={`inline-flex size-10 shrink-0 items-center justify-center rounded-full border ${picking === "from" ? "border-green bg-green text-cream" : "border-charcoal/15 bg-white"}`}
                         onClick={() => props.onPick(picking === "from" ? null : "from")}
                     >
                         <Crosshair size={16} />
@@ -94,7 +94,7 @@ export default function MapDirectionsPanel(props: MapDirectionsPanelProps) {
                         type="button"
                         aria-label="Chọn điểm đến trên bản đồ"
                         aria-pressed={picking === "to"}
-                        className={`inline-flex size-10 shrink-0 items-center justify-center rounded-full border ${picking === "to" ? "bg-green text-cream" : "bg-white"}`}
+                        className={`inline-flex size-10 shrink-0 items-center justify-center rounded-full border ${picking === "to" ? "border-green bg-green text-cream" : "border-charcoal/15 bg-white"}`}
                         onClick={() => props.onPick(picking === "to" ? null : "to")}
                     >
                         <Crosshair size={16} />
@@ -103,7 +103,7 @@ export default function MapDirectionsPanel(props: MapDirectionsPanelProps) {
                 <div className="flex items-center justify-between gap-2">
                     <button
                         type="button"
-                        className="inline-flex min-h-9 items-center gap-1 rounded-full border bg-white px-3 text-xs font-semibold"
+                        className="inline-flex min-h-9 items-center gap-1 rounded-full border bg-white px-3 text-xs font-semibold border-charcoal/15"
                         onClick={props.onMyLocation}
                     >
                         <LocateFixed size={14} aria-hidden /> Vị trí của tôi làm điểm đi
@@ -111,7 +111,7 @@ export default function MapDirectionsPanel(props: MapDirectionsPanelProps) {
                     <button
                         type="button"
                         aria-label="Đổi chiều điểm đi và điểm đến"
-                        className="inline-flex size-9 items-center justify-center rounded-full border bg-white"
+                        className="inline-flex size-9 items-center justify-center rounded-full border bg-white border-charcoal/15"
                         onClick={props.onSwap}
                     >
                         <ArrowUpDown size={16} />
@@ -133,7 +133,7 @@ export default function MapDirectionsPanel(props: MapDirectionsPanelProps) {
                             type="button"
                             role="radio"
                             aria-checked={vehicle === item.id}
-                            className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-full border px-3 text-sm font-semibold ${vehicle === item.id ? "border-green bg-green text-cream" : "bg-white"}`}
+                            className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-full border px-3 text-sm font-semibold ${vehicle === item.id ? "border-green bg-green text-cream" : "border-charcoal/15 bg-white"}`}
                             onClick={() => props.onVehicle(item.id)}
                         >
                             <Icon size={16} aria-hidden /> {item.label}
@@ -197,7 +197,7 @@ export default function MapDirectionsPanel(props: MapDirectionsPanelProps) {
                             <button
                                 type="button"
                                 aria-pressed={index === active}
-                                className={`flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left ${index === active ? "border-green bg-green/5" : "bg-white"}`}
+                                className={`flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left ${index === active ? "border-green bg-green/5" : "border-charcoal/15 bg-white"}`}
                                 onClick={() => props.onSelectRoute(index)}
                             >
                                 <span>

@@ -35,15 +35,33 @@
         },
         "statsLabel": "Số liệu minh họa",
         "stats": {
-            "sources": { "value": "8+", "label": "Nguồn dữ liệu" },
-            "users": { "value": "12k+", "label": "Người dùng" },
-            "listings": { "value": "1,8k+", "label": "Đang rao bán" },
-            "analyses": { "value": "28k+", "label": "Phân tích đã tạo" }
+            "sources": {
+                "value": "8+",
+                "label": "Nguồn dữ liệu"
+            },
+            "users": {
+                "value": "12k+",
+                "label": "Người dùng"
+            },
+            "listings": {
+                "value": "1,8k+",
+                "label": "Đang rao bán"
+            },
+            "analyses": {
+                "value": "28k+",
+                "label": "Phân tích đã tạo"
+            }
         }
     },
     "listingsSection": {
         "subtitle": "Tin bán và cho thuê đang đăng. Mở danh sách để lọc theo khu vực, giá và loại nhà.",
-        "cta": "Khám phá nhà đất"
+        "cta": "Khám phá nhà đất",
+        "popular": "Được quan tâm nhất",
+        "popularNote": "Xếp theo số người đang theo dõi tin.",
+        "viewAll": "Xem tất cả tin rao",
+        "previous": "Tin trước",
+        "next": "Tin sau",
+        "watchers": "{count} người quan tâm"
     },
     "catalog": {
         "title": "Mua bán & Cho thuê",
@@ -212,7 +230,8 @@
                 "0": "Loại hình, pháp lý, diện tích, mặt tiền. Đầu ra là một khoảng, không phải một mức giá bán.",
                 "1": "Thiếu mặt tiền thì khoảng rộng ra. Đang vướng quy hoạch thì không kết luận. Gói miễn phí chưa mở bước này."
             }
-        }
+        },
+        "stepLabel": "Bước {n}"
     },
     "pricing": {
         "title": "Trả tiền khi bạn cần nhiều hơn",
@@ -257,7 +276,10 @@
                 "1": "Thêm bước định giá khi bạn khai thuộc tính ô đất.",
                 "2": "Khung giá vẫn là tham chiếu, không phải giá bán."
             }
-        }
+        },
+        "cycleLabel": "Chu kỳ thanh toán",
+        "saveYear": "Tiết kiệm 2 tháng",
+        "payCta": "Chọn gói này"
     },
     "faq": {
         "title": "Câu hỏi thường gặp",

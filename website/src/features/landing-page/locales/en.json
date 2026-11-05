@@ -35,15 +35,33 @@
         },
         "statsLabel": "Sample figures",
         "stats": {
-            "sources": { "value": "8+", "label": "Data sources" },
-            "users": { "value": "12k+", "label": "Users" },
-            "listings": { "value": "1.8k+", "label": "For sale" },
-            "analyses": { "value": "28k+", "label": "Analyses created" }
+            "sources": {
+                "value": "8+",
+                "label": "Data sources"
+            },
+            "users": {
+                "value": "12k+",
+                "label": "Users"
+            },
+            "listings": {
+                "value": "1.8k+",
+                "label": "For sale"
+            },
+            "analyses": {
+                "value": "28k+",
+                "label": "Analyses created"
+            }
         }
     },
     "listingsSection": {
         "subtitle": "Homes for sale and for rent. Open the list to filter by area, price and type.",
-        "cta": "Explore properties"
+        "cta": "Explore properties",
+        "popular": "Most watched",
+        "popularNote": "Ranked by how many people follow the listing.",
+        "viewAll": "See all listings",
+        "previous": "Previous listing",
+        "next": "Next listing",
+        "watchers": "{count} watching"
     },
     "catalog": {
         "title": "Buy & rent",
@@ -212,7 +230,8 @@
                 "0": "Type, legal status, area, frontage. The result is a range, not a sale price.",
                 "1": "Missing frontage widens the range. An active planning constraint means no conclusion. The free plan does not open this step."
             }
-        }
+        },
+        "stepLabel": "Step {n}"
     },
     "pricing": {
         "title": "Pay when you need more",
@@ -257,7 +276,10 @@
                 "1": "Adds a valuation step after you enter the plot's attributes.",
                 "2": "The range is a reference, not a sale price."
             }
-        }
+        },
+        "cycleLabel": "Billing cycle",
+        "saveYear": "Save 2 months",
+        "payCta": "Choose this plan"
     },
     "faq": {
         "title": "FAQ",

@@ -1,7 +1,9 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import type { MouseEvent } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
+
+import { LANDING_SECTION_EVENT, scrollToSection } from "@/features/landing-page/landing-sections";
 
 import { useLocale, useLocaleMessages } from "@/shared/hooks/useLocale";
 import LOCALE from "@/shared/constants/locale.constant";
@@ -36,6 +38,15 @@ export default function Header() {
     const landing = useLocaleMessages("landing");
     const shared = useLocaleMessages("shared");
     const { locale, setLocale, isPending } = useLocale();
+    const [section, setSection] = useState("");
+
+    useEffect(() => {
+        function onSection(event: Event): void {
+            setSection((event as CustomEvent<string>).detail);
+        }
+        window.addEventListener(LANDING_SECTION_EVENT, onSection);
+        return () => window.removeEventListener(LANDING_SECTION_EVENT, onSection);
+    }, []);
 
     function handleHome(event: MouseEvent<HTMLAnchorElement>): void {
         event.preventDefault();
@@ -45,10 +56,7 @@ export default function Header() {
             return;
         }
 
-        document.getElementById("gioi-thieu")?.scrollIntoView({
-            behavior: scrollBehavior(),
-            block: "start",
-        });
+        scrollToSection("gioi-thieu", scrollBehavior());
         window.history.pushState(null, "", "/");
     }
 
@@ -60,10 +68,7 @@ export default function Header() {
         event.preventDefault();
 
         if (pathname === "/") {
-            document.getElementById(id)?.scrollIntoView({
-                behavior: scrollBehavior(),
-                block: "start",
-            });
+            scrollToSection(id, scrollBehavior());
             window.history.pushState(null, "", href);
             return;
         }
@@ -99,9 +104,11 @@ export default function Header() {
                         aria-current={
                             tab.href === "/bai-viet" && pathname.startsWith("/bai-viet")
                                 ? "page"
-                                : undefined
+                                : pathname === "/" && tab.href === `/#${section}`
+                                  ? "location"
+                                  : undefined
                         }
-                        className="inline-flex min-h-11 items-center px-3 py-1 text-[0.95rem] tracking-wide whitespace-nowrap text-cream/85 decoration-gold decoration-2 underline-offset-[0.45em] transition-colors hover:text-cream hover:underline focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-current aria-[current=page]:text-cream aria-[current=page]:underline motion-reduce:transition-none"
+                        className="inline-flex min-h-11 items-center px-3 py-1 text-[0.95rem] tracking-wide whitespace-nowrap text-cream/85 decoration-gold decoration-2 underline-offset-[0.45em] transition-colors hover:text-cream hover:underline focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-current aria-[current=page]:text-cream aria-[current=page]:underline aria-[current=location]:text-cream aria-[current=location]:underline motion-reduce:transition-none"
                         onClick={
                             tab.href.startsWith("/#")
                                 ? (event) => handleClick(event, tab.href)

@@ -1,10 +1,11 @@
 "use client";
 
 import { Check, Eye, EyeOff, Loader2, MapPinned, Pencil, RotateCcw, Sparkles, X } from "lucide-react";
-import { useId, useState, type FormEvent, type JSX } from "react";
+import { Fragment, useId, useState, type FormEvent, type JSX } from "react";
 
 import { evaluatePlace, isAbortError, mapErrorMessage, overrideCriterion, resetCriterion } from "@/features/map/map.service";
 import ScoreRing, { formatScore as score, scoreTone } from "@/features/map/components/score-ring";
+import { CRITERION_ICON } from "@/features/map/criteria-icons";
 import type { EvaluatedCriterion, MapPoint, PlaceEvaluation } from "@/features/map/map.types";
 
 type State =
@@ -224,8 +225,16 @@ function CriterionGroup({ title, points, pointsClass, empty, items, ...rest }: G
                 <p className="m-0 py-2 text-sm text-charcoal/60">{empty}</p>
             ) : (
                 <ul className="m-0 list-none p-0">
-                    {items.map((item) => (
-                        <CriterionRow key={item.id} item={item} {...rest} />
+                    {items.map((item, index) => (
+                        <Fragment key={item.id}>
+                            {/* Đường ngăn riêng: item bo góc nên không dùng border-b (bị méo ở góc). */}
+                            {index > 0 ? (
+                                <li role="presentation" aria-hidden="true" className="px-1 py-px">
+                                    <div className="h-px bg-charcoal/10" />
+                                </li>
+                            ) : null}
+                            <CriterionRow item={item} {...rest} />
+                        </Fragment>
                     ))}
                 </ul>
             )}
@@ -250,6 +259,7 @@ function CriterionRow({
     const isBusy = busy === item.id;
     const isSelected = selected === item.id;
     const skipped = item.skipped;
+    const Icon = CRITERION_ICON[item.id];
 
     function submit(event: FormEvent<HTMLFormElement>): void {
         event.preventDefault();
@@ -264,7 +274,7 @@ function CriterionRow({
     return (
         <li
             data-criterion={item.id}
-            className={`group/row -mx-2 rounded-md border-b border-charcoal/10 px-2 py-2.5 transition-colors duration-150 last:border-b-0 hover:bg-charcoal/[0.04] focus-within:bg-charcoal/[0.04] motion-reduce:transition-none ${isSelected ? "bg-green/[0.06] ring-1 ring-green/30 hover:bg-green/[0.08]" : ""}`}
+            className={`group/row -mx-2 rounded-md px-2 py-2.5 transition-colors duration-150 hover:bg-charcoal/[0.04] focus-within:bg-charcoal/[0.04] motion-reduce:transition-none ${isSelected ? "bg-green/[0.06] ring-1 ring-green/30 hover:bg-green/[0.08]" : ""}`}
         >
             <div className="flex items-center gap-3">
                 {/* Vùng nội dung bấm được: chọn tiêu chí (sau này hiện dẫn chứng trên bản đồ). */}
@@ -273,26 +283,34 @@ function CriterionRow({
                     aria-pressed={isSelected}
                     onClick={() => onSelect(item)}
                     title="Xem dẫn chứng trên bản đồ (sắp có)"
-                    className="min-w-0 flex-1 cursor-pointer rounded-sm bg-transparent p-0 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
+                    className="flex min-w-0 flex-1 cursor-pointer items-start gap-3 rounded-sm bg-transparent p-0 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
                 >
-                    <span className="flex flex-wrap items-center gap-x-2 text-sm font-semibold">
-                        <span className={skipped ? "text-charcoal/45 line-through decoration-charcoal/45" : "text-charcoal"}>{item.label}</span>
-                        {item.manual && !skipped ? <span className="rounded bg-charcoal/5 px-1.5 py-px text-[11px] font-semibold text-charcoal/70">Chỉnh tay</span> : null}
-                        {skipped ? <span className="rounded bg-charcoal/5 px-1.5 py-px text-[11px] font-semibold text-charcoal/55">Đã bỏ qua</span> : null}
-                        <MapPinned
-                            size={13}
-                            aria-hidden
-                            className={`text-green transition-opacity duration-150 motion-reduce:transition-none ${isSelected ? "opacity-100" : "opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100"}`}
-                        />
+                    <span
+                        aria-hidden="true"
+                        className={`mt-0.5 inline-flex size-9 shrink-0 items-center justify-center rounded-md ${skipped ? "bg-charcoal/5 text-charcoal/35" : "bg-green/10 text-green"}`}
+                    >
+                        <Icon size={18} strokeWidth={1.8} />
                     </span>
-                    <span className={`mt-0.5 block text-sm ${skipped ? "text-charcoal/40 line-through decoration-charcoal/30" : "text-charcoal/80"}`}>
-                        <span className={`font-semibold ${skipped ? "" : TONE_TEXT[scoreTone(item.score)]}`}>{item.verdict}</span>
-                        <span className="text-charcoal/40"> · </span>
-                        {item.detail}
-                    </span>
-                    <span className="mt-0.5 block text-xs text-charcoal/50">
-                        {item.groupLabel} · Nguồn: {item.source}
-                        {item.manual ? ` · Tự động: ${score(item.autoScore)}` : ""}
+                    <span className="min-w-0 flex-1">
+                        <span className="flex flex-wrap items-center gap-x-2 text-sm font-semibold">
+                            <span className={skipped ? "text-charcoal/45 line-through decoration-charcoal/45" : "text-charcoal"}>{item.label}</span>
+                            {item.manual && !skipped ? <span className="rounded bg-charcoal/5 px-1.5 py-px text-[11px] font-semibold text-charcoal/70">Chỉnh tay</span> : null}
+                            {skipped ? <span className="rounded bg-charcoal/5 px-1.5 py-px text-[11px] font-semibold text-charcoal/55">Đã bỏ qua</span> : null}
+                            <MapPinned
+                                size={13}
+                                aria-hidden
+                                className={`text-green transition-opacity duration-150 motion-reduce:transition-none ${isSelected ? "opacity-100" : "opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100"}`}
+                            />
+                        </span>
+                        <span className={`mt-0.5 block text-sm ${skipped ? "text-charcoal/40 line-through decoration-charcoal/30" : "text-charcoal/80"}`}>
+                            <span className={`font-semibold ${skipped ? "" : TONE_TEXT[scoreTone(item.score)]}`}>{item.verdict}</span>
+                            <span className="text-charcoal/40"> · </span>
+                            {item.detail}
+                        </span>
+                        <span className="mt-0.5 block text-xs text-charcoal/50">
+                            {item.groupLabel} · Nguồn: {item.source}
+                            {item.manual ? ` · Tự động: ${score(item.autoScore)}` : ""}
+                        </span>
                     </span>
                 </button>
                 <ScoreRing value={item.score} size={42} muted={skipped} label={`${item.label}: ${score(item.score)} trên 10${skipped ? ", đã bỏ qua" : ""}`} />

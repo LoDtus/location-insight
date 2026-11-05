@@ -1,3 +1,5 @@
+import type { CriterionId } from "@/features/map/criteria-icons";
+
 export interface MapSuggestion {
     refId: string;
     name: string;
@@ -38,7 +40,8 @@ export interface SavedPlace {
 export type CriterionGroup = "walk" | "move" | "health" | "env";
 
 export interface EvaluatedCriterion {
-    id: string;
+    /** Một trong 19 mã cố định (xem criteria-icons.ts). */
+    id: CriterionId;
     label: string;
     group: CriterionGroup;
     groupLabel: string;

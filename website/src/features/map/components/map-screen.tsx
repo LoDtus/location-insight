@@ -1,6 +1,6 @@
 "use client";
 
-import { Bookmark, Loader2, Settings, SlidersHorizontal } from "lucide-react";
+import { Bookmark, Loader2, Scale, Settings, SlidersHorizontal } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -24,9 +24,11 @@ import MapSearchBar from "@/features/map/components/map-search-bar";
 import MapScaleBar from "@/features/map/components/map-scale-bar";
 import MapUrlErrors from "@/features/map/components/map-url-errors";
 import MapUsageCard from "@/features/map/components/map-usage-card";
+import MapWeightsDialog from "@/features/map/components/map-weights-dialog";
 import MapZoomControls from "@/features/map/components/map-zoom-controls";
 import { useDirections } from "@/features/map/hooks/use-directions";
 import { useMapConfig } from "@/features/map/hooks/use-map-config";
+import { useCriterionWeights } from "@/features/map/hooks/use-criterion-weights";
 import { useMapOverlays } from "@/features/map/hooks/use-map-overlays";
 import { POI_MIN_ZOOM, POI_STYLE, listingPins, shortPrice, type ListingPin, type OverlayId } from "@/features/map/map-overlays";
 import { usePlaceSelection } from "@/features/map/hooks/use-place-selection";
@@ -164,6 +166,8 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
     const [viewport, setViewport] = useState<MapViewport>({ zoom: 12, lat: 21.03, lng: 105.83, bearing: 0, pitch: 0, bounds: [0, 0, 0, 0] });
     const [overlays, setOverlays] = useState<OverlayId[]>(init.overlays);
     const [openListing, setOpenListing] = useState<ListingPin | null>(null);
+    const [weightsOpen, setWeightsOpen] = useState(false);
+    const criterionWeights = useCriterionWeights();
     const [viewportReady, setViewportReady] = useState(false);
     const [panel, setPanel] = useState<Panel>(
         hasDirectionsInUrl ? "directions" : init.pin ? "place" : placeId !== undefined ? "detail" : null,
@@ -901,6 +905,22 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                                     />
                                     <div className={`${popoverOpen ? "hidden sm:flex" : "flex"} shrink-0 items-start gap-2`}>
                                     <TopButton
+                                        label={
+                                            criterionWeights.changed > 0
+                                                ? `Trọng số tiêu chí (${criterionWeights.changed} tiêu chí đã đổi)`
+                                                : "Trọng số tiêu chí"
+                                        }
+                                        pressed={weightsOpen}
+                                        badge={criterionWeights.changed}
+                                        onClick={() => {
+                                            setPopoverOpen(false);
+                                            setFilterOpen(false);
+                                            setWeightsOpen(true);
+                                        }}
+                                    >
+                                        <Scale size={18} aria-hidden />
+                                    </TopButton>
+                                    <TopButton
                                         label={filterCount > 0 ? `Bộ lọc (${filterCount} đang áp dụng)` : "Bộ lọc"}
                                         pressed={filterOpen}
                                         badge={filterCount}
@@ -1006,6 +1026,7 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                     </div>
                     {sidePanel}
                 </div>
+                {weightsOpen ? <MapWeightsDialog onClose={() => setWeightsOpen(false)} /> : null}
                 {menu ? <MapContextMenu at={menu.at} bounds={menu.size} onSelect={runContextAction} onClose={closeMenu} /> : null}
             </div>
         </div>

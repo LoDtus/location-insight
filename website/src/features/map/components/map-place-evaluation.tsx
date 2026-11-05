@@ -1,8 +1,10 @@
 "use client";
 
-import { Check, Eye, EyeOff, Loader2, MapPinned, Pencil, RotateCcw, Sparkles, X } from "lucide-react";
-import { Fragment, useEffect, useId, useState, type FormEvent, type JSX } from "react";
+import { Check, Eye, EyeOff, Loader2, MapPinned, Pencil, RotateCcw, Scale, Sparkles, X } from "lucide-react";
+import { Fragment, useEffect, useId, useRef, useState, type FormEvent, type JSX } from "react";
 
+import WeightPicker, { weightLabel } from "@/features/map/components/weight-picker";
+import { useCriterionWeights, useWeightsVersion } from "@/features/map/hooks/use-criterion-weights";
 import { getMyEvaluation, isAbortError, mapErrorMessage, overrideCriterion, resetCriterion, runEvaluation } from "@/features/map/map.service";
 import { showToast } from "@/shared/components/toast/toast-store";
 import ScoreRing, { formatScore as score, scoreTone } from "@/features/map/components/score-ring";
@@ -81,6 +83,42 @@ export default function MapPlaceEvaluation({
             });
         return () => controller.abort();
     }, [point]);
+    // Đổi trọng số (ở đây hoặc trong modal quản lý): đọc lại lượt của mình để điểm tính theo trọng số mới. Không gọi AI.
+    const weightsVersion = useWeightsVersion();
+    const seenVersion = useRef(weightsVersion);
+    const hasEvaluation = state.status === "ready";
+    useEffect(() => {
+        if (seenVersion.current === weightsVersion) return;
+        seenVersion.current = weightsVersion;
+        if (!hasEvaluation) return;
+        const controller = new AbortController();
+        getMyEvaluation(point, controller.signal)
+            .then((result) => {
+                if (result.evaluation) setState({ status: "ready", evaluation: result.evaluation });
+            })
+            .catch(() => undefined);
+        return () => controller.abort();
+    }, [weightsVersion, hasEvaluation, point]);
+    const weights = useCriterionWeights(false);
+    const [weighting, setWeighting] = useState<string | null>(null);
+
+    async function changeWeight(item: EvaluatedCriterion, weight: number | null): Promise<void> {
+        setBusy(item.id);
+        setError(null);
+        const message = weight === null ? await weights.reset(item.id) : await weights.set(item.id, weight);
+        setBusy(null);
+        if (message) {
+            setError(message);
+            return;
+        }
+        const next = weight ?? item.defaultWeight;
+        showToast({
+            title: `Trọng số “${item.label}”: ${next}`,
+            description: `${weightLabel(next)}. Áp dụng cho mọi địa điểm của bạn.`,
+            tone: "info",
+            duration: 3000,
+        });
+    }
     const [selected, setSelected] = useState<string | null>(null);
 
     function select(item: EvaluatedCriterion): void {
@@ -237,7 +275,7 @@ export default function MapPlaceEvaluation({
                     <div className="min-w-0">
                         <p className={`m-0 inline-flex rounded-md px-2 py-0.5 text-sm font-semibold ${TONE_BADGE[overallTone]}`}>{evaluation.rating}</p>
                         <p className="m-0 mt-1 text-xs text-charcoal/60">
-                            Điểm tổng trên thang 10, trung bình {used}/{evaluation.criteriaCount} tiêu chí
+                            Điểm tổng trên thang 10, trung bình có trọng số {used}/{evaluation.criteriaCount} tiêu chí
                         </p>
                         <p className="m-0 mt-0.5 flex gap-3 text-xs font-semibold tabular-nums">
                             <span className="text-green">+{score(evaluation.strengths.points)} mạnh</span>
@@ -264,7 +302,16 @@ export default function MapPlaceEvaluation({
                     editing={editing}
                     selected={selected}
                     onSelect={select}
-                    onEdit={setEditing}
+                    onEdit={(id) => {
+                        setWeighting(null);
+                        setEditing(id);
+                    }}
+                    weighting={weighting}
+                    onWeighting={(id) => {
+                        setEditing(null);
+                        setWeighting(id);
+                    }}
+                    onWeight={(item, weight) => void changeWeight(item, weight)}
                     onSkip={(item) => void apply(item.id, () => overrideCriterion(point, item.id, { skipped: !item.skipped }))}
                     onScore={(item, value) => void apply(item.id, () => overrideCriterion(point, item.id, { score: value }))}
                     onReset={(item) => void apply(item.id, () => resetCriterion(point, item.id))}
@@ -279,7 +326,16 @@ export default function MapPlaceEvaluation({
                     editing={editing}
                     selected={selected}
                     onSelect={select}
-                    onEdit={setEditing}
+                    onEdit={(id) => {
+                        setWeighting(null);
+                        setEditing(id);
+                    }}
+                    weighting={weighting}
+                    onWeighting={(id) => {
+                        setEditing(null);
+                        setWeighting(id);
+                    }}
+                    onWeight={(item, weight) => void changeWeight(item, weight)}
                     onSkip={(item) => void apply(item.id, () => overrideCriterion(point, item.id, { skipped: !item.skipped }))}
                     onScore={(item, value) => void apply(item.id, () => overrideCriterion(point, item.id, { score: value }))}
                     onReset={(item) => void apply(item.id, () => resetCriterion(point, item.id))}
@@ -303,6 +359,10 @@ interface GroupProps {
     onSkip: (item: EvaluatedCriterion) => void;
     onScore: (item: EvaluatedCriterion, value: number) => void;
     onReset: (item: EvaluatedCriterion) => void;
+    weighting: string | null;
+    onWeighting: (id: string | null) => void;
+    /** null = về trọng số mặc định. */
+    onWeight: (item: EvaluatedCriterion, weight: number | null) => void;
 }
 
 function CriterionGroup({ title, points, pointsClass, empty, items, ...rest }: GroupProps): JSX.Element {
@@ -346,10 +406,15 @@ function CriterionRow({
     onSkip,
     onScore,
     onReset,
+    weighting,
+    onWeighting,
+    onWeight,
 }: { item: EvaluatedCriterion } & Omit<GroupProps, "title" | "points" | "pointsClass" | "empty" | "items">): JSX.Element {
     const [draft, setDraft] = useState(String(item.score));
     const inputId = useId();
     const isEditing = editing === item.id;
+    const isWeighting = weighting === item.id;
+    const customWeight = item.weight !== item.defaultWeight;
     const isBusy = busy === item.id;
     const isSelected = selected === item.id;
     const skipped = item.skipped;
@@ -390,6 +455,9 @@ function CriterionRow({
                             <span className={skipped ? "text-charcoal/45 line-through decoration-charcoal/45" : "text-charcoal"}>{item.label}</span>
                             {item.manual && !skipped ? <span className="rounded bg-charcoal/5 px-1.5 py-px text-[11px] font-semibold text-charcoal/70">Chỉnh tay</span> : null}
                             {skipped ? <span className="rounded bg-charcoal/5 px-1.5 py-px text-[11px] font-semibold text-charcoal/55">Đã bỏ qua</span> : null}
+                            {!skipped && item.weight === 0 ? (
+                                <span className="rounded bg-charcoal/5 px-1.5 py-px text-[11px] font-semibold text-charcoal/55">Không tính</span>
+                            ) : null}
                             <MapPinned
                                 size={13}
                                 aria-hidden
@@ -402,7 +470,8 @@ function CriterionRow({
                             {item.detail}
                         </span>
                         <span className="mt-0.5 block text-xs text-charcoal/50">
-                            {item.groupLabel} · Nguồn: {item.source}
+                            {item.groupLabel} · Trọng số {item.weight}
+                            {customWeight ? ` (mặc định ${item.defaultWeight})` : ""} · Nguồn: {item.source}
                             {item.manual ? ` · Tự động: ${score(item.autoScore)}` : ""}
                         </span>
                     </span>
@@ -425,6 +494,18 @@ function CriterionRow({
                     </button>
                     <button
                         type="button"
+                        aria-label={`Trọng số ${item.weight}${customWeight ? " (đã đổi)" : ""}: ${item.label}`}
+                        title={customWeight ? `Trọng số ${item.weight} (mặc định ${item.defaultWeight})` : `Trọng số ${item.weight}`}
+                        aria-expanded={isWeighting}
+                        disabled={isBusy}
+                        onClick={() => onWeighting(isWeighting ? null : item.id)}
+                        className={`${ICON_BUTTON} w-auto gap-0.5 px-1.5 text-xs font-semibold tabular-nums ${customWeight ? "bg-gold/20 text-charcoal hover:bg-gold/30" : ""}`}
+                    >
+                        <Scale size={14} aria-hidden />
+                        {item.weight}
+                    </button>
+                    <button
+                        type="button"
                         aria-label={skipped ? `Tính lại tiêu chí: ${item.label}` : `Bỏ qua tiêu chí: ${item.label}`}
                         title={skipped ? "Tính lại tiêu chí" : "Bỏ qua tiêu chí"}
                         aria-pressed={skipped}
@@ -436,6 +517,31 @@ function CriterionRow({
                     </button>
                 </div>
             </div>
+            {isWeighting ? (
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg bg-white p-2 ring-1 ring-charcoal/10">
+                    <span className="text-xs font-semibold text-charcoal/70">Trọng số (0–5)</span>
+                    <WeightPicker
+                        value={item.weight}
+                        defaultValue={item.defaultWeight}
+                        label={item.label}
+                        disabled={isBusy}
+                        onChange={(weight) => {
+                            if (weight !== item.weight) onWeight(item, weight);
+                        }}
+                    />
+                    {isBusy ? <Loader2 size={14} className="animate-spin text-charcoal/50" aria-hidden /> : null}
+                    <span className="text-xs text-charcoal/55">Mặc định {item.defaultWeight}</span>
+                    {customWeight ? (
+                        <button type="button" disabled={isBusy} onClick={() => onWeight(item, null)} className={`${ICON_BUTTON} h-8 w-auto gap-1 px-2 text-xs font-semibold`}>
+                            <RotateCcw size={13} aria-hidden /> Về mặc định
+                        </button>
+                    ) : null}
+                    <button type="button" onClick={() => onWeighting(null)} className={`${ICON_BUTTON} ml-auto h-8 w-auto gap-1 px-2 text-xs font-semibold`}>
+                        <X size={13} aria-hidden /> Đóng
+                    </button>
+                    <p className="m-0 w-full text-[11px] text-charcoal/50">Áp dụng cho mọi địa điểm của bạn. Quản lý tất cả ở nút cân cạnh ô tìm kiếm.</p>
+                </div>
+            ) : null}
             {isEditing && !skipped ? (
                 <form onSubmit={submit} className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-white p-2 ring-1 ring-charcoal/10">
                     <label htmlFor={inputId} className="text-xs font-semibold text-charcoal/70">

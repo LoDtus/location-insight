@@ -89,6 +89,27 @@ export interface EvaluatedCriterion {
     autoScore: number;
     manual: boolean;
     skipped: boolean;
+    /** Trọng số đang dùng (0–5): của người dùng nếu đã đặt, không thì mặc định. */
+    weight: number;
+    defaultWeight: number;
+}
+
+export interface CriterionWeight {
+    id: CriterionId;
+    label: string;
+    group: CriterionGroup;
+    groupLabel: string;
+    defaultWeight: number;
+    weight: number;
+    /** Đã đổi khỏi mặc định. */
+    custom: boolean;
+}
+
+export interface WeightsView {
+    min: number;
+    max: number;
+    criteria: CriterionWeight[];
+    changed: number;
 }
 
 export interface PlaceEvaluation {

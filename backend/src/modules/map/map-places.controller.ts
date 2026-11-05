@@ -4,6 +4,7 @@ import type { RequestWithPrincipal } from '../auth/auth.guard.js';
 import {
   CriterionOverrideDto,
   CriterionResetQueryDto,
+  CriterionWeightDto,
   EvaluationQueryDto,
   EvaluationRunDto,
   ReleaseDatasetDto,
@@ -13,6 +14,7 @@ import {
 import { MapDatasetService } from './map-dataset.service.js';
 import { MapEvaluationService } from './map-evaluation.service.js';
 import { MapPlacesService } from './map-places.service.js';
+import { MapWeightsService } from './map-weights.service.js';
 
 function userId(request: RequestWithPrincipal): string {
   return request.principal?.userId as string;
@@ -26,7 +28,37 @@ export class MapPlacesController {
   constructor(
     private readonly places: MapPlacesService,
     private readonly evaluations: MapEvaluationService,
+    private readonly weights: MapWeightsService,
   ) {}
+
+  /** Trọng số tiêu chí của chính người dùng (kèm mặc định và số tiêu chí đã đổi). */
+  @RequirePermission('map:use')
+  @Header('Cache-Control', 'private, no-store')
+  @Get('weights')
+  listWeights(@Req() request: RequestWithPrincipal) {
+    return this.weights.list(userId(request));
+  }
+
+  @RequirePermission('map:use')
+  @Header('Cache-Control', 'private, no-store')
+  @Put(`weights/:${CRITERION_PARAM}`)
+  setWeight(@Param(CRITERION_PARAM) criterionId: string, @Body() body: CriterionWeightDto, @Req() request: RequestWithPrincipal) {
+    return this.weights.set(userId(request), criterionId, body.weight);
+  }
+
+  @RequirePermission('map:use')
+  @Header('Cache-Control', 'private, no-store')
+  @Delete(`weights/:${CRITERION_PARAM}`)
+  resetWeight(@Param(CRITERION_PARAM) criterionId: string, @Req() request: RequestWithPrincipal) {
+    return this.weights.reset(userId(request), criterionId);
+  }
+
+  @RequirePermission('map:use')
+  @Header('Cache-Control', 'private, no-store')
+  @Delete('weights')
+  resetWeights(@Req() request: RequestWithPrincipal) {
+    return this.weights.reset(userId(request));
+  }
 
   @RequirePermission('map:use')
   @Header('Cache-Control', 'private, no-store')

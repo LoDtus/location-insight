@@ -70,6 +70,41 @@ export const CRITERIA: readonly CriterionDefinition[] = [
 
 export const CRITERION_IDS: ReadonlySet<string> = new Set(CRITERIA.map((item) => item.id));
 
+/** Thang trọng số (mức quan trọng) của một tiêu chí: 0 = không tính vào điểm tổng, 5 = quan trọng nhất. */
+export const WEIGHT_MIN = 0;
+export const WEIGHT_MAX = 5;
+
+/**
+ * Trọng số mặc định của ứng dụng. Cao cho thứ khó thay đổi và ảnh hưởng sức khỏe/an toàn hằng ngày (bệnh viện,
+ * không khí, ngập, ồn, trường học); thấp cho thứ dễ thay thế hoặc dữ liệu còn mỏng (UBND, vật tư, quán ăn).
+ */
+export const DEFAULT_WEIGHTS: Readonly<Record<string, number>> = {
+  cho: 2,
+  'hieu-thuoc': 2,
+  'sieu-thi': 2,
+  ubnd: 1,
+  'vat-tu': 1,
+  'quan-an': 1,
+  'cong-vien': 2,
+  'truong-hoc': 3,
+  'duong-lon': 2,
+  'noi-do': 2,
+  metro: 2,
+  'xe-buyt': 2,
+  'on-giao-thong': 3,
+  'benh-vien': 3,
+  'mat-do-dan-cu': 1,
+  'khong-khi': 3,
+  'do-cao': 2,
+  'ngap-song': 3,
+  'mang-xanh': 2,
+};
+
+/** Trọng số hợp lệ: số nguyên trong [0, 5]. */
+export function isValidWeight(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= WEIGHT_MIN && value <= WEIGHT_MAX;
+}
+
 /** Kết quả đo tự động của một tiêu chí (chưa gộp chỉnh tay). */
 export interface CriterionMeasurement {
   id: string;
@@ -97,6 +132,9 @@ export interface EvaluatedCriterion {
   autoScore: number;
   manual: boolean;
   skipped: boolean;
+  /** Trọng số đang dùng (của người dùng nếu đã đặt, không thì mặc định). */
+  weight: number;
+  defaultWeight: number;
 }
 
 export interface PlaceEvaluation {
@@ -105,7 +143,7 @@ export interface PlaceEvaluation {
   lng: number;
   /** true: số liệu minh họa, chưa phải kết quả đo thật. */
   sample: boolean;
-  /** Điểm tổng 0–10 (trung bình các tiêu chí không bỏ qua); null nếu đã bỏ qua hết. */
+  /** Điểm tổng 0–10: trung bình có trọng số các tiêu chí không bỏ qua; null nếu không còn tiêu chí nào có trọng số. */
   overall: number | null;
   rating: string;
   summary: string;
@@ -291,7 +329,7 @@ function joinLabels(items: EvaluatedCriterion[]): string {
 }
 
 function summarize(overall: number | null, rating: string, strengths: EvaluatedCriterion[], weaknesses: EvaluatedCriterion[], used: number): string {
-  if (overall === null) return 'Mọi tiêu chí đều đã bị bỏ qua nên chưa có nhận xét. Khôi phục ít nhất một tiêu chí để xem điểm.';
+  if (overall === null) return 'Không còn tiêu chí nào được tính (đã bỏ qua hoặc trọng số 0) nên chưa có nhận xét. Khôi phục ít nhất một tiêu chí để xem điểm.';
   const top = strengths.slice(0, 3);
   const low = [...weaknesses].sort((a, b) => a.score - b.score).slice(0, 3);
   const parts = [`Điểm ${overall.toFixed(1).replace('.', ',')}/10, mức ${rating.toLowerCase()} trên ${used} tiêu chí.`];
@@ -307,6 +345,8 @@ export function buildEvaluation(
   measurements: CriterionMeasurement[],
   overrides: CriterionOverride[],
   sample = true,
+  /** Trọng số riêng của người dùng theo mã tiêu chí; thiếu thì dùng DEFAULT_WEIGHTS. */
+  weights: ReadonlyMap<string, number> = new Map(),
 ): PlaceEvaluation {
   const byId = new Map(overrides.map((item) => [item.criterionId, item]));
   const evaluated: EvaluatedCriterion[] = [];
@@ -327,14 +367,22 @@ export function buildEvaluation(
       autoScore: measured.autoScore,
       manual,
       skipped: override?.skipped === true,
+      weight: weights.get(definition.id) ?? DEFAULT_WEIGHTS[definition.id] ?? 1,
+      defaultWeight: DEFAULT_WEIGHTS[definition.id] ?? 1,
     });
   }
-  const active = evaluated.filter((item) => !item.skipped);
+  // Tiêu chí trọng số 0 vẫn hiện nhưng không góp vào điểm, giống tiêu chí bỏ qua.
+  const active = evaluated.filter((item) => !item.skipped && item.weight > 0);
+  const totalWeight = active.reduce((sum, item) => sum + item.weight, 0);
+  // Điểm nhóm theo trọng số, chuẩn hóa để khi mọi trọng số bằng nhau thì bằng tổng chênh lệch so với mốc 5.
+  const meanWeight = active.length > 0 ? totalWeight / active.length : 1;
   // Tiêu chí bị bỏ qua vẫn nằm trong nhóm của nó (UI gạch ngang), nhưng không tính vào điểm nhóm và điểm tổng.
   const strengths = evaluated.filter((item) => item.score > NEUTRAL_SCORE).sort((a, b) => b.score - a.score);
   const weaknesses = evaluated.filter((item) => item.score <= NEUTRAL_SCORE).sort((a, b) => a.score - b.score);
-  const counted = (items: EvaluatedCriterion[]): EvaluatedCriterion[] => items.filter((item) => !item.skipped);
-  const overall = active.length > 0 ? round1(active.reduce((sum, item) => sum + item.score, 0) / active.length) : null;
+  const counted = (items: EvaluatedCriterion[]): EvaluatedCriterion[] => items.filter((item) => !item.skipped && item.weight > 0);
+  const overall = totalWeight > 0 ? round1(active.reduce((sum, item) => sum + item.score * item.weight, 0) / totalWeight) : null;
+  const pointsOf = (items: EvaluatedCriterion[]): number =>
+    round1(counted(items).reduce((sum, item) => sum + Math.abs(item.score - NEUTRAL_SCORE) * item.weight, 0) / meanWeight);
   const rating = ratingOf(overall);
   return {
     placeKey: placeKeyOf(lat, lng),
@@ -344,8 +392,8 @@ export function buildEvaluation(
     overall,
     rating,
     summary: summarize(overall, rating, counted(strengths), counted(weaknesses), active.length),
-    strengths: { points: round1(counted(strengths).reduce((sum, item) => sum + (item.score - NEUTRAL_SCORE), 0)), items: strengths },
-    weaknesses: { points: round1(counted(weaknesses).reduce((sum, item) => sum + (NEUTRAL_SCORE - item.score), 0)), items: weaknesses },
+    strengths: { points: pointsOf(strengths), items: strengths },
+    weaknesses: { points: pointsOf(weaknesses), items: weaknesses },
     skipped: evaluated.filter((item) => item.skipped),
     criteriaCount: evaluated.length,
   };

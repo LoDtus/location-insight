@@ -87,7 +87,7 @@ describe("bộ lọc", () => {
 });
 
 function criterion(id: EvaluatedCriterion["id"], score: number, skipped = false): EvaluatedCriterion {
-    return { id, label: id, group: "walk", groupLabel: "Đi bộ", verdict: "", detail: "", source: "", score, autoScore: score, manual: false, skipped };
+    return { id, label: id, group: "walk", groupLabel: "Đi bộ", verdict: "", detail: "", source: "", score, autoScore: score, manual: false, skipped, weight: 1, defaultWeight: 1 };
 }
 
 function compareItem(id: string, overall: number | null, criteria: EvaluatedCriterion[]): CompareItem {

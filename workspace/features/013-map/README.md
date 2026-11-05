@@ -94,6 +94,9 @@ Xem `interfaces/rest-api.yml`. Tiền tố `/api/v1`; quyền `map:use` (mọi n
 | PATCH | `/map/saved/:id` `{label?,note?,compared?}` | Tên gợi nhớ (≤ 80, `null`/rỗng = dùng tên gốc), ghi chú nhiều dòng (≤ 1000), bật/tắt so sánh (tối đa 6 → 409). Chỉ mục của chính mình (không thì 404); trường lạ → 400 | — (`private, no-store`) | 60/phút |
 | DELETE | `/map/saved/:id` | Bỏ lưu (chỉ của chính người dùng) | — | 60/phút |
 | GET | `/map/compare` | Bảng so sánh: mục đã lưu đang so sánh (theo thứ tự thêm) + đánh giá đầy đủ từ lượt gần nhất **của chính người dùng** (`null` nếu chưa đánh giá) | — (`private, no-store`) | 60/phút |
+| GET | `/map/weights` | Trọng số 19 tiêu chí của chính người dùng (mặc định, đang dùng, `custom`) + số tiêu chí đã đổi | — (`private, no-store`) | 60/phút (`weights`) |
+| PUT | `/map/weights/:criterionId` `{weight}` | Đặt trọng số 0–5 (số nguyên); bằng mặc định thì xóa hàng. Tiêu chí lạ → 404, ngoài khoảng/lẻ/trường lạ → 400 | — | 60/phút |
+| DELETE | `/map/weights/:criterionId` · `/map/weights` | Về mặc định một tiêu chí · tất cả | — | 60/phút |
 | GET | `/map/layers/places?x&y` | Điểm tiện ích của một ô zoom 13 (mọi nhóm, tối đa 3 000 điểm; client lọc theo lớp đang bật) | Redis 24 giờ, khóa = phiên bản dữ liệu + ô; `Cache-Control: private, max-age=3600` | 300/phút (`layers`) |
 | GET | `/map/search/pins?text&lat&lng&radius&cats&scope` | Tìm theo loại hình ("ngân hàng"): tối đa 10 kết quả liên quan nhất kèm tọa độ để ghim, bỏ kết quả ngoài `radius` | Gợi ý 5 phút + Place 1 giờ (mỗi lượt tối đa 1 Autocomplete + 10 Place) | 10/phút (`search-pins`) |
 | GET | `/map/places/evaluation?lat&lng` | Lượt đánh giá **gần nhất của chính người dùng** (§4c); `{ evaluation: null }` nếu chưa bấm. Chỉ đọc, không tính toán, không tính phí | — (`private, no-store`) | 120/phút (`evaluation-read`) |
@@ -140,6 +143,7 @@ interface MapRoute {
 | Postgres | `map_criterion_overrides` (khóa `user_id + place_key + criterion_id`) | Chỉnh tay: `skipped`, `score` (null = điểm tự động). Khôi phục mặc định thì xóa hàng |
 | Postgres | `map_dataset_versions` (khóa `version`) | Phiên bản bộ dữ liệu đánh giá: `note`, `released_by`, `released_at`. Hiện hành = số lớn nhất. Hệ thống tự tạo v1 |
 | Postgres | `map_places` (index `lat,lng` và `address_key`) | Địa điểm chuẩn hóa (§4d) |
+| Postgres | `map_criterion_weights` (unique `user_id + criterion_id`) | Trọng số riêng của người dùng (0–5); chỉ lưu giá trị khác mặc định |
 | Postgres | `map_pois` (unique `source + source_id`, index `lat,lng`) | Điểm tiện ích của lớp bản đồ: `category`, `kind`, `name`, `lat/lng`, `source_version`. Chỉ nhập bằng script, API chỉ đọc |
 | Redis | `cache:map:layers:{phiên bản}:13/{x}/{y}` TTL 24 giờ, `map:pois:version` TTL 60 s | Ô lớp bản đồ; nhập phiên bản mới thì khóa đổi theo |
 | Postgres | `map_place_analyses` (index `place_id, created_at`) | Mỗi lần AI chạy cho một địa điểm: `requested_by`, `dataset_version`, `measurements`. Bản mới nhất là thứ người bấm "Đánh giá" sau nhận. **Không bao giờ trả thẳng cho client** |
@@ -221,6 +225,13 @@ Lớp hiển thị khác bộ lọc: bộ lọc thu hẹp kết quả **tìm ki�
 - **Trường học**, **Ngân hàng/ATM**, **Tiện ích khác** (chợ, hiệu thuốc, siêu thị, bệnh viện/phòng khám, công viên, quán ăn/cà phê, UBND, vật tư, xe buýt, metro; bật cả nhóm hoặc từng loại): chấm tròn màu theo nhóm, vẽ bằng lớp GeoJSON (không phải DOM) để nhẹ. Hiện từ zoom 13; quán ăn và xe buýt từ zoom 15. Bấm một chấm mở thẻ Địa điểm với tên điểm, địa chỉ lấy bằng Reverse.
 - Dữ liệu tiện ích: OSM Hà Nội, `tools/data/osm_places.py` → `data/curated/places/{phiên bản}/places.ndjson` (gộp trùng cùng nhóm < 40 m) → `npx tsx scripts/import-places.ts --source osm --version …` (stdin) vào `map_pois`. Không gọi Vietmap theo khung nhìn (đắt). Client tải theo ô zoom 13, nhớ tối đa 80 ô trong tab.
 - Tham số URL `layers` nhận thêm `listing, school, bank, market, pharmacy, supermarket, hospital, park, food, townhall, hardware, bus, metro` (cùng `traffic`).
+
+## 4h. Trọng số tiêu chí
+
+- Mỗi tiêu chí có **trọng số 0–5** (mức quan trọng). Ứng dụng đặt mặc định (`DEFAULT_WEIGHTS` trong `place-evaluation.ts`): 3 cho bệnh viện, trường học, không khí, ngập, ồn giao thông; 1 cho UBND, vật tư, quán ăn, mật độ dân cư; còn lại 2.
+- Điểm tổng = Σ(điểm × trọng số) / Σ trọng số của các tiêu chí không bỏ qua và trọng số > 0; không còn tiêu chí nào thì `null`. Điểm nhóm mạnh/yếu = Σ|điểm − 5| × trọng số / trọng số trung bình (mọi trọng số bằng nhau thì như cũ). Trọng số 0 vẫn hiện, gắn chip "Không tính".
+- Trọng số là **của từng người dùng**, áp dụng cho mọi địa điểm, lưu ở backend (đổi máy vẫn còn). Đổi trọng số chỉ tính lại từ bản phân tích sẵn có: **không gọi AI, không tạo lượt đánh giá**.
+- Mọi phản hồi đánh giá (`/map/places/evaluation`, `/map/compare`, tóm tắt "Đã lưu") tính theo trọng số của người gọi; mỗi tiêu chí trả kèm `weight` và `defaultWeight`.
 
 ## 5. Giao diện
 
@@ -344,4 +355,6 @@ Backend `backend/src/modules/map/` (controller, service, client, mapper có test
 | AC23 | Đang ghim rồi kéo bản đồ đi chỗ khác, gõ "ngân hàng" + Enter → bản đồ về đúng điểm ghim, zoom vừa phạm vi, ghim các ngân hàng trong phạm vi bằng ghim khác ghim chính. |
 | AC24 | Nút Lớp có mục "Hiển thị trên bản đồ" (Tin đang rao, Trường học, Ngân hàng, Tiện ích khác + từng loại), badge số lớp đang bật; bật lớp → điểm hiện từ zoom 13, `layers=` trên URL giữ đúng các lớp; mở lại link vẫn đúng. |
 | AC25 | Bấm nhãn giá → thẻ tin rao; bấm chấm tiện ích → thẻ Địa điểm đúng tên. Kéo bản đồ qua ô đã tải không gọi lại API; ô ngoài Việt Nam hoặc tham số sai → 400/rỗng. |
+| AC26 | Thẻ Địa điểm: cạnh nút đổi điểm và bỏ qua có nút trọng số (cân + số); bấm mở dãy 0–5, có mức mặc định và "Về mặc định"; đổi xong điểm tổng tính lại ngay, không tạo lượt đánh giá mới. |
+| AC27 | Nút cân cạnh ô tìm (trước Bộ lọc, Đã lưu, Mức dùng) mở modal 19 tiêu chí theo nhóm; tiêu chí đã đổi có nền vàng + chip "Đã đổi" + nút về mặc định; badge = số tiêu chí đã đổi; "Đặt lại tất cả" đưa badge về 0. Người khác không bị ảnh hưởng. |
 | AC17 | Người không phải admin gọi `/admin/map/dataset-versions` → 403; chỉnh tiêu chí khi chưa có lượt của mình → 404; gửi kèm `userId` → 400. |

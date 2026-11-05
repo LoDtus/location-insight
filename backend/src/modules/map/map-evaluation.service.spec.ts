@@ -4,6 +4,7 @@ import type { RedisService } from '../../integrations/redis/redis.service.js';
 import type { MapDatasetService } from './map-dataset.service.js';
 import { MapEvaluationService } from './map-evaluation.service.js';
 import type { MapLimitsService } from './map-limits.service.js';
+import type { MapWeightsService } from './map-weights.service.js';
 import type { MapPlaceResolver, ResolvedPlace } from './map-place-resolver.service.js';
 import { pickPlace } from './place-identity.js';
 
@@ -88,6 +89,7 @@ function setup() {
   const runs = fakeRepo();
   const overrides = fakeRepo();
   let version = 1;
+  const weights = new Map<string, number>();
   const service = new MapEvaluationService(
     analyses as never,
     runs as never,
@@ -96,8 +98,9 @@ function setup() {
     { current: async () => version } as unknown as MapDatasetService,
     { consumeUser: async () => undefined } as unknown as MapLimitsService,
     { get: async () => undefined, set: async () => undefined } as unknown as RedisService,
+    { mapFor: async () => weights } as unknown as MapWeightsService,
   );
-  return { service, analyses, runs, release: () => (version += 1) };
+  return { service, analyses, runs, weights, release: () => (version += 1) };
 }
 
 const A = 'user-a';
@@ -173,6 +176,18 @@ describe('MapEvaluationService', () => {
     await expect(service.override(B, 'cho', { lat, lng, skipped: true })).rejects.toMatchObject({ status: 404 });
     const own = await service.override(A, 'cho', { lat, lng, skipped: true });
     expect(own.skipped.map((item) => item.id)).toEqual(['cho']);
+  });
+
+  it('điểm tổng theo trọng số của chính người dùng; đổi trọng số không gọi AI', async () => {
+    const { service, analyses, weights } = setup();
+    const first = await service.run(A, lat, lng, false);
+    const hospital = [...first.evaluation.strengths.items, ...first.evaluation.weaknesses.items].find((item) => item.id === 'benh-vien');
+    for (const id of ['cho', 'hieu-thuoc', 'sieu-thi', 'ubnd', 'vat-tu', 'quan-an', 'cong-vien', 'truong-hoc', 'duong-lon', 'noi-do', 'metro', 'xe-buyt', 'on-giao-thong', 'mat-do-dan-cu', 'khong-khi', 'do-cao', 'ngap-song', 'mang-xanh']) {
+      weights.set(id, 0);
+    }
+    const reopened = await service.mine(A, lat, lng);
+    expect(reopened.evaluation?.overall).toBe(hospital?.score);
+    expect(analyses.rows).toHaveLength(1);
   });
 
   it('tóm tắt cho danh sách đã lưu chỉ gồm lượt của chính người dùng', async () => {

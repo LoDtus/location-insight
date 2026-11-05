@@ -13,7 +13,7 @@ export type RouteVehicle = (typeof ROUTE_VEHICLES)[number];
 
 export type MapApi = 'autocomplete' | 'place' | 'reverse' | 'route';
 /** Thao tác chỉ chạy trong hệ thống (không gọi Vietmap) nhưng vẫn giới hạn theo người dùng. */
-export type MapLocalApi = 'config' | 'evaluate' | 'evaluation-read' | 'saved' | 'search-pins' | 'layers';
+export type MapLocalApi = 'config' | 'evaluate' | 'evaluation-read' | 'saved' | 'search-pins' | 'layers' | 'weights';
 
 /** Giới hạn mỗi người dùng (cửa sổ cố định theo giây). */
 export const MAP_USER_LIMITS: Readonly<
@@ -29,6 +29,8 @@ export const MAP_USER_LIMITS: Readonly<
   'search-pins': { limit: 10, windowSeconds: 60 },
   /** Ô lớp bản đồ: mỗi lần kéo bản đồ có thể cần vài ô mới (đều có cache). */
   layers: { limit: 300, windowSeconds: 60 },
+  /** Xem/đổi trọng số tiêu chí. */
+  weights: { limit: 60, windowSeconds: 60 },
   autocomplete: { limit: 90, windowSeconds: 60 },
   place: { limit: 30, windowSeconds: 60 },
   reverse: { limit: 30, windowSeconds: 60 },

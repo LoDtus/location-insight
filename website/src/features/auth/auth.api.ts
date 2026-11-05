@@ -173,6 +173,7 @@ export async function logout(): Promise<void> {
         clearSavedMapView();
         clearSearchHistory();
         void import("@/features/map/hooks/use-saved-places").then((module) => module.resetSavedPlaces());
+        void import("@/features/map/hooks/use-criterion-weights").then((module) => module.resetWeightsStore());
         store.dispatch(sessionCleared());
     }
 }

@@ -214,6 +214,14 @@ export class UpdateSavedPlaceDto {
   compared?: boolean;
 }
 
+/** Trọng số một tiêu chí: số nguyên 0–5 (kiểm tra lại ở service). */
+export class CriterionWeightDto {
+  @IsInt()
+  @Min(0)
+  @Max(5)
+  weight: number;
+}
+
 export class CriterionOverrideDto extends PlacePointDto {
   @IsOptional()
   @IsBoolean()

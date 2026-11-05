@@ -14,6 +14,7 @@ import type {
     PlaceEvaluation,
     RouteVehicle,
     SavedPlace,
+    WeightsView,
 } from "@/features/map/map.types";
 
 function withSignal(signal?: AbortSignal): RequestInit {
@@ -189,4 +190,18 @@ export function resetCriterion(point: MapPoint, criterionId: string): Promise<Pl
     return apiRequest(`/map/places/evaluation/criteria/${encodeURIComponent(criterionId)}?${pointQuery(point)}`, {
         method: "DELETE",
     });
+}
+
+/** Trọng số tiêu chí của chính người dùng. */
+export function getWeights(signal?: AbortSignal): Promise<WeightsView> {
+    return apiRequest("/map/weights", withSignal(signal));
+}
+
+export function setWeight(criterionId: string, weight: number): Promise<WeightsView> {
+    return apiRequest(`/map/weights/${encodeURIComponent(criterionId)}`, { method: "PUT", body: JSON.stringify({ weight }) });
+}
+
+/** Về mặc định một tiêu chí, hoặc tất cả khi không truyền mã. */
+export function resetWeights(criterionId?: string): Promise<WeightsView> {
+    return apiRequest(criterionId ? `/map/weights/${encodeURIComponent(criterionId)}` : "/map/weights", { method: "DELETE" });
 }

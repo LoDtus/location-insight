@@ -9,6 +9,7 @@ import { MapPlaceAnalysisEntity } from './entities/map-place-analysis.entity.js'
 import { MapPlaceEvaluationRunEntity } from './entities/map-place-evaluation-run.entity.js';
 import { MapDatasetService } from './map-dataset.service.js';
 import { MapLimitsService } from './map-limits.service.js';
+import { MapWeightsService } from './map-weights.service.js';
 import { MapPlaceResolver, type ResolvedPlace } from './map-place-resolver.service.js';
 import { MAP_ANALYSIS_TTL, MAP_REDIS_KEYS } from './map.constants.js';
 import {
@@ -80,6 +81,7 @@ export class MapEvaluationService {
     private readonly dataset: MapDatasetService,
     private readonly limits: MapLimitsService,
     private readonly redis: RedisService,
+    private readonly weights: MapWeightsService,
   ) {}
 
   /** Lượt gần nhất của chính người dùng tại địa điểm chứa điểm bấm; null nếu chưa từng bấm. Không gọi AI. */
@@ -110,7 +112,8 @@ export class MapEvaluationService {
       }),
     );
     this.logger.log(`Lượt đánh giá ${run.id}: user ${userId}, địa điểm ${place.id}, ${source}`);
-    return { evaluation: this.compose(run, analysis, await this.userOverrides(userId, place.id), current), source };
+    const [overrides, weights] = await Promise.all([this.userOverrides(userId, place.id), this.weights.mapFor(userId)]);
+    return { evaluation: this.compose(run, analysis, overrides, current, weights), source };
   }
 
   /** Bỏ qua tiêu chí và/hoặc đặt điểm tay trên lượt của chính người dùng. Chưa có lượt thì 404. */
@@ -169,16 +172,17 @@ export class MapEvaluationService {
     const latest = new Map<string, MapPlaceEvaluationRunEntity>();
     for (const run of runs) if (!latest.has(run.placeId)) latest.set(run.placeId, run);
     if (latest.size === 0) return result;
-    const [rows, overrides, current] = await Promise.all([
+    const [rows, overrides, current, weights] = await Promise.all([
       this.analyses.find({ where: { id: In([...latest.values()].map((run) => run.analysisId)) } }),
       this.overrides.find({ where: { userId, placeId: In([...latest.keys()]) } }),
       this.dataset.current(),
+      this.weights.mapFor(userId),
     ]);
     const byId = new Map(rows.map((row) => [row.id, row]));
     for (const [placeId, run] of latest) {
       const row = byId.get(run.analysisId);
       if (!row) continue;
-      result.set(placeId, this.compose(run, toCached(row), overrides.filter((item) => item.placeId === placeId), current));
+      result.set(placeId, this.compose(run, toCached(row), overrides.filter((item) => item.placeId === placeId), current, weights));
     }
     return result;
   }
@@ -206,8 +210,12 @@ export class MapEvaluationService {
   }
 
   private async view(userId: string, run: MapPlaceEvaluationRunEntity, current: number): Promise<EvaluationView> {
-    const [analysis, overrides] = await Promise.all([this.analysisById(run.analysisId), this.userOverrides(userId, run.placeId)]);
-    return this.compose(run, analysis, overrides, current);
+    const [analysis, overrides, weights] = await Promise.all([
+      this.analysisById(run.analysisId),
+      this.userOverrides(userId, run.placeId),
+      this.weights.mapFor(userId),
+    ]);
+    return this.compose(run, analysis, overrides, current, weights);
   }
 
   private compose(
@@ -215,6 +223,7 @@ export class MapEvaluationService {
     analysis: CachedAnalysis,
     overrides: MapCriterionOverrideEntity[],
     current: number,
+    weights: ReadonlyMap<string, number>,
   ): EvaluationView {
     const evaluation = buildEvaluation(
       run.lat,
@@ -222,6 +231,7 @@ export class MapEvaluationService {
       analysis.measurements,
       overrides.map((row) => ({ criterionId: row.criterionId, skipped: row.skipped, score: row.score })),
       analysis.sample,
+      weights,
     );
     return {
       ...evaluation,

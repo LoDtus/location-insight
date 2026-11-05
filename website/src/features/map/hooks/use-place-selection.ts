@@ -18,7 +18,8 @@ export function usePlaceSelection() {
 
     useEffect(() => () => controllerRef.current?.abort(), []);
 
-    const selectPoint = useCallback((point: MapPoint, known?: MapPlace): void => {
+    /** `nameOverride`: điểm đã biết tên (vd. điểm tiện ích trên lớp bản đồ) nhưng vẫn lấy địa chỉ bằng Reverse. */
+    const selectPoint = useCallback((point: MapPoint, known?: MapPlace, nameOverride?: string): void => {
         controllerRef.current?.abort();
         if (known) {
             setSelection({ status: "ready", point, place: known });
@@ -28,7 +29,20 @@ export function usePlaceSelection() {
         controllerRef.current = controller;
         setSelection({ status: "loading", point });
         reverseGeocode(point, controller.signal)
-            .then((place) => setSelection({ status: "ready", point, place }))
+            .then((place) =>
+                setSelection({
+                    status: "ready",
+                    point,
+                    place: nameOverride
+                        ? {
+                              ...(place ?? { lat: point.lat, lng: point.lng, address: "", addressOld: null, display: "" }),
+                              name: nameOverride,
+                              kind: "poi",
+                              distanceM: 0,
+                          }
+                        : place,
+                }),
+            )
             .catch((error: unknown) => {
                 if (isAbortError(error)) return;
                 setSelection({

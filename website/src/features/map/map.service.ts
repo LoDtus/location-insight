@@ -58,6 +58,21 @@ export function searchPinResults(text: string, focus: MapPoint, filters: SearchF
     return apiRequest(`/map/search/pins?${query.toString()}`, withSignal(signal));
 }
 
+export interface LayerTile {
+    z: number;
+    x: number;
+    y: number;
+    version: string;
+    /** c: nhóm, n: tên, k: thẻ gốc. */
+    points: Array<{ c: string; n: string; k: string; lat: number; lng: number }>;
+    truncated: boolean;
+}
+
+/** Điểm tiện ích của một ô zoom 13 (mọi nhóm; client lọc theo lớp đang bật). */
+export function getLayerTile(x: number, y: number, signal?: AbortSignal): Promise<LayerTile> {
+    return apiRequest(`/map/layers/places?x=${x}&y=${y}`, withSignal(signal));
+}
+
 export function resolvePlace(refId: string, signal?: AbortSignal): Promise<MapPlace> {
     const query = new URLSearchParams({ refId });
     return apiRequest(`/map/places/resolve?${query.toString()}`, withSignal(signal));

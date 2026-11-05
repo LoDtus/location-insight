@@ -15,6 +15,7 @@ import MapContextMenu, { type ContextAction } from "@/features/map/components/ma
 import MapDirectionsPanel from "@/features/map/components/map-directions-panel";
 import MapFilterPanel, { countFilters } from "@/features/map/components/map-filter-panel";
 import MapLayerPicker from "@/features/map/components/map-layer-picker";
+import MapListingPanel from "@/features/map/components/map-listing-panel";
 import MapPlaceDetail from "@/features/map/components/map-place-detail";
 import MapPlacePanel from "@/features/map/components/map-place-panel";
 import MapResultsPanel, { type ResultsState } from "@/features/map/components/map-results-panel";
@@ -26,6 +27,8 @@ import MapUsageCard from "@/features/map/components/map-usage-card";
 import MapZoomControls from "@/features/map/components/map-zoom-controls";
 import { useDirections } from "@/features/map/hooks/use-directions";
 import { useMapConfig } from "@/features/map/hooks/use-map-config";
+import { useMapOverlays } from "@/features/map/hooks/use-map-overlays";
+import { POI_MIN_ZOOM, POI_STYLE, listingPins, shortPrice, type ListingPin, type OverlayId } from "@/features/map/map-overlays";
 import { usePlaceSelection } from "@/features/map/hooks/use-place-selection";
 import { pendingKey, useSavedPlaces } from "@/features/map/hooks/use-saved-places";
 import { showToast } from "@/shared/components/toast/toast-store";
@@ -69,10 +72,11 @@ interface MapScreenProps {
     root?: ShellRoot;
 }
 
-type Panel = "place" | "directions" | "usage" | "detail" | "saved" | "results" | null;
+type Panel = "place" | "directions" | "usage" | "detail" | "saved" | "results" | "listing" | null;
 
 const POINT_LABEL_FALLBACK = "Điểm đã chọn";
 const NO_RESULTS: PinResult[] = [];
+const NO_LISTINGS: never[] = [];
 const URL_WRITE_DELAY_MS = 500;
 
 function toWaypoint(place: MapPlace): Waypoint {
@@ -157,7 +161,9 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
     const [query, setQuery] = useState<string | null>(init.q);
     const [queryValue, setQueryValue] = useState(init.q ?? "");
     const [urlErrors, setUrlErrors] = useState<MapUrlError[]>(initialParse.errors);
-    const [viewport, setViewport] = useState<MapViewport>({ zoom: 12, lat: 21.03, lng: 105.83, bearing: 0, pitch: 0 });
+    const [viewport, setViewport] = useState<MapViewport>({ zoom: 12, lat: 21.03, lng: 105.83, bearing: 0, pitch: 0, bounds: [0, 0, 0, 0] });
+    const [overlays, setOverlays] = useState<OverlayId[]>(init.overlays);
+    const [openListing, setOpenListing] = useState<ListingPin | null>(null);
     const [viewportReady, setViewportReady] = useState(false);
     const [panel, setPanel] = useState<Panel>(
         hasDirectionsInUrl ? "directions" : init.pin ? "place" : placeId !== undefined ? "detail" : null,
@@ -182,6 +188,23 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
     const searchCenter: MapPoint = ping ?? focus;
     const filterCount = countFilters(filters);
     const resultPins = results?.status === "ready" ? results.items : NO_RESULTS;
+    const overlayData = useMapOverlays({ overlays, zoom: viewport.zoom, bounds: viewportReady ? viewport.bounds : null });
+    const showListings = overlays.includes("listing");
+    const allListingPins = useMemo(() => listingPins(), []);
+    const listingMarkers = useMemo(
+        () =>
+            showListings
+                ? allListingPins.map((pin) => ({
+                      id: pin.listing.id,
+                      lat: pin.point.lat,
+                      lng: pin.point.lng,
+                      label: shortPrice(pin.listing),
+                      title: pin.listing.title,
+                      approximate: pin.approximate,
+                  }))
+                : NO_LISTINGS,
+        [showListings, allListingPins],
+    );
     const resultMarkers = useMemo(
         () => resultPins.map((item) => ({ id: item.refId, lat: item.lat, lng: item.lng, name: item.name })),
         [resultPins],
@@ -295,6 +318,7 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
         p: viewportReady ? viewport.pitch : null,
         s: styleId,
         traffic: trafficOn,
+        overlays,
         q: query && query.trim().length >= 2 ? query.trim() : null,
         filters,
         pin: selection.status === "none" ? null : selection.point,
@@ -328,6 +352,7 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
         setUrlErrors(errors);
         setStyleId(state.s ?? "tm");
         setTrafficOn(state.traffic && trafficAvailable);
+        setOverlays(state.overlays);
         setFilters(state.filters);
         setQuery(state.q);
         setQueryValue(state.q ?? "");
@@ -789,6 +814,16 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                 }}
                 onClose={closePanel}
             />
+        ) : panel === "listing" && openListing ? (
+            <MapListingPanel
+                pin={openListing}
+                root={root}
+                onClose={() => {
+                    setOpenListing(null);
+                    setPanel(null);
+                }}
+                onDirections={() => openDirections({ to: { ...openListing.point, label: openListing.listing.title } })}
+            />
         ) : panel === "results" && results ? (
             <MapResultsPanel state={results} onOpen={(item) => openResult(item, true)} onClose={clearResults} />
         ) : panel === "usage" ? (
@@ -811,6 +846,22 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                 activeRoute={directions.active}
                 circle={null}
                 results={resultMarkers}
+                pois={overlayData.features}
+                onPoiClick={(poi) => {
+                    const point = { lat: poi.lat, lng: poi.lng };
+                    directions.close();
+                    setPicking(null);
+                    setPing(point);
+                    selectPoint(point, undefined, poi.name || POI_STYLE[poi.category].label);
+                    setPanel("place");
+                }}
+                listings={listingMarkers}
+                onListingClick={(id) => {
+                    const pin = allListingPins.find((item) => item.listing.id === id);
+                    if (!pin) return;
+                    setOpenListing(pin);
+                    setPanel("listing");
+                }}
                 onResultClick={(id) => {
                     const item = resultPins.find((entry) => entry.refId === id);
                     if (item) openResult(item, false);
@@ -903,6 +954,23 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                                         </button>
                                     </p>
                                 ) : null}
+                                {overlayData.tooFar ? (
+                                    <p className="pointer-events-auto m-0 flex items-center gap-2 self-start rounded-full bg-white py-1 pr-1 pl-3 text-xs shadow-sm ring-1 ring-charcoal/10">
+                                        Phóng to để xem các điểm tiện ích đã bật
+                                        <button
+                                            type="button"
+                                            onClick={() => mapRef.current?.setView({ zoom: POI_MIN_ZOOM + 1 })}
+                                            className="rounded-full bg-charcoal/5 px-2 py-1 font-semibold hover:bg-charcoal/10"
+                                        >
+                                            Phóng to
+                                        </button>
+                                    </p>
+                                ) : null}
+                                {overlayData.failed ? (
+                                    <p role="alert" className="pointer-events-auto m-0 self-start rounded-full bg-white px-3 py-1.5 text-xs text-red-700 shadow-sm">
+                                        Không tải được một phần điểm tiện ích. Kéo bản đồ để thử lại.
+                                    </p>
+                                ) : null}
                                 <MapUrlErrors errors={urlErrors} onDismiss={() => setUrlErrors([])} />
                                 {failed ? (
                                     <p role="alert" className="pointer-events-auto m-0 rounded-lg bg-white px-3 py-2 text-sm text-red-700 shadow-sm">
@@ -921,6 +989,9 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                                 trafficAvailable={trafficAvailable}
                                 trafficOn={trafficOn}
                                 onTrafficChange={setTrafficOn}
+                                overlays={overlays}
+                                onOverlaysChange={setOverlays}
+                                listingCount={allListingPins.length}
                             />
                             <MapScaleBar zoom={viewport.zoom} latitude={viewport.lat} />
                             <MapZoomControls

@@ -1,3 +1,4 @@
+import { OVERLAY_IDS, type OverlayId } from "@/features/map/map-overlays";
 import type { MapPoint, MapStyleId, RouteVehicle } from "@/features/map/map.types";
 
 /** Hộp bao Việt Nam [minLng, minLat, maxLng, maxLat] — khớp backend. */
@@ -10,7 +11,7 @@ export const MAP_STYLE_IDS: readonly MapStyleId[] = ["tm", "lm", "dm", "hm"];
 export const ROUTE_VEHICLE_IDS: readonly RouteVehicle[] = ["motorcycle", "car"];
 export const SEARCH_SCOPES = ["POI", "ADDRESS", "VILLAGE", "WARD", "DIST", "CITY", "STREET"] as const;
 export const ROUTE_AVOIDS = ["ferry"] as const;
-export const MAP_LAYER_IDS = ["traffic"] as const;
+export const MAP_LAYER_IDS = ["traffic", ...OVERLAY_IDS] as const;
 
 const CATS_PATTERN = /^\d{1,6}(-\d{1,3})?(,\d{1,6}(-\d{1,3})?){0,9}$/;
 const ISO_UTC_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?Z$/;
@@ -33,6 +34,8 @@ export interface MapUrlState {
     p: number | null;
     s: MapStyleId | null;
     traffic: boolean;
+    /** Lớp hiển thị đang bật (tin rao, trường học…), theo thứ tự OVERLAY_IDS. */
+    overlays: OverlayId[];
     q: string | null;
     filters: SearchFilters;
     pin: MapPoint | null;
@@ -65,7 +68,7 @@ const ROUTE_ONLY = ["v", "alt", "route", "avoid", "t"] as const;
 
 export function emptyMapUrlState(): MapUrlState {
     return {
-        c: null, z: null, b: null, p: null, s: null, traffic: false, q: null, filters: {},
+        c: null, z: null, b: null, p: null, s: null, traffic: false, overlays: [], q: null, filters: {},
         pin: null, from: null, to: null, v: null, alt: null, route: null, avoid: null, t: null,
     };
 }
@@ -170,7 +173,10 @@ export function parseMapUrl(params: URLSearchParams): MapUrlParseResult {
         const items = layers.split(",").map((item) => item.trim());
         const bad = items.filter((item) => !(MAP_LAYER_IDS as readonly string[]).includes(item));
         if (bad.length) fail("layers", `không hỗ trợ lớp "${bad.join(", ")}"; chỉ nhận ${MAP_LAYER_IDS.join(", ")}`);
-        else state.traffic = items.includes("traffic");
+        else {
+            state.traffic = items.includes("traffic");
+            state.overlays = OVERLAY_IDS.filter((id) => items.includes(id));
+        }
     }
 
     const q = one("q");
@@ -270,7 +276,8 @@ export function buildMapUrl(state: MapUrlState): string {
     if (state.b !== null && Math.round(state.b) !== 0) pairs.push(["b", String(Math.round(state.b))]);
     if (state.p !== null && Math.round(state.p) !== 0) pairs.push(["p", String(Math.round(state.p))]);
     if (state.s && state.s !== "tm") pairs.push(["s", state.s]);
-    if (state.traffic) pairs.push(["layers", "traffic"]);
+    const layers = [...(state.traffic ? ["traffic"] : []), ...OVERLAY_IDS.filter((id) => state.overlays.includes(id))];
+    if (layers.length > 0) pairs.push(["layers", layers.join(",")]);
     if (state.q) pairs.push(["q", state.q]);
     const f = state.filters;
     if (f.cats) pairs.push(["cats", f.cats]);

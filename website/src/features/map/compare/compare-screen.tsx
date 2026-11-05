@@ -14,6 +14,8 @@ import { getCompare, isAbortError, mapErrorMessage, updateSavedPlace } from "@/f
 import type { CompareItem, MapPoint } from "@/features/map/map.types";
 import { showToast } from "@/shared/components/toast/toast-store";
 
+const NO_ITEMS: CompareItem[] = [];
+
 type LoadState = { status: "loading" } | { status: "ready"; items: CompareItem[] } | { status: "error"; message: string };
 
 function mapHref(root: string, point: MapPoint): string {
@@ -58,7 +60,7 @@ export default function CompareScreen({ root = "/app" }: { root?: "/app" | "/adm
         return () => controller.abort();
     }, [load]);
 
-    const items = state.status === "ready" ? state.items : [];
+    const items = state.status === "ready" ? state.items : NO_ITEMS;
     const table = useMemo(() => buildCompareTable(items), [items]);
 
     async function removeItem(item: CompareItem): Promise<void> {

@@ -101,6 +101,21 @@ export class SearchQueryDto {
   radius?: number;
 }
 
+/** Ô lớp bản đồ ở zoom cố định 13: x, y trong [0, 2^13). */
+export class LayerTileQueryDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(8191)
+  x: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(8191)
+  y: number;
+}
+
 export class ResolveQueryDto {
   @IsString()
   @MaxLength(MAP_REF_ID_MAX)

@@ -20,7 +20,8 @@
     "test:cov": "vitest run --coverage",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
-    "admin:grant": "tsx scripts/admin-grant.ts"
+    "admin:grant": "tsx scripts/admin-grant.ts",
+    "places:import": "tsx scripts/import-places.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1157.0",

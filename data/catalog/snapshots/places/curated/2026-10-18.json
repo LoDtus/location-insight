@@ -1,0 +1,47 @@
+{
+  "domain": "places",
+  "source": "osm",
+  "version": "2026-10-18",
+  "stage": "curated",
+  "upstream_version": null,
+  "retrieved_at": "2026-11-05T09:56:20+00:00",
+  "url": null,
+  "license": "ODbL",
+  "path": "curated/places/2026-10-18",
+  "files": [
+    {
+      "path": "processed/places/osm/2026-10-18/places.ndjson",
+      "sha256": "65a1dfc581c9407bc2fbc4237f17beb53995f0f74bcf3273911e4055cc2555cb",
+      "bytes": 2350168,
+      "records": 16418
+    },
+    {
+      "path": "curated/places/2026-10-18/places.ndjson",
+      "sha256": "f17e6e8046a9dfd9128968149fead90b97e300c7b132642d729dad5a66414ca5",
+      "bytes": 1848563,
+      "records": 12723
+    }
+  ],
+  "record_count": 12723,
+  "bbox": [
+    105.28,
+    20.56,
+    106.02,
+    21.39
+  ],
+  "by_category": {
+    "bank": 1399,
+    "bus": 4135,
+    "food": 2261,
+    "hardware": 19,
+    "hospital": 416,
+    "market": 227,
+    "metro": 39,
+    "park": 747,
+    "pharmacy": 245,
+    "school": 2788,
+    "supermarket": 268,
+    "townhall": 179
+  },
+  "notes": "Trích từ raw/places/osm/2026-10-18/vietnam-261017.osm.pbf: điểm tiện ích Hà Nội cho lớp bản đồ. Gộp trùng cùng nhóm cách nhau < 40 m. Điểm dạng vùng lấy trung bình các đỉnh. Chợ cóc, cửa hàng vật tư rất thưa trên OSM."
+}

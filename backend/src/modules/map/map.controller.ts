@@ -2,11 +2,13 @@ import { Controller, Get, Header, Query, Req } from '@nestjs/common';
 import { Public, RequirePermission } from '../../common/decorators/access.decorator.js';
 import type { RequestWithPrincipal } from '../auth/auth.guard.js';
 import {
+  LayerTileQueryDto,
   ResolveQueryDto,
   ReverseQueryDto,
   RouteQueryDto,
   SearchQueryDto,
 } from './dto/map.dto.js';
+import { MapLayersService } from './map-layers.service.js';
 import { MapService } from './map.service.js';
 
 function userId(request: RequestWithPrincipal): string {
@@ -15,7 +17,18 @@ function userId(request: RequestWithPrincipal): string {
 
 @Controller('map')
 export class MapController {
-  constructor(private readonly map: MapService) {}
+  constructor(
+    private readonly map: MapService,
+    private readonly layers: MapLayersService,
+  ) {}
+
+  /** Điểm tiện ích của một ô (zoom 13) cho các lớp bản đồ; client tự lọc theo lớp đang bật. */
+  @RequirePermission('map:use')
+  @Header('Cache-Control', 'private, max-age=3600')
+  @Get('layers/places')
+  layerTile(@Query() query: LayerTileQueryDto, @Req() request: RequestWithPrincipal) {
+    return this.layers.tile(userId(request), query.x, query.y);
+  }
 
   @RequirePermission('map:use')
   @Header('Cache-Control', 'private, max-age=300')

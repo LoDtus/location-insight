@@ -1,8 +1,9 @@
 "use client";
 
-import { Layers } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { ChevronDown, House, Layers } from "lucide-react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
+import { OTHER_AMENITIES, POI_STYLE, type OverlayId, type PoiCategory } from "@/features/map/map-overlays";
 import type { MapStyleId } from "@/features/map/map.types";
 
 const BASE_LAYERS: Array<{ id: MapStyleId; label: string; swatch: string }> = [
@@ -20,6 +21,26 @@ interface MapLayerPickerProps {
     trafficAvailable: boolean;
     trafficOn: boolean;
     onTrafficChange: (on: boolean) => void;
+    /** Lớp hiển thị đang bật. */
+    overlays: readonly OverlayId[];
+    onOverlaysChange: (next: OverlayId[]) => void;
+    /** Số tin rao đang có trên bản đồ (để hiện cạnh công tắc). */
+    listingCount: number;
+}
+
+function Switch({ on, label }: { on: boolean; label?: string }): ReactNode {
+    return (
+        <span
+            aria-hidden={label ? undefined : true}
+            className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors motion-reduce:transition-none ${on ? "bg-green" : "bg-charcoal/20"}`}
+        >
+            <span className={`absolute size-4 rounded-full bg-white shadow transition-transform motion-reduce:transition-none ${on ? "translate-x-[18px]" : "translate-x-0.5"}`} />
+        </span>
+    );
+}
+
+function Dot({ color }: { color: string }): ReactNode {
+    return <span aria-hidden className="inline-block size-3 shrink-0 rounded-full ring-2 ring-white" style={{ background: color, boxShadow: `0 0 0 1px ${color}40` }} />;
 }
 
 export default function MapLayerPicker({
@@ -28,8 +49,32 @@ export default function MapLayerPicker({
     trafficAvailable,
     trafficOn,
     onTrafficChange,
+    overlays,
+    onOverlaysChange,
+    listingCount,
 }: MapLayerPickerProps) {
     const [open, setOpen] = useState(false);
+    const [othersOpen, setOthersOpen] = useState(false);
+    const othersId = useId();
+    const enabled = new Set(overlays);
+    const otherCount = OTHER_AMENITIES.filter((id) => enabled.has(id)).length;
+    const activeCount = overlays.length;
+
+    function setOverlay(id: OverlayId, on: boolean): void {
+        const next = new Set(overlays);
+        if (on) next.add(id);
+        else next.delete(id);
+        onOverlaysChange([...next]);
+    }
+
+    function setOthers(on: boolean): void {
+        const next = new Set(overlays);
+        for (const id of OTHER_AMENITIES) {
+            if (on) next.add(id);
+            else next.delete(id);
+        }
+        onOverlaysChange([...next]);
+    }
     const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const current = BASE_LAYERS.find((layer) => layer.id === styleId) ?? BASE_LAYERS[0];
 
@@ -50,6 +95,21 @@ export default function MapLayerPicker({
 
     useEffect(() => clearCloseTimer, []);
 
+    const row =
+        "flex min-h-10 w-full items-center gap-3 rounded-md bg-transparent px-2 text-left text-sm text-charcoal hover:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-green";
+
+    function overlayRow(id: OverlayId, label: string, marker: ReactNode, extra?: ReactNode): ReactNode {
+        const on = enabled.has(id);
+        return (
+            <button type="button" role="switch" aria-checked={on} onClick={() => setOverlay(id, !on)} className={row}>
+                {marker}
+                <span className="min-w-0 flex-1 truncate">{label}</span>
+                {extra}
+                <Switch on={on} />
+            </button>
+        );
+    }
+
     return (
         <div
             className="pointer-events-auto absolute bottom-2 left-2 z-10 flex items-end gap-2"
@@ -59,55 +119,140 @@ export default function MapLayerPicker({
                 if (event.key === "Escape") setOpen(false);
             }}
         >
-            <button
-                type="button"
-                aria-expanded={open}
-                aria-haspopup="true"
-                aria-label="Lớp bản đồ"
-                onClick={() => setOpen((value) => !value)}
-                className="relative size-14 shrink-0 overflow-hidden rounded-lg border-2 border-white shadow-md"
-                style={{ background: current.swatch }}
-            >
-                <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-0.5 bg-black/55 py-0.5 text-[10px] text-white">
-                    <Layers size={12} strokeWidth={2} aria-hidden />
-                    Lớp
-                </span>
-            </button>
+            <div className="flex flex-col items-start gap-2">
+                <button
+                    type="button"
+                    aria-pressed={enabled.has("listing")}
+                    onClick={() => setOverlay("listing", !enabled.has("listing"))}
+                    title={enabled.has("listing") ? "Ẩn tin đang rao" : "Hiện tin đang rao trên bản đồ"}
+                    className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-semibold shadow-md ring-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green ${enabled.has("listing") ? "bg-green text-cream ring-green" : "bg-white text-charcoal ring-charcoal/15 hover:bg-[#f4f4f4]"}`}
+                >
+                    <House size={14} aria-hidden /> Tin rao
+                </button>
+                <button
+                    type="button"
+                    aria-expanded={open}
+                    aria-haspopup="true"
+                    aria-label={activeCount > 0 ? `Lớp bản đồ (${activeCount} lớp hiển thị đang bật)` : "Lớp bản đồ"}
+                    onClick={() => setOpen((value) => !value)}
+                    className="relative size-14 shrink-0 rounded-lg border-2 border-white shadow-md"
+                    style={{ background: current.swatch }}
+                >
+                    <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-0.5 rounded-b-md bg-black/55 py-0.5 text-[10px] text-white">
+                        <Layers size={12} strokeWidth={2} aria-hidden />
+                        Lớp
+                    </span>
+                    {activeCount > 0 ? (
+                        <span className="absolute -top-1.5 -right-1.5 min-w-[18px] rounded-full bg-green px-1 text-center text-[10px] leading-[18px] font-semibold text-cream tabular-nums ring-2 ring-white">
+                            {activeCount}
+                        </span>
+                    ) : null}
+                </button>
+            </div>
             {open ? (
                 <div
                     role="group"
-                    aria-label="Chọn lớp bản đồ"
-                    className="flex max-w-[min(100vw-6rem,42rem)] items-start gap-3 overflow-x-auto rounded-xl bg-white p-3 shadow-lg"
+                    aria-label="Lớp bản đồ"
+                    className="flex max-h-[min(70vh,34rem)] w-[min(calc(100vw-6rem),21rem)] flex-col overflow-y-auto rounded-xl bg-white p-3 shadow-lg ring-1 ring-charcoal/10 [scrollbar-width:thin]"
                 >
-                    {BASE_LAYERS.map((layer) => (
+                    <p className="m-0 mb-2 text-xs font-semibold text-charcoal/60">Kiểu bản đồ</p>
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                        {BASE_LAYERS.map((layer) => (
+                            <button
+                                key={layer.id}
+                                type="button"
+                                aria-pressed={layer.id === styleId}
+                                className="flex w-14 shrink-0 flex-col items-center gap-1 text-center"
+                                onClick={() => onStyleChange(layer.id)}
+                            >
+                                <span
+                                    className={`block size-12 rounded-lg border-2 ${layer.id === styleId ? "border-green" : "border-transparent ring-1 ring-charcoal/15"}`}
+                                    style={{ background: layer.swatch }}
+                                />
+                                <span className="text-[11px] leading-tight text-neutral-700">{layer.label}</span>
+                            </button>
+                        ))}
+                        {trafficAvailable ? (
+                            <button
+                                type="button"
+                                aria-pressed={trafficOn}
+                                className="flex w-14 shrink-0 flex-col items-center gap-1 text-center"
+                                onClick={() => onTrafficChange(!trafficOn)}
+                            >
+                                <span
+                                    className={`block size-12 rounded-lg border-2 ${trafficOn ? "border-green" : "border-transparent ring-1 ring-charcoal/15"}`}
+                                    style={{ background: "linear-gradient(135deg,#1a9850,#f2b705 50%,#c0392b)" }}
+                                />
+                                <span className="text-[11px] leading-tight text-neutral-700">Giao thông</span>
+                            </button>
+                        ) : null}
+                    </div>
+
+                    <div role="presentation" className="my-2.5 h-px bg-charcoal/10" />
+                    <p className="m-0 mb-1 text-xs font-semibold text-charcoal/60">Hiển thị trên bản đồ</p>
+                    {overlayRow(
+                        "listing",
+                        "Tin đang rao",
+                        <span aria-hidden className="inline-flex h-4 shrink-0 items-center rounded-full bg-green px-1.5 text-[9px] font-bold text-cream">
+                            tỷ
+                        </span>,
+                        <span className="text-xs text-charcoal/50 tabular-nums">{listingCount}</span>,
+                    )}
+                    {overlayRow("school", POI_STYLE.school.label, <Dot color={POI_STYLE.school.color} />)}
+                    {overlayRow("bank", POI_STYLE.bank.label, <Dot color={POI_STYLE.bank.color} />)}
+                    <div className="flex items-center">
                         <button
-                            key={layer.id}
                             type="button"
-                            aria-pressed={layer.id === styleId}
-                            className="flex w-20 shrink-0 flex-col items-center gap-1 text-center"
-                            onClick={() => onStyleChange(layer.id)}
+                            role="switch"
+                            aria-checked={otherCount === OTHER_AMENITIES.length ? true : otherCount > 0 ? "mixed" : false}
+                            onClick={() => setOthers(otherCount < OTHER_AMENITIES.length)}
+                            className={`${row} flex-1`}
                         >
-                            <span
-                                className={`block size-16 rounded-lg border-2 ${layer.id === styleId ? "border-green" : "border-transparent ring-1 ring-charcoal/15"}`}
-                                style={{ background: layer.swatch }}
-                            />
-                            <span className="text-xs leading-tight text-neutral-700">{layer.label}</span>
+                            <span aria-hidden className="flex shrink-0 -space-x-1">
+                                {OTHER_AMENITIES.slice(0, 3).map((id) => (
+                                    <Dot key={id} color={POI_STYLE[id].color} />
+                                ))}
+                            </span>
+                            <span className="min-w-0 flex-1 truncate">Tiện ích khác</span>
+                            {otherCount > 0 && otherCount < OTHER_AMENITIES.length ? (
+                                <span className="text-xs text-charcoal/50 tabular-nums">
+                                    {otherCount}/{OTHER_AMENITIES.length}
+                                </span>
+                            ) : null}
+                            <Switch on={otherCount > 0} />
                         </button>
-                    ))}
-                    {trafficAvailable ? (
                         <button
                             type="button"
-                            aria-pressed={trafficOn}
-                            className="flex w-20 shrink-0 flex-col items-center gap-1 text-center"
-                            onClick={() => onTrafficChange(!trafficOn)}
+                            aria-expanded={othersOpen}
+                            aria-controls={othersId}
+                            aria-label={othersOpen ? "Thu gọn danh sách tiện ích" : "Chọn từng loại tiện ích"}
+                            onClick={() => setOthersOpen((value) => !value)}
+                            className="ml-1 inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-transparent text-charcoal/60 hover:bg-charcoal/5 hover:text-charcoal"
                         >
-                            <span
-                                className={`block size-16 rounded-lg border-2 ${trafficOn ? "border-green" : "border-transparent ring-1 ring-charcoal/15"}`}
-                                style={{ background: "linear-gradient(135deg,#1a9850,#f2b705 50%,#c0392b)" }}
-                            />
-                            <span className="text-xs leading-tight text-neutral-700">Giao thông</span>
+                            <ChevronDown size={16} aria-hidden className={`transition-transform motion-reduce:transition-none ${othersOpen ? "rotate-180" : ""}`} />
                         </button>
+                    </div>
+                    {othersOpen ? (
+                        <ul id={othersId} className="m-0 mt-0.5 mb-1 ml-3 list-none border-l border-charcoal/10 p-0 pl-2">
+                            {OTHER_AMENITIES.map((id: PoiCategory) => (
+                                <li key={id}>
+                                    <label className="flex min-h-8 cursor-pointer items-center gap-2.5 rounded-md px-2 text-sm text-charcoal/85 hover:bg-charcoal/5">
+                                        <input
+                                            type="checkbox"
+                                            checked={enabled.has(id)}
+                                            onChange={(event) => setOverlay(id, event.target.checked)}
+                                            className="size-4 accent-green"
+                                        />
+                                        <Dot color={POI_STYLE[id].color} />
+                                        {POI_STYLE[id].label}
+                                    </label>
+                                </li>
+                            ))}
+                        </ul>
                     ) : null}
+                    <p className="m-0 mt-2 text-[11px] leading-snug text-charcoal/50">
+                        Tiện ích hiện khi phóng to tới mức phố phường; quán ăn và điểm xe buýt cần phóng to thêm. Dữ liệu © OpenStreetMap. Tin chưa có tọa độ đặt gần tâm quận (nhãn nhạt hơn).
+                    </p>
                 </div>
             ) : null}
         </div>

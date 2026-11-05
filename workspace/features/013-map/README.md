@@ -94,6 +94,7 @@ Xem `interfaces/rest-api.yml`. Tiền tố `/api/v1`; quyền `map:use` (mọi n
 | PATCH | `/map/saved/:id` `{label?,note?,compared?}` | Tên gợi nhớ (≤ 80, `null`/rỗng = dùng tên gốc), ghi chú nhiều dòng (≤ 1000), bật/tắt so sánh (tối đa 6 → 409). Chỉ mục của chính mình (không thì 404); trường lạ → 400 | — (`private, no-store`) | 60/phút |
 | DELETE | `/map/saved/:id` | Bỏ lưu (chỉ của chính người dùng) | — | 60/phút |
 | GET | `/map/compare` | Bảng so sánh: mục đã lưu đang so sánh (theo thứ tự thêm) + đánh giá đầy đủ từ lượt gần nhất **của chính người dùng** (`null` nếu chưa đánh giá) | — (`private, no-store`) | 60/phút |
+| GET | `/map/layers/places?x&y` | Điểm tiện ích của một ô zoom 13 (mọi nhóm, tối đa 3 000 điểm; client lọc theo lớp đang bật) | Redis 24 giờ, khóa = phiên bản dữ liệu + ô; `Cache-Control: private, max-age=3600` | 300/phút (`layers`) |
 | GET | `/map/search/pins?text&lat&lng&radius&cats&scope` | Tìm theo loại hình ("ngân hàng"): tối đa 10 kết quả liên quan nhất kèm tọa độ để ghim, bỏ kết quả ngoài `radius` | Gợi ý 5 phút + Place 1 giờ (mỗi lượt tối đa 1 Autocomplete + 10 Place) | 10/phút (`search-pins`) |
 | GET | `/map/places/evaluation?lat&lng` | Lượt đánh giá **gần nhất của chính người dùng** (§4c); `{ evaluation: null }` nếu chưa bấm. Chỉ đọc, không tính toán, không tính phí | — (`private, no-store`) | 120/phút (`evaluation-read`) |
 | POST | `/map/places/evaluation` `{lat,lng,fresh?}` | Bấm "Đánh giá" (`fresh=false`: nhận bản phân tích mới nhất của địa điểm, chưa có thì AI chạy) hoặc "Đánh giá lại" (`fresh=true`: AI luôn chạy). Trả `{ evaluation, source: fresh|shared }` | Bản phân tích theo id `cache:map:analysis:{id}` 24 giờ | 30/phút (`evaluate`) |
@@ -139,6 +140,8 @@ interface MapRoute {
 | Postgres | `map_criterion_overrides` (khóa `user_id + place_key + criterion_id`) | Chỉnh tay: `skipped`, `score` (null = điểm tự động). Khôi phục mặc định thì xóa hàng |
 | Postgres | `map_dataset_versions` (khóa `version`) | Phiên bản bộ dữ liệu đánh giá: `note`, `released_by`, `released_at`. Hiện hành = số lớn nhất. Hệ thống tự tạo v1 |
 | Postgres | `map_places` (index `lat,lng` và `address_key`) | Địa điểm chuẩn hóa (§4d) |
+| Postgres | `map_pois` (unique `source + source_id`, index `lat,lng`) | Điểm tiện ích của lớp bản đồ: `category`, `kind`, `name`, `lat/lng`, `source_version`. Chỉ nhập bằng script, API chỉ đọc |
+| Redis | `cache:map:layers:{phiên bản}:13/{x}/{y}` TTL 24 giờ, `map:pois:version` TTL 60 s | Ô lớp bản đồ; nhập phiên bản mới thì khóa đổi theo |
 | Postgres | `map_place_analyses` (index `place_id, created_at`) | Mỗi lần AI chạy cho một địa điểm: `requested_by`, `dataset_version`, `measurements`. Bản mới nhất là thứ người bấm "Đánh giá" sau nhận. **Không bao giờ trả thẳng cho client** |
 | Postgres | `map_place_evaluation_runs` (index `user_id, place_id, created_at`) | Mỗi lần bấm (lượt tính phí): `analysis_id`, `source` (`fresh`/`shared`). Lượt mới nhất theo (user, place) là thứ người dùng thấy |
 | Redis | `cache:map:analysis:{id}` TTL 24 giờ | Bản sao bất biến của một bản phân tích; Redis lỗi thì đọc DB |
@@ -209,6 +212,15 @@ Tên và địa chỉ của địa điểm do server lấy, client chỉ gửi `
 - Phạm vi mặc định **10 km**, chỉnh 0,5–50 km (thanh trượt + ô số, tham số URL `r`; mặc định thì không ghi). Tâm là **điểm đang ghim**, không có thì tâm bản đồ.
 - Enter: đang chọn gợi ý → mở gợi ý đó; chuỗi khớp đúng một địa điểm (chỉ một gợi ý, hoặc đúng tên một gợi ý sau khi bỏ dấu) → mở địa điểm; còn lại (vd. "ngân hàng") → gọi `/map/search/pins`, ghim các kết quả bằng ghim tròn đỏ đánh số, mở danh sách kết quả, và kéo bản đồ về tâm + chỉnh zoom vừa vòng tròn phạm vi.
 - Ghim điểm: chuột phải ghim luôn điểm đó; bỏ ghim bằng mục đỏ "Bỏ ghim điểm này" cuối menu chuột phải hoặc bấm chuột trái chỗ khác trên bản đồ (thẻ Địa điểm của điểm đó đóng theo).
+
+## 4g. Lớp hiển thị trên bản đồ (tin rao, trường học, ngân hàng, tiện ích)
+
+Lớp hiển thị khác bộ lọc: bộ lọc thu hẹp kết quả **tìm kiếm**, còn lớp là điểm luôn hiện theo khung nhìn. Nên lớp nằm ở nút **Lớp** (góc dưới trái), cạnh kiểu bản đồ và giao thông; "Tin rao" có thêm nút bật nhanh ngay trên nút Lớp.
+
+- **Tin đang rao** (bán và cho thuê): nhãn giá ("3,2 tỷ", "12 tr/th"), bấm mở thẻ tin (ảnh, giá, diện tích, "Xem tin", "Chỉ đường"). Tin chưa có tọa độ đặt cố định trong ~1,5 km quanh tâm quận và hiện nhạt hơn kèm ghi chú "vị trí gần đúng". Dữ liệu tin hiện ở frontend.
+- **Trường học**, **Ngân hàng/ATM**, **Tiện ích khác** (chợ, hiệu thuốc, siêu thị, bệnh viện/phòng khám, công viên, quán ăn/cà phê, UBND, vật tư, xe buýt, metro; bật cả nhóm hoặc từng loại): chấm tròn màu theo nhóm, vẽ bằng lớp GeoJSON (không phải DOM) để nhẹ. Hiện từ zoom 13; quán ăn và xe buýt từ zoom 15. Bấm một chấm mở thẻ Địa điểm với tên điểm, địa chỉ lấy bằng Reverse.
+- Dữ liệu tiện ích: OSM Hà Nội, `tools/data/osm_places.py` → `data/curated/places/{phiên bản}/places.ndjson` (gộp trùng cùng nhóm < 40 m) → `npx tsx scripts/import-places.ts --source osm --version …` (stdin) vào `map_pois`. Không gọi Vietmap theo khung nhìn (đắt). Client tải theo ô zoom 13, nhớ tối đa 80 ô trong tab.
+- Tham số URL `layers` nhận thêm `listing, school, bank, market, pharmacy, supermarket, hospital, park, food, townhall, hardware, bus, metro` (cùng `traffic`).
 
 ## 5. Giao diện
 
@@ -330,4 +342,6 @@ Backend `backend/src/modules/map/` (controller, service, client, mapper có test
 | AC21 | Thêm vào so sánh → badge của tab "So sánh" (ngay dưới "Bản đồ" ở thanh bên) tăng; `/…/compare` hiện bảng 1–6 cột theo điểm tổng và 19 tiêu chí, ô cao nhất mỗi hàng được tô; thêm cột thứ 7 → 409. |
 | AC22 | Bấm ô tìm khi chưa gõ → popover có lịch sử gần nhất và phạm vi (mặc định 10 km); kéo/nhập bán kính → vòng tròn hiện, dừng thì mờ dần. Mở popover thì bộ lọc đóng và ngược lại; bộ lọc có badge số lựa chọn đã áp dụng. |
 | AC23 | Đang ghim rồi kéo bản đồ đi chỗ khác, gõ "ngân hàng" + Enter → bản đồ về đúng điểm ghim, zoom vừa phạm vi, ghim các ngân hàng trong phạm vi bằng ghim khác ghim chính. |
+| AC24 | Nút Lớp có mục "Hiển thị trên bản đồ" (Tin đang rao, Trường học, Ngân hàng, Tiện ích khác + từng loại), badge số lớp đang bật; bật lớp → điểm hiện từ zoom 13, `layers=` trên URL giữ đúng các lớp; mở lại link vẫn đúng. |
+| AC25 | Bấm nhãn giá → thẻ tin rao; bấm chấm tiện ích → thẻ Địa điểm đúng tên. Kéo bản đồ qua ô đã tải không gọi lại API; ô ngoài Việt Nam hoặc tham số sai → 400/rỗng. |
 | AC17 | Người không phải admin gọi `/admin/map/dataset-versions` → 403; chỉnh tiêu chí khi chưa có lượt của mình → 404; gửi kèm `userId` → 400. |

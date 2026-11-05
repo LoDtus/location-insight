@@ -198,176 +198,192 @@ export default function ListingDetail({
         lightbox.current?.showModal();
     }
 
-    return (
-        <div className="box-border w-full px-4 py-8 pb-28 sm:px-8 lg:pb-16 xl:px-50">
-            <Link
-                href={catalogHref}
-                className="inline-flex min-h-11 items-center text-sm font-semibold no-underline hover:underline"
+    const card = "rounded-lg border border-charcoal/15 bg-white";
+    const heading = "m-0 text-lg font-semibold";
+    const ghostButton =
+        "inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-charcoal/25 bg-white px-3 text-sm font-semibold text-charcoal hover:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green";
+    const chip = "inline-flex min-h-6 items-center gap-1 rounded-md px-2 text-xs font-semibold";
+    const sellerCard = (
+        <div className="flex items-center gap-3">
+            <span
+                aria-hidden="true"
+                className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-green/15 text-sm font-semibold text-green"
             >
-                {text(messages, "back")}
-            </Link>
-            <nav aria-label={text(messages, "breadcrumb")} className="py-2 text-sm text-charcoal/70">
-                <ol className="m-0 flex list-none flex-wrap items-center gap-x-2 p-0">
+                {posterInitials}
+            </span>
+            <div className="min-w-0">
+                <b className="block truncate">{posterName}</b>
+                <span className="block text-xs text-charcoal/70">{posterRole}</span>
+            </div>
+        </div>
+    );
+
+    return (
+        <div className="mx-auto box-border w-full max-w-7xl px-4 pt-3 pb-24 sm:px-6 lg:pb-10">
+            <nav aria-label={text(messages, "breadcrumb")} className="text-sm text-charcoal/70">
+                <ol className="m-0 flex list-none flex-wrap items-center gap-x-1.5 p-0">
                     <li>
-                        <Link href={homeHref} className="inline-flex min-h-8 items-center">
+                        <Link href={homeHref} className="inline-flex min-h-8 items-center hover:text-charcoal">
                             {text(messages, "home")}
                         </Link>
                     </li>
                     <li aria-hidden="true">›</li>
                     <li>
-                        <Link href={catalogHref} className="inline-flex min-h-8 items-center">
+                        <Link href={catalogHref} className="inline-flex min-h-8 items-center hover:text-charcoal">
                             {text(messages, "catalog")}
                         </Link>
                     </li>
                     <li aria-hidden="true">›</li>
                     <li>
-                        <Link
-                            href={districtHref}
-                            className="inline-flex min-h-8 items-center"
-                        >
+                        <Link href={districtHref} className="inline-flex min-h-8 items-center hover:text-charcoal">
                             {listing.district}
                         </Link>
                     </li>
                     <li aria-hidden="true">›</li>
-                    <li aria-current="page" className="inline-flex min-h-8 items-center">
+                    <li aria-current="page" className="inline-flex min-h-8 max-w-[40ch] items-center truncate text-charcoal">
                         {listing.title}
                     </li>
                 </ol>
             </nav>
 
-            <div className="mt-2 flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
-                <div className="contents lg:flex lg:flex-col lg:gap-6">
-                    <section aria-label={text(messages, "photos")} className="relative order-1">
-                        <div className="grid aspect-video grid-cols-[2fr_1fr] grid-rows-2 gap-2 overflow-hidden rounded-2xl max-md:flex max-md:aspect-auto max-md:snap-x max-md:snap-mandatory max-md:overflow-x-auto">
-                            {listing.images.map((src, index) => (
-                                <button
-                                    key={src}
-                                    type="button"
-                                    onClick={() => openPhoto(index)}
-                                    className={`relative min-h-0 overflow-hidden bg-charcoal p-0 max-md:aspect-[4/3] max-md:w-full max-md:shrink-0 max-md:snap-start ${
-                                        index === 0
-                                            ? "col-start-1 row-span-2 row-start-1"
-                                            : index === 1
-                                              ? "col-start-2 row-start-1"
-                                              : "col-start-2 row-start-2"
-                                    }`}
-                                    aria-label={fill(text(messages, "openPhoto"), {
-                                        index: String(index + 1),
-                                        total: String(listing.images.length),
-                                    })}
-                                >
-                                    <img
-                                        src={src}
-                                        alt={listing.title}
-                                        className="h-full w-full object-cover"
-                                    />
-                                </button>
-                            ))}
-                        </div>
+            {/* Hàng sản phẩm: ảnh bên trái, khung mua hàng bên phải. */}
+            <div className={`${card} mt-2 grid gap-4 p-3 sm:p-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-6`}>
+                <section aria-label={text(messages, "photos")} className="min-w-0">
+                    <button
+                        type="button"
+                        onClick={() => openPhoto(photoIndex)}
+                        aria-label={fill(text(messages, "openPhoto"), {
+                            index: String(photoIndex + 1),
+                            total: String(listing.images.length),
+                        })}
+                        className="relative block aspect-[4/3] w-full overflow-hidden rounded-md bg-charcoal p-0"
+                    >
+                        <img src={listing.images[photoIndex]} alt={listing.title} className="h-full w-full object-cover" />
+                        <span className="absolute right-2 bottom-2 rounded-md bg-charcoal/75 px-2 py-1 text-xs font-semibold text-white tabular-nums">
+                            {photoIndex + 1}/{listing.images.length}
+                        </span>
+                    </button>
+                    <div className="mt-2 flex gap-2 overflow-x-auto">
+                        {listing.images.map((src, index) => (
+                            <button
+                                key={src}
+                                type="button"
+                                onClick={() => setPhotoIndex(index)}
+                                aria-label={fill(text(messages, "openPhoto"), {
+                                    index: String(index + 1),
+                                    total: String(listing.images.length),
+                                })}
+                                aria-pressed={index === photoIndex}
+                                className={`size-16 shrink-0 overflow-hidden rounded-md border-2 bg-charcoal p-0 sm:size-20 ${index === photoIndex ? "border-green" : "border-transparent opacity-80 hover:opacity-100"}`}
+                            >
+                                <img src={src} alt="" className="h-full w-full object-cover" />
+                            </button>
+                        ))}
                         <button
                             type="button"
                             onClick={() => openPhoto(0)}
-                            className="absolute right-4 bottom-4 inline-flex min-h-11 items-center rounded-full border border-charcoal/30 bg-white px-4 text-sm"
+                            className={`${ghostButton} h-16 shrink-0 sm:h-20`}
                         >
-                            {fill(text(messages, "seePhotos"), {
-                                count: String(listing.images.length),
-                            })}
+                            {fill(text(messages, "seePhotos"), { count: String(listing.images.length) })}
                         </button>
-                    </section>
+                    </div>
+                </section>
 
-                    <section className="order-2 rounded-2xl border border-charcoal/15 bg-white p-6 max-sm:p-4">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div className="flex flex-wrap gap-2">
-                                <span className="inline-flex min-h-7 items-center rounded-full bg-green px-3 text-[13px] font-semibold text-cream">
-                                    {purpose}
-                                </span>
-                                <span className="inline-flex min-h-7 items-center rounded-full border border-charcoal/30 px-3 text-[13px] font-semibold">
-                                    {kind}
-                                </span>
-                                <span className="inline-flex min-h-7 items-center gap-1 rounded-full bg-green/15 px-3 text-[13px] font-semibold text-green">
-                                    <Shield size={14} aria-hidden="true" />
-                                    {text(messages, "legalChip")}
-                                </span>
-                            </div>
-                            <div className="flex gap-2">
-                                <button
-                                    type="button"
-                                    aria-pressed={saved}
-                                    onClick={() => setSaved((value) => !value)}
-                                    className="inline-flex min-h-11 items-center gap-2 rounded-full border border-charcoal/30 bg-white px-4 text-sm"
-                                >
-                                    <Heart size={16} aria-hidden="true" />
-                                    {saved ? text(messages, "saved") : text(messages, "save")}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        void copy(
-                                            window.location.href,
-                                            text(messages, "copied"),
-                                        )
-                                    }
-                                    className="inline-flex min-h-11 items-center gap-2 rounded-full border border-charcoal/30 bg-white px-4 text-sm"
-                                >
-                                    <Share2 size={16} aria-hidden="true" />
-                                    {text(messages, "share")}
-                                </button>
-                            </div>
-                        </div>
-                        {shareNote ? (
-                            <p className="m-0 mt-2 text-sm text-charcoal/70" role="status">
-                                {shareNote}
-                            </p>
-                        ) : null}
-                        <h1 className="m-0 mt-3 text-[28px] leading-tight font-semibold md:text-[32px]">
-                            {listing.title}
-                        </h1>
-                        <a
-                            href="#vi-tri"
-                            className="mt-2 inline-flex min-h-11 items-start gap-2 py-1 text-charcoal/70 underline decoration-charcoal/30 underline-offset-[3px]"
-                        >
-                            <MapPin size={18} className="mt-1 shrink-0" aria-hidden="true" />
-                            {listing.location}, Hà Nội
-                        </a>
-                        <div className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-                            <p className="m-0 text-[32px] leading-none font-semibold text-green tabular-nums">
-                                {price}
-                            </p>
-                            <p className="m-0 text-[15px] text-charcoal/70">
-                                {perArea} · {text(messages, "perAreaNote")}
-                            </p>
-                        </div>
-                        <ul
-                            aria-label={text(messages, "specs")}
-                            className="m-0 mt-4 flex list-none flex-wrap gap-x-6 gap-y-2 border-t border-charcoal/15 p-0 pt-4"
-                        >
-                            {specs.map((spec) => (
-                                <li key={spec.hint} className="inline-flex items-center gap-2">
-                                    <spec.icon size={18} aria-hidden="true" />
-                                    <b>{spec.value}</b>
-                                    {spec.hint ? (
-                                        <span className="text-sm text-charcoal/70">{spec.hint}</span>
-                                    ) : null}
-                                </li>
-                            ))}
-                        </ul>
-                    </section>
-
-                    <section
-                        aria-labelledby="mo-ta"
-                        className="order-4 rounded-2xl border border-charcoal/15 bg-white p-6 max-sm:p-4"
+                <section id="lien-he" aria-label={text(messages, "contact")} className="flex min-w-0 flex-col">
+                    <div className="flex flex-wrap gap-1.5">
+                        <span className={`${chip} bg-green text-cream`}>{purpose}</span>
+                        <span className={`${chip} border border-charcoal/25`}>{kind}</span>
+                        <span className={`${chip} bg-green/15 text-green`}>
+                            <Shield size={12} aria-hidden="true" />
+                            {text(messages, "legalChip")}
+                        </span>
+                    </div>
+                    <h1 className="m-0 mt-2 text-xl leading-snug font-semibold text-balance md:text-2xl">{listing.title}</h1>
+                    <a
+                        href="#vi-tri"
+                        className="mt-1 inline-flex items-start gap-1.5 text-sm text-charcoal/70 underline decoration-charcoal/30 underline-offset-[3px] hover:text-charcoal"
                     >
-                        <h2 id="mo-ta" className="m-0 text-[22px] font-semibold">
+                        <MapPin size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+                        {listing.location}, Hà Nội
+                    </a>
+                    <p className="m-0 mt-1 text-xs text-charcoal/60">
+                        {fill(text(messages, "code"), { code })}
+                        {" · "}
+                        {fill(text(messages, "updated"), { date: formatListingDate(listing.updatedAt, locale) })}
+                    </p>
+
+                    <div className="mt-3 rounded-md bg-cream/60 px-3 py-2.5">
+                        <p className="m-0 text-3xl leading-none font-semibold text-green tabular-nums">{price}</p>
+                        <p className="m-0 mt-1 text-sm text-charcoal/70">
+                            {perArea} · {text(messages, "perAreaNote")}
+                        </p>
+                    </div>
+
+                    <ul
+                        aria-label={text(messages, "specs")}
+                        className="m-0 mt-3 grid list-none grid-cols-2 gap-px overflow-hidden rounded-md border border-charcoal/15 bg-charcoal/15 p-0 sm:grid-cols-4"
+                    >
+                        {specs.map((spec) => (
+                            <li key={spec.hint} className="flex items-center gap-2 bg-white px-3 py-2">
+                                <spec.icon size={16} className="shrink-0 text-charcoal/60" aria-hidden="true" />
+                                <span className="min-w-0">
+                                    <b className="block text-sm tabular-nums">{spec.value}</b>
+                                    {spec.hint ? <span className="block truncate text-xs text-charcoal/60">{spec.hint}</span> : null}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                        <a
+                            href={callHref}
+                            aria-label={fill(text(messages, "call"), { phone })}
+                            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-green px-4 text-sm font-semibold text-cream no-underline hover:bg-green/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green sm:col-span-2"
+                        >
+                            <Phone size={16} aria-hidden="true" />
+                            {fill(text(messages, "call"), { phone })}
+                        </a>
+                        <button type="button" onClick={() => setRevealed(true)} className={ghostButton}>
+                            <Phone size={16} aria-hidden="true" />
+                            {text(messages, "reveal")}
+                        </button>
+                        <div className="grid grid-cols-2 gap-2">
+                            <button type="button" aria-pressed={saved} onClick={() => setSaved((value) => !value)} className={ghostButton}>
+                                <Heart size={16} aria-hidden="true" className={saved ? "fill-current text-green" : ""} />
+                                {saved ? text(messages, "saved") : text(messages, "save")}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => void copy(window.location.href, text(messages, "copied"))}
+                                className={ghostButton}
+                            >
+                                <Share2 size={16} aria-hidden="true" />
+                                {text(messages, "share")}
+                            </button>
+                        </div>
+                    </div>
+                    {shareNote ? (
+                        <p className="m-0 mt-2 text-sm text-charcoal/70" role="status">
+                            {shareNote}
+                        </p>
+                    ) : null}
+
+                    <div className="mt-3 border-t border-charcoal/15 pt-3">{sellerCard}</div>
+                </section>
+            </div>
+
+            <div className="mt-3 grid items-start gap-3 lg:grid-cols-[minmax(0,1fr)_300px]">
+                <div className="grid min-w-0 gap-3">
+                    <section aria-labelledby="mo-ta" className={`${card} p-4 sm:p-5`}>
+                        <h2 id="mo-ta" className={heading}>
                             {text(messages, "description")}
                         </h2>
                         {customDescription ? (
-                            <div className={`mt-4 max-w-[68ch] ${descriptionOpen ? "" : "max-h-40 overflow-hidden"}`}>
+                            <div className={`mt-2 max-w-[72ch] ${descriptionOpen ? "" : "max-h-40 overflow-hidden"}`}>
                                 <RichTextContent doc={customDescription} />
                             </div>
                         ) : (
-                            <p
-                                className={`m-0 mt-4 max-w-[68ch] text-charcoal ${descriptionOpen ? "" : "line-clamp-6"}`}
-                            >
+                            <p className={`m-0 mt-2 max-w-[72ch] text-[15px] leading-relaxed ${descriptionOpen ? "" : "line-clamp-6"}`}>
                                 {fill(text(messages, "descriptionBody"), {
                                     location: listing.location,
                                     area: formatArea(listing.areaM2, locale),
@@ -378,79 +394,56 @@ export default function ListingDetail({
                             type="button"
                             aria-expanded={descriptionOpen}
                             onClick={() => setDescriptionOpen((value) => !value)}
-                            className="mt-2 inline-flex min-h-11 items-center bg-transparent p-0 text-sm underline underline-offset-[3px]"
+                            className="mt-1 inline-flex min-h-9 items-center bg-transparent p-0 text-sm font-semibold text-green"
                         >
-                            {descriptionOpen
-                                ? text(messages, "readLess")
-                                : text(messages, "readMore")}
+                            {descriptionOpen ? text(messages, "readLess") : text(messages, "readMore")}
                         </button>
-                        <p className="m-0 mt-3 text-sm text-charcoal/60">
-                            {fill(text(messages, "code"), { code })}
-                            {" · "}
-                            {fill(text(messages, "updated"), {
-                                date: formatListingDate(listing.updatedAt, locale),
-                            })}
-                        </p>
                     </section>
 
-                    <section
-                        aria-labelledby="dac-diem"
-                        className="order-5 rounded-2xl border border-charcoal/15 bg-white p-6 max-sm:p-4"
-                    >
-                        <h2 id="dac-diem" className="m-0 text-[22px] font-semibold">
+                    <section aria-labelledby="dac-diem" className={`${card} p-4 sm:p-5`}>
+                        <h2 id="dac-diem" className={heading}>
                             {text(messages, "facts")}
                         </h2>
-                        <h3 className="m-0 mt-4 text-base font-semibold">
-                            {text(messages, "structure")}
-                        </h3>
-                        <dl className="m-0 grid sm:grid-cols-2 sm:gap-x-8">
+                        <dl className="m-0 mt-2 grid overflow-hidden rounded-md border border-charcoal/15 text-sm sm:grid-cols-2">
                             {facts.map((fact) => (
-                                <div
-                                    key={fact.label}
-                                    className="flex justify-between gap-4 border-b border-charcoal/15 py-2.5"
-                                >
-                                    <dt className="text-charcoal/70">{fact.label}</dt>
-                                    <dd className="m-0 text-right font-semibold">{fact.value}</dd>
+                                <div key={fact.label} className="grid grid-cols-[minmax(0,0.9fr)_minmax(0,1fr)] border-b border-charcoal/10 sm:odd:border-r">
+                                    <dt className="bg-cream/40 px-3 py-2 text-charcoal/70">{fact.label}</dt>
+                                    <dd className="m-0 px-3 py-2 font-semibold">{fact.value}</dd>
                                 </div>
                             ))}
                         </dl>
                     </section>
 
-                    <section
-                        aria-labelledby="phap-ly-tin"
-                        className="order-6 rounded-2xl border border-charcoal/15 bg-white p-6 max-sm:p-4"
-                    >
-                        <h2 id="phap-ly-tin" className="m-0 text-[22px] font-semibold">
-                            {text(messages, "legal")}
-                        </h2>
-                        <p className="m-0 mt-4 inline-flex min-h-7 items-center gap-1 rounded-full bg-green/15 px-3 text-[13px] font-semibold text-green">
-                            <Shield size={14} aria-hidden="true" />
-                            {text(messages, "legalChip")}
-                        </p>
+                    <section aria-labelledby="phap-ly-tin" className={`${card} p-4 sm:p-5`}>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <h2 id="phap-ly-tin" className={heading}>
+                                {text(messages, "legal")}
+                            </h2>
+                            <span className={`${chip} bg-green/15 text-green`}>
+                                <Shield size={12} aria-hidden="true" />
+                                {text(messages, "legalChip")}
+                            </span>
+                        </div>
                         {legalKind ? (
-                            <p className="m-0 mt-3 text-base font-semibold">
+                            <p className="m-0 mt-2 text-sm font-semibold">
                                 {legalKind}
-                                {extra?.legal?.note ? <span className="block text-sm font-normal text-charcoal/80">{extra.legal.note}</span> : null}
+                                {extra?.legal?.note ? <span className="block font-normal text-charcoal/80">{extra.legal.note}</span> : null}
                             </p>
                         ) : null}
-                        <div className="mt-4 flex gap-3 rounded-xl bg-cream p-4 text-sm">
-                            <Info size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
+                        <div className="mt-2 flex gap-2 rounded-md bg-cream/60 p-3 text-sm">
+                            <Info size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
                             <p className="m-0">{text(messages, "legalNote")}</p>
                         </div>
                     </section>
 
-                    <section
-                        id="vi-tri"
-                        aria-labelledby="vi-tri"
-                        className="order-7 scroll-mt-24 rounded-2xl border border-charcoal/15 bg-white p-6 max-sm:p-4"
-                    >
-                        <h2 id="vi-tri" className="m-0 text-[22px] font-semibold">
-                            {text(messages, "location")}
-                        </h2>
-                        <p className="m-0 mt-2 text-[15px] text-charcoal/70">
-                            {listing.location}, Hà Nội
-                        </p>
-                        <div className="relative mt-4 h-60 overflow-hidden rounded-xl border border-charcoal/15 md:h-[380px]">
+                    <section id="vi-tri" aria-labelledby="vi-tri-tieu-de" className={`${card} scroll-mt-24 p-4 sm:p-5`}>
+                        <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                            <h2 id="vi-tri-tieu-de" className={heading}>
+                                {text(messages, "location")}
+                            </h2>
+                            <p className="m-0 text-sm text-charcoal/70">{listing.location}, Hà Nội</p>
+                        </div>
+                        <div className="relative mt-2 h-56 overflow-hidden rounded-md border border-charcoal/15 md:h-80">
                             <img
                                 src="/images/temp-001.png"
                                 alt=""
@@ -458,49 +451,40 @@ export default function ListingDetail({
                                 className="h-full w-full origin-center object-cover"
                             />
                             <span className="absolute top-[37%] left-[52%] -translate-x-1/2 -translate-y-full drop-shadow">
-                                <MapPin size={36} className="fill-green text-cream" aria-hidden="true" />
+                                <MapPin size={32} className="fill-green text-cream" aria-hidden="true" />
                             </span>
-                            <span className="absolute top-3 left-3 rounded-full border border-charcoal/30 bg-white px-3 py-1 text-[13px] font-semibold">
+                            <span className="absolute top-2 left-2 rounded-md border border-charcoal/20 bg-white px-2 py-0.5 text-xs font-semibold">
                                 {text(messages, "mapSample")}
                             </span>
-                            <div className="absolute top-3 right-3 grid gap-2">
+                            <div className="absolute top-2 right-2 grid overflow-hidden rounded-md border border-charcoal/20 bg-white">
                                 <button
                                     type="button"
                                     aria-label={text(messages, "zoomIn")}
                                     onClick={() => setZoom((value) => Math.min(2.2, value + 0.2))}
-                                    className="inline-flex size-11 items-center justify-center rounded-full border border-charcoal/30 bg-white"
+                                    className="inline-flex size-9 items-center justify-center border-b border-charcoal/15 bg-white hover:bg-charcoal/5"
                                 >
-                                    <Plus size={18} aria-hidden="true" />
+                                    <Plus size={16} aria-hidden="true" />
                                 </button>
                                 <button
                                     type="button"
                                     aria-label={text(messages, "zoomOut")}
                                     onClick={() => setZoom((value) => Math.max(1, value - 0.2))}
-                                    className="inline-flex size-11 items-center justify-center rounded-full border border-charcoal/30 bg-white"
+                                    className="inline-flex size-9 items-center justify-center bg-white hover:bg-charcoal/5"
                                 >
-                                    <Minus size={18} aria-hidden="true" />
+                                    <Minus size={16} aria-hidden="true" />
                                 </button>
                             </div>
-                            <span className="absolute bottom-0 left-0 bg-white/85 px-2 text-[11px]">
-                                {text(messages, "mapCredit")}
-                            </span>
+                            <span className="absolute bottom-0 left-0 bg-white/85 px-2 text-[11px]">{text(messages, "mapCredit")}</span>
                         </div>
-                        <div className="mt-2 flex flex-wrap gap-x-4">
-                            <Link
-                                href={mapHref}
-                                className="inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-[3px]"
-                            >
+                        <div className="mt-2 flex flex-wrap gap-2">
+                            <Link href={mapHref} className={`${ghostButton} no-underline`}>
+                                <MapPin size={16} aria-hidden="true" />
                                 {text(messages, "openMap")}
                             </Link>
                             <button
                                 type="button"
-                                onClick={() =>
-                                    void copy(
-                                        `${listing.location}, Hà Nội`,
-                                        text(messages, "addressCopied"),
-                                    )
-                                }
-                                className="inline-flex min-h-11 items-center gap-1 bg-transparent p-0 text-sm underline underline-offset-[3px]"
+                                onClick={() => void copy(`${listing.location}, Hà Nội`, text(messages, "addressCopied"))}
+                                className={ghostButton}
                             >
                                 <Copy size={16} aria-hidden="true" />
                                 {text(messages, "copyAddress")}
@@ -508,126 +492,86 @@ export default function ListingDetail({
                         </div>
                     </section>
 
-                    <section
-                        aria-labelledby="phan-tich"
-                        className="order-8 rounded-2xl border border-charcoal/15 bg-white p-6 max-sm:p-4"
-                    >
-                        <h2 id="phan-tich" className="m-0 text-[22px] font-semibold">
-                            {text(messages, "analysis")}
-                        </h2>
-                        <p className="m-0 mt-1 text-sm text-charcoal/60">
-                            {text(messages, "analysisSubject")}
-                        </p>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                            <span className="inline-flex min-h-7 items-center rounded-full border border-charcoal/30 px-3 text-[13px]">
-                                500 m
-                            </span>
-                            <span className="inline-flex min-h-7 items-center rounded-full bg-gold/25 px-3 text-[13px] font-semibold">
-                                {text(messages, "analysisSample")}
-                            </span>
+                    <section aria-labelledby="phan-tich" className={`${card} p-4 sm:p-5`}>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <h2 id="phan-tich" className={heading}>
+                                {text(messages, "analysis")}
+                            </h2>
+                            <span className={`${chip} border border-charcoal/25`}>500 m</span>
+                            <span className={`${chip} bg-gold/25`}>{text(messages, "analysisSample")}</span>
                         </div>
+                        <p className="m-0 mt-1 text-sm text-charcoal/60">{text(messages, "analysisSubject")}</p>
                         {analyzed ? (
-                            <p className="m-0 mt-4 max-w-[68ch]" role="status">
+                            <p className="m-0 mt-2 max-w-[72ch] text-sm" role="status">
                                 {text(messages, "analysisDone")}
                             </p>
                         ) : (
-                            <>
-                                <p className="m-0 mt-4 max-w-[68ch] text-[15px] text-charcoal/70">
-                                    {text(messages, "analysisLede")}
-                                </p>
+                            <div className="mt-2 flex flex-wrap items-center gap-3">
+                                <p className="m-0 max-w-[60ch] flex-1 text-sm text-charcoal/75">{text(messages, "analysisLede")}</p>
                                 <button
                                     type="button"
                                     onClick={() => setAnalyzed(true)}
-                                    className="mt-4 inline-flex min-h-12 items-center rounded-full bg-green px-6 text-cream"
+                                    className="inline-flex min-h-10 items-center rounded-md bg-green px-4 text-sm font-semibold text-cream hover:bg-green/90"
                                 >
                                     {text(messages, "analysisRun")}
                                 </button>
-                                <p className="m-0 mt-2 text-sm text-charcoal/60">
-                                    {text(messages, "analysisHint")}
-                                </p>
-                            </>
+                                <p className="m-0 basis-full text-xs text-charcoal/60">{text(messages, "analysisHint")}</p>
+                            </div>
                         )}
                     </section>
 
-                    <section
-                        aria-labelledby="bai-viet"
-                        className="order-9 rounded-2xl border border-charcoal/15 bg-white p-6 max-sm:p-4"
-                    >
-                        <h2 id="bai-viet" className="m-0 text-[22px] font-semibold">
+                    <section aria-labelledby="bai-viet" className={`${card} p-4 sm:p-5`}>
+                        <h2 id="bai-viet" className={heading}>
                             {text(messages, "posts")}
                         </h2>
-                        <div className="mt-4 grid gap-4 md:grid-cols-2">
-                            <StayLink
-                                href={legalDataHref}
-                                className="grid grid-cols-[7rem_minmax(0,1fr)] gap-3 no-underline"
-                            >
-                                <img
-                                    src="/images/temp-003.jpg"
-                                    alt=""
-                                    className="h-24 w-full rounded-xl object-cover"
-                                />
+                        <div className="mt-2 grid gap-3 md:grid-cols-2">
+                            <StayLink href={legalDataHref} className="grid grid-cols-[6rem_minmax(0,1fr)] gap-3 rounded-md p-1 text-inherit no-underline hover:bg-charcoal/5">
+                                <img src="/images/temp-003.jpg" alt="" className="h-20 w-full rounded-md object-cover" />
                                 <span>
-                                    <span className="block font-semibold">
-                                        {text(messages, "postGuide")}
-                                    </span>
-                                    <span className="mt-1 block text-sm text-charcoal/70">
-                                        {text(messages, "postGuideBody")}
-                                    </span>
+                                    <span className="block text-sm font-semibold">{text(messages, "postGuide")}</span>
+                                    <span className="mt-0.5 block text-xs text-charcoal/70">{text(messages, "postGuideBody")}</span>
                                 </span>
                             </StayLink>
-                            <StayLink
-                                href={legalPostHref}
-                                className="grid grid-cols-[7rem_minmax(0,1fr)] gap-3 no-underline"
-                            >
-                                <img
-                                    src="/images/temp-004.jpg"
-                                    alt=""
-                                    className="h-24 w-full rounded-xl object-cover"
-                                />
+                            <StayLink href={legalPostHref} className="grid grid-cols-[6rem_minmax(0,1fr)] gap-3 rounded-md p-1 text-inherit no-underline hover:bg-charcoal/5">
+                                <img src="/images/temp-004.jpg" alt="" className="h-20 w-full rounded-md object-cover" />
                                 <span>
-                                    <span className="block font-semibold">
-                                        {text(messages, "postLegal")}
-                                    </span>
-                                    <span className="mt-1 block text-sm text-charcoal/70">
-                                        {text(messages, "postLegalBody")}
-                                    </span>
+                                    <span className="block text-sm font-semibold">{text(messages, "postLegal")}</span>
+                                    <span className="mt-0.5 block text-xs text-charcoal/70">{text(messages, "postLegalBody")}</span>
                                 </span>
                             </StayLink>
                         </div>
                     </section>
+                </div>
 
-                    <section
-                        aria-labelledby="lien-ket"
-                        className="order-10 rounded-2xl border border-charcoal/15 bg-white p-6 max-sm:p-4"
-                    >
-                        <h2 id="lien-ket" className="m-0 text-[22px] font-semibold">
+                <aside className="grid gap-3 lg:sticky lg:top-4">
+                    <section aria-labelledby="nguoi-dang" className={`${card} p-4`}>
+                        <h2 id="nguoi-dang" className="m-0 mb-2 text-sm font-semibold text-charcoal/70">
+                            {text(messages, "contact")}
+                        </h2>
+                        {sellerCard}
+                        <a
+                            href={callHref}
+                            className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-md bg-green px-4 text-sm font-semibold text-cream no-underline hover:bg-green/90"
+                        >
+                            <Phone size={16} aria-hidden="true" />
+                            {text(messages, "callBar")}
+                        </a>
+                    </section>
+                    <section aria-labelledby="lien-ket" className={`${card} p-4`}>
+                        <h2 id="lien-ket" className="m-0 mb-1 text-sm font-semibold text-charcoal/70">
                             {text(messages, "links")}
                         </h2>
-                        <ul className="m-0 mt-4 list-none p-0">
-                            <li className="border-b border-charcoal/15">
-                                <Link
-                                    href={mapHref}
-                                    className="flex min-h-11 items-center justify-between gap-3 py-2 no-underline"
-                                >
-                                    <span>{text(messages, "linkMap")}</span>
-                                    <span className="text-sm text-charcoal/60">
-                                        {text(messages, "linkMapNote")}
-                                    </span>
+                        <ul className="m-0 list-none p-0 text-sm">
+                            <li className="border-b border-charcoal/10">
+                                <Link href={mapHref} className="flex min-h-10 flex-col justify-center py-1.5 text-inherit no-underline hover:text-green">
+                                    <span className="font-semibold">{text(messages, "linkMap")}</span>
+                                    <span className="text-xs text-charcoal/60">{text(messages, "linkMapNote")}</span>
                                 </Link>
                             </li>
-                            <li className="border-b border-charcoal/15">
-                                <Link
-                                    href={districtHref}
-                                    className="flex min-h-11 items-center justify-between gap-3 py-2 no-underline"
-                                >
-                                    <span>
-                                        {fill(text(messages, "linkDistrict"), {
-                                            district: listing.district,
-                                        })}
-                                    </span>
-                                    <span className="text-sm text-charcoal/60">
-                                        {text(messages, "linkDistrictNote")}
-                                    </span>
+                            <li className="border-b border-charcoal/10">
+                                <Link href={districtHref} className="flex min-h-10 flex-col justify-center py-1.5 text-inherit no-underline hover:text-green">
+                                    <span className="font-semibold">{fill(text(messages, "linkDistrict"), { district: listing.district })}</span>
+                                    <span className="text-xs text-charcoal/60">{text(messages, "linkDistrictNote")}</span>
                                 </Link>
                             </li>
                             <li>
@@ -635,103 +579,37 @@ export default function ListingDetail({
                                     href="https://quyhoach.hanoi.gov.vn/"
                                     target="_blank"
                                     rel="noopener noreferrer nofollow"
-                                    className="flex min-h-11 items-center justify-between gap-3 py-2 no-underline"
+                                    className="flex min-h-10 flex-col justify-center py-1.5 text-inherit no-underline hover:text-green"
                                 >
-                                    <span className="inline-flex items-center gap-2">
-                                        <ExternalLink size={16} aria-hidden="true" />
+                                    <span className="inline-flex items-center gap-1.5 font-semibold">
+                                        <ExternalLink size={14} aria-hidden="true" />
                                         {text(messages, "linkPlan")}
                                     </span>
-                                    <span className="text-sm text-charcoal/60">
-                                        {text(messages, "linkPlanNote")}
-                                    </span>
+                                    <span className="text-xs text-charcoal/60">{text(messages, "linkPlanNote")}</span>
                                 </a>
                             </li>
                         </ul>
                     </section>
-
-                    {similar.length > 0 ? (
-                        <SimilarListings
-                            listings={similar}
-                            locale={locale}
-                            title={text(messages, "similar")}
-                            note={text(messages, "similarNote")}
-                            hrefFor={hrefFor}
-                        />
-                    ) : null}
-                </div>
-
-                <aside
-                    aria-label={text(messages, "contact")}
-                    className="order-3 lg:sticky lg:top-20"
-                >
-                    <div id="lien-he" className="rounded-2xl border border-charcoal/15 bg-white p-6">
-                        <p className="m-0 text-[28px] font-semibold text-green tabular-nums">
-                            {price}
-                        </p>
-                        <p className="m-0 text-sm text-charcoal/60">
-                            {perArea} · {text(messages, "priceNote")}
-                        </p>
-                        <div className="mt-4 grid gap-2">
-                            <a
-                                href={callHref}
-                                aria-label={fill(text(messages, "call"), { phone })}
-                                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-green px-6 text-cream no-underline"
-                            >
-                                <Phone size={18} aria-hidden="true" />
-                                {fill(text(messages, "call"), { phone })}
-                            </a>
-                            <button
-                                type="button"
-                                onClick={() => setRevealed(true)}
-                                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-charcoal/30 bg-white px-6"
-                            >
-                                <Phone size={18} aria-hidden="true" />
-                                {text(messages, "reveal")}
-                            </button>
-                            <button
-                                type="button"
-                                aria-pressed={saved}
-                                onClick={() => setSaved((value) => !value)}
-                                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-charcoal/30 bg-white px-6"
-                            >
-                                <Heart size={18} aria-hidden="true" />
-                                {saved ? text(messages, "saved") : text(messages, "save")}
-                            </button>
-                        </div>
-                        <div className="mt-4 flex items-center gap-3">
-                            <span
-                                aria-hidden="true"
-                                className="inline-flex size-11 items-center justify-center rounded-full bg-green/15 font-semibold text-green"
-                            >
-                                {posterInitials}
-                            </span>
-                            <div>
-                                <b>{posterName}</b>
-                                <span className="block text-sm text-charcoal/70">
-                                    {posterRole}
-                                </span>
-                            </div>
-                        </div>
-                        <p className="m-0 mt-3 text-sm text-charcoal/60">
-                            {fill(text(messages, "updated"), {
-                                date: formatListingDate(listing.updatedAt, locale),
-                            })}
-                            {" · "}
-                            {fill(text(messages, "code"), { code })}
-                        </p>
-                    </div>
-                    <p className="m-0 mt-3 text-sm text-charcoal/60">
-                        {text(messages, "disclaimer")}
-                    </p>
+                    <p className="m-0 px-1 text-xs text-charcoal/60">{text(messages, "disclaimer")}</p>
                 </aside>
             </div>
 
-            <div className="fixed inset-x-0 bottom-0 z-30 flex gap-2 border-t border-charcoal/15 bg-white p-3 lg:hidden">
+            {similar.length > 0 ? (
+                <SimilarListings
+                    listings={similar}
+                    locale={locale}
+                    title={text(messages, "similar")}
+                    note={text(messages, "similarNote")}
+                    hrefFor={hrefFor}
+                />
+            ) : null}
+
+            <div className="fixed inset-x-0 bottom-0 z-30 flex gap-2 border-t border-charcoal/15 bg-white p-2.5 lg:hidden">
                 <a
                     href={callHref}
-                    className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-green px-6 text-cream no-underline"
+                    className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-md bg-green px-4 text-sm font-semibold text-cream no-underline"
                 >
-                    <Phone size={18} aria-hidden="true" />
+                    <Phone size={16} aria-hidden="true" />
                     {text(messages, "callBar")}
                 </a>
                 <button
@@ -739,19 +617,19 @@ export default function ListingDetail({
                     aria-pressed={saved}
                     aria-label={text(messages, "save")}
                     onClick={() => setSaved((value) => !value)}
-                    className="inline-flex size-12 items-center justify-center rounded-full border border-charcoal/30 bg-white"
+                    className="inline-flex size-11 items-center justify-center rounded-md border border-charcoal/25 bg-white"
                 >
-                    <Heart size={18} aria-hidden="true" />
+                    <Heart size={16} aria-hidden="true" className={saved ? "fill-current text-green" : ""} />
                 </button>
             </div>
 
             <dialog
                 ref={lightbox}
                 aria-label={text(messages, "photos")}
-                className="m-auto w-[min(960px,calc(100%-2rem))] rounded-2xl border border-charcoal/15 bg-white p-4 backdrop:bg-charcoal/60"
+                className="m-auto w-[min(960px,calc(100%-2rem))] rounded-lg border border-charcoal/15 bg-white p-3 backdrop:bg-charcoal/60"
             >
                 <div className="flex items-center justify-between">
-                    <span>
+                    <span className="text-sm tabular-nums">
                         {fill(text(messages, "photoCount"), {
                             current: String(photoIndex + 1),
                             total: String(listing.images.length),
@@ -761,37 +639,26 @@ export default function ListingDetail({
                         type="button"
                         aria-label={text(messages, "close")}
                         onClick={() => lightbox.current?.close()}
-                        className="inline-flex size-11 items-center justify-center rounded-full border border-charcoal/30 bg-white"
+                        className="inline-flex size-9 items-center justify-center rounded-md border border-charcoal/25 bg-white hover:bg-charcoal/5"
                     >
-                        <X size={18} aria-hidden="true" />
+                        <X size={16} aria-hidden="true" />
                     </button>
                 </div>
-                <img
-                    src={listing.images[photoIndex]}
-                    alt={listing.title}
-                    className="mt-3 max-h-[70vh] w-full rounded-xl object-contain"
-                />
-                <div className="mt-3 flex justify-between">
+                <img src={listing.images[photoIndex]} alt={listing.title} className="mt-2 max-h-[70vh] w-full rounded-md object-contain" />
+                <div className="mt-2 flex justify-between">
                     <button
                         type="button"
                         aria-label={text(messages, "previousPhoto")}
-                        onClick={() =>
-                            setPhotoIndex(
-                                (index) =>
-                                    (index - 1 + listing.images.length) % listing.images.length,
-                            )
-                        }
-                        className="inline-flex min-h-11 items-center rounded-full border border-charcoal/30 bg-white px-4"
+                        onClick={() => setPhotoIndex((index) => (index - 1 + listing.images.length) % listing.images.length)}
+                        className={ghostButton}
                     >
                         {text(messages, "previousPhoto")}
                     </button>
                     <button
                         type="button"
                         aria-label={text(messages, "nextPhoto")}
-                        onClick={() =>
-                            setPhotoIndex((index) => (index + 1) % listing.images.length)
-                        }
-                        className="inline-flex min-h-11 items-center rounded-full border border-charcoal/30 bg-white px-4"
+                        onClick={() => setPhotoIndex((index) => (index + 1) % listing.images.length)}
+                        className={ghostButton}
                     >
                         {text(messages, "nextPhoto")}
                     </button>
@@ -835,33 +702,24 @@ function SimilarListings({
     hrefFor: (item: Pick<Listing, "slug">) => string;
 }) {
     return (
-        <section
-            aria-labelledby="tuong-tu"
-            className="order-11 rounded-2xl border border-charcoal/15 bg-white p-6 max-sm:p-4"
-        >
+        <section aria-labelledby="tuong-tu" className="mt-3 rounded-lg border border-charcoal/15 bg-white p-4 sm:p-5">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h2 id="tuong-tu" className="m-0 text-[22px] font-semibold">
+                <h2 id="tuong-tu" className="m-0 text-lg font-semibold">
                     {title}
                 </h2>
                 <span className="text-sm text-charcoal/60">{note}</span>
             </div>
-            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                 {listings.map((item) => (
                     <Link
                         key={item.id}
                         href={hrefFor(item)}
-                        className="grid gap-2 no-underline"
+                        className="grid content-start gap-1 overflow-hidden rounded-md border border-charcoal/15 pb-2 text-inherit no-underline hover:border-charcoal/30"
                     >
-                        <img
-                            src={item.images[0]}
-                            alt=""
-                            className="aspect-[4/3] w-full rounded-xl object-cover"
-                        />
-                        <span className="font-semibold text-green">
-                            {formatListingPrice(item, locale)}
-                        </span>
-                        <span className="font-semibold">{item.title}</span>
-                        <span className="text-sm text-charcoal/70">
+                        <img src={item.images[0]} alt="" className="aspect-[4/3] w-full object-cover" />
+                        <span className="line-clamp-2 px-2 text-sm font-semibold">{item.title}</span>
+                        <span className="px-2 font-semibold text-green tabular-nums">{formatListingPrice(item, locale)}</span>
+                        <span className="px-2 text-xs text-charcoal/70">
                             {formatArea(item.areaM2, locale)} · {item.district}
                         </span>
                     </Link>

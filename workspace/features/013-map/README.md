@@ -153,7 +153,9 @@ Bộ tiêu chí lấy đúng mục "Hệ thống tự tính từ ghim" của [`0
 - **Điểm tổng** = trung bình điểm các tiêu chí không bỏ qua (1 chữ số thập phân). Mức: ≥ 8 Rất tốt, ≥ 6,5 Tốt, ≥ 5 Trung bình, còn lại Kém.
 - **Điểm mạnh** = tiêu chí > 5 điểm; tiêu đề nhóm ghi "+Σ(điểm − 5)". **Điểm yếu** = tiêu chí ≤ 5; ghi "−Σ(5 − điểm)".
 - **Tóm tắt nhận xét**: câu ghép từ điểm tổng, 3 điểm mạnh cao nhất, 3 điểm yếu thấp nhất. Không bịa thêm dữ kiện ngoài số đo.
-- **Chỉnh tay**: mỗi tiêu chí có "Thay đổi điểm" (0–10, bước 0,5; có "Về điểm tự động") và "Bỏ qua tiêu chí" (không tính vào điểm tổng, khôi phục được). Lưu theo người dùng + địa điểm.
+- **Chỉnh tay**: mỗi tiêu chí có "Thay đổi điểm" (0–10, bước 0,5; có "Về điểm tự động") và "Bỏ qua tiêu chí" (bật/tắt). Tiêu chí bỏ qua **ở nguyên trong nhóm** (Điểm mạnh/Điểm yếu), bị gạch ngang, tên chuyển xám, vòng điểm xám; không cộng vào điểm nhóm và điểm tổng. Lưu theo người dùng + địa điểm.
+- **Hiển thị điểm**: vòng tròn kiểu ScoreCircle (nền xám, cung màu theo tỷ lệ điểm/10: ≥ 7 xanh, > 5 vàng, ≤ 5 đỏ, số ở giữa). Điểm tổng vòng lớn 84 px, mỗi tiêu chí vòng 42 px.
+- **Chọn tiêu chí (chuẩn bị dẫn chứng trên bản đồ)**: rê chuột lên tiêu chí → nền nhạt + biểu tượng bản đồ; bấm → tiêu chí được chọn (viền xanh) và gọi `onCriterionSelect(criterion)`. Bước sau: vẽ dẫn chứng theo tiêu chí, vd. "Trường học" vẽ tuyến từ địa điểm tới các trường gần nhất (Route v4/Matrix), "Bệnh viện" vẽ vòng 2 km và điểm bệnh viện.
 - **Giai đoạn hiện tại là số liệu minh họa** (`sample: true`, UI ghi rõ). Số đo sinh ổn định theo tọa độ, nghiêng theo mức đô thị (gần Hồ Gươm thì tiện ích dày hơn). Khi có PostGIS/AI: thay `generateCriteria` bằng truy vấn thật hoặc lời gọi AI; hợp đồng `PlaceEvaluation`, phần gộp chỉnh tay và UI giữ nguyên.
 
 ## 5. Giao diện

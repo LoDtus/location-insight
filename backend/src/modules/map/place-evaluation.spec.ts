@@ -53,7 +53,14 @@ describe('place-evaluation', () => {
     const hospital = evaluation.strengths.items.find((item) => item.id === 'benh-vien');
     expect(hospital?.manual).toBe(true);
     expect(hospital?.score).toBe(9.5);
-    expect([...evaluation.strengths.items, ...evaluation.weaknesses.items].some((item) => item.id === 'cho')).toBe(false);
+    // Tiêu chí bỏ qua vẫn ở trong nhóm của nó, có cờ skipped, nhưng không cộng vào điểm nhóm.
+    const market = [...evaluation.strengths.items, ...evaluation.weaknesses.items].find((item) => item.id === 'cho');
+    expect(market?.skipped).toBe(true);
+    const group = evaluation.strengths.items.includes(market as never) ? evaluation.strengths : evaluation.weaknesses;
+    const expected = group.items
+      .filter((item) => !item.skipped)
+      .reduce((sum, item) => sum + Math.abs(item.score - NEUTRAL_SCORE), 0);
+    expect(group.points).toBeCloseTo(Math.round(expected * 10) / 10, 5);
   });
 
   it('bỏ qua hết thì không có điểm tổng', () => {
@@ -64,7 +71,8 @@ describe('place-evaluation', () => {
       CRITERIA.map((item) => ({ criterionId: item.id, skipped: true, score: null })),
     );
     expect(evaluation.overall).toBeNull();
-    expect(evaluation.strengths.items).toHaveLength(0);
+    expect(evaluation.strengths.points).toBe(0);
+    expect(evaluation.weaknesses.points).toBe(0);
   });
 
   it('tiện ích nhỏ', () => {

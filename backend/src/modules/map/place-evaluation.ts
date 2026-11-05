@@ -109,8 +109,10 @@ export interface PlaceEvaluation {
   overall: number | null;
   rating: string;
   summary: string;
+  /** Gồm cả tiêu chí đã bỏ qua (cờ `skipped`); `points` chỉ cộng tiêu chí còn tính. */
   strengths: { points: number; items: EvaluatedCriterion[] };
   weaknesses: { points: number; items: EvaluatedCriterion[] };
+  /** Danh sách tiện tra cứu các tiêu chí đã bỏ qua (cũng có trong strengths/weaknesses). */
   skipped: EvaluatedCriterion[];
   criteriaCount: number;
 }
@@ -328,8 +330,10 @@ export function buildEvaluation(
     });
   }
   const active = evaluated.filter((item) => !item.skipped);
-  const strengths = active.filter((item) => item.score > NEUTRAL_SCORE).sort((a, b) => b.score - a.score);
-  const weaknesses = active.filter((item) => item.score <= NEUTRAL_SCORE).sort((a, b) => a.score - b.score);
+  // Tiêu chí bị bỏ qua vẫn nằm trong nhóm của nó (UI gạch ngang), nhưng không tính vào điểm nhóm và điểm tổng.
+  const strengths = evaluated.filter((item) => item.score > NEUTRAL_SCORE).sort((a, b) => b.score - a.score);
+  const weaknesses = evaluated.filter((item) => item.score <= NEUTRAL_SCORE).sort((a, b) => a.score - b.score);
+  const counted = (items: EvaluatedCriterion[]): EvaluatedCriterion[] => items.filter((item) => !item.skipped);
   const overall = active.length > 0 ? round1(active.reduce((sum, item) => sum + item.score, 0) / active.length) : null;
   const rating = ratingOf(overall);
   return {
@@ -339,9 +343,9 @@ export function buildEvaluation(
     sample,
     overall,
     rating,
-    summary: summarize(overall, rating, strengths, weaknesses, active.length),
-    strengths: { points: round1(strengths.reduce((sum, item) => sum + (item.score - NEUTRAL_SCORE), 0)), items: strengths },
-    weaknesses: { points: round1(weaknesses.reduce((sum, item) => sum + (NEUTRAL_SCORE - item.score), 0)), items: weaknesses },
+    summary: summarize(overall, rating, counted(strengths), counted(weaknesses), active.length),
+    strengths: { points: round1(counted(strengths).reduce((sum, item) => sum + (item.score - NEUTRAL_SCORE), 0)), items: strengths },
+    weaknesses: { points: round1(counted(weaknesses).reduce((sum, item) => sum + (NEUTRAL_SCORE - item.score), 0)), items: weaknesses },
     skipped: evaluated.filter((item) => item.skipped),
     criteriaCount: evaluated.length,
   };

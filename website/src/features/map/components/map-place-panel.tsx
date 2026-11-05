@@ -9,6 +9,7 @@ import MapPlaceEvaluation from "@/features/map/components/map-place-evaluation";
 import { PRECISE_PLACE_M, formatCoordinates } from "@/features/map/map.geo";
 import { PLACE_KIND_LABEL, matchListings } from "@/features/map/map-place-match";
 import type { PlaceSelection } from "@/features/map/hooks/use-place-selection";
+import type { EvaluatedCriterion } from "@/features/map/map.types";
 import ImageLightbox from "@/shared/components/lightbox/image-lightbox";
 
 interface MapPlacePanelProps {
@@ -21,6 +22,8 @@ interface MapPlacePanelProps {
     onClose: () => void;
     onDirectionsTo: () => void;
     onDirectionsFrom: () => void;
+    /** Chọn tiêu chí trong phần đánh giá: chỗ nối để sau này vẽ dẫn chứng của tiêu chí lên bản đồ. */
+    onCriterionSelect?: (criterion: EvaluatedCriterion | null) => void;
 }
 
 function Row({ label, children }: { label: string; children: ReactNode }): JSX.Element {
@@ -45,6 +48,7 @@ export default function MapPlacePanel({
     onClose,
     onDirectionsTo,
     onDirectionsFrom,
+    onCriterionSelect,
 }: MapPlacePanelProps) {
     const [copied, setCopied] = useState(false);
     const [viewer, setViewer] = useState<number | null>(null);
@@ -197,7 +201,7 @@ export default function MapPlacePanel({
                 ) : null}
             </dl>
 
-            {selection.status === "ready" ? <MapPlaceEvaluation key={coordinates} point={selection.point} /> : null}
+            {selection.status === "ready" ? <MapPlaceEvaluation key={coordinates} point={selection.point} onCriterionSelect={onCriterionSelect} /> : null}
 
             <p className="m-0 text-xs text-charcoal/55">Địa chỉ có thể lệch vài chục mét. Phân tích bám tọa độ của ghim, không bám chuỗi địa chỉ.</p>
 

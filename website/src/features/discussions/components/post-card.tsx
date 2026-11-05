@@ -7,6 +7,7 @@ import { useEffect, useRef, useState, type JSX } from "react";
 import type { ShellRoot } from "@/features/app/shell";
 import type { DiscussionPost } from "@/features/discussions/discussions.api";
 import { Avatar } from "@/features/discussions/components/post-composer";
+import ImageLightbox from "@/shared/components/lightbox/image-lightbox";
 
 const SAVED_KEY = "discussion-saved";
 
@@ -209,17 +210,30 @@ function Action({
 }
 
 function MediaGrid({ media }: { media: DiscussionPost["media"] }): JSX.Element {
+    const [zoom, setZoom] = useState<number | null>(null);
+    const images = media.filter((item) => item.kind !== "video");
     return (
         <div className={`mt-3 grid gap-1 overflow-hidden rounded-2xl ${media.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
             {media.map((item) =>
                 item.kind === "video" ? (
                     <video key={item.id} className="max-h-80 w-full bg-charcoal" controls src={item.url} />
                 ) : (
-                    // Signed media URLs expire and are not known at build time.
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img key={item.id} src={item.url} alt="" className="max-h-80 w-full object-cover" />
+                    <button
+                        key={item.id}
+                        type="button"
+                        aria-label="Xem ảnh"
+                        onClick={() => setZoom(images.findIndex((image) => image.id === item.id))}
+                        className="block cursor-zoom-in border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-green"
+                    >
+                        {/* Signed media URLs expire and are not known at build time. */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={item.url} alt="" className="max-h-80 w-full object-cover" />
+                    </button>
                 ),
             )}
+            {zoom !== null ? (
+                <ImageLightbox images={images.map((item) => ({ id: item.id, src: item.url }))} start={Math.max(0, zoom)} onClose={() => setZoom(null)} />
+            ) : null}
         </div>
     );
 }

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState, type JSX } from "react";
 import { errorText } from "../messaging.actions";
 import { listReports, resolveReport, type AdminReport } from "../messaging.api";
 import { clockTime, fullTime } from "../messaging.format";
+import { Lightbox, type LightboxFile } from "./lightbox";
 
 const STATUSES: Array<{ value: AdminReport["status"]; label: string }> = [
     { value: "open", label: "Chưa xử lý" },
@@ -113,6 +114,7 @@ export function AdminReportsScreen(): JSX.Element {
 
 function ReportCard({ report, onResolved }: { report: AdminReport; onResolved: () => void }): JSX.Element {
     const [reason, setReason] = useState("");
+    const [zoom, setZoom] = useState<{ files: LightboxFile[]; index: number } | null>(null);
     const [pending, setPending] = useState(false);
     const [error, setError] = useState("");
 
@@ -160,9 +162,17 @@ function ReportCard({ report, onResolved }: { report: AdminReport; onResolved: (
                         </p>
                         {item.attachments.length > 0 ? (
                             <div className="mt-1 flex flex-wrap gap-2">
-                                {item.attachments.map((file) => (
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img key={file.id} src={file.url} alt="Ảnh trong tin bị báo cáo" className="size-24 rounded-lg object-cover" />
+                                {item.attachments.map((file, index) => (
+                                    <button
+                                        key={file.id}
+                                        type="button"
+                                        aria-label={`Xem ảnh ${index + 1} trong tin bị báo cáo`}
+                                        onClick={() => setZoom({ files: item.attachments, index })}
+                                        className="cursor-zoom-in rounded-lg border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
+                                    >
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img src={file.url} alt="Ảnh trong tin bị báo cáo" className="size-24 rounded-lg object-cover" />
+                                    </button>
                                 ))}
                             </div>
                         ) : null}
@@ -206,6 +216,7 @@ function ReportCard({ report, onResolved }: { report: AdminReport; onResolved: (
                     </div>
                 </div>
             ) : null}
+            {zoom ? <Lightbox files={zoom.files} start={zoom.index} onClose={() => setZoom(null)} /> : null}
         </li>
     );
 }

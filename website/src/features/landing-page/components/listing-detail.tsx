@@ -15,11 +15,10 @@ import {
     Share2,
     Shield,
     Sofa,
-    X,
     type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState, type JSX, type ReactNode } from "react";
+import { useEffect, useState, type JSX, type ReactNode } from "react";
 
 import {
     LISTINGS,
@@ -45,6 +44,7 @@ import {
     ROLE_LABEL,
 } from "@/features/properties/components/listing-form/option-labels";
 import RichTextContent from "@/shared/components/editor/rich-text-content";
+import ImageLightbox from "@/shared/components/lightbox/image-lightbox";
 import CardSlider from "@/shared/components/slider/card-slider";
 import { isRichTextDoc, isRichTextEmpty } from "@/shared/components/editor/rich-text.utils";
 import { useLocale, useLocaleMessages } from "@/shared/hooks/useLocale";
@@ -106,7 +106,7 @@ export default function ListingDetail({
     const [photoIndex, setPhotoIndex] = useState(0);
     const [loginOpen, setLoginOpen] = useState(false);
     const [postsOpen, setPostsOpen] = useState(false);
-    const lightbox = useRef<HTMLDialogElement>(null);
+    const [viewer, setViewer] = useState<number | null>(null);
     const auth = useAuth();
     const articles = usePublishedArticles();
 
@@ -249,7 +249,7 @@ export default function ListingDetail({
 
     function openPhoto(index: number): void {
         setPhotoIndex(index);
-        lightbox.current?.showModal();
+        setViewer(index);
     }
 
     const card = "rounded-lg border border-charcoal/15 bg-white";
@@ -677,47 +677,15 @@ export default function ListingDetail({
                 onSignedIn={() => setSaved(true)}
             />
 
-            <dialog
-                ref={lightbox}
-                aria-label={text(messages, "photos")}
-                className="m-auto w-[min(960px,calc(100%-2rem))] rounded-lg border border-charcoal/15 bg-white p-3 backdrop:bg-charcoal/60"
-            >
-                <div className="flex items-center justify-between">
-                    <span className="text-sm tabular-nums">
-                        {fill(text(messages, "photoCount"), {
-                            current: String(photoIndex + 1),
-                            total: String(listing.images.length),
-                        })}
-                    </span>
-                    <button
-                        type="button"
-                        aria-label={text(messages, "close")}
-                        onClick={() => lightbox.current?.close()}
-                        className="inline-flex size-9 items-center justify-center rounded-md border border-charcoal/25 bg-white hover:bg-charcoal/5"
-                    >
-                        <X size={16} aria-hidden="true" />
-                    </button>
-                </div>
-                <img src={listing.images[photoIndex]} alt={listing.title} className="mt-2 max-h-[70vh] w-full rounded-md object-contain" />
-                <div className="mt-2 flex justify-between">
-                    <button
-                        type="button"
-                        aria-label={text(messages, "previousPhoto")}
-                        onClick={() => setPhotoIndex((index) => (index - 1 + listing.images.length) % listing.images.length)}
-                        className={ghostButton}
-                    >
-                        {text(messages, "previousPhoto")}
-                    </button>
-                    <button
-                        type="button"
-                        aria-label={text(messages, "nextPhoto")}
-                        onClick={() => setPhotoIndex((index) => (index + 1) % listing.images.length)}
-                        className={ghostButton}
-                    >
-                        {text(messages, "nextPhoto")}
-                    </button>
-                </div>
-            </dialog>
+            {viewer !== null ? (
+                <ImageLightbox
+                    images={listing.images.map((src, index) => ({ src, alt: `${listing.title} – ${index + 1}` }))}
+                    start={viewer}
+                    label={text(messages, "photos")}
+                    onIndexChange={setPhotoIndex}
+                    onClose={() => setViewer(null)}
+                />
+            ) : null}
         </div>
     );
 }

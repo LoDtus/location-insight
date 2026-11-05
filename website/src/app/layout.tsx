@@ -2,6 +2,8 @@ import ServiceWorkerGuard from "@/features/pwa/components/service-worker-guard";
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import NextTopLoader from "nextjs-toploader";
+
+import ToastViewport from "@/shared/components/toast/toast-viewport";
 import type { ReactNode } from "react";
 
 import COLOR from "@/shared/constants/color.constant";
@@ -50,6 +52,7 @@ export default async function RootLayout({
             <head />
             <body className="w-full h-full flex flex-col overflow-hidden">
                 <ServiceWorkerGuard />
+                <ToastViewport />
                 <NextTopLoader
                     color={COLOR.PRIMARY}
                     height={2}

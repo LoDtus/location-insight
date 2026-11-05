@@ -1,6 +1,6 @@
 "use client";
 
-import { Bookmark, BookmarkCheck, Check, Copy, Eye, Images, Loader2, Navigation, Route, Search } from "lucide-react";
+import { Bookmark, BookmarkCheck, Check, Copy, Eye, Images, Link2, Loader2, Navigation, Radar, Route, Search } from "lucide-react";
 import Link from "next/link";
 import { useState, type JSX, type ReactNode } from "react";
 
@@ -11,6 +11,7 @@ import { PLACE_KIND_LABEL, matchListings } from "@/features/map/map-place-match"
 import type { PlaceSelection } from "@/features/map/hooks/use-place-selection";
 import type { EvaluatedCriterion } from "@/features/map/map.types";
 import ImageLightbox from "@/shared/components/lightbox/image-lightbox";
+import { showToast } from "@/shared/components/toast/toast-store";
 
 interface MapPlacePanelProps {
     selection: Exclude<PlaceSelection, { status: "none" }>;
@@ -22,6 +23,10 @@ interface MapPlacePanelProps {
     onClose: () => void;
     onDirectionsTo: () => void;
     onDirectionsFrom: () => void;
+    /** Mở chế độ tìm kiếm lân cận quanh điểm này (giống menu chuột phải). */
+    onNearby: () => void;
+    /** Sao chép liên kết mở lại đúng điểm này (giống "Sao chép địa điểm" ở menu chuột phải). */
+    onCopyLink: () => void;
     /** Chọn tiêu chí trong phần đánh giá: chỗ nối để sau này vẽ dẫn chứng của tiêu chí lên bản đồ. */
     onCriterionSelect?: (criterion: EvaluatedCriterion | null) => void;
 }
@@ -48,6 +53,8 @@ export default function MapPlacePanel({
     onClose,
     onDirectionsTo,
     onDirectionsFrom,
+    onNearby,
+    onCopyLink,
     onCriterionSelect,
 }: MapPlacePanelProps) {
     const [copied, setCopied] = useState(false);
@@ -64,12 +71,15 @@ export default function MapPlacePanel({
         try {
             await navigator.clipboard.writeText(coordinates);
             setCopied(true);
+            showToast({ title: "Đã sao chép tọa độ", description: coordinates });
             setTimeout(() => setCopied(false), 1500);
         } catch {
             setCopied(false);
         }
     }
 
+    const tertiary =
+        "inline-flex min-h-8 items-center gap-1.5 rounded-md bg-transparent px-2 text-xs font-semibold whitespace-nowrap text-charcoal/75 hover:bg-charcoal/5 hover:text-charcoal focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-green";
     const secondary =
         "inline-flex min-h-10 items-center whitespace-nowrap justify-center gap-2 rounded-lg border border-charcoal/15 bg-white px-3 text-sm font-semibold text-charcoal hover:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-green disabled:opacity-60";
 
@@ -158,6 +168,19 @@ export default function MapPlacePanel({
                 </button>
             </div>
 
+            {/* Các thao tác còn lại của menu chuột phải. */}
+            <div className="-mt-1 flex flex-wrap gap-1">
+                <button type="button" onClick={onNearby} className={tertiary}>
+                    <Radar size={15} aria-hidden /> Tìm lân cận
+                </button>
+                <button type="button" onClick={() => void copy()} className={tertiary}>
+                    {copied ? <Check size={15} aria-hidden /> : <Copy size={15} aria-hidden />} Sao chép tọa độ
+                </button>
+                <button type="button" onClick={onCopyLink} className={tertiary}>
+                    <Link2 size={15} aria-hidden /> Sao chép liên kết
+                </button>
+            </div>
+
             <dl className="m-0 rounded-lg border border-charcoal/10 px-3">
                 <Row label="Địa chỉ chính xác">
                     {place ? (
@@ -201,7 +224,12 @@ export default function MapPlacePanel({
                 ) : null}
             </dl>
 
-            {selection.status === "ready" ? <MapPlaceEvaluation key={coordinates} point={selection.point} onCriterionSelect={onCriterionSelect} /> : null}
+            {selection.status === "ready" ? <MapPlaceEvaluation
+                    key={coordinates}
+                    point={selection.point}
+                    placeName={place?.name || coordinates}
+                    onCriterionSelect={onCriterionSelect}
+                /> : null}
 
             <p className="m-0 text-xs text-charcoal/55">Địa chỉ có thể lệch vài chục mét. Phân tích bám tọa độ của ghim, không bám chuỗi địa chỉ.</p>
 

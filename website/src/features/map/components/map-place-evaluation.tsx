@@ -4,6 +4,7 @@ import { Check, Eye, EyeOff, Loader2, MapPinned, Pencil, RotateCcw, Sparkles, X 
 import { Fragment, useId, useState, type FormEvent, type JSX } from "react";
 
 import { evaluatePlace, isAbortError, mapErrorMessage, overrideCriterion, resetCriterion } from "@/features/map/map.service";
+import { showToast } from "@/shared/components/toast/toast-store";
 import ScoreRing, { formatScore as score, scoreTone } from "@/features/map/components/score-ring";
 import { CRITERION_ICON } from "@/features/map/criteria-icons";
 import type { EvaluatedCriterion, MapPoint, PlaceEvaluation } from "@/features/map/map.types";
@@ -12,6 +13,8 @@ type State =
     | { status: "idle" }
     | { status: "loading" }
     | { status: "ready"; evaluation: PlaceEvaluation }
+    /** Đánh giá lại: giữ nguyên kết quả cũ trên màn hình, chỉ khu vực đánh giá hiện đang tải. */
+    | { status: "refreshing"; evaluation: PlaceEvaluation }
     | { status: "error"; message: string };
 
 const TONE_TEXT: Record<ReturnType<typeof scoreTone>, string> = {
@@ -37,9 +40,12 @@ const ICON_BUTTON =
  */
 export default function MapPlaceEvaluation({
     point,
+    placeName,
     onCriterionSelect,
 }: {
     point: MapPoint;
+    /** Tên địa điểm dùng trong thông báo. */
+    placeName: string;
     /**
      * Chọn một tiêu chí (bấm vào dòng). Chỗ nối để sau này vẽ dẫn chứng trên bản đồ, vd. đường đi tới các
      * trường gần nhất cho tiêu chí "Trường học". null = bỏ chọn.
@@ -60,12 +66,31 @@ export default function MapPlaceEvaluation({
     const headingId = useId();
 
     function run(): void {
-        setState({ status: "loading" });
+        const previous = state.status === "ready" || state.status === "refreshing" ? state.evaluation : null;
+        setState(previous ? { status: "refreshing", evaluation: previous } : { status: "loading" });
         setError(null);
         evaluatePlace(point)
-            .then((evaluation) => setState({ status: "ready", evaluation }))
+            .then((evaluation) => {
+                setState({ status: "ready", evaluation });
+                showToast({
+                    title: previous ? "AI đã đánh giá lại địa điểm" : "AI đã đánh giá xong địa điểm",
+                    description:
+                        evaluation.overall === null
+                            ? placeName
+                            : `${placeName}: ${score(evaluation.overall)}/10, mức ${evaluation.rating.toLowerCase()}.`,
+                });
+            })
             .catch((reason: unknown) => {
-                if (!isAbortError(reason)) setState({ status: "error", message: mapErrorMessage(reason, "Không đánh giá được địa điểm này.") });
+                if (isAbortError(reason)) return;
+                const message = mapErrorMessage(reason, "Không đánh giá được địa điểm này.");
+                if (previous) {
+                    // Đánh giá lại lỗi: giữ kết quả cũ, chỉ báo lỗi.
+                    setState({ status: "ready", evaluation: previous });
+                    setError(message);
+                } else {
+                    setState({ status: "error", message });
+                }
+                showToast({ title: "Chưa đánh giá được địa điểm", description: message, tone: "error" });
             });
     }
 
@@ -117,80 +142,89 @@ export default function MapPlaceEvaluation({
     }
 
     const { evaluation } = state;
+    const refreshing = state.status === "refreshing";
     const used = evaluation.criteriaCount - evaluation.skipped.length;
     const overallTone = scoreTone(evaluation.overall);
 
     return (
-        <section aria-labelledby={headingId} className="border-t border-charcoal/10 pt-3">
+        <section aria-labelledby={headingId} aria-busy={refreshing} className="border-t border-charcoal/10 pt-3">
             <div className="flex items-center justify-between gap-2">
                 <h3 id={headingId} className="m-0 text-base font-semibold">
                     Đánh giá địa điểm
                 </h3>
-                <button type="button" onClick={run} className={`${ICON_BUTTON} w-auto gap-1 px-2 text-xs font-semibold`} aria-label="Đánh giá lại">
-                    <RotateCcw size={14} aria-hidden /> Đánh giá lại
+                <button
+                    type="button"
+                    onClick={run}
+                    disabled={refreshing}
+                    className={`${ICON_BUTTON} w-auto gap-1 px-2 text-xs font-semibold`}
+                    aria-label="Đánh giá lại"
+                >
+                    {refreshing ? <Loader2 size={14} className="animate-spin" aria-hidden /> : <RotateCcw size={14} aria-hidden />}
+                    {refreshing ? "Đang đánh giá…" : "Đánh giá lại"}
                 </button>
             </div>
-            {evaluation.sample ? (
-                <p className="m-0 mt-1 text-xs text-charcoal/60">Số liệu minh họa, chưa phải kết quả đo thật. Riêng khoảng cách tới Hồ Gươm là số thật.</p>
-            ) : null}
+            <div className={`transition-opacity duration-200 motion-reduce:transition-none ${refreshing ? "pointer-events-none opacity-50" : ""}`}>
+                {evaluation.sample ? (
+                    <p className="m-0 mt-1 text-xs text-charcoal/60">Số liệu minh họa, chưa phải kết quả đo thật. Riêng khoảng cách tới Hồ Gươm là số thật.</p>
+                ) : null}
 
-            <div className="mt-3 flex items-center gap-4 rounded-lg bg-charcoal/[0.03] px-3 py-3">
-                <ScoreRing
-                    value={evaluation.overall}
-                    size={84}
-                    label={evaluation.overall === null ? "Chưa có điểm tổng" : `Điểm tổng ${score(evaluation.overall)} trên 10`}
-                />
-                <div className="min-w-0">
-                    <p className={`m-0 inline-flex rounded-md px-2 py-0.5 text-sm font-semibold ${TONE_BADGE[overallTone]}`}>{evaluation.rating}</p>
-                    <p className="m-0 mt-1 text-xs text-charcoal/60">
-                        Điểm tổng trên thang 10, trung bình {used}/{evaluation.criteriaCount} tiêu chí
-                    </p>
-                    <p className="m-0 mt-0.5 flex gap-3 text-xs font-semibold tabular-nums">
-                        <span className="text-green">+{score(evaluation.strengths.points)} mạnh</span>
-                        <span className="text-red-700">−{score(evaluation.weaknesses.points)} yếu</span>
-                    </p>
+                <div className="mt-3 flex items-center gap-4 rounded-lg bg-charcoal/[0.03] px-3 py-3">
+                    <ScoreRing
+                        value={evaluation.overall}
+                        size={84}
+                        label={evaluation.overall === null ? "Chưa có điểm tổng" : `Điểm tổng ${score(evaluation.overall)} trên 10`}
+                    />
+                    <div className="min-w-0">
+                        <p className={`m-0 inline-flex rounded-md px-2 py-0.5 text-sm font-semibold ${TONE_BADGE[overallTone]}`}>{evaluation.rating}</p>
+                        <p className="m-0 mt-1 text-xs text-charcoal/60">
+                            Điểm tổng trên thang 10, trung bình {used}/{evaluation.criteriaCount} tiêu chí
+                        </p>
+                        <p className="m-0 mt-0.5 flex gap-3 text-xs font-semibold tabular-nums">
+                            <span className="text-green">+{score(evaluation.strengths.points)} mạnh</span>
+                            <span className="text-red-700">−{score(evaluation.weaknesses.points)} yếu</span>
+                        </p>
+                    </div>
                 </div>
+
+                <p className="m-0 mt-3 text-sm leading-relaxed text-charcoal/85">{evaluation.summary}</p>
+
+                {error ? (
+                    <p role="alert" className="m-0 mt-2 text-sm text-red-700">
+                        {error}
+                    </p>
+                ) : null}
+
+                <CriterionGroup
+                    title="Điểm mạnh"
+                    points={`+${score(evaluation.strengths.points)}`}
+                    pointsClass="text-green"
+                    empty="Chưa có tiêu chí nào trên 5 điểm."
+                    items={evaluation.strengths.items}
+                    busy={busy}
+                    editing={editing}
+                    selected={selected}
+                    onSelect={select}
+                    onEdit={setEditing}
+                    onSkip={(item) => void apply(item.id, () => overrideCriterion(point, item.id, { skipped: !item.skipped }))}
+                    onScore={(item, value) => void apply(item.id, () => overrideCriterion(point, item.id, { score: value }))}
+                    onReset={(item) => void apply(item.id, () => resetCriterion(point, item.id))}
+                />
+                <CriterionGroup
+                    title="Điểm yếu"
+                    points={`−${score(evaluation.weaknesses.points)}`}
+                    pointsClass="text-red-700"
+                    empty="Không có tiêu chí nào từ 5 điểm trở xuống."
+                    items={evaluation.weaknesses.items}
+                    busy={busy}
+                    editing={editing}
+                    selected={selected}
+                    onSelect={select}
+                    onEdit={setEditing}
+                    onSkip={(item) => void apply(item.id, () => overrideCriterion(point, item.id, { skipped: !item.skipped }))}
+                    onScore={(item, value) => void apply(item.id, () => overrideCriterion(point, item.id, { score: value }))}
+                    onReset={(item) => void apply(item.id, () => resetCriterion(point, item.id))}
+                />
             </div>
-
-            <p className="m-0 mt-3 text-sm leading-relaxed text-charcoal/85">{evaluation.summary}</p>
-
-            {error ? (
-                <p role="alert" className="m-0 mt-2 text-sm text-red-700">
-                    {error}
-                </p>
-            ) : null}
-
-            <CriterionGroup
-                title="Điểm mạnh"
-                points={`+${score(evaluation.strengths.points)}`}
-                pointsClass="text-green"
-                empty="Chưa có tiêu chí nào trên 5 điểm."
-                items={evaluation.strengths.items}
-                busy={busy}
-                editing={editing}
-                selected={selected}
-                onSelect={select}
-                onEdit={setEditing}
-                onSkip={(item) => void apply(item.id, () => overrideCriterion(point, item.id, { skipped: !item.skipped }))}
-                onScore={(item, value) => void apply(item.id, () => overrideCriterion(point, item.id, { score: value }))}
-                onReset={(item) => void apply(item.id, () => resetCriterion(point, item.id))}
-            />
-            <CriterionGroup
-                title="Điểm yếu"
-                points={`−${score(evaluation.weaknesses.points)}`}
-                pointsClass="text-red-700"
-                empty="Không có tiêu chí nào từ 5 điểm trở xuống."
-                items={evaluation.weaknesses.items}
-                busy={busy}
-                editing={editing}
-                selected={selected}
-                onSelect={select}
-                onEdit={setEditing}
-                onSkip={(item) => void apply(item.id, () => overrideCriterion(point, item.id, { skipped: !item.skipped }))}
-                onScore={(item, value) => void apply(item.id, () => overrideCriterion(point, item.id, { score: value }))}
-                onReset={(item) => void apply(item.id, () => resetCriterion(point, item.id))}
-            />
-
         </section>
     );
 }

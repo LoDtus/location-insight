@@ -29,6 +29,7 @@ import { useDirections } from "@/features/map/hooks/use-directions";
 import { useMapConfig } from "@/features/map/hooks/use-map-config";
 import { usePlaceSelection } from "@/features/map/hooks/use-place-selection";
 import { placeKey, useSavedPlaces } from "@/features/map/hooks/use-saved-places";
+import { showToast } from "@/shared/components/toast/toast-store";
 import {
     buildMapUrl,
     canonicalQuery,
@@ -617,8 +618,30 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                             kind: place?.kind,
                         })
                         .then((message) => {
-                            if (message) setNotice(message);
+                            if (message) {
+                                showToast({ title: "Chưa lưu được địa điểm", description: message, tone: "error" });
+                                return;
+                            }
+                            const wasSaved = saved.find(selection.point) !== undefined;
+                            showToast(
+                                wasSaved
+                                    ? { title: "Đã bỏ lưu địa điểm", description: place?.name, tone: "info" }
+                                    : { title: "Đã lưu địa điểm", description: `${place?.name ?? "Địa điểm"} có trong mục "Đã lưu" ở thanh bên.` },
+                            );
                         });
+                }}
+                onNearby={() => {
+                    const point = selection.point;
+                    clear();
+                    setPanel(null);
+                    setNearby({ center: point, radiusM: NEARBY_RADIUS.initial });
+                    setSearchFocus((value) => value + 1);
+                }}
+                onCopyLink={() => {
+                    void navigator.clipboard
+                        .writeText(placeLink(window.location.origin, pathname, selection.point))
+                        .then(() => showToast({ title: "Đã sao chép liên kết", description: "Dán liên kết để mở lại đúng điểm này trên bản đồ." }))
+                        .catch(() => showToast({ title: "Không sao chép được", description: "Hãy cấp quyền clipboard cho trang này.", tone: "error" }));
                 }}
                 onClose={closePanel}
                 onDirectionsTo={() => {

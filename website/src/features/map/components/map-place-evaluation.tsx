@@ -229,7 +229,7 @@ function CriterionGroup({ title, points, pointsClass, empty, items, ...rest }: G
                         <Fragment key={item.id}>
                             {/* Đường ngăn riêng: item bo góc nên không dùng border-b (bị méo ở góc). */}
                             {index > 0 ? (
-                                <li role="presentation" aria-hidden="true" className="px-1 py-px">
+                                <li role="presentation" aria-hidden="true" className="px-1 py-1">
                                     <div className="h-px bg-charcoal/10" />
                                 </li>
                             ) : null}

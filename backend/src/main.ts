@@ -8,6 +8,7 @@ import { IoAdapter } from '@nestjs/platform-socket.io';
 import cookieParser from 'cookie-parser';
 import { setupGracefulShutdown } from 'nestjs-graceful-shutdown';
 import { AppModule } from './app.module.js';
+import { configureCompression } from './shared/config/compression.config.js';
 import { configureCors } from './shared/config/cors.config.js';
 import { configureHelmet } from './shared/config/helmet.config.js';
 import { configurePermissionsPolicy } from './shared/config/permissions-policy.config.js';
@@ -67,6 +68,7 @@ async function bootstrap(): Promise<void> {
 
   const hops = Number(config.get('TRUST_PROXY_HOPS') ?? 1);
   app.set('trust proxy', Number.isNaN(hops) ? 1 : hops);
+  configureCompression(app);
   app.use(cookieParser());
   app.useWebSocketAdapter(new IoAdapter(app));
   configureHelmet(app, env);

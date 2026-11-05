@@ -67,7 +67,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }): JSX.Elemen
                                 { value: "nobody", label: "Không ai (người đã nhắn với bạn vẫn nhắn được)" },
                             ] as const
                         ).map((option) => (
-                            <label key={option.value} className="flex min-h-11 items-center gap-3 rounded-xl px-2 hover:bg-cream">
+                            <label key={option.value} className="flex min-h-11 items-center gap-3 rounded-xl px-2 hover:bg-charcoal/5">
                                 <input
                                     type="radio"
                                     name="who"
@@ -113,7 +113,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }): JSX.Elemen
                             </ul>
                         )}
                     </section>
-                    <p className="m-0 rounded-xl bg-cream p-3 text-xs text-charcoal/75">
+                    <p className="m-0 rounded-xl bg-white p-3 text-xs text-charcoal/75">
                         Tin nhắn không được mã hóa đầu cuối. Tin bạn báo cáo có thể được người vận hành xem.
                     </p>
                     {error ? (

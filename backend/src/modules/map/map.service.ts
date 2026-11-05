@@ -73,6 +73,22 @@ export class MapService {
     };
   }
 
+  /** Như clientConfig nhưng không gắn người dùng và tắt tìm kiếm: dùng cho bản đồ trên trang công khai. */
+  publicConfig(): MapConfigPayload {
+    const base = this.config.baseUrl;
+    const key = encodeURIComponent(this.config.tileKey);
+    const tiles = this.config.tilesEnabled;
+    return {
+      styles: tiles ? MAP_STYLES.map((id) => ({ id, url: `${base}/maps/styles/${id}/style.json?apikey=${key}` })) : [],
+      trafficStyleUrl: null,
+      center: [...DEFAULT_CENTER],
+      zoom: DEFAULT_ZOOM,
+      maxBounds: [...VN_BOUNDS],
+      searchEnabled: false,
+      tilesEnabled: tiles,
+    };
+  }
+
   async search(
     userId: string,
     text: string,

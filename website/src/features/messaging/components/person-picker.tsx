@@ -60,7 +60,7 @@ export function PersonPicker({
 
     return (
         <div>
-            <label className="flex min-h-11 items-center gap-2 rounded-full bg-cream px-4">
+            <label className="flex min-h-11 items-center gap-2 rounded-full bg-white px-4">
                 <Search className="size-4 shrink-0 text-charcoal/60" aria-hidden="true" />
                 <span className="sr-only">Tìm người</span>
                 <input
@@ -84,7 +84,7 @@ export function PersonPicker({
                         <button
                             type="button"
                             disabled={disabled}
-                            className="flex min-h-14 w-full items-center gap-3 rounded-xl px-2 text-left hover:bg-cream focus-visible:outline-2 focus-visible:outline-green disabled:opacity-60"
+                            className="flex min-h-14 w-full items-center gap-3 rounded-xl px-2 text-left hover:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-green disabled:opacity-60"
                             onClick={() => onPick(person)}
                         >
                             <PersonAvatar name={person.displayName} url={person.avatarUrl} size={40} />

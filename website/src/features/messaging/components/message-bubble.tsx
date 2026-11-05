@@ -80,7 +80,7 @@ export function MessageBubble(props: BubbleProps): JSX.Element {
         ? "border border-dashed border-charcoal/30 bg-transparent italic text-charcoal/60"
         : mine
           ? "bg-green text-cream"
-          : "border border-charcoal/10 bg-cream text-charcoal";
+          : "border border-charcoal/15 bg-white text-charcoal";
     const showActions = !deleted && (touched || menu !== "none");
 
     return (
@@ -222,7 +222,7 @@ export function MessageBubble(props: BubbleProps): JSX.Element {
                                         key={emoji}
                                         type="button"
                                         role="menuitem"
-                                        className={`inline-flex size-9 items-center justify-center rounded-full text-xl hover:bg-cream focus-visible:outline-2 focus-visible:outline-green ${message.reactions.some((item) => item.mine && item.emoji === emoji) ? "bg-green/15" : ""}`}
+                                        className={`inline-flex size-9 items-center justify-center rounded-full text-xl hover:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-green ${message.reactions.some((item) => item.mine && item.emoji === emoji) ? "bg-green/15" : ""}`}
                                         aria-label={emoji}
                                         onClick={() => {
                                             setMenu("none");
@@ -302,7 +302,7 @@ function MenuButton({ icon, label, onClick }: { icon: JSX.Element; label: string
         <button
             type="button"
             role="menuitem"
-            className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-semibold hover:bg-cream focus-visible:outline-2 focus-visible:outline-green"
+            className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-semibold hover:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-green"
             onClick={onClick}
         >
             {icon}

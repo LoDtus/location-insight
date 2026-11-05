@@ -4,7 +4,7 @@ import { OfflineRetry } from "@/features/pwa/components/offline-retry";
 
 export default function OfflinePage(): JSX.Element {
     return (
-        <main className="flex h-full flex-col items-center justify-center gap-4 bg-cream px-6 text-center text-charcoal">
+        <main className="flex h-full flex-col items-center justify-center gap-4 bg-white px-6 text-center text-charcoal">
             {/* Ảnh tĩnh, không qua bộ tối ưu, để trang vẫn hiện khi mất mạng. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logos/diathe.svg" alt="" width={48} height={48} />

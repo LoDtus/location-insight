@@ -18,6 +18,11 @@ export function getMapConfig(signal?: AbortSignal): Promise<MapConfig> {
     return apiRequest("/map/config", withSignal(signal));
 }
 
+/** Cấu hình nền bản đồ cho trang công khai (không cần đăng nhập, không có tìm kiếm). */
+export function getPublicMapConfig(signal?: AbortSignal): Promise<MapConfig> {
+    return apiRequest("/map/public-config", withSignal(signal));
+}
+
 export function searchPlaces(
     text: string,
     focus: MapPoint | null,

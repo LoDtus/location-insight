@@ -73,7 +73,7 @@ export default function FaqAsk() {
                     required
                     aria-invalid={error !== ""}
                     aria-describedby={error ? errorId : undefined}
-                    className="mt-1 box-border min-h-32 w-full bg-cream px-4 py-3 text-base text-charcoal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+                    className="mt-1 box-border min-h-32 w-full bg-white px-4 py-3 text-base text-charcoal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
                     onChange={(event) => setQuestion(event.target.value)}
                 />
                 {error ? (
@@ -83,13 +83,13 @@ export default function FaqAsk() {
                 ) : null}
                 <button
                     type="submit"
-                    className="mt-4 inline-flex min-h-12 items-center bg-gold px-8 font-semibold tracking-wide text-charcoal transition-colors hover:bg-cream focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold motion-reduce:transition-none"
+                    className="mt-4 inline-flex min-h-12 items-center bg-gold px-8 font-semibold tracking-wide text-charcoal transition-colors hover:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold motion-reduce:transition-none"
                 >
                     {text(["faq", "submit"])}
                 </button>
             </form>
             {answer ? (
-                <div className="mt-8 bg-cream p-6 text-charcoal">
+                <div className="mt-8 bg-white p-6 text-charcoal">
                     <h3
                         ref={answerRef}
                         tabIndex={-1}

@@ -146,7 +146,7 @@ function ReportCard({ report, onResolved }: { report: AdminReport; onResolved: (
                 Báo bởi {report.reporter?.displayName ?? "Không rõ"}
                 {report.note ? ` · “${report.note}”` : ""}
             </p>
-            <ol className="m-0 grid gap-1 rounded-xl bg-cream p-3 text-sm" aria-label="Ngữ cảnh đã chụp">
+            <ol className="m-0 grid gap-1 rounded-xl bg-white p-3 text-sm" aria-label="Ngữ cảnh đã chụp">
                 {report.context.map((item) => (
                     <li
                         key={item.seq}

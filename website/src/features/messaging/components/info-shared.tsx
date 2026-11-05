@@ -55,7 +55,7 @@ function Skeleton({ rows }: { rows: number }): JSX.Element {
     return (
         <div className="grid gap-2" aria-hidden="true">
             {Array.from({ length: rows }, (_, index) => (
-                <div key={index} className="h-10 animate-pulse rounded-lg bg-cream" />
+                <div key={index} className="h-10 animate-pulse rounded-lg bg-white" />
             ))}
         </div>
     );
@@ -81,7 +81,7 @@ function SeeAll({ label, onClick }: { label: string; onClick: () => void }): JSX
     return (
         <button
             type="button"
-            className="mt-1 mb-1 min-h-11 w-full rounded-xl bg-cream text-sm font-semibold hover:bg-charcoal/10 focus-visible:outline-2 focus-visible:outline-green"
+            className="mt-1 mb-1 min-h-11 w-full rounded-xl border border-charcoal/15 bg-white text-sm font-semibold hover:bg-charcoal/10 focus-visible:outline-2 focus-visible:outline-green"
             onClick={onClick}
         >
             {label}
@@ -103,7 +103,7 @@ function MediaGrid({
     return (
         <ul className="m-0 grid list-none grid-cols-3 gap-1.5 p-0">
             {items.map((item, index) => (
-                <li key={item.id} className="group/thumb relative aspect-square list-none overflow-hidden rounded-lg bg-cream">
+                <li key={item.id} className="group/thumb relative aspect-square list-none overflow-hidden rounded-lg bg-white">
                     <button
                         type="button"
                         className="block size-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
@@ -137,7 +137,7 @@ function LinkRow({ item, context }: { item: SharedLink; context: SharedContext }
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer nofollow"
-                className="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-1.5 text-inherit no-underline hover:bg-cream focus-visible:outline-2 focus-visible:outline-green"
+                className="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-1.5 text-inherit no-underline hover:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-green"
             >
                 <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg bg-green/10 text-green">
                     <Link2 className="size-4" aria-hidden="true" />
@@ -163,7 +163,7 @@ function FileRow({ item, context }: { item: SharedFile; context: SharedContext }
                 download={item.fileName}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-1.5 text-inherit no-underline hover:bg-cream focus-visible:outline-2 focus-visible:outline-green"
+                className="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-1.5 text-inherit no-underline hover:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-green"
                 aria-label={`Tải về ${item.fileName}, ${formatBytes(item.byteSize)}`}
             >
                 <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg bg-green/10 text-green">
@@ -186,7 +186,7 @@ function JumpButton({ onClick }: { onClick: () => void }): JSX.Element {
     return (
         <button
             type="button"
-            className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-charcoal/55 hover:bg-cream hover:text-charcoal focus-visible:outline-2 focus-visible:outline-green"
+            className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-charcoal/55 hover:bg-charcoal/5 hover:text-charcoal focus-visible:outline-2 focus-visible:outline-green"
             aria-label="Đi tới tin nhắn"
             onClick={onClick}
         >
@@ -266,7 +266,7 @@ export function SharedFull({
             <div className="flex items-center gap-1 border-b border-charcoal/10 px-2">
                 <button
                     type="button"
-                    className="inline-flex size-11 items-center justify-center rounded-full hover:bg-cream focus-visible:outline-2 focus-visible:outline-green"
+                    className="inline-flex size-11 items-center justify-center rounded-full hover:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-green"
                     aria-label="Quay lại thông tin hội thoại"
                     onClick={onBack}
                 >
@@ -281,7 +281,7 @@ export function SharedFull({
                         type="button"
                         role="tab"
                         aria-selected={tab === item.id}
-                        className={`min-h-10 flex-1 rounded-full border px-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green ${tab === item.id ? "border-charcoal bg-charcoal text-cream" : "border-charcoal/25 hover:bg-cream"}`}
+                        className={`min-h-10 flex-1 rounded-full border px-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green ${tab === item.id ? "border-charcoal bg-charcoal text-cream" : "border-charcoal/25 hover:bg-charcoal/5"}`}
                         onClick={() => onTab(item.id)}
                     >
                         {item.label}

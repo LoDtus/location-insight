@@ -476,7 +476,7 @@ function ProfileScreenContent({
                                 </div>
                             )}
 
-                            <section className="mt-6 rounded-md border border-charcoal/15 bg-cream/60 p-5" aria-labelledby="gioi-thieu">
+                            <section className="mt-6 rounded-md border border-charcoal/15 bg-white p-5" aria-labelledby="gioi-thieu">
                                 <h2 id="gioi-thieu" className="m-0 text-xl font-semibold">
                                     Giới thiệu
                                 </h2>

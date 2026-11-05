@@ -94,13 +94,13 @@ export default function PricingGrid() {
                         <div className="mt-auto flex flex-wrap gap-2 pt-2">
                             <Link
                                 href={`/app/payments?plan=${plan.id}&cycle=month`}
-                                className={`${BUTTON_CLASS} font-semibold ${plan.recommended ? "bg-gold text-charcoal hover:bg-cream" : "bg-charcoal text-cream hover:bg-green"}`}
+                                className={`${BUTTON_CLASS} font-semibold ${plan.recommended ? "bg-gold text-charcoal hover:bg-white" : "bg-charcoal text-cream hover:bg-green"}`}
                             >
                                 {text(["pricing", "monthCta"])}
                             </Link>
                             <Link
                                 href={`/app/payments?plan=${plan.id}&cycle=year`}
-                                className={`${BUTTON_CLASS} font-semibold bg-cream text-charcoal hover:bg-gold`}
+                                className={`${BUTTON_CLASS} font-semibold bg-white text-charcoal hover:bg-gold`}
                             >
                                 {text(["pricing", "yearCta"])}
                             </Link>

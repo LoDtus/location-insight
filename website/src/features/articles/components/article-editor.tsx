@@ -431,7 +431,7 @@ export default function ArticleEditor({ article }: { article: AdminArticle | nul
                                 </Field>
                             ) : null}
                             {article?.source === "ai" ? (
-                                <p className="m-0 rounded-xl bg-cream/60 p-3 text-xs text-charcoal/80">
+                                <p className="m-0 rounded-xl bg-white p-3 text-xs text-charcoal/80">
                                     Bài do AI tạo{article.reviewNote ? `. Ghi chú duyệt: ${article.reviewNote}` : ". Hãy đọc lại trước khi đăng."}
                                 </p>
                             ) : null}

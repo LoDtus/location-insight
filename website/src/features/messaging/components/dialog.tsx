@@ -68,7 +68,7 @@ export function Dialog({
                     <button
                         type="button"
                         data-dialog-close
-                        className="inline-flex size-11 items-center justify-center rounded-full hover:bg-cream focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
+                        className="inline-flex size-11 items-center justify-center rounded-full hover:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
                         aria-label="Đóng"
                         onClick={onClose}
                     >

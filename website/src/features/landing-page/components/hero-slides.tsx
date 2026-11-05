@@ -68,7 +68,7 @@ export default function HeroSlides({
                     <button
                         type="button"
                         aria-label={previousLabel}
-                        className="inline-flex h-11 w-11 items-center justify-center bg-cream text-charcoal transition-colors hover:bg-gold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold motion-reduce:transition-none"
+                        className="inline-flex h-11 w-11 items-center justify-center bg-white text-charcoal transition-colors hover:bg-gold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold motion-reduce:transition-none"
                         onClick={() => show(index - 1)}
                     >
                         <ChevronLeft size={18} />
@@ -76,7 +76,7 @@ export default function HeroSlides({
                     <button
                         type="button"
                         aria-label={nextLabel}
-                        className="inline-flex h-11 w-11 items-center justify-center bg-cream text-charcoal transition-colors hover:bg-gold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold motion-reduce:transition-none"
+                        className="inline-flex h-11 w-11 items-center justify-center bg-white text-charcoal transition-colors hover:bg-gold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold motion-reduce:transition-none"
                         onClick={() => show(index + 1)}
                     >
                         <ChevronRight size={18} />

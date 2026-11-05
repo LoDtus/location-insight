@@ -103,7 +103,7 @@ export function NotificationItemRow({
             <div className="relative">
                 <button
                     type="button"
-                    className="inline-flex size-11 items-center justify-center rounded-full hover:bg-cream focus-visible:outline-2 focus-visible:outline-green"
+                    className="inline-flex size-11 items-center justify-center rounded-full hover:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-green"
                     aria-label="Thao tác thông báo"
                     aria-haspopup="menu"
                     aria-expanded={menu}
@@ -116,7 +116,7 @@ export function NotificationItemRow({
                         <button
                             type="button"
                             role="menuitem"
-                            className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm hover:bg-cream"
+                            className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm hover:bg-charcoal/5"
                             onClick={() => {
                                 setMenu(false);
                                 if (unread) {
@@ -133,7 +133,7 @@ export function NotificationItemRow({
                         <button
                             type="button"
                             role="menuitem"
-                            className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm hover:bg-cream"
+                            className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm hover:bg-charcoal/5"
                             onClick={() => {
                                 setMenu(false);
                                 onChange(null, item);

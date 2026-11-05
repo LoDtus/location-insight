@@ -26,7 +26,7 @@ export default async function MuaBanNhaDatSection() {
                 </p>
                 <Link
                     href="/nha-dat"
-                    className="mt-10 inline-flex min-h-14 w-fit items-center bg-gold px-8 text-base font-semibold tracking-wide text-charcoal transition-colors hover:bg-cream focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold motion-reduce:transition-none"
+                    className="mt-10 inline-flex min-h-14 w-fit items-center bg-gold px-8 text-base font-semibold tracking-wide text-charcoal transition-colors hover:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold motion-reduce:transition-none"
                 >
                     {getLocaleValue(messages, ["listingsSection", "cta"])}
                 </Link>

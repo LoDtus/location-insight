@@ -111,7 +111,7 @@ export function FeedbackThread({
             <header className="flex flex-wrap items-center gap-3 border-b border-charcoal/10 px-4 py-3 sm:px-6">
                 <Link
                     href={backHref}
-                    className="inline-flex size-11 items-center justify-center rounded-full hover:bg-cream focus-visible:outline-2 focus-visible:outline-green md:hidden"
+                    className="inline-flex size-11 items-center justify-center rounded-full hover:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-green md:hidden"
                     aria-label="Quay lại danh sách"
                 >
                     <ArrowLeft className="size-5" aria-hidden="true" />
@@ -144,7 +144,7 @@ export function FeedbackThread({
             </header>
 
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
-                <section className="rounded-2xl bg-cream p-4">
+                <section className="rounded-2xl bg-white p-4">
                     <div className="mb-2 flex items-center gap-2">
                         <PersonAvatar name={data.author.displayName} url={data.author.avatarUrl} size={32} />
                         <span className="text-sm font-semibold">{mode === "admin" ? data.author.displayName : "Bạn"}</span>

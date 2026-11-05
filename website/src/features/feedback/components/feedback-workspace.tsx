@@ -33,7 +33,7 @@ export function FeedbackWorkspace({
                     {mode === "user" ? (
                         <Link
                             href="/app/feedback"
-                            className="inline-flex size-11 items-center justify-center rounded-full hover:bg-cream focus-visible:outline-2 focus-visible:outline-green"
+                            className="inline-flex size-11 items-center justify-center rounded-full hover:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-green"
                             aria-label="Gửi góp ý mới"
                         >
                             <SquarePen className="size-5" aria-hidden="true" />

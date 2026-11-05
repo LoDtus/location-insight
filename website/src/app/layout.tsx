@@ -1,3 +1,4 @@
+import ServiceWorkerGuard from "@/features/pwa/components/service-worker-guard";
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import NextTopLoader from "nextjs-toploader";
@@ -48,6 +49,7 @@ export default async function RootLayout({
         >
             <head />
             <body className="w-full h-full flex flex-col overflow-hidden">
+                <ServiceWorkerGuard />
                 <NextTopLoader
                     color={COLOR.PRIMARY}
                     height={2}

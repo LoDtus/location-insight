@@ -119,7 +119,7 @@ export function PostCard({
                             <div className="absolute right-0 z-20 w-56 rounded-2xl border border-charcoal/10 bg-white p-2 shadow-sm">
                                 <button
                                     type="button"
-                                    className="flex min-h-11 w-full items-center rounded-xl px-3 text-left text-sm font-semibold hover:bg-cream"
+                                    className="flex min-h-11 w-full items-center rounded-xl px-3 text-left text-sm font-semibold hover:bg-charcoal/5"
                                     onClick={() => {
                                         setMenu(false);
                                         onDelete();
@@ -148,7 +148,7 @@ export function PostCard({
                         <div className="absolute top-12 left-1/3 z-20 w-44 rounded-2xl border border-charcoal/10 bg-white p-2 shadow-sm">
                             <button
                                 type="button"
-                                className="flex min-h-11 w-full items-center rounded-xl px-3 text-left text-sm font-semibold hover:bg-cream"
+                                className="flex min-h-11 w-full items-center rounded-xl px-3 text-left text-sm font-semibold hover:bg-charcoal/5"
                                 onClick={() => {
                                     setRepostMenu(false);
                                     onRepost();
@@ -158,7 +158,7 @@ export function PostCard({
                             </button>
                             <button
                                 type="button"
-                                className="flex min-h-11 w-full items-center rounded-xl px-3 text-left text-sm font-semibold hover:bg-cream"
+                                className="flex min-h-11 w-full items-center rounded-xl px-3 text-left text-sm font-semibold hover:bg-charcoal/5"
                                 onClick={() => {
                                     setRepostMenu(false);
                                     onQuote();

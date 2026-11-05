@@ -56,10 +56,10 @@ export default async function Layout({
 
     return (
         <div
-            className={`${displaySerif.variable} ${textSerif.variable} relative flex h-full min-h-0 w-full flex-col bg-cream font-serif text-charcoal [font-variant-numeric:lining-nums]`}
+            className={`${displaySerif.variable} ${textSerif.variable} relative flex h-full min-h-0 w-full flex-col bg-white font-serif text-charcoal [font-variant-numeric:lining-nums]`}
         >
             <a
-                className="absolute top-2 left-4 z-10 -translate-y-[150%] bg-cream px-4 py-2 focus:translate-y-0"
+                className="absolute top-2 left-4 z-10 -translate-y-[150%] bg-white px-4 py-2 focus:translate-y-0"
                 href="#noi-dung"
             >
                 {getLocaleValue(messages, ["skip"])}

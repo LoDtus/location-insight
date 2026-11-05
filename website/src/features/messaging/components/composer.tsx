@@ -200,7 +200,7 @@ export function Composer({
             onDrop={onDrop}
         >
             {replyTo ? (
-                <div className="mb-2 flex items-start gap-2 rounded-2xl bg-cream px-3 py-2 text-sm">
+                <div className="mb-2 flex items-start gap-2 rounded-2xl bg-white px-3 py-2 text-sm">
                     <div className="min-w-0 flex-1">
                         <p className="m-0 text-xs font-semibold text-charcoal/70">Đang trả lời {replyName}</p>
                         <p className="m-0 truncate">{replyTo.body || (replyTo.attachments[0]?.kind === "file" ? "Tệp" : replyTo.attachments.length ? "Ảnh" : "Bài viết")}</p>
@@ -239,7 +239,7 @@ export function Composer({
             {documents.length > 0 ? (
                 <ul className="mb-2 grid gap-1.5 p-0" aria-label="Tệp đính kèm">
                     {documents.map((file, index) => (
-                        <li key={`${file.name}-${index}`} className="flex list-none items-center gap-2 rounded-xl bg-cream px-3 py-2 text-sm">
+                        <li key={`${file.name}-${index}`} className="flex list-none items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm">
                             <FileTypeIcon fileName={file.name} className="size-4 shrink-0" />
                             <span className="min-w-0 flex-1 truncate font-semibold">{file.name}</span>
                             <span className="shrink-0 text-xs text-charcoal/60">{formatBytes(file.size)}</span>
@@ -263,7 +263,7 @@ export function Composer({
             <div className="relative flex items-end gap-2">
                 <button
                     type="button"
-                    className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-cream hover:bg-charcoal/10 focus-visible:outline-2 focus-visible:outline-green"
+                    className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-white hover:bg-charcoal/10 focus-visible:outline-2 focus-visible:outline-green"
                     aria-label="Đính kèm ảnh"
                     onClick={() => fileInput.current?.click()}
                 >
@@ -282,7 +282,7 @@ export function Composer({
                 />
                 <button
                     type="button"
-                    className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-cream hover:bg-charcoal/10 focus-visible:outline-2 focus-visible:outline-green"
+                    className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-white hover:bg-charcoal/10 focus-visible:outline-2 focus-visible:outline-green"
                     aria-label="Đính kèm tệp"
                     onClick={() => documentInput.current?.click()}
                 >
@@ -299,7 +299,7 @@ export function Composer({
                         event.target.value = "";
                     }}
                 />
-                <div className="flex min-h-11 min-w-0 flex-1 items-end gap-1 rounded-3xl bg-cream px-2">
+                <div className="flex min-h-11 min-w-0 flex-1 items-end gap-1 rounded-3xl bg-white px-2">
                     <div ref={picker} className="relative">
                         <button
                             type="button"
@@ -321,7 +321,7 @@ export function Composer({
                                         key={emoji}
                                         type="button"
                                         role="menuitem"
-                                        className="inline-flex size-7 items-center justify-center rounded-md text-lg hover:bg-cream focus-visible:outline-2 focus-visible:outline-green"
+                                        className="inline-flex size-7 items-center justify-center rounded-md text-lg hover:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-green"
                                         aria-label={emoji}
                                         onClick={() => {
                                             change(`${text}${emoji}`);

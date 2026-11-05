@@ -171,7 +171,7 @@ export default function RichTextToolbar({
     }
 
     return (
-        <div className="border-b border-charcoal/15 bg-cream/60">
+        <div className="border-b border-charcoal/15 bg-white">
             <div role="toolbar" aria-label={names.toolbar} className="flex flex-wrap items-center gap-1.5 px-2 py-1.5">
                 {visible.map((group) => (
                     <Group key={group[0].key}>

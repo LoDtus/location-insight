@@ -100,7 +100,7 @@ export default function RichTextEditor({
         <div
             className={`overflow-hidden rounded-xl border bg-white focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-green ${invalid ? "border-red-600" : "border-charcoal/20"}`}
         >
-            {editor ? <RichTextToolbar editor={editor} labels={labels} names={names} /> : <div className="h-[49px] border-b border-charcoal/15 bg-cream/60" />}
+            {editor ? <RichTextToolbar editor={editor} labels={labels} names={names} /> : <div className="h-[49px] border-b border-charcoal/15 bg-white" />}
             <EditorContent editor={editor} />
         </div>
     );

@@ -84,13 +84,13 @@ export function InfoSearch({
             <div className="flex items-center gap-1 border-b border-charcoal/10 px-2 py-1">
                 <button
                     type="button"
-                    className="inline-flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-cream focus-visible:outline-2 focus-visible:outline-green"
+                    className="inline-flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-green"
                     aria-label="Quay lại thông tin hội thoại"
                     onClick={onBack}
                 >
                     <ArrowLeft className="size-5" aria-hidden="true" />
                 </button>
-                <label className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-full bg-cream px-3">
+                <label className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-full bg-white px-3">
                     <Search className="size-4 shrink-0 text-charcoal/60" aria-hidden="true" />
                     <span className="sr-only">Tìm trong cuộc trò chuyện</span>
                     <input
@@ -122,7 +122,7 @@ export function InfoSearch({
                 ) : loading && shown.length === 0 ? (
                     <div className="grid gap-2 p-1" aria-hidden="true">
                         {[0, 1, 2].map((index) => (
-                            <div key={index} className="h-14 animate-pulse rounded-xl bg-cream" />
+                            <div key={index} className="h-14 animate-pulse rounded-xl bg-white" />
                         ))}
                     </div>
                 ) : shown.length === 0 && searched === text ? (
@@ -133,7 +133,7 @@ export function InfoSearch({
                             <li key={hit.messageId} className="list-none">
                                 <button
                                     type="button"
-                                    className="block w-full rounded-xl px-3 py-2 text-left hover:bg-cream focus-visible:outline-2 focus-visible:outline-green"
+                                    className="block w-full rounded-xl px-3 py-2 text-left hover:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-green"
                                     onClick={() => onJump(hit.seq)}
                                 >
                                     <span className="flex items-baseline justify-between gap-2 text-xs text-charcoal/60">

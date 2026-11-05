@@ -96,7 +96,7 @@ export function ConversationList({
                 <div className="flex items-center">
                     <button
                         type="button"
-                        className="inline-flex size-11 items-center justify-center rounded-full hover:bg-cream focus-visible:outline-2 focus-visible:outline-green"
+                        className="inline-flex size-11 items-center justify-center rounded-full hover:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-green"
                         aria-label="Cài đặt tin nhắn"
                         onClick={onSettings}
                     >
@@ -104,7 +104,7 @@ export function ConversationList({
                     </button>
                     <button
                         type="button"
-                        className="inline-flex size-11 items-center justify-center rounded-full hover:bg-cream focus-visible:outline-2 focus-visible:outline-green"
+                        className="inline-flex size-11 items-center justify-center rounded-full hover:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-green"
                         aria-label="Tin nhắn mới"
                         onClick={onCompose}
                     >
@@ -113,7 +113,7 @@ export function ConversationList({
                 </div>
             </div>
             <div className="px-4">
-                <label className="flex min-h-11 items-center gap-2 rounded-full bg-cream px-4">
+                <label className="flex min-h-11 items-center gap-2 rounded-full bg-white px-4">
                     <Search className="size-4 shrink-0 text-charcoal/60" aria-hidden="true" />
                     <span className="sr-only">Tìm hội thoại</span>
                     <input
@@ -139,10 +139,10 @@ export function ConversationList({
                     <ul className="m-0 grid gap-1 p-2" aria-hidden="true">
                         {[0, 1, 2, 3, 4, 5].map((index) => (
                             <li key={index} className="flex list-none items-center gap-3 p-2">
-                                <span className="size-12 animate-pulse rounded-full bg-cream" />
+                                <span className="size-12 animate-pulse rounded-full bg-white" />
                                 <span className="grid flex-1 gap-2">
-                                    <span className="h-3 w-1/2 animate-pulse rounded bg-cream" />
-                                    <span className="h-3 w-3/4 animate-pulse rounded bg-cream" />
+                                    <span className="h-3 w-1/2 animate-pulse rounded bg-white" />
+                                    <span className="h-3 w-3/4 animate-pulse rounded bg-white" />
                                 </span>
                             </li>
                         ))}
@@ -199,7 +199,7 @@ function Row({ item, active, root }: { item: ConversationSummary; active: boolea
             <Link
                 href={`${root}/messages/${item.id}`}
                 aria-current={active ? "page" : undefined}
-                className={`flex min-h-[72px] items-center gap-3 rounded-2xl px-3 py-2 text-inherit no-underline focus-visible:outline-2 focus-visible:outline-green ${active ? "bg-cream" : "hover:bg-cream/70"}`}
+                className={`flex min-h-[72px] items-center gap-3 rounded-2xl px-3 py-2 text-inherit no-underline focus-visible:outline-2 focus-visible:outline-green ${active ? "bg-charcoal/5" : "hover:bg-charcoal/5"}`}
             >
                 <PersonAvatar name={item.peer.displayName} url={item.peer.avatarUrl} size={48} />
                 <span className="min-w-0 flex-1">
@@ -238,7 +238,7 @@ function FolderTab({
             type="button"
             role="tab"
             aria-selected={selected}
-            className={`inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green ${selected ? "border-charcoal bg-charcoal text-cream" : "border-charcoal/25 hover:bg-cream"}`}
+            className={`inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green ${selected ? "border-charcoal bg-charcoal text-cream" : "border-charcoal/25 hover:bg-charcoal/5"}`}
             onClick={onClick}
         >
             {label}

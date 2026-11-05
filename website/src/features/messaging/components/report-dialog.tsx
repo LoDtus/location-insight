@@ -51,7 +51,7 @@ export function ReportDialog({
             <fieldset className="mt-4 grid gap-1 border-0 p-0">
                 <legend className="mb-1 text-sm font-semibold">Lý do</legend>
                 {REASONS.map((item) => (
-                    <label key={item.code} className="flex min-h-11 items-center gap-3 rounded-xl px-2 hover:bg-cream">
+                    <label key={item.code} className="flex min-h-11 items-center gap-3 rounded-xl px-2 hover:bg-charcoal/5">
                         <input
                             type="radio"
                             name="reason"

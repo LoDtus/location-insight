@@ -2,14 +2,36 @@ const worker = self as unknown as ServiceWorkerGlobalScope;
 
 const BUILD_ID = "__BUILD_ID__";
 const CACHE_NAME = `static-${BUILD_ID}`;
+/**
+ * Bản build cho `next dev`: worker tự xóa cache và tự gỡ đăng ký. Next dev đặt tên chunk không kèm mã băm,
+ * nên một worker cache-first còn sót sẽ phục vụ mãi mã cũ ở mọi trang (kể cả trang không gắn PwaProvider).
+ */
+const DEV_SELF_DESTRUCT_FLAG: string = "__DEV_SELF_DESTRUCT__";
+const DEV_SELF_DESTRUCT = DEV_SELF_DESTRUCT_FLAG === "true";
 const DB_NAME = "diathe-pwa";
 const DB_STORE = "flags";
 
 worker.addEventListener("install", (event) => {
+    if (DEV_SELF_DESTRUCT) {
+        event.waitUntil(worker.skipWaiting());
+        return;
+    }
     event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.add(OFFLINE_PATH).catch(() => undefined)));
 });
 
 worker.addEventListener("activate", (event) => {
+    if (DEV_SELF_DESTRUCT) {
+        event.waitUntil(
+            (async () => {
+                const keys = await caches.keys();
+                await Promise.all(keys.map((key) => caches.delete(key)));
+                await worker.registration.unregister();
+                const windows = await worker.clients.matchAll({ type: "window" });
+                for (const client of windows) void (client as WindowClient).navigate(client.url);
+            })(),
+        );
+        return;
+    }
     event.waitUntil(
         (async () => {
             const keys = await caches.keys();
@@ -36,6 +58,7 @@ worker.addEventListener("message", (event) => {
 });
 
 worker.addEventListener("fetch", (event) => {
+    if (DEV_SELF_DESTRUCT) return;
     const request = event.request;
     if (request.method !== "GET") return;
     const url = new URL(request.url);

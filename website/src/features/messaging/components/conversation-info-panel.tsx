@@ -112,7 +112,7 @@ export function ConversationInfoPanel({
                     onBack={() => setView({ name: "main" })}
                 />
                 {notice ? (
-                    <p role="status" className="m-0 border-t border-charcoal/10 bg-cream px-4 py-2 text-sm">
+                    <p role="status" className="m-0 border-t border-charcoal/10 bg-white px-4 py-2 text-sm">
                         {notice}
                     </p>
                 ) : null}
@@ -130,7 +130,7 @@ export function ConversationInfoPanel({
                     onBack={() => setView({ name: "main" })}
                 />
                 {notice ? (
-                    <p role="status" className="m-0 border-t border-charcoal/10 bg-cream px-4 py-2 text-sm">
+                    <p role="status" className="m-0 border-t border-charcoal/10 bg-white px-4 py-2 text-sm">
                         {notice}
                     </p>
                 ) : null}
@@ -144,7 +144,7 @@ export function ConversationInfoPanel({
                 <h2 className="m-0 text-base font-semibold">Thông tin</h2>
                 <button
                     type="button"
-                    className="inline-flex size-11 items-center justify-center rounded-full hover:bg-cream focus-visible:outline-2 focus-visible:outline-green"
+                    className="inline-flex size-11 items-center justify-center rounded-full hover:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-green"
                     aria-label="Đóng thông tin cuộc trò chuyện"
                     onClick={onClose}
                 >
@@ -163,7 +163,7 @@ export function ConversationInfoPanel({
                 ) : null}
 
                 <section className="flex flex-col items-center gap-1 px-4 pt-6 pb-4 text-center" aria-label="Người trò chuyện">
-                    {peer ? <PersonAvatar name={realName} url={peer.avatarUrl} size={80} /> : <span className="size-20 rounded-full bg-cream" />}
+                    {peer ? <PersonAvatar name={realName} url={peer.avatarUrl} size={80} /> : <span className="size-20 rounded-full bg-white" />}
                     <h3 className="m-0 mt-2 max-w-full text-lg font-semibold [overflow-wrap:anywhere]">{name || "Đang tải…"}</h3>
                     {nickname ? <p className="m-0 text-sm text-charcoal/65">Tên: {realName}</p> : null}
                     {status ? (
@@ -269,7 +269,7 @@ export function ConversationInfoPanel({
                             <li key={option.label} className="list-none">
                                 <button
                                     type="button"
-                                    className="flex min-h-11 w-full items-center rounded-xl px-3 text-left font-semibold hover:bg-cream focus-visible:outline-2 focus-visible:outline-green"
+                                    className="flex min-h-11 w-full items-center rounded-xl px-3 text-left font-semibold hover:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-green"
                                     onClick={() => {
                                         setModal(null);
                                         const until = option.hours
@@ -372,7 +372,7 @@ function QuickAction({
             onClick={onClick}
         >
             <span
-                className={`inline-flex size-11 items-center justify-center rounded-full transition-colors motion-reduce:transition-none ${pressed ? "bg-green text-cream" : "bg-cream group-hover:bg-charcoal/10"}`}
+                className={`inline-flex size-11 items-center justify-center rounded-full transition-colors motion-reduce:transition-none ${pressed ? "bg-green text-cream" : "bg-white group-hover:bg-charcoal/10"}`}
             >
                 <Icon className="size-5" aria-hidden="true" />
             </span>
@@ -411,10 +411,10 @@ function Row({
         <button
             type="button"
             disabled={disabled}
-            className={`flex min-h-12 w-full items-center gap-3 rounded-xl px-2 py-1.5 text-left hover:bg-cream focus-visible:outline-2 focus-visible:outline-green disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent ${danger ? "text-red-700" : ""}`}
+            className={`flex min-h-12 w-full items-center gap-3 rounded-xl px-2 py-1.5 text-left hover:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-green disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent ${danger ? "text-red-700" : ""}`}
             onClick={onClick}
         >
-            <span className={`inline-flex size-9 shrink-0 items-center justify-center rounded-full ${danger ? "bg-red-50" : "bg-cream"}`}>
+            <span className={`inline-flex size-9 shrink-0 items-center justify-center rounded-full ${danger ? "bg-red-50" : "bg-white"}`}>
                 <Icon className="size-4" aria-hidden="true" />
             </span>
             <span className="min-w-0 flex-1">

@@ -23,5 +23,9 @@ execFileSync("npx", ["tsc", "-p", "tsconfig.sw.json", "--pretty", "false"], {
 
 const built = fs.readFileSync(path.join(buildDir, "sw-bundle.js"), "utf8");
 const buildId = process.env.BUILD_ID || process.env.GITHUB_SHA || new Date().toISOString();
-const output = built.replaceAll("__BUILD_ID__", buildId.replaceAll("\\", "").replaceAll('"', ""));
+// Chạy qua `npm run dev` / `dev:docker` thì worker tự hủy; `build` (production) giữ đầy đủ chức năng.
+const devBuild = (process.env.npm_lifecycle_event ?? "").startsWith("predev");
+const output = built
+    .replaceAll("__BUILD_ID__", buildId.replaceAll("\\", "").replaceAll('"', ""))
+    .replaceAll("__DEV_SELF_DESTRUCT__", devBuild ? "true" : "false");
 fs.writeFileSync(path.join(root, "public/sw.js"), output);

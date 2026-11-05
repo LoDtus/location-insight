@@ -11,7 +11,7 @@ export default async function CauHoiSection() {
         <section
             id="cau-hoi-thuong-gap"
             aria-labelledby="tieu-de-cau-hoi-thuong-gap"
-            className="box-border min-h-[100cqh] bg-cream px-5 py-20 sm:px-10 lg:px-24 xl:px-40"
+            className="box-border min-h-[100cqh] bg-white px-5 py-20 sm:px-10 lg:px-24 xl:px-40"
         >
             <div className="grid items-start gap-16 lg:grid-cols-[1.2fr_1fr]">
                 <div>

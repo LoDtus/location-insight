@@ -313,7 +313,7 @@ function TopicTab({
     return (
         <button
             type="button"
-            className={`min-h-11 shrink-0 rounded-full px-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green ${current ? "bg-green text-cream" : "text-charcoal hover:bg-cream"}`}
+            className={`min-h-11 shrink-0 rounded-full px-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green ${current ? "bg-green text-cream" : "text-charcoal hover:bg-charcoal/5"}`}
             aria-current={current ? "page" : undefined}
             onClick={onClick}
         >

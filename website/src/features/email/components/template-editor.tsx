@@ -64,7 +64,7 @@ export function TemplateEditor(): JSX.Element {
                             aria-current={item.key === activeKey ? "true" : undefined}
                             onClick={() => setSelected(item.key)}
                             className={`min-h-11 shrink-0 rounded-lg border px-3 py-2 text-left text-sm focus-visible:outline-2 focus-visible:outline-green ${
-                                item.key === activeKey ? "border-green bg-cream" : "border-charcoal/15 hover:bg-cream"
+                                item.key === activeKey ? "border-green bg-charcoal/5" : "border-charcoal/15 hover:bg-charcoal/5"
                             }`}
                         >
                             <span className="flex items-center justify-between gap-2 font-medium">
@@ -245,7 +245,7 @@ function EditorForm({
                             type="button"
                             title={`${variable.description} — ví dụ: ${variable.example}`}
                             onClick={() => insertVariable(variable.name)}
-                            className="min-h-8 rounded-full border border-charcoal/20 bg-cream px-3 font-mono text-xs hover:border-green focus-visible:outline-2 focus-visible:outline-green"
+                            className="min-h-8 rounded-full border border-charcoal/20 bg-white px-3 font-mono text-xs hover:border-green focus-visible:outline-2 focus-visible:outline-green"
                         >
                             {`{{${variable.name}}}`}
                         </button>

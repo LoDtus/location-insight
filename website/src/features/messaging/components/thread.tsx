@@ -260,13 +260,13 @@ export function Thread({
             <header className="flex min-h-[72px] items-center gap-3 border-b border-charcoal/10 px-3 sm:px-5">
                 <button
                     type="button"
-                    className="inline-flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-cream focus-visible:outline-2 focus-visible:outline-green md:hidden"
+                    className="inline-flex size-11 shrink-0 items-center justify-center rounded-full hover:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-green md:hidden"
                     aria-label="Quay lại danh sách"
                     onClick={onBack}
                 >
                     <ArrowLeft className="size-5" aria-hidden="true" />
                 </button>
-                {peer ? <PersonAvatar name={peer.displayName} url={peer.avatarUrl} size={44} /> : <span className="size-11 rounded-full bg-cream" />}
+                {peer ? <PersonAvatar name={peer.displayName} url={peer.avatarUrl} size={44} /> : <span className="size-11 rounded-full bg-white" />}
                 <div className="min-w-0 flex-1">
                     <h1 className="m-0 truncate text-base font-semibold">{peerName || "Đang tải…"}</h1>
                     <p className="m-0 flex items-center gap-1.5 truncate text-xs text-charcoal/65" aria-live="off">
@@ -276,7 +276,7 @@ export function Thread({
                 </div>
                 <button
                     type="button"
-                    className={`inline-flex size-11 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-green ${infoOpen ? "bg-green text-cream" : "hover:bg-cream"}`}
+                    className={`inline-flex size-11 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-green ${infoOpen ? "bg-green text-cream" : "hover:bg-charcoal/5"}`}
                     aria-label={infoOpen ? "Đóng thông tin cuộc trò chuyện" : "Mở thông tin cuộc trò chuyện"}
                     aria-pressed={infoOpen}
                     onClick={onToggleInfo}
@@ -286,7 +286,7 @@ export function Thread({
             </header>
 
             {realtime === "offline" || realtime === "connecting" ? (
-                <p role="status" className="m-0 bg-cream px-4 py-1.5 text-center text-xs text-charcoal/75">
+                <p role="status" className="m-0 bg-white px-4 py-1.5 text-center text-xs text-charcoal/75">
                     {realtime === "connecting" ? "Đang kết nối lại…" : "Không có kết nối. Tin mới sẽ được tải khi có mạng."}
                 </p>
             ) : null}
@@ -311,7 +311,7 @@ export function Thread({
                 {!thread.loaded ? (
                     <div className="grid gap-3" aria-hidden="true">
                         {[0, 1, 2, 3].map((index) => (
-                            <div key={index} className={`h-10 animate-pulse rounded-2xl bg-cream ${index % 2 ? "ml-auto w-1/2" : "w-2/5"}`} />
+                            <div key={index} className={`h-10 animate-pulse rounded-2xl bg-white ${index % 2 ? "ml-auto w-1/2" : "w-2/5"}`} />
                         ))}
                     </div>
                 ) : (
@@ -568,7 +568,7 @@ function RequestBar({
     onReport: () => void;
 }): JSX.Element {
     return (
-        <div className="border-t border-charcoal/10 bg-cream px-4 py-4 text-center">
+        <div className="border-t border-charcoal/10 bg-white px-4 py-4 text-center">
             <p className="m-0 text-sm">
                 <strong>{name}</strong> muốn nhắn tin cho bạn. Họ chỉ nhắn thêm được sau khi bạn chấp nhận.
             </p>

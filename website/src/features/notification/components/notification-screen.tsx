@@ -96,12 +96,12 @@ export function NotificationScreen(): JSX.Element {
                     <button type="button" className={`inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold ${filter === "unread" ? "bg-green text-cream" : ""}`} onClick={() => setFilter("unread")}>
                         Chưa đọc {badge.count > 0 ? badge.count : ""}
                     </button>
-                    <button type="button" className="ml-auto inline-flex size-11 items-center justify-center rounded-full hover:bg-cream" aria-label="Cài đặt thông báo" onClick={() => setSettings(true)}>
+                    <button type="button" className="ml-auto inline-flex size-11 items-center justify-center rounded-full hover:bg-charcoal/5" aria-label="Cài đặt thông báo" onClick={() => setSettings(true)}>
                         <Settings className="size-5" aria-hidden="true" />
                     </button>
                 </div>
                 {offer && typeof Notification !== "undefined" && Notification.permission === "default" ? (
-                    <aside className="rounded-2xl border border-charcoal/10 bg-cream/40 p-4 text-sm">
+                    <aside className="rounded-2xl border border-charcoal/10 bg-white p-4 text-sm">
                         <p className="m-0">Bật thông báo đẩy để nhận tin khi Địa Thế không mở.</p>
                         <button type="button" className="mt-3 inline-flex min-h-11 items-center rounded-full bg-green px-4 font-semibold text-cream" onClick={() => setSettings(true)}>
                             Bật thông báo đẩy

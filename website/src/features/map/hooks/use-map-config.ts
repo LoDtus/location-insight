@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { getMapConfig, isAbortError, mapErrorMessage } from "@/features/map/map.service";
+import { getMapConfig, getPublicMapConfig, isAbortError, mapErrorMessage } from "@/features/map/map.service";
 import type { MapConfig } from "@/features/map/map.types";
 
 export type MapConfigState =
@@ -10,12 +10,13 @@ export type MapConfigState =
     | { status: "ready"; config: MapConfig }
     | { status: "error"; message: string };
 
-export function useMapConfig(): MapConfigState {
+/** `publicOnly`: chỉ cần nền bản đồ (trang công khai), không gọi cấu hình cần đăng nhập. */
+export function useMapConfig(publicOnly = false): MapConfigState {
     const [state, setState] = useState<MapConfigState>({ status: "loading" });
 
     useEffect(() => {
         const controller = new AbortController();
-        getMapConfig(controller.signal)
+        (publicOnly ? getPublicMapConfig : getMapConfig)(controller.signal)
             .then((config) => setState({ status: "ready", config }))
             .catch((error: unknown) => {
                 if (isAbortError(error)) return;
@@ -25,7 +26,7 @@ export function useMapConfig(): MapConfigState {
                 });
             });
         return () => controller.abort();
-    }, []);
+    }, [publicOnly]);
 
     return state;
 }

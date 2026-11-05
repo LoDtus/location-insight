@@ -15,9 +15,9 @@ import {
     routeToFeatures,
     type RouteFeatureCollection,
 } from "@/features/map/map.geo";
+import { loadVietmap, styleUrl, type VietmapModule } from "@/features/map/map-gl";
 import type { MapConfig, MapPoint, MapRoute, MapStyleId } from "@/features/map/map.types";
 
-type VietmapModule = typeof import("@vietmap/vietmap-gl-js/dist/vietmap-gl.js");
 
 export interface MapHandle {
     zoomIn: () => void;
@@ -80,19 +80,6 @@ const MARKER_ATTR = "data-map-marker";
 const PIN_COLOR = "#026a4e";
 const DROPPED_PIN_SRC = "/icons/map-pin.svg";
 
-let vietmapPromise: Promise<VietmapModule> | null = null;
-
-/** Nạp GL JS một lần, chỉ trên client. Bản UMD không có `main` nên import theo đường dẫn dist. */
-function loadVietmap(): Promise<VietmapModule> {
-    vietmapPromise ??= import("@vietmap/vietmap-gl-js/dist/vietmap-gl.js").then(
-        (mod) => ((mod as { default?: VietmapModule }).default ?? mod) as VietmapModule,
-    );
-    return vietmapPromise;
-}
-
-function styleUrl(config: MapConfig, id: MapStyleId): string | null {
-    return (config.styles.find((style) => style.id === id) ?? config.styles[0])?.url ?? null;
-}
 
 function lineColor(): unknown[] {
     return [

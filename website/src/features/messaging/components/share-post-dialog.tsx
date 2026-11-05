@@ -54,7 +54,7 @@ export function SharePostDialog({
         <Dialog title="Chia sẻ bài viết" onClose={onClose}>
             <button
                 type="button"
-                className="mb-4 flex min-h-11 w-full items-center gap-3 rounded-xl border border-charcoal/20 px-3 font-semibold hover:bg-cream focus-visible:outline-2 focus-visible:outline-green"
+                className="mb-4 flex min-h-11 w-full items-center gap-3 rounded-xl border border-charcoal/20 px-3 font-semibold hover:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-green"
                 onClick={() => void copy()}
             >
                 <Link2 className="size-4" aria-hidden="true" />

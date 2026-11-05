@@ -38,7 +38,7 @@ export function FileCard({
     const colors =
         tone === "mine"
             ? "border-cream/40 text-cream hover:bg-cream/10"
-            : "border-charcoal/15 bg-white text-charcoal hover:bg-cream";
+            : "border-charcoal/15 bg-white text-charcoal hover:bg-charcoal/5";
     return (
         <a
             href={url}

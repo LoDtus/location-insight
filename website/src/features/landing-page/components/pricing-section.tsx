@@ -9,7 +9,7 @@ export default async function BangGiaSection() {
         <section
             id="bang-gia"
             aria-labelledby="tieu-de-bang-gia"
-            className="box-border min-h-[100cqh] bg-cream px-5 py-20 sm:px-10 lg:px-24 xl:px-40"
+            className="box-border min-h-[100cqh] bg-white px-5 py-20 sm:px-10 lg:px-24 xl:px-40"
         >
             <div className="grid items-end gap-6 lg:grid-cols-[1.2fr_1fr] lg:gap-16">
                 <h2

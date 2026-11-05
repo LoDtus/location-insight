@@ -121,7 +121,7 @@ export function FeedbackForm({ onCreated }: { onCreated: (created: FeedbackDetai
                         {picked.map((item, index) => (
                             <li key={item.url} className="relative list-none">
                                 {item.file.type === "video/mp4" ? (
-                                    <span className="flex size-24 flex-col items-center justify-center gap-1 rounded-xl bg-cream text-xs">
+                                    <span className="flex size-24 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-charcoal/25 bg-white text-xs">
                                         <Film className="size-6" aria-hidden="true" />
                                         <span className="max-w-20 truncate">{item.file.name}</span>
                                     </span>
@@ -144,7 +144,7 @@ export function FeedbackForm({ onCreated }: { onCreated: (created: FeedbackDetai
                 <div>
                     <button
                         type="button"
-                        className="inline-flex min-h-11 items-center gap-2 rounded-full border border-charcoal/30 px-4 font-semibold hover:bg-cream focus-visible:outline-2 focus-visible:outline-green"
+                        className="inline-flex min-h-11 items-center gap-2 rounded-full border border-charcoal/30 px-4 font-semibold hover:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-green"
                         onClick={() => input.current?.click()}
                     >
                         <ImagePlus className="size-4" aria-hidden="true" />

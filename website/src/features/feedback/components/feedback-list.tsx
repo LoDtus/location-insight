@@ -142,7 +142,7 @@ export function FeedbackList({
                                 <Link
                                     href={`${root}/feedback/${item.id}`}
                                     aria-current={item.id === activeId ? "page" : undefined}
-                                    className={`flex min-h-[72px] items-start gap-3 rounded-2xl px-3 py-2.5 text-inherit no-underline focus-visible:outline-2 focus-visible:outline-green ${item.id === activeId ? "bg-cream" : "hover:bg-cream/70"}`}
+                                    className={`flex min-h-[72px] items-start gap-3 rounded-2xl px-3 py-2.5 text-inherit no-underline focus-visible:outline-2 focus-visible:outline-green ${item.id === activeId ? "bg-charcoal/5" : "hover:bg-charcoal/5"}`}
                                 >
                                     {mode === "admin" ? <PersonAvatar name={item.author.displayName} url={item.author.avatarUrl} size={40} /> : null}
                                     <span className="min-w-0 flex-1">

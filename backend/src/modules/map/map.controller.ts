@@ -1,5 +1,5 @@
 import { Controller, Get, Header, Query, Req } from '@nestjs/common';
-import { RequirePermission } from '../../common/decorators/access.decorator.js';
+import { Public, RequirePermission } from '../../common/decorators/access.decorator.js';
 import type { RequestWithPrincipal } from '../auth/auth.guard.js';
 import {
   ResolveQueryDto,
@@ -22,6 +22,17 @@ export class MapController {
   @Get('config')
   config(@Req() request: RequestWithPrincipal) {
     return this.map.clientConfig(userId(request));
+  }
+
+  /**
+   * Nền bản đồ cho trang công khai (landing, chi tiết tin). Chỉ trả style tile, không có tìm kiếm hay
+   * chỉ đường nên không tốn hạn mức API; khóa Tilemap vốn đã nằm trong style URL gửi xuống trình duyệt.
+   */
+  @Public()
+  @Header('Cache-Control', 'public, max-age=3600')
+  @Get('public-config')
+  publicConfig() {
+    return this.map.publicConfig();
   }
 
   @RequirePermission('map:use')

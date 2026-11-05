@@ -62,7 +62,7 @@ function ConfirmDialog({
     return (
         <dialog
             ref={dialogRef}
-            className="w-[min(28rem,calc(100%-2rem))] border border-charcoal bg-cream p-0 text-charcoal backdrop:bg-charcoal/40"
+            className="w-[min(28rem,calc(100%-2rem))] border border-charcoal bg-white p-0 text-charcoal backdrop:bg-charcoal/40"
             aria-labelledby="confirm-title"
         >
             <form method="dialog" className="flex flex-col gap-4 p-5" onSubmit={(event) => event.preventDefault()}>

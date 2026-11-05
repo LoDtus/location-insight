@@ -46,13 +46,20 @@ export function serviceWorkerDisabled(): boolean {
     }
 }
 
+/** Gỡ worker và xóa cache khi worker đang tắt (dev, hoặc `?no-sw=1`). Trả true nếu đã gỡ được gì đó. */
+export async function removeDisabledServiceWorker(): Promise<boolean> {
+    if (!("serviceWorker" in navigator) || !serviceWorkerDisabled()) return false;
+    const regs = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(regs.map((reg) => reg.unregister()));
+    const keys = "caches" in window ? await caches.keys() : [];
+    await Promise.all(keys.map((key) => caches.delete(key)));
+    return regs.length > 0 || keys.length > 0;
+}
+
 export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
     if (!("serviceWorker" in navigator) || !window.isSecureContext) return null;
     if (serviceWorkerDisabled()) {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(regs.map((reg) => reg.unregister()));
-        const keys = await caches.keys();
-        await Promise.all(keys.map((key) => caches.delete(key)));
+        await removeDisabledServiceWorker();
         return null;
     }
     return navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" });

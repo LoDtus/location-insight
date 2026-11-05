@@ -8,9 +8,7 @@ import {
     Heart,
     Info,
     MapPin,
-    Minus,
     Phone,
-    Plus,
     Ruler,
     Share2,
     Shield,
@@ -31,6 +29,8 @@ import {
     listingPath,
     type Listing,
 } from "@/features/landing-page/data/listings";
+import { DISTRICT_CENTERS } from "@/features/landing-page/data/district-centers";
+import VietmapView from "@/features/map/components/vietmap-view";
 import { formatPhone, telHref } from "@/features/properties/listing-contact";
 import {
     DIRECTION_LABEL,
@@ -70,7 +70,6 @@ export default function ListingDetail({
     const [revealed, setRevealed] = useState(false);
     const [descriptionOpen, setDescriptionOpen] = useState(false);
     const [shareNote, setShareNote] = useState("");
-    const [zoom, setZoom] = useState(1);
     const [analyzed, setAnalyzed] = useState(false);
     const [photoIndex, setPhotoIndex] = useState(0);
     const lightbox = useRef<HTMLDialogElement>(null);
@@ -138,6 +137,8 @@ export default function ListingDetail({
     }
     facts.push({ label: text(messages, "district"), value: listing.district });
     const vi = locale === "vi";
+    const exactPoint = typeof extra?.lat === "number" && typeof extra?.lng === "number";
+    const point = exactPoint ? { lat: extra.lat as number, lng: extra.lng as number } : DISTRICT_CENTERS[listing.district];
     if (extra?.floors) facts.push({ label: vi ? "Số tầng" : "Floors", value: String(extra.floors) });
     if (extra?.direction) {
         facts.push({ label: vi ? "Hướng nhà" : "Direction", value: vi ? DIRECTION_LABEL[extra.direction].vi : DIRECTION_LABEL[extra.direction].en });
@@ -312,7 +313,7 @@ export default function ListingDetail({
                         {fill(text(messages, "updated"), { date: formatListingDate(listing.updatedAt, locale) })}
                     </p>
 
-                    <div className="mt-3 rounded-md bg-cream/60 px-3 py-2.5">
+                    <div className="mt-3 rounded-md bg-white px-3 py-2.5">
                         <p className="m-0 text-3xl leading-none font-semibold text-green tabular-nums">{price}</p>
                         <p className="m-0 mt-1 text-sm text-charcoal/70">
                             {perArea} · {text(messages, "perAreaNote")}
@@ -407,7 +408,7 @@ export default function ListingDetail({
                         <dl className="m-0 mt-2 grid overflow-hidden rounded-md border border-charcoal/15 text-sm sm:grid-cols-2">
                             {facts.map((fact) => (
                                 <div key={fact.label} className="grid grid-cols-[minmax(0,0.9fr)_minmax(0,1fr)] border-b border-charcoal/10 sm:odd:border-r">
-                                    <dt className="bg-cream/40 px-3 py-2 text-charcoal/70">{fact.label}</dt>
+                                    <dt className="bg-white px-3 py-2 text-charcoal/70">{fact.label}</dt>
                                     <dd className="m-0 px-3 py-2 font-semibold">{fact.value}</dd>
                                 </div>
                             ))}
@@ -430,7 +431,7 @@ export default function ListingDetail({
                                 {extra?.legal?.note ? <span className="block font-normal text-charcoal/80">{extra.legal.note}</span> : null}
                             </p>
                         ) : null}
-                        <div className="mt-2 flex gap-2 rounded-md bg-cream/60 p-3 text-sm">
+                        <div className="mt-2 flex gap-2 rounded-md bg-white p-3 text-sm">
                             <Info size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
                             <p className="m-0">{text(messages, "legalNote")}</p>
                         </div>
@@ -443,38 +444,18 @@ export default function ListingDetail({
                             </h2>
                             <p className="m-0 text-sm text-charcoal/70">{listing.location}, Hà Nội</p>
                         </div>
-                        <div className="relative mt-2 h-56 overflow-hidden rounded-md border border-charcoal/15 md:h-80">
-                            <img
-                                src="/images/temp-001.png"
-                                alt=""
-                                style={{ transform: `scale(${zoom})` }}
-                                className="h-full w-full origin-center object-cover"
+                        <div className="relative mt-2">
+                            <VietmapView
+                                center={point}
+                                zoom={exactPoint ? 17 : 14}
+                                label={text(messages, "location")}
+                                className="h-64 rounded-md border border-charcoal/15 md:h-96"
                             />
-                            <span className="absolute top-[37%] left-[52%] -translate-x-1/2 -translate-y-full drop-shadow">
-                                <MapPin size={32} className="fill-green text-cream" aria-hidden="true" />
-                            </span>
-                            <span className="absolute top-2 left-2 rounded-md border border-charcoal/20 bg-white px-2 py-0.5 text-xs font-semibold">
-                                {text(messages, "mapSample")}
-                            </span>
-                            <div className="absolute top-2 right-2 grid overflow-hidden rounded-md border border-charcoal/20 bg-white">
-                                <button
-                                    type="button"
-                                    aria-label={text(messages, "zoomIn")}
-                                    onClick={() => setZoom((value) => Math.min(2.2, value + 0.2))}
-                                    className="inline-flex size-9 items-center justify-center border-b border-charcoal/15 bg-white hover:bg-charcoal/5"
-                                >
-                                    <Plus size={16} aria-hidden="true" />
-                                </button>
-                                <button
-                                    type="button"
-                                    aria-label={text(messages, "zoomOut")}
-                                    onClick={() => setZoom((value) => Math.max(1, value - 0.2))}
-                                    className="inline-flex size-9 items-center justify-center bg-white hover:bg-charcoal/5"
-                                >
-                                    <Minus size={16} aria-hidden="true" />
-                                </button>
-                            </div>
-                            <span className="absolute bottom-0 left-0 bg-white/85 px-2 text-[11px]">{text(messages, "mapCredit")}</span>
+                            {exactPoint ? null : (
+                                <span className="pointer-events-none absolute top-2 left-2 rounded-md border border-charcoal/20 bg-white px-2 py-0.5 text-xs font-semibold">
+                                    {vi ? `Vị trí gần đúng: ${listing.district}` : `Approximate: ${listing.district}`}
+                                </span>
+                            )}
                         </div>
                         <div className="mt-2 flex flex-wrap gap-2">
                             <Link href={mapHref} className={`${ghostButton} no-underline`}>

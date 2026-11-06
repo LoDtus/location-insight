@@ -1,6 +1,6 @@
 "use client";
 
-import { X } from "lucide-react";
+import { ArrowLeft, X } from "lucide-react";
 import type { ReactNode } from "react";
 
 interface MapPanelProps {
@@ -12,10 +12,13 @@ interface MapPanelProps {
     size?: "default" | "wide";
     /** Nút phụ trên thanh tiêu đề, nằm ngay trước nút đóng. */
     actions?: ReactNode;
+    /** Có thì hiện nút mũi tên trái trước tiêu đề (vd. quay lại danh sách kết quả). */
+    onBack?: () => void;
+    backLabel?: string;
 }
 
 /** Khung bên phải trên desktop, bottom sheet trên mobile. Viền nhạt, không dùng viền đen. */
-export default function MapPanel({ title, titleId, onClose, children, size = "default", actions }: MapPanelProps) {
+export default function MapPanel({ title, titleId, onClose, children, size = "default", actions, onBack, backLabel = "Quay lại" }: MapPanelProps) {
     const width = size === "wide" ? "lg:w-[30rem]" : "lg:w-[24rem]";
     return (
         <div className={`pointer-events-auto absolute inset-x-2 bottom-2 z-20 max-h-[70%] lg:static lg:inset-auto lg:z-auto lg:h-full lg:max-h-none ${width} lg:shrink-0 lg:p-2`}>
@@ -24,9 +27,22 @@ export default function MapPanel({ title, titleId, onClose, children, size = "de
                 className="flex h-full max-h-full flex-col overflow-hidden rounded-lg border border-charcoal/10 bg-white shadow-[0_8px_28px_rgba(16,17,17,0.14)] lg:shadow-[0_2px_10px_rgba(16,17,17,0.08)]"
             >
                 <div className="flex shrink-0 items-center justify-between gap-3 border-b border-charcoal/10 py-1.5 pr-1.5 pl-4">
-                    <h2 id={titleId} className="m-0 text-base font-semibold">
-                        {title}
-                    </h2>
+                    <div className="flex min-w-0 items-center gap-1">
+                        {onBack ? (
+                            <button
+                                type="button"
+                                aria-label={backLabel}
+                                title={backLabel}
+                                onClick={onBack}
+                                className="-ml-2.5 inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-transparent text-charcoal/70 hover:bg-charcoal/5 hover:text-charcoal focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-green"
+                            >
+                                <ArrowLeft size={18} aria-hidden />
+                            </button>
+                        ) : null}
+                        <h2 id={titleId} className="m-0 truncate text-base font-semibold">
+                            {title}
+                        </h2>
+                    </div>
                     <div className="flex shrink-0 items-center gap-0.5">
                     {actions}
                     <button

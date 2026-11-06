@@ -1,6 +1,6 @@
 "use client";
 
-import { GitCompareArrows, Loader2, Map as MapIcon, MapPin, NotebookPen, Sparkles, X } from "lucide-react";
+import { GitCompareArrows, Loader2, Map as MapIcon, MapPin, NotebookPen, Sparkles, WandSparkles, X } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type JSX, type ReactNode } from "react";
 
@@ -10,7 +10,7 @@ import { buildCompareTable } from "@/features/map/compare/compare-table";
 import { COMPARE_MAX, reloadSavedPlaces, savedTitle } from "@/features/map/hooks/use-saved-places";
 import { PLACE_KIND_LABEL } from "@/features/map/map-place-match";
 import { PIN_ZOOM } from "@/features/map/map.geo";
-import { getCompare, isAbortError, mapErrorMessage, updateSavedPlace } from "@/features/map/map.service";
+import { getCompare, isAbortError, mapErrorMessage, runEvaluation, updateSavedPlace } from "@/features/map/map.service";
 import type { CompareItem, MapPoint } from "@/features/map/map.types";
 import { showToast } from "@/shared/components/toast/toast-store";
 
@@ -44,6 +44,34 @@ function Row({ label, children, className = "" }: { label: ReactNode; children: 
 export default function CompareScreen({ root = "/app" }: { root?: "/app" | "/admin" }): JSX.Element {
     const [state, setState] = useState<LoadState>({ status: "loading" });
     const [removing, setRemoving] = useState<string | null>(null);
+    const [evaluating, setEvaluating] = useState<Set<string>>(new Set());
+
+    /**
+     * Đánh giá ngay tại bảng (chỉ khi người dùng bấm): nhận bản phân tích mới nhất của địa điểm, chưa có thì AI chạy;
+     * mỗi lần bấm là một lượt của người dùng. Xong thì cột hiện điểm theo trọng số của chính họ.
+     */
+    async function evaluate(item: CompareItem): Promise<void> {
+        setEvaluating((current) => new Set(current).add(item.id));
+        try {
+            const { source } = await runEvaluation({ lat: item.lat, lng: item.lng }, false);
+            const fresh = await getCompare();
+            setState({ status: "ready", items: fresh });
+            void reloadSavedPlaces();
+            const updated = fresh.find((entry) => entry.id === item.id)?.evaluation;
+            showToast({
+                title: source === "fresh" ? "AI đã đánh giá xong địa điểm" : "Đã có kết quả đánh giá địa điểm",
+                description: updated?.overall != null ? `${savedTitle(item)}: ${formatScore(updated.overall)}/10, mức ${updated.rating.toLowerCase()}.` : savedTitle(item),
+            });
+        } catch (error) {
+            showToast({ title: "Chưa đánh giá được", description: mapErrorMessage(error, "Vui lòng thử lại."), tone: "error" });
+        } finally {
+            setEvaluating((current) => {
+                const next = new Set(current);
+                next.delete(item.id);
+                return next;
+            });
+        }
+    }
 
     const load = useCallback((signal?: AbortSignal): void => {
         getCompare(signal)
@@ -189,11 +217,22 @@ export default function CompareScreen({ root = "/app" }: { root?: "/app" | "/adm
                                                         </div>
                                                     </div>
                                                 ) : (
-                                                    <div className="grid justify-items-start gap-1">
-                                                        <p className="m-0 text-charcoal/60">Chưa đánh giá</p>
-                                                        <Link href={mapHref(root, item)} className="text-xs font-semibold text-green underline-offset-2 hover:underline">
-                                                            Mở bản đồ để đánh giá
-                                                        </Link>
+                                                    <div className="grid justify-items-start gap-1.5">
+                                                        <p className="m-0 text-charcoal/60">Bạn chưa đánh giá địa điểm này</p>
+                                                        <button
+                                                            type="button"
+                                                            disabled={evaluating.has(item.id)}
+                                                            onClick={() => void evaluate(item)}
+                                                            className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-charcoal px-3 text-xs font-semibold text-white hover:bg-charcoal/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green disabled:opacity-60"
+                                                        >
+                                                            {evaluating.has(item.id) ? (
+                                                                <Loader2 size={14} className="animate-spin" aria-hidden />
+                                                            ) : (
+                                                                <WandSparkles size={14} aria-hidden />
+                                                            )}
+                                                            {evaluating.has(item.id) ? "Đang đánh giá…" : "Đánh giá ngay"}
+                                                        </button>
+                                                        <span className="text-[11px] text-charcoal/50">Tính một lượt đánh giá của bạn.</span>
                                                     </div>
                                                 )}
                                             </td>

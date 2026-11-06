@@ -206,6 +206,8 @@ Tên và địa chỉ của địa điểm do server lấy, client chỉ gửi `
 
 ## 4e. Tên gợi nhớ, ghi chú và so sánh
 
+- Bấm "So sánh" ở thẻ Địa điểm khi chưa lưu thì tự lưu rồi đưa vào so sánh. Trang so sánh: cột chưa đánh giá có nút **"Đánh giá ngay"** (như "Đánh giá" trên bản đồ: nhận bản phân tích mới nhất, chưa có thì AI chạy; tính một lượt), không tự hiện kết quả của người khác.
+- Danh sách "Đã lưu": mỗi mục một nút ba chấm (tên gợi nhớ, ghi chú, so sánh, bỏ lưu); ô chọn từng mục và "chọn tất cả"; khi có mục được chọn, cạnh nút X có "So sánh (n)" (dừng ở giới hạn 6) và "Xóa" (hộp xác nhận liệt kê các mục).
 - Chỉ địa điểm **đã lưu** mới có tên gợi nhớ, ghi chú và so sánh (đều nằm trên `map_saved_places` của chính người dùng).
 - Ghi chú giữ xuống dòng, bỏ ký tự điều khiển, gộp quá 2 dòng trống, cắt 1000 ký tự. Tên gợi nhớ là một dòng, ≤ 80 ký tự.
 - Danh sách so sánh tối đa **6** địa điểm (mỗi địa điểm một cột). Bảng so sánh chỉ dùng lượt đánh giá của chính người dùng; địa điểm chưa đánh giá hiện "Chưa đánh giá" và liên kết mở bản đồ. Không bao giờ lấy bản phân tích của người khác cho người chưa bấm.
@@ -213,8 +215,12 @@ Tên và địa chỉ của địa điểm do server lấy, client chỉ gửi `
 
 ## 4f. Tìm kiếm theo phạm vi và ghim nhiều kết quả
 
+- Vietmap **cho** lọc theo vòng tròn (`circle_center`/`circle_radius`, không ghi giới hạn bán kính; thử 06/11/2026: "Võ Chí Công" trong 2 km → 0 kết quả, "sân bay Nội Bài" trong 10 km chỉ trả điểm trong 10 km, 40 km thì có sân bay). Giới hạn thật là **tối đa 10 kết quả mỗi lần**, sắp theo khoảng cách: tìm chung chung ("ngân hàng") luôn ra 10 điểm gần nhất dù bán kính lớn. Vì vậy giữ chức năng bán kính (lọc tên cụ thể, loại kết quả quá xa) và mặc định 10 km.
+- Sau Enter, bản đồ bay về điểm ghim với **zoom = 12,3 + log2(10 km / bán kính)** (10 km → 12,3; 5 km → 13,3; 500 m → 16,6), kẹp 4–18 (`zoomForRadius`).
 - Phạm vi mặc định **10 km**, chỉnh 0,5–50 km (thanh trượt + ô số, tham số URL `r`; mặc định thì không ghi). Tâm là **điểm đang ghim**, không có thì tâm bản đồ.
 - Enter: đang chọn gợi ý → mở gợi ý đó; chuỗi khớp đúng một địa điểm (chỉ một gợi ý, hoặc đúng tên một gợi ý sau khi bỏ dấu) → mở địa điểm; còn lại (vd. "ngân hàng") → gọi `/map/search/pins`, ghim các kết quả bằng ghim tròn đỏ đánh số, mở danh sách kết quả, và kéo bản đồ về tâm + chỉnh zoom vừa vòng tròn phạm vi.
+- Chấm xanh "vị trí của tôi" và ghim kết quả có số: bấm chuột trái hoặc phải đều mở menu tại ghim đó (có tiêu đề "Vị trí của tôi" / "Kết quả n: tên", không có "Bỏ ghim"); ghim giữ nguyên, không thả thêm ghim đỏ đè lên.
+- Mở một kết quả (từ danh sách hoặc menu ghim): dùng chính ghim có số, làm nổi (to hơn, quầng đỏ, nằm trên cùng; dòng trong danh sách tô nhạt); thẻ Địa điểm có nút ← quay lại danh sách kết quả.
 - Ghim điểm: chuột phải ghim luôn điểm đó; bỏ ghim bằng mục đỏ "Bỏ ghim điểm này" cuối menu chuột phải hoặc bấm chuột trái chỗ khác trên bản đồ (thẻ Địa điểm của điểm đó đóng theo).
 
 ## 4g. Lớp hiển thị trên bản đồ (tin rao, trường học, ngân hàng, tiện ích)
@@ -222,6 +228,8 @@ Tên và địa chỉ của địa điểm do server lấy, client chỉ gửi `
 Lớp hiển thị khác bộ lọc: bộ lọc thu hẹp kết quả **tìm kiếm**, còn lớp là điểm luôn hiện theo khung nhìn. Nên lớp nằm ở nút **Lớp** (góc dưới trái), cạnh kiểu bản đồ và giao thông; "Tin rao" có thêm nút bật nhanh ngay trên nút Lớp.
 
 - **Tin đang rao** (bán và cho thuê): nhãn giá ("3,2 tỷ", "12 tr/th"), bấm mở thẻ tin (ảnh, giá, diện tích, "Xem tin", "Chỉ đường"). Tin chưa có tọa độ đặt cố định trong ~1,5 km quanh tâm quận và hiện nhạt hơn kèm ghi chú "vị trí gần đúng". Dữ liệu tin hiện ở frontend.
+- Nút **Tiện ích** (cạnh "Tin rao") mở bảng chip bật/tắt nhanh: Đang rao bán, Ngân hàng, Quán ăn, Trường học, Xe buýt, Metro, Bệnh viện, Hiệu thuốc, Chợ, Siêu thị, Công viên, UBND, Vật tư. Bật một loại khi đang xa hơn zoom 13 thì bản đồ phóng lên 13, giữ nguyên tâm.
+- **Gom cụm và tải lười:** điểm tiện ích dùng nguồn GeoJSON `cluster` (đến zoom 15; cụm xám đậm có số, bấm để phóng vào), chỉ tải ô zoom 13 trong khung nhìn. Tin rao chỉ tạo nhãn cho tin trong khung nhìn (nới 25%), gom theo lưới 56 px ở zoom nguyên dưới 15 (cụm xanh có số, bấm để phóng vừa cụm); cập nhật theo khóa nên nhãn có sẵn giữ nguyên chỗ, không nháy khi kéo/bật lớp.
 - **Trường học**, **Ngân hàng/ATM**, **Tiện ích khác** (chợ, hiệu thuốc, siêu thị, bệnh viện/phòng khám, công viên, quán ăn/cà phê, UBND, vật tư, xe buýt, metro; bật cả nhóm hoặc từng loại): chấm tròn màu theo nhóm, vẽ bằng lớp GeoJSON (không phải DOM) để nhẹ. Hiện từ zoom 13; quán ăn và xe buýt từ zoom 15. Bấm một chấm mở thẻ Địa điểm với tên điểm, địa chỉ lấy bằng Reverse.
 - Dữ liệu tiện ích: OSM Hà Nội, `tools/data/osm_places.py` → `data/curated/places/{phiên bản}/places.ndjson` (gộp trùng cùng nhóm < 40 m) → `npx tsx scripts/import-places.ts --source osm --version …` (stdin) vào `map_pois`. Không gọi Vietmap theo khung nhìn (đắt). Client tải theo ô zoom 13, nhớ tối đa 80 ô trong tab.
 - Tham số URL `layers` nhận thêm `listing, school, bank, market, pharmacy, supermarket, hospital, park, food, townhall, hardware, bus, metro` (cùng `traffic`).
@@ -230,6 +238,7 @@ Lớp hiển thị khác bộ lọc: bộ lọc thu hẹp kết quả **tìm ki�
 
 - Mỗi tiêu chí có **trọng số 0–5** (mức quan trọng). Ứng dụng đặt mặc định (`DEFAULT_WEIGHTS` trong `place-evaluation.ts`): 3 cho bệnh viện, trường học, không khí, ngập, ồn giao thông; 1 cho UBND, vật tư, quán ăn, mật độ dân cư; còn lại 2.
 - Điểm tổng = Σ(điểm × trọng số) / Σ trọng số của các tiêu chí không bỏ qua và trọng số > 0; không còn tiêu chí nào thì `null`. Điểm nhóm mạnh/yếu = Σ|điểm − 5| × trọng số / trọng số trung bình (mọi trọng số bằng nhau thì như cũ). Trọng số 0 vẫn hiện, gắn chip "Không tính".
+- Đổi trọng số cập nhật giao diện ngay (lạc quan), không khóa danh sách; lỗi thì hoàn lại.
 - Trọng số là **của từng người dùng**, áp dụng cho mọi địa điểm, lưu ở backend (đổi máy vẫn còn). Đổi trọng số chỉ tính lại từ bản phân tích sẵn có: **không gọi AI, không tạo lượt đánh giá**.
 - Mọi phản hồi đánh giá (`/map/places/evaluation`, `/map/compare`, tóm tắt "Đã lưu") tính theo trọng số của người gọi; mỗi tiêu chí trả kèm `weight` và `defaultWeight`.
 
@@ -357,4 +366,6 @@ Backend `backend/src/modules/map/` (controller, service, client, mapper có test
 | AC25 | Bấm nhãn giá → thẻ tin rao; bấm chấm tiện ích → thẻ Địa điểm đúng tên. Kéo bản đồ qua ô đã tải không gọi lại API; ô ngoài Việt Nam hoặc tham số sai → 400/rỗng. |
 | AC26 | Thẻ Địa điểm: cạnh nút đổi điểm và bỏ qua có nút trọng số (cân + số); bấm mở dãy 0–5, có mức mặc định và "Về mặc định"; đổi xong điểm tổng tính lại ngay, không tạo lượt đánh giá mới. |
 | AC27 | Nút cân cạnh ô tìm (trước Bộ lọc, Đã lưu, Mức dùng) mở modal 19 tiêu chí theo nhóm; tiêu chí đã đổi có nền vàng + chip "Đã đổi" + nút về mặc định; badge = số tiêu chí đã đổi; "Đặt lại tất cả" đưa badge về 0. Người khác không bị ảnh hưởng. |
+| AC28 | Bấm trái/phải lên chấm vị trí của tôi hoặc ghim kết quả → menu tại ghim (không có "Bỏ ghim"), ghim giữ nguyên, không có ghim đỏ đè. Tìm "ngân hàng" với 10 km → zoom 12,3. |
+| AC29 | Danh sách "Đã lưu": chọn nhiều → "So sánh (n)" và "Xóa" (có xác nhận); menu ba chấm thay các nút rời. Trang so sánh: "Đánh giá ngay" ở cột chưa đánh giá. Thanh bên thu gọn hiện badge có số. |
 | AC17 | Người không phải admin gọi `/admin/map/dataset-versions` → 403; chỉnh tiêu chí khi chưa có lượt của mình → 404; gửi kèm `userId` → 400. |

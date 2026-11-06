@@ -24,7 +24,7 @@ interface MapPlacePanelProps {
     onToggleSave: () => void;
     /** Sửa tên gợi nhớ/ghi chú. Trả về thông báo lỗi hoặc null. */
     onUpdateSaved: (patch: { label?: string | null; note?: string }) => Promise<string | null>;
-    /** Thêm/bỏ địa điểm khỏi danh sách so sánh. */
+    /** Thêm/bỏ địa điểm khỏi danh sách so sánh (chưa lưu thì tự lưu rồi thêm). */
     onToggleCompare: () => void;
     onClose: () => void;
     onDirectionsTo: () => void;
@@ -37,6 +37,8 @@ interface MapPlacePanelProps {
     onCriterionSelect?: (criterion: EvaluatedCriterion | null) => void;
     /** Sau một lượt đánh giá mới. */
     onEvaluated?: () => void;
+    /** Mở từ danh sách kết quả: nút mũi tên trái quay lại danh sách. */
+    onBack?: () => void;
 }
 
 function Row({ label, children }: { label: string; children: ReactNode }): JSX.Element {
@@ -67,6 +69,7 @@ export default function MapPlacePanel({
     onCopyLink,
     onCriterionSelect,
     onEvaluated,
+    onBack,
 }: MapPlacePanelProps) {
     const [copied, setCopied] = useState(false);
     const [viewer, setViewer] = useState<number | null>(null);
@@ -138,7 +141,7 @@ export default function MapPlacePanel({
     }
 
     return (
-        <MapPanel title="Địa điểm" titleId="tieu-de-dia-diem" onClose={onClose} size="wide" actions={actions}>
+        <MapPanel title="Địa điểm" titleId="tieu-de-dia-diem" onClose={onClose} size="wide" actions={actions} onBack={onBack} backLabel="Quay lại danh sách kết quả">
             {selection.status === "loading" ? (
                 <div aria-busy="true" className="grid gap-2">
                     <p className="m-0 flex items-center gap-2 text-sm text-charcoal/70" role="status">
@@ -246,19 +249,23 @@ export default function MapPlacePanel({
                     {saving ? <Loader2 size={16} className="animate-spin" aria-hidden /> : saved ? <BookmarkCheck size={16} aria-hidden /> : <Bookmark size={16} aria-hidden />}
                     {saved ? "Đã lưu" : "Lưu địa điểm"}
                 </button>
-                {savedItem ? (
-                    <button
-                        type="button"
-                        aria-pressed={savedItem.compared}
-                        disabled={saving}
-                        title={savedItem.compared ? "Bỏ khỏi danh sách so sánh" : "Thêm vào danh sách so sánh"}
-                        onClick={onToggleCompare}
-                        className={`${secondary} flex-1 ${savedItem.compared ? "border-green/40 bg-green/5 text-green hover:bg-green/10" : ""}`}
-                    >
-                        <GitCompareArrows size={16} aria-hidden />
-                        {savedItem.compared ? "Đang so sánh" : "So sánh"}
-                    </button>
-                ) : null}
+                <button
+                    type="button"
+                    aria-pressed={savedItem?.compared ?? false}
+                    disabled={saving || selection.status !== "ready"}
+                    title={
+                        savedItem?.compared
+                            ? "Bỏ khỏi danh sách so sánh"
+                            : savedItem
+                              ? "Thêm vào danh sách so sánh"
+                              : "Lưu địa điểm và thêm vào danh sách so sánh"
+                    }
+                    onClick={onToggleCompare}
+                    className={`${secondary} flex-1 ${savedItem?.compared ? "border-green/40 bg-green/5 text-green hover:bg-green/10" : ""}`}
+                >
+                    <GitCompareArrows size={16} aria-hidden />
+                    {savedItem?.compared ? "Đang so sánh" : "So sánh"}
+                </button>
             </div>
 
             {/* Các thao tác còn lại của menu chuột phải. */}

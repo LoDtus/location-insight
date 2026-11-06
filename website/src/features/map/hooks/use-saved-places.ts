@@ -142,6 +142,26 @@ async function update(item: SavedPlace, patch: { label?: string | null; note?: s
     }
 }
 
+/**
+ * "So sánh" khi địa điểm chưa lưu: lưu rồi đưa vào so sánh (so sánh chỉ áp cho mục đã lưu). Đã lưu thì chỉ bật so sánh.
+ */
+async function addToCompare(input: { point: MapPoint; name: string; address: string; kind?: MapPlaceKind }): Promise<string | null> {
+    const existing = nearestSaved(state.items, input.point);
+    if (existing) return existing.compared ? null : update(existing, { compared: true });
+    setBusy(pendingKey(input.point));
+    try {
+        const created = await savePlace({ lat: input.point.lat, lng: input.point.lng, name: input.name, address: input.address, kind: input.kind });
+        setState((current) => ({ ...current, items: [created, ...current.items.filter((item) => item.id !== created.id)] }));
+        const compared = await updateSavedPlace(created.id, { compared: true });
+        replaceItem(compared);
+        return null;
+    } catch (error) {
+        return mapErrorMessage(error, "Không thêm được vào so sánh.");
+    } finally {
+        setBusy(null);
+    }
+}
+
 const getState = (): SavedState => state;
 const getServerState = (): SavedState => IDLE;
 const getBusy = (): string | null => busyKey;
@@ -159,7 +179,7 @@ export function useSavedPlaces() {
     const find = useCallback((point: MapPoint): SavedPlace | undefined => nearestSaved(current.items, point), [current.items]);
     const reload = useCallback((): void => void reloadSavedPlaces(), []);
 
-    return { state: current, busyKey: busy, find, toggle, remove, update, reload };
+    return { state: current, busyKey: busy, find, toggle, remove, update, addToCompare, reload };
 }
 
 /** Số địa điểm trong danh sách so sánh (badge ở thanh bên). `enabled=false` khi chưa đăng nhập. */

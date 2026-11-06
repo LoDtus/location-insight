@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { countFilters } from "@/features/map/components/map-filter-panel";
 import { bestIndexes, buildCompareTable } from "@/features/map/compare/compare-table";
-import { SEARCH_RADIUS, clampSearchRadius, formatRadius } from "@/features/map/map.geo";
+import { SEARCH_RADIUS, clampSearchRadius, formatRadius, zoomForRadius } from "@/features/map/map.geo";
 import {
     SEARCH_HISTORY_KEY,
     SEARCH_HISTORY_MAX,
@@ -38,6 +38,17 @@ describe("phạm vi tìm kiếm", () => {
         expect(clampSearchRadius(Number.NaN)).toBe(10000);
         expect(formatRadius(2500)).toBe("2,5 km");
         expect(formatRadius(800)).toBe("800 m");
+    });
+});
+
+describe("zoom sau khi tìm theo phạm vi", () => {
+    it("10 km → 12,3; bán kính gấp đôi thì lùi một mức zoom; kẹp 4–18", () => {
+        expect(zoomForRadius(10000)).toBe(12.3);
+        expect(zoomForRadius(5000)).toBe(13.3);
+        expect(zoomForRadius(20000)).toBe(11.3);
+        expect(zoomForRadius(500)).toBeCloseTo(16.62, 2);
+        expect(zoomForRadius(50000)).toBeCloseTo(9.98, 2);
+        expect(zoomForRadius(1)).toBe(18);
     });
 });
 

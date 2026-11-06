@@ -1,9 +1,9 @@
 "use client";
 
-import { ChevronDown, House, Layers } from "lucide-react";
+import { ChevronDown, House, Layers, MapPinned, X } from "lucide-react";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
-import { OTHER_AMENITIES, POI_STYLE, type OverlayId, type PoiCategory } from "@/features/map/map-overlays";
+import { OTHER_AMENITIES, POI_CATEGORIES, POI_STYLE, type OverlayId, type PoiCategory } from "@/features/map/map-overlays";
 import type { MapStyleId } from "@/features/map/map.types";
 
 const BASE_LAYERS: Array<{ id: MapStyleId; label: string; swatch: string }> = [
@@ -26,7 +26,12 @@ interface MapLayerPickerProps {
     onOverlaysChange: (next: OverlayId[]) => void;
     /** Số tin rao đang có trên bản đồ (để hiện cạnh công tắc). */
     listingCount: number;
+    /** Vừa bật một lớp từ bảng "Tiện ích": màn hình phóng bản đồ tới mức thấy được điểm. */
+    onOverlayEnabled?: () => void;
 }
+
+/** Thứ tự trong bảng bật nhanh: hay dùng trước. */
+const QUICK_ORDER: readonly PoiCategory[] = ["bank", "food", "school", "bus", "metro", "hospital", "pharmacy", "market", "supermarket", "park", "townhall", "hardware"];
 
 function Switch({ on, label }: { on: boolean; label?: string }): ReactNode {
     return (
@@ -52,8 +57,11 @@ export default function MapLayerPicker({
     overlays,
     onOverlaysChange,
     listingCount,
+    onOverlayEnabled,
 }: MapLayerPickerProps) {
     const [open, setOpen] = useState(false);
+    const [quickOpen, setQuickOpen] = useState(false);
+    const quickId = useId();
     const [othersOpen, setOthersOpen] = useState(false);
     const othersId = useId();
     const enabled = new Set(overlays);
@@ -65,6 +73,12 @@ export default function MapLayerPicker({
         if (on) next.add(id);
         else next.delete(id);
         onOverlaysChange([...next]);
+    }
+
+    function toggleQuick(id: OverlayId): void {
+        const on = !enabled.has(id);
+        setOverlay(id, on);
+        if (on) onOverlayEnabled?.();
     }
 
     function setOthers(on: boolean): void {
@@ -116,7 +130,10 @@ export default function MapLayerPicker({
             onMouseEnter={clearCloseTimer}
             onMouseLeave={scheduleClose}
             onKeyDown={(event) => {
-                if (event.key === "Escape") setOpen(false);
+                if (event.key === "Escape") {
+                    setOpen(false);
+                    setQuickOpen(false);
+                }
             }}
         >
             <div className="flex flex-col items-start gap-2">
@@ -131,10 +148,30 @@ export default function MapLayerPicker({
                 </button>
                 <button
                     type="button"
+                    aria-expanded={quickOpen}
+                    aria-controls={quickId}
+                    onClick={() => {
+                        setOpen(false);
+                        setQuickOpen((value) => !value);
+                    }}
+                    className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-semibold shadow-md ring-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green ${quickOpen ? "bg-white text-green ring-2 ring-green" : "bg-white text-charcoal ring-charcoal/15 hover:bg-[#f4f4f4]"}`}
+                >
+                    <MapPinned size={14} aria-hidden /> Tiện ích
+                    {POI_CATEGORIES.some((id) => enabled.has(id)) ? (
+                        <span className="min-w-4 rounded-full bg-green px-1 text-center text-[10px] leading-4 text-cream tabular-nums">
+                            {POI_CATEGORIES.filter((id) => enabled.has(id)).length}
+                        </span>
+                    ) : null}
+                </button>
+                <button
+                    type="button"
                     aria-expanded={open}
                     aria-haspopup="true"
                     aria-label={activeCount > 0 ? `Lớp bản đồ (${activeCount} lớp hiển thị đang bật)` : "Lớp bản đồ"}
-                    onClick={() => setOpen((value) => !value)}
+                    onClick={() => {
+                        setQuickOpen(false);
+                        setOpen((value) => !value);
+                    }}
                     className="relative size-14 shrink-0 rounded-lg border-2 border-white shadow-md"
                     style={{ background: current.swatch }}
                 >
@@ -149,6 +186,45 @@ export default function MapLayerPicker({
                     ) : null}
                 </button>
             </div>
+            {quickOpen ? (
+                <section
+                    id={quickId}
+                    aria-label="Hiện điểm trên bản đồ"
+                    className="w-[min(calc(100vw-7rem),20rem)] rounded-xl bg-white p-3 shadow-lg ring-1 ring-charcoal/10"
+                >
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                        <p className="m-0 text-sm font-semibold">Hiện trên bản đồ</p>
+                        <button
+                            type="button"
+                            aria-label="Đóng"
+                            onClick={() => setQuickOpen(false)}
+                            className="inline-flex size-7 items-center justify-center rounded-md bg-transparent text-charcoal/60 hover:bg-charcoal/5 hover:text-charcoal"
+                        >
+                            <X size={15} aria-hidden />
+                        </button>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                        {(["listing", ...QUICK_ORDER] as OverlayId[]).map((id) => {
+                            const on = enabled.has(id);
+                            const label = id === "listing" ? "Đang rao bán" : POI_STYLE[id as PoiCategory].label;
+                            const color = id === "listing" ? "#026a4e" : POI_STYLE[id as PoiCategory].color;
+                            return (
+                                <button
+                                    key={id}
+                                    type="button"
+                                    aria-pressed={on}
+                                    onClick={() => toggleQuick(id)}
+                                    className={`inline-flex min-h-8 items-center gap-1.5 rounded-full px-2.5 text-xs font-semibold ring-1 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-green ${on ? "bg-charcoal text-white ring-charcoal" : "bg-white text-charcoal/80 ring-charcoal/15 hover:bg-charcoal/5"}`}
+                                >
+                                    <span aria-hidden className="size-2.5 rounded-full ring-2 ring-white/80" style={{ background: color }} />
+                                    {label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <p className="m-0 mt-2 text-[11px] leading-snug text-charcoal/55">Bật một loại thì bản đồ phóng tới mức 13 ngay tại chỗ (nếu đang xa hơn).</p>
+                </section>
+            ) : null}
             {open ? (
                 <div
                     role="group"
@@ -251,7 +327,7 @@ export default function MapLayerPicker({
                         </ul>
                     ) : null}
                     <p className="m-0 mt-2 text-[11px] leading-snug text-charcoal/50">
-                        Tiện ích hiện khi phóng to tới mức phố phường; quán ăn và điểm xe buýt cần phóng to thêm. Dữ liệu © OpenStreetMap. Tin chưa có tọa độ đặt gần tâm quận (nhãn nhạt hơn).
+                        Tiện ích hiện từ zoom 13; điểm gần nhau gom thành cụm có số, phóng to để tách. Dữ liệu © OpenStreetMap. Tin chưa có tọa độ đặt gần tâm quận (nhãn nhạt hơn).
                     </p>
                 </div>
             ) : null}

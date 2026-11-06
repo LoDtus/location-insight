@@ -17,7 +17,7 @@ import {
 } from "@/features/map/map.geo";
 import { loadVietmap, styleUrl, type VietmapModule } from "@/features/map/map-gl";
 import type { PoiFeatureCollection } from "@/features/map/hooks/use-map-overlays";
-import { POI_CATEGORIES, POI_DENSE_CATEGORIES, POI_DENSE_MIN_ZOOM, POI_MIN_ZOOM, POI_STYLE, isPoiCategory, type PoiCategory } from "@/features/map/map-overlays";
+import { POI_CATEGORIES, POI_MIN_ZOOM, POI_STYLE, isPoiCategory, type PoiCategory } from "@/features/map/map-overlays";
 import type { MapConfig, MapPoint, MapRoute, MapStyleId } from "@/features/map/map.types";
 
 
@@ -36,6 +36,8 @@ export interface MapHandle {
      * rồi biến mất.
      */
     flashRadius: (center: MapPoint, radiusM: number) => void;
+    /** Phóng mượt tới mức zoom, giữ nguyên tâm. */
+    zoomTo: (zoom: number) => void;
     /** Đặt lại camera tức thì (khi URL đổi từ bên ngoài). */
     setView: (view: Partial<MapPoint> & { zoom?: number; bearing?: number; pitch?: number }) => void;
 }
@@ -80,8 +82,6 @@ interface MapCanvasProps {
     circle: { center: MapPoint; radiusM: number } | null;
     /** Kết quả tìm theo loại hình: mỗi kết quả một ghim nhỏ, khác ghim chính. */
     results: ReadonlyArray<{ id: string; lat: number; lng: number; name: string }>;
-    /** Bấm vào một ghim kết quả. */
-    onResultClick: (id: string) => void;
     /** Điểm tiện ích của các lớp đang bật (đã lọc theo nhóm). */
     pois: PoiFeatureCollection;
     onPoiClick: (poi: { category: PoiCategory; name: string; kind: string; lat: number; lng: number }) => void;
@@ -92,6 +92,13 @@ interface MapCanvasProps {
     onMapClick: (point: MapPoint) => void;
     /** Chuột phải: điểm trên bản đồ và vị trí pixel so với khung bản đồ. */
     onContextMenu: (point: MapPoint, at: { x: number; y: number }) => void;
+    /**
+     * Bấm (trái hoặc phải) lên chấm "vị trí của tôi" hoặc ghim kết quả: mở menu tại ghim đó. `id` là mã kết quả
+     * (chỉ có với ghim kết quả).
+     */
+    onMarkerMenu: (target: { kind: "me" | "result"; id?: string; point: MapPoint; at: { x: number; y: number } }) => void;
+    /** Ghim kết quả đang xem (được làm nổi bật). */
+    activeResultId: string | null;
     onViewport: (viewport: MapViewport) => void;
     onFailure: (failed: boolean) => void;
     handleRef: Ref<MapHandle>;
@@ -113,8 +120,16 @@ const RADIUS_IDLE_MS = 900;
 const RADIUS_FADE_MS = 900;
 const SRC_POIS = "li-pois";
 const LAYER_POIS = "li-pois-circle";
-const LAYER_POIS_DENSE = "li-pois-dense";
-const POI_LAYERS = [LAYER_POIS, LAYER_POIS_DENSE];
+const LAYER_POI_CLUSTERS = "li-pois-cluster";
+const LAYER_POI_COUNTS = "li-pois-cluster-count";
+const POI_LAYERS = [LAYER_POIS];
+/** Điểm tiện ích gom cụm tới zoom này; phóng to hơn thì tách hết. */
+const POI_CLUSTER_MAX_ZOOM = 15;
+/** Tin rao gom cụm khi zoom dưới mức này (ô lưới ~56 px theo zoom nguyên để kéo bản đồ không đổi cụm). */
+const LISTING_CLUSTER_MAX_ZOOM = 15;
+const LISTING_CLUSTER_CELL_PX = 56;
+/** Chỉ tạo nhãn tin rao trong khung nhìn nới thêm chừng này (tỷ lệ mỗi cạnh). */
+const LISTING_VIEW_PADDING = 0.25;
 const MARKER_ATTR = "data-map-marker";
 const PIN_COLOR = "#026a4e";
 const DROPPED_PIN_SRC = "/icons/map-pin.svg";
@@ -147,13 +162,14 @@ export default function MapCanvas({
     activeRoute,
     circle,
     results,
-    onResultClick,
     pois,
     onPoiClick,
     listings,
     onListingClick,
     onMapClick,
     onContextMenu,
+    onMarkerMenu,
+    activeResultId,
     onViewport,
     onFailure,
     handleRef,
@@ -175,15 +191,15 @@ export default function MapCanvas({
     const dropRef = useRef<MapPoint | null>(null);
     const radiusRef = useRef<{ center: MapPoint; radiusM: number } | null>(null);
     const radiusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const resultMarkersRef = useRef<VietmapMarker[]>([]);
-    const listingMarkersRef = useRef<VietmapMarker[]>([]);
+    const resultMarkersRef = useRef<Array<{ id: string; marker: VietmapMarker }>>([]);
+    const listingMarkersRef = useRef<Map<string, VietmapMarker>>(new Map());
     const initialStyleRef = useRef(styleId);
     const appliedStyleRef = useRef(styleId);
 
     // Giá trị mới nhất cho trình xử lý sự kiện của bản đồ (tránh gắn lại sự kiện).
-    const latest = useRef({ routes, activeRoute, trafficOn, from, to, circle, results, onResultClick, pois, onPoiClick, listings, onListingClick, onMapClick, onContextMenu, onViewport, onFailure });
+    const latest = useRef({ routes, activeRoute, trafficOn, from, to, circle, results, pois, onPoiClick, listings, onListingClick, onMapClick, onContextMenu, onMarkerMenu, activeResultId, onViewport, onFailure });
     useEffect(() => {
-        latest.current = { routes, activeRoute, trafficOn, from, to, circle, results, onResultClick, pois, onPoiClick, listings, onListingClick, onMapClick, onContextMenu, onViewport, onFailure };
+        latest.current = { routes, activeRoute, trafficOn, from, to, circle, results, pois, onPoiClick, listings, onListingClick, onMapClick, onContextMenu, onMarkerMenu, activeResultId, onViewport, onFailure };
     });
 
     useImperativeHandle(
@@ -212,6 +228,9 @@ export default function MapCanvas({
             dropPin: (point) => {
                 dropRef.current = point;
                 placeDrop();
+            },
+            zoomTo: (zoom) => {
+                mapRef.current?.easeTo({ zoom });
             },
             flashRadius: (center, radiusM) => {
                 radiusRef.current = { center, radiusM };
@@ -251,11 +270,14 @@ export default function MapCanvas({
                 const lib = libRef.current;
                 if (!map || !lib) return;
                 if (!markersRef.current.me) {
-                    const dot = document.createElement("div");
+                    const dot = document.createElement("button");
+                    dot.type = "button";
                     dot.setAttribute(MARKER_ATTR, "me");
-                    dot.setAttribute("aria-label", "Vị trí của tôi");
+                    dot.setAttribute("aria-label", "Vị trí của tôi: mở menu thao tác");
+                    dot.title = "Vị trí của tôi";
                     dot.className =
-                        "size-4 rounded-full border-2 border-white bg-blue-600 shadow-[0_0_0_6px_rgba(37,99,235,0.25)]";
+                        "size-4 cursor-pointer rounded-full border-2 border-white bg-blue-600 p-0 shadow-[0_0_0_6px_rgba(37,99,235,0.25)] hover:shadow-[0_0_0_8px_rgba(37,99,235,0.3)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600";
+                    attachMarkerMenu(dot, "me");
                     markersRef.current.me = new lib.Marker({ element: dot });
                 }
                 markersRef.current.me.setLngLat([point.lng, point.lat]).addTo(map);
@@ -358,31 +380,72 @@ export default function MapCanvas({
         map.setPaintProperty(LAYER_RADIUS_LINE, "line-opacity", value * 0.9);
     }
 
-    /** Ghim kết quả: chấm tròn đỏ có viền trắng, nhỏ hơn ghim chính; bấm để mở thẻ Địa điểm. */
+    /** Chuột trái và chuột phải lên một ghim (vị trí của tôi, kết quả) đều mở menu tại ghim đó. */
+    function attachMarkerMenu(element: HTMLElement, kind: "me" | "result", id?: string): void {
+        const open = (event: MouseEvent): void => {
+            event.preventDefault();
+            event.stopPropagation();
+            const map = mapRef.current;
+            const marker = kind === "me" ? markersRef.current.me : resultMarkersRef.current.find((item) => item.id === id)?.marker;
+            if (!map || !marker) return;
+            const lngLat = marker.getLngLat();
+            const projected = map.project(lngLat);
+            latest.current.onMarkerMenu({ kind, id, point: { lat: lngLat.lat, lng: lngLat.lng }, at: { x: projected.x, y: projected.y } });
+        };
+        element.addEventListener("click", open);
+        element.addEventListener("contextmenu", open);
+    }
+
+    /** Ghim kết quả: chấm tròn đỏ đánh số; ghim đang xem to hơn, viền đậm và nằm trên cùng. */
     function syncResults(): void {
         const map = mapRef.current;
         const lib = libRef.current;
-        for (const marker of resultMarkersRef.current) marker.remove();
+        for (const item of resultMarkersRef.current) item.marker.remove();
         resultMarkersRef.current = [];
         if (!map || !lib) return;
         latest.current.results.forEach((result, index) => {
             const element = document.createElement("button");
             element.type = "button";
             element.setAttribute(MARKER_ATTR, "result");
-            element.setAttribute("aria-label", `Kết quả ${index + 1}: ${result.name}`);
+            element.setAttribute("aria-label", `Kết quả ${index + 1}: ${result.name}. Mở menu thao tác`);
             element.title = result.name;
-            element.className =
-                "map-result-pin flex size-7 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-[#c0392b] p-0 text-[11px] font-bold text-white shadow-[0_2px_6px_rgba(16,17,17,0.35)] hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c0392b]";
             element.textContent = String(index + 1);
-            element.addEventListener("click", (event) => {
-                event.stopPropagation();
-                latest.current.onResultClick(result.id);
-            });
-            resultMarkersRef.current.push(new lib.Marker({ element }).setLngLat([result.lng, result.lat]).addTo(map));
+            attachMarkerMenu(element, "result", result.id);
+            const marker = new lib.Marker({ element }).setLngLat([result.lng, result.lat]).addTo(map);
+            resultMarkersRef.current.push({ id: result.id, marker });
         });
+        styleResults();
     }
 
-    /** Lớp điểm tiện ích: chấm tròn màu theo nhóm, viền trắng, to dần theo zoom. Nằm dưới tuyến đường. */
+    function styleResults(): void {
+        const active = latest.current.activeResultId;
+        for (const { id, marker } of resultMarkersRef.current) {
+            const element = marker.getElement();
+            const on = id === active;
+            element.className = `map-result-pin flex cursor-pointer items-center justify-center rounded-full border-2 border-white p-0 font-bold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c0392b] ${
+                on
+                    ? "size-9 bg-[#a93226] text-sm shadow-[0_0_0_4px_rgba(192,57,43,0.3),0_4px_10px_rgba(16,17,17,0.4)]"
+                    : "size-7 bg-[#c0392b] text-[11px] shadow-[0_2px_6px_rgba(16,17,17,0.35)] hover:brightness-110"
+            }`;
+            element.setAttribute("aria-current", on ? "true" : "false");
+            element.style.zIndex = on ? "3" : "1";
+        }
+    }
+
+    /** Phông chữ cho số trên cụm: lấy từ một lớp chữ có sẵn của style Vietmap (style tự chọn phông). */
+    function styleFont(map: VietmapMap): string[] | null {
+        for (const layer of map.getStyle()?.layers ?? []) {
+            if (layer.type !== "symbol") continue;
+            const font = map.getLayoutProperty(layer.id, "text-font") as unknown;
+            if (Array.isArray(font) && font.every((item) => typeof item === "string")) return font as string[];
+        }
+        return null;
+    }
+
+    /**
+     * Lớp điểm tiện ích: nguồn GeoJSON gom cụm (đến zoom 15). Cụm là chấm xám đậm có số; điểm lẻ là chấm màu theo
+     * nhóm. Chỉ có dữ liệu của các ô trong khung nhìn (tải lười theo ô ở hook), nên không vẽ điểm ngoài màn hình.
+     */
     function ensurePoiLayers(map: VietmapMap): void {
         const data = latest.current.pois as never;
         const source = map.getSource(SRC_POIS);
@@ -390,47 +453,157 @@ export default function MapCanvas({
             (source as unknown as { setData: (d: unknown) => void }).setData(data);
             return;
         }
-        map.addSource(SRC_POIS, { type: "geojson", data });
+        map.addSource(SRC_POIS, { type: "geojson", data, cluster: true, clusterRadius: 44, clusterMaxZoom: POI_CLUSTER_MAX_ZOOM } as never);
         const color: unknown[] = ["match", ["get", "category"]];
         for (const category of POI_CATEGORIES) color.push(category, POI_STYLE[category].color);
         color.push("#64748b");
-        const paint = {
-            "circle-color": color as never,
-            "circle-radius": ["interpolate", ["linear"], ["zoom"], 13, 3.5, 16, 6, 18, 8] as never,
-            "circle-stroke-color": "#ffffff",
-            "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 13, 1, 16, 1.75] as never,
-        };
-        const dense = ["in", ["get", "category"], ["literal", [...POI_DENSE_CATEGORIES]]];
-        // Nhóm dày đặc (quán ăn, xe buýt) chỉ hiện khi đã phóng to hơn để bản đồ không rối.
-        map.addLayer({ id: LAYER_POIS, type: "circle", source: SRC_POIS, minzoom: POI_MIN_ZOOM, filter: ["!", dense] as never, paint });
-        map.addLayer({ id: LAYER_POIS_DENSE, type: "circle", source: SRC_POIS, minzoom: POI_DENSE_MIN_ZOOM, filter: dense as never, paint });
+        map.addLayer({
+            id: LAYER_POI_CLUSTERS,
+            type: "circle",
+            source: SRC_POIS,
+            minzoom: POI_MIN_ZOOM,
+            filter: ["has", "point_count"] as never,
+            paint: {
+                "circle-color": "#334155",
+                "circle-opacity": 0.88,
+                "circle-radius": ["step", ["get", "point_count"], 11, 10, 14, 50, 18, 200, 22] as never,
+                "circle-stroke-color": "#ffffff",
+                "circle-stroke-width": 2,
+            },
+        });
+        const font = styleFont(map);
+        if (font) {
+            map.addLayer({
+                id: LAYER_POI_COUNTS,
+                type: "symbol",
+                source: SRC_POIS,
+                minzoom: POI_MIN_ZOOM,
+                filter: ["has", "point_count"] as never,
+                layout: { "text-field": ["get", "point_count_abbreviated"] as never, "text-font": font, "text-size": 11, "text-allow-overlap": true },
+                paint: { "text-color": "#ffffff" },
+            });
+        }
+        map.addLayer({
+            id: LAYER_POIS,
+            type: "circle",
+            source: SRC_POIS,
+            minzoom: POI_MIN_ZOOM,
+            filter: ["!", ["has", "point_count"]] as never,
+            paint: {
+                "circle-color": color as never,
+                "circle-radius": ["interpolate", ["linear"], ["zoom"], 13, 4, 16, 6, 18, 8] as never,
+                "circle-stroke-color": "#ffffff",
+                "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 13, 1.25, 16, 1.75] as never,
+            },
+        });
     }
 
-    /** Tin rao: nhãn giá dạng viên thuốc, có mũi nhọn chỉ xuống điểm; tin vị trí gần đúng nền nhạt hơn. */
+    /**
+     * Tin rao: chỉ tạo nhãn cho tin trong khung nhìn (nới thêm một phần), gom cụm theo lưới ở zoom thấp. So khớp theo
+     * khóa nên nhãn đã có giữ nguyên chỗ (không xóa đi vẽ lại), tránh nháy khi kéo, phóng to hay bật lớp khác.
+     */
     function syncListings(): void {
         const map = mapRef.current;
         const lib = libRef.current;
-        for (const marker of listingMarkersRef.current) marker.remove();
-        listingMarkersRef.current = [];
         if (!map || !lib) return;
-        for (const item of latest.current.listings) {
-            const element = document.createElement("button");
-            element.type = "button";
-            element.setAttribute(MARKER_ATTR, "listing");
-            element.setAttribute("aria-label", `Tin rao ${item.title}, giá ${item.label}${item.approximate ? ", vị trí gần đúng" : ""}`);
-            element.title = item.approximate ? `${item.title} (vị trí gần đúng)` : item.title;
-            element.className = `map-listing-pin cursor-pointer rounded-full border-2 border-white px-2 py-0.5 text-[11px] leading-4 font-bold whitespace-nowrap text-cream shadow-[0_2px_6px_rgba(16,17,17,0.3)] hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green ${item.approximate ? "bg-green/80" : "bg-green"}`;
-            element.textContent = item.label;
-            const tip = document.createElement("span");
-            tip.setAttribute("aria-hidden", "true");
-            tip.className = "absolute top-full left-1/2 -mt-px -translate-x-1/2 border-x-[5px] border-t-[6px] border-x-transparent border-t-green";
-            element.append(tip);
-            element.addEventListener("click", (event) => {
-                event.stopPropagation();
-                latest.current.onListingClick(item.id);
-            });
-            listingMarkersRef.current.push(new lib.Marker({ element, anchor: "bottom" }).setLngLat([item.lng, item.lat]).addTo(map));
+        const wanted = new Map<string, { lng: number; lat: number; build: () => HTMLElement }>();
+        const items = latest.current.listings;
+        if (items.length > 0) {
+            const bounds = map.getBounds();
+            const padLng = (bounds.getEast() - bounds.getWest()) * LISTING_VIEW_PADDING;
+            const padLat = (bounds.getNorth() - bounds.getSouth()) * LISTING_VIEW_PADDING;
+            const visible = items.filter(
+                (item) =>
+                    item.lng >= bounds.getWest() - padLng &&
+                    item.lng <= bounds.getEast() + padLng &&
+                    item.lat >= bounds.getSouth() - padLat &&
+                    item.lat <= bounds.getNorth() + padLat,
+            );
+            const zoom = Math.floor(map.getZoom());
+            if (zoom >= LISTING_CLUSTER_MAX_ZOOM) {
+                for (const item of visible) wanted.set(`l:${item.id}`, { lng: item.lng, lat: item.lat, build: () => listingElement(item) });
+            } else {
+                // Lưới theo tọa độ thế giới ở zoom nguyên: kéo bản đồ không làm đổi cụm.
+                const world = 512 * 2 ** zoom;
+                const cells = new Map<string, ListingMarker[]>();
+                for (const item of visible) {
+                    const x = ((item.lng + 180) / 360) * world;
+                    const sin = Math.sin((item.lat * Math.PI) / 180);
+                    const y = (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * world;
+                    const key = `${Math.floor(x / LISTING_CLUSTER_CELL_PX)}:${Math.floor(y / LISTING_CLUSTER_CELL_PX)}`;
+                    cells.set(key, [...(cells.get(key) ?? []), item]);
+                }
+                for (const [cell, members] of cells) {
+                    if (members.length === 1) {
+                        const item = members[0];
+                        wanted.set(`l:${item.id}`, { lng: item.lng, lat: item.lat, build: () => listingElement(item) });
+                        continue;
+                    }
+                    const lng = members.reduce((sum, item) => sum + item.lng, 0) / members.length;
+                    const lat = members.reduce((sum, item) => sum + item.lat, 0) / members.length;
+                    wanted.set(`c:${zoom}:${cell}:${members.length}`, { lng, lat, build: () => listingClusterElement(members) });
+                }
+            }
         }
+        const current = listingMarkersRef.current;
+        for (const [key, marker] of current) {
+            if (!wanted.has(key)) {
+                marker.remove();
+                current.delete(key);
+            }
+        }
+        for (const [key, entry] of wanted) {
+            if (current.has(key)) continue;
+            const element = entry.build();
+            const anchor = key.startsWith("l:") ? "bottom" : "center";
+            current.set(key, new lib.Marker({ element, anchor }).setLngLat([entry.lng, entry.lat]).addTo(map));
+        }
+    }
+
+    function listingElement(item: ListingMarker): HTMLElement {
+        const element = document.createElement("button");
+        element.type = "button";
+        element.setAttribute(MARKER_ATTR, "listing");
+        element.setAttribute("aria-label", `Tin rao ${item.title}, giá ${item.label}${item.approximate ? ", vị trí gần đúng" : ""}`);
+        element.title = item.approximate ? `${item.title} (vị trí gần đúng)` : item.title;
+        element.className = `map-listing-pin cursor-pointer rounded-full border-2 border-white px-2 py-0.5 text-[11px] leading-4 font-bold whitespace-nowrap text-cream shadow-[0_2px_6px_rgba(16,17,17,0.3)] hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green ${item.approximate ? "bg-green/80" : "bg-green"}`;
+        element.textContent = item.label;
+        const tip = document.createElement("span");
+        tip.setAttribute("aria-hidden", "true");
+        tip.className = "absolute top-full left-1/2 -mt-px -translate-x-1/2 border-x-[5px] border-t-[6px] border-x-transparent border-t-green";
+        element.append(tip);
+        element.addEventListener("click", (event) => {
+            event.stopPropagation();
+            latest.current.onListingClick(item.id);
+        });
+        return element;
+    }
+
+    /** Cụm tin rao: vòng xanh có số; bấm thì phóng vào vùng của cụm. */
+    function listingClusterElement(members: ListingMarker[]): HTMLElement {
+        const element = document.createElement("button");
+        element.type = "button";
+        element.setAttribute(MARKER_ATTR, "listing-cluster");
+        element.setAttribute("aria-label", `${members.length} tin rao ở gần nhau. Phóng to để xem`);
+        element.title = `${members.length} tin rao`;
+        element.className =
+            "flex size-9 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-green p-0 text-xs font-bold text-cream shadow-[0_0_0_4px_rgba(2,106,78,0.25),0_2px_6px_rgba(16,17,17,0.3)] hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green";
+        element.textContent = String(members.length);
+        element.addEventListener("click", (event) => {
+            event.stopPropagation();
+            const map = mapRef.current;
+            if (!map) return;
+            const lngs = members.map((item) => item.lng);
+            const lats = members.map((item) => item.lat);
+            map.fitBounds(
+                [
+                    [Math.min(...lngs), Math.min(...lats)],
+                    [Math.max(...lngs), Math.max(...lats)],
+                ],
+                { padding: 80, maxZoom: LISTING_CLUSTER_MAX_ZOOM },
+            );
+        });
+        return element;
     }
 
     function ensureRouteLayers(map: VietmapMap): void {
@@ -507,6 +680,7 @@ export default function MapCanvas({
         let map: VietmapMap | null = null;
         let onContextMenu: ((event: MouseEvent) => void) | null = null;
         const markers = markersRef.current;
+        const listingMarkers = listingMarkersRef.current;
 
         void loadVietmap()
             .then((lib) => {
@@ -573,7 +747,8 @@ export default function MapCanvas({
                     }
                 });
                 map.on("move", report);
-                for (const layer of POI_LAYERS) {
+                map.on("moveend", syncListings);
+                for (const layer of [...POI_LAYERS, LAYER_POI_CLUSTERS]) {
                     map.on("mouseenter", layer, () => {
                         if (map) map.getCanvas().style.cursor = "pointer";
                     });
@@ -587,6 +762,14 @@ export default function MapCanvas({
                 map.on("click", (event) => {
                     const target = event.originalEvent.target as HTMLElement | null;
                     if (target?.closest(`[${MARKER_ATTR}]`)) return;
+                    if (map?.getLayer(LAYER_POI_CLUSTERS)) {
+                        const cluster = map.queryRenderedFeatures(event.point, { layers: [LAYER_POI_CLUSTERS] })[0];
+                        const geometry = cluster?.geometry as { type: string; coordinates: [number, number] } | undefined;
+                        if (geometry?.type === "Point") {
+                            map.easeTo({ center: geometry.coordinates, zoom: Math.min(map.getZoom() + 2, POI_CLUSTER_MAX_ZOOM + 1) });
+                            return;
+                        }
+                    }
                     if (map?.getLayer(LAYER_POIS)) {
                         const hit = map.queryRenderedFeatures(event.point, { layers: POI_LAYERS })[0];
                         const props = hit?.properties as { category?: string; name?: string; kind?: string } | undefined;
@@ -629,10 +812,10 @@ export default function MapCanvas({
                 markers[key]?.remove();
                 markers[key] = null;
             }
-            for (const marker of resultMarkersRef.current) marker.remove();
+            for (const item of resultMarkersRef.current) item.marker.remove();
             resultMarkersRef.current = [];
-            for (const marker of listingMarkersRef.current) marker.remove();
-            listingMarkersRef.current = [];
+            for (const marker of listingMarkers.values()) marker.remove();
+            listingMarkers.clear();
             if (radiusTimerRef.current) clearTimeout(radiusTimerRef.current);
             mapRef.current = null;
             map?.remove();
@@ -663,7 +846,6 @@ export default function MapCanvas({
         const map = mapRef.current;
         if (!map || !map.isStyleLoaded()) return;
         ensureCircleLayers(map);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [circle]);
 
     // Vẽ tuyến.
@@ -710,16 +892,24 @@ export default function MapCanvas({
         } catch {
             // style chưa sẵn sàng: lần "load"/"styledata" sẽ vẽ
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- hàm vẽ đọc giá trị mới nhất qua ref
     }, [pois]);
 
     // Tin rao.
     useEffect(() => {
         syncListings();
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- hàm vẽ đọc giá trị mới nhất qua ref
     }, [listings]);
+
+    // Làm nổi ghim kết quả đang xem.
+    useEffect(() => {
+        styleResults();
+    }, [activeResultId]);
 
     // Ghim kết quả tìm theo loại hình.
     useEffect(() => {
         syncResults();
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- hàm vẽ đọc giá trị mới nhất qua ref
     }, [results]);
 
     // Ghim và điểm đi/đến.

@@ -188,3 +188,12 @@ export function clampSearchRadius(meters: number): number {
 export function formatRadius(meters: number): string {
     return meters >= 1000 ? `${(meters / 1000).toString().replace(".", ",")} km` : `${meters} m`;
 }
+
+/**
+ * Mức zoom sau khi tìm theo phạm vi: 10 km → 12,3; bán kính gấp đôi thì zoom lùi 1 mức (mỗi mức zoom gấp đôi tỷ lệ).
+ * Vòng tròn vừa phủ phần lớn khung nhìn mà kết quả (tối đa 10 điểm gần nhất của Vietmap) vẫn tách rời nhau.
+ */
+export function zoomForRadius(radiusM: number): number {
+    const zoom = 12.3 + Math.log2(10000 / Math.max(1, radiusM));
+    return Math.round(Math.min(18, Math.max(4, zoom)) * 100) / 100;
+}

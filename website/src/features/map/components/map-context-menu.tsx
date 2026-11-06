@@ -25,7 +25,6 @@ const ITEMS: readonly MenuItem[] = [
 ];
 
 const MENU_WIDTH = 252;
-const MENU_HEIGHT = ITEMS.length * 40 + 30;
 const EDGE = 8;
 
 interface MapContextMenuProps {
@@ -35,11 +34,17 @@ interface MapContextMenuProps {
     bounds: { width: number; height: number };
     onSelect: (action: ContextAction) => void;
     onClose: () => void;
+    /** Mục không áp dụng cho điểm này (vd. "Bỏ ghim" với ghim kết quả hay vị trí của tôi). */
+    omit?: readonly ContextAction[];
+    /** Tiêu đề nhỏ đầu menu, vd. "Vị trí của tôi" hay "Kết quả 3: …". */
+    heading?: string;
 }
 
 /** Menu chuột phải của bản đồ; điều hướng bằng phím mũi tên, Esc để đóng. */
-export default function MapContextMenu({ at, bounds, onSelect, onClose }: MapContextMenuProps): JSX.Element {
+export default function MapContextMenu({ at, bounds, onSelect, onClose, omit = [], heading }: MapContextMenuProps): JSX.Element {
     const ref = useRef<HTMLUListElement>(null);
+    const items = ITEMS.filter((item) => !omit.includes(item.id));
+    const MENU_HEIGHT = items.length * 40 + 30 + (heading ? 28 : 0);
     const left = Math.max(EDGE, Math.min(at.x, bounds.width - MENU_WIDTH - EDGE));
     const top = Math.max(EDGE, Math.min(at.y, bounds.height - MENU_HEIGHT - EDGE));
 
@@ -85,7 +90,12 @@ export default function MapContextMenu({ at, bounds, onSelect, onClose }: MapCon
             style={{ left, top, width: MENU_WIDTH }}
             className="pointer-events-auto absolute z-30 m-0 list-none rounded-lg bg-white p-1.5 shadow-[0_8px_24px_rgba(16,17,17,0.16)] ring-1 ring-charcoal/10"
         >
-            {ITEMS.map((item) => (
+            {heading ? (
+                <li role="presentation" className="truncate px-3 pt-1 pb-1.5 text-xs font-semibold text-charcoal/60">
+                    {heading}
+                </li>
+            ) : null}
+            {items.map((item) => (
                 <li
                     key={item.id}
                     role="none"

@@ -46,13 +46,35 @@ function load(): Promise<void> {
     return inflight;
 }
 
-async function change(action: () => Promise<WeightsView>, fallback: string): Promise<string | null> {
+/** Trọng số mới cho các tiêu chí (null = về mặc định) áp ngay lên view hiện có. */
+function applyLocally(view: WeightsView, patch: Map<string, number | null>): WeightsView {
+    const criteria = view.criteria.map((item) => {
+        if (!patch.has(item.id)) return item;
+        const weight = patch.get(item.id) ?? item.defaultWeight;
+        return { ...item, weight, custom: weight !== item.defaultWeight };
+    });
+    return { ...view, criteria, changed: criteria.filter((item) => item.custom).length };
+}
+
+/**
+ * Đổi lạc quan: cập nhật giao diện ngay (không chờ mạng, không khóa danh sách nên không nháy), rồi lấy kết quả
+ * server làm chuẩn; lỗi thì trả về trạng thái trước đó. `version` tăng sau khi server lưu xong để phần đánh giá
+ * đọc lại điểm.
+ */
+async function change(patch: Map<string, number | null>, action: () => Promise<WeightsView>, fallback: string): Promise<string | null> {
+    const before = state;
+    if (state.view) {
+        state = { status: "ready", view: applyLocally(state.view, patch), version: state.version };
+        emit();
+    }
     try {
         const view = await action();
         state = { status: "ready", view, version: state.version + 1 };
         emit();
         return null;
     } catch (error) {
+        state = before;
+        emit();
         return mapErrorMessage(error, fallback);
     }
 }
@@ -74,9 +96,11 @@ export function useCriterionWeights(enabled = true) {
         state: current,
         changed: current.view?.changed ?? 0,
         reload: load,
-        set: (criterionId: string, weight: number) => change(() => setWeight(criterionId, weight), "Không đổi được trọng số."),
-        reset: (criterionId: string) => change(() => resetWeights(criterionId), "Không đặt lại được trọng số."),
-        resetAll: () => change(() => resetWeights(), "Không đặt lại được trọng số."),
+        set: (criterionId: string, weight: number) =>
+            change(new Map([[criterionId, weight]]), () => setWeight(criterionId, weight), "Không đổi được trọng số."),
+        reset: (criterionId: string) => change(new Map([[criterionId, null]]), () => resetWeights(criterionId), "Không đặt lại được trọng số."),
+        resetAll: () =>
+            change(new Map((current.view?.criteria ?? []).map((item) => [item.id, null])), () => resetWeights(), "Không đặt lại được trọng số."),
     };
 }
 

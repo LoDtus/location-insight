@@ -32,7 +32,7 @@ import { useCriterionWeights } from "@/features/map/hooks/use-criterion-weights"
 import { useMapOverlays } from "@/features/map/hooks/use-map-overlays";
 import { POI_MIN_ZOOM, POI_STYLE, listingPins, shortPrice, type ListingPin, type OverlayId } from "@/features/map/map-overlays";
 import { usePlaceSelection } from "@/features/map/hooks/use-place-selection";
-import { pendingKey, useSavedPlaces } from "@/features/map/hooks/use-saved-places";
+import { COMPARE_MAX, pendingKey, useSavedPlaces } from "@/features/map/hooks/use-saved-places";
 import { showToast } from "@/shared/components/toast/toast-store";
 import {
     buildMapUrl,
@@ -46,7 +46,7 @@ import {
 import {
     PIN_ZOOM,
     SEARCH_RADIUS,
-    circleBounds,
+    zoomForRadius,
     formatRadius,
     formatCoordinates,
     placeLink,
@@ -176,9 +176,22 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
     const [failed, setFailed] = useState(false);
     const [locating, setLocating] = useState(false);
     const [notice, setNotice] = useState<string | null>(null);
-    const [menu, setMenu] = useState<{ point: MapPoint; at: { x: number; y: number }; size: { width: number; height: number } } | null>(null);
+    const [menu, setMenu] = useState<{
+        point: MapPoint;
+        at: { x: number; y: number };
+        size: { width: number; height: number };
+        /** map: chuột phải trên nền; me: chấm vị trí của tôi; result: ghim kết quả có số. */
+        kind: "map" | "me" | "result";
+        resultId?: string;
+    } | null>(null);
     /** Điểm đang ghim (chuột phải, chọn địa điểm…): tâm tìm kiếm lân cận. Bỏ bằng menu chuột phải hoặc bấm chuột trái chỗ khác. */
     const [ping, setPing] = useState<MapPoint | null>(init.pin);
+    /** Điểm ghim trùng một ghim đã có (vị trí của tôi, ghim kết quả): không thả thêm ghim đỏ đè lên. */
+    const [pingSilent, setPingSilent] = useState(false);
+    /** Ghim kết quả đang xem (làm nổi bật trên bản đồ). */
+    const [activeResultId, setActiveResultId] = useState<string | null>(null);
+    /** Thẻ Địa điểm đang mở từ danh sách kết quả: có nút quay lại danh sách. */
+    const [placeFromResults, setPlaceFromResults] = useState(false);
     const [searchFocus, setSearchFocus] = useState(0);
     const [popoverOpen, setPopoverOpen] = useState(false);
     const [filterOpen, setFilterOpen] = useState(false);
@@ -380,6 +393,7 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
             if (state.pin) {
                 selectPoint(state.pin);
                 setPing(state.pin);
+                setPingSilent(false);
                 setPanel("place");
             } else {
                 clear();
@@ -426,7 +440,7 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
     );
 
     // Chỉ một ghim chính: điểm vừa bấm chuột phải, không thì điểm đang ghim (ẩn khi đang chỉ đường).
-    const dropped = menu?.point ?? (directions.open ? null : ping);
+    const dropped = menu?.kind === "map" ? menu.point : directions.open || pingSilent ? null : ping;
     const droppedLat = dropped?.lat;
     const droppedLng = dropped?.lng;
     useEffect(() => {
@@ -451,10 +465,22 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
     // Chuột phải: ghim luôn điểm đó (làm tâm tìm kiếm) và mở menu.
     const openMenu = useCallback((point: MapPoint, at: { x: number; y: number }): void => {
         const box = rootRef.current?.getBoundingClientRect();
-        setMenu({ point, at, size: { width: box?.width ?? 0, height: box?.height ?? 0 } });
+        setMenu({ point, at, size: { width: box?.width ?? 0, height: box?.height ?? 0 }, kind: "map" });
         setPing(point);
+        setPingSilent(false);
+        setActiveResultId(null);
         setPopoverOpen(false);
     }, []);
+
+    // Chuột trái/phải lên chấm vị trí của tôi hoặc ghim kết quả: menu tại ghim đó, không thả ghim mới.
+    const openMarkerMenu = useCallback(
+        (target: { kind: "me" | "result"; id?: string; point: MapPoint; at: { x: number; y: number } }): void => {
+            const box = rootRef.current?.getBoundingClientRect();
+            setMenu({ point: target.point, at: target.at, size: { width: box?.width ?? 0, height: box?.height ?? 0 }, kind: target.kind, resultId: target.id });
+            setPopoverOpen(false);
+        },
+        [],
+    );
 
     const closeMenu = useCallback((): void => setMenu(null), []);
 
@@ -490,18 +516,28 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
     }
 
     /** "Xem thông tin địa điểm này": luôn mở thẻ Địa điểm; thẻ tự ghi chú khi chỉ có địa chỉ gần đúng. */
-    function whereIsThis(point: MapPoint): void {
+    function whereIsThis(point: MapPoint, silent = false): void {
         setNotice(null);
         directions.close();
         setPicking(null);
-        setPing(point);
+        pinAt(point, silent);
         selectPoint(point);
         setPanel("place");
+    }
+
+    /** Đặt điểm ghim (tâm tìm kiếm). `silent`: đã có ghim khác ở đó nên không vẽ thêm ghim đỏ. */
+    function pinAt(point: MapPoint, silent = false): void {
+        setPing(point);
+        setPingSilent(silent);
+        if (!silent) setActiveResultId(null);
+        setPlaceFromResults(false);
     }
 
     /** Bỏ điểm đang ghim; thẻ Địa điểm của điểm đó đóng theo. */
     function clearPing(): void {
         setPing(null);
+        setPingSilent(false);
+        setActiveResultId(null);
         if (panel === "place") {
             clear();
             setPanel(null);
@@ -509,8 +545,8 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
     }
 
     /** Mở ô tìm kiếm để tìm quanh điểm vừa ghim, hiện phạm vi hiện tại. */
-    function searchAround(point: MapPoint): void {
-        setPing(point);
+    function searchAround(point: MapPoint, silent = false): void {
+        pinAt(point, silent);
         setFilterOpen(false);
         setSearchFocus((value) => value + 1);
         mapRef.current?.flashRadius(point, radiusM);
@@ -532,7 +568,8 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
             if (panel === "place") clear();
             setPanel("results");
         }
-        mapRef.current?.fitBounds(circleBounds(center, radiusM));
+        // Về đúng điểm ghim, zoom theo bán kính (10 km → 12,3).
+        mapRef.current?.flyTo(center, zoomForRadius(radiusM));
         mapRef.current?.flashRadius(center, radiusM);
         searchPinResults(text, center, { ...filters, radius: radiusM }, controller.signal)
             .then((items) => setResults({ status: "ready", text, radiusM, items }))
@@ -545,15 +582,21 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
     function clearResults(): void {
         resultsRef.current?.abort();
         setResults(null);
+        setActiveResultId(null);
+        setPlaceFromResults(false);
         setPanel((current) => (current === "results" ? null : current));
     }
 
+    /** Mở một kết quả: dùng chính ghim tròn có số (làm nổi), không thả thêm ghim đè lên. */
     function openResult(item: PinResult, fly: boolean): void {
         const point = { lat: item.lat, lng: item.lng };
         directions.close();
         setPicking(null);
-        setPing(point);
-        selectPoint(point, item);
+        pinAt(point, true);
+        setActiveResultId(item.refId);
+        setPlaceFromResults(true);
+        // distanceM của kết quả là khoảng cách tới tâm tìm kiếm, không phải độ lệch điểm bấm: kết quả là đúng điểm đó.
+        selectPoint(point, { ...item, distanceM: 0, kind: item.kind ?? "poi" });
         setPanel("place");
         if (fly) mapRef.current?.flyTo(point, PIN_ZOOM);
     }
@@ -562,7 +605,7 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
         const point = { lat: item.lat, lng: item.lng };
         directions.close();
         setPicking(null);
-        setPing(point);
+        pinAt(point);
         selectPoint(point);
         setPanel("place");
         mapRef.current?.flyTo(point, PIN_ZOOM);
@@ -587,10 +630,54 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
         });
     }
 
+    /** Thêm nhiều mục vào so sánh, dừng khi chạm giới hạn 6. */
+    async function compareMany(items: SavedPlace[]): Promise<void> {
+        const pending = items.filter((item) => !item.compared);
+        const room = Math.max(0, COMPARE_MAX - saved.state.items.filter((item) => item.compared).length);
+        const batch = pending.slice(0, room);
+        let failed: string | null = null;
+        for (const item of batch) {
+            const message = await saved.update(item, { compared: true });
+            if (message) {
+                failed = message;
+                break;
+            }
+        }
+        if (pending.length === 0) {
+            showToast({ title: "Các địa điểm đã chọn đều đang được so sánh", tone: "info" });
+        } else if (failed) {
+            showToast({ title: "Chưa thêm hết vào so sánh", description: failed, tone: "error" });
+        } else if (batch.length < pending.length) {
+            showToast({
+                title: `Đã thêm ${batch.length} địa điểm vào so sánh`,
+                description: `So sánh tối đa ${COMPARE_MAX} địa điểm; còn ${pending.length - batch.length} địa điểm chưa thêm. Bỏ bớt rồi thêm tiếp.`,
+                tone: "info",
+            });
+        } else {
+            showToast({ title: `Đã thêm ${batch.length} địa điểm vào so sánh`, description: "Xem ở mục “So sánh” trên thanh bên." });
+        }
+    }
+
+    async function removeMany(items: SavedPlace[]): Promise<void> {
+        let removed = 0;
+        let failed: string | null = null;
+        for (const item of items) {
+            const message = await saved.remove(item);
+            if (message) failed = message;
+            else removed += 1;
+        }
+        showToast(
+            failed
+                ? { title: `Đã xóa ${removed}/${items.length} địa điểm`, description: failed, tone: "error" }
+                : { title: `Đã xóa ${removed} địa điểm đã lưu`, tone: "info" },
+        );
+    }
+
     function runContextAction(action: ContextAction): void {
         if (!menu) return;
-        const { point } = menu;
+        const { point, kind, resultId } = menu;
         setMenu(null);
+        const result = kind === "result" ? resultPins.find((item) => item.refId === resultId) : undefined;
         if (action === "copy-coordinates") {
             void copyText(formatCoordinates(point), "Đã sao chép tọa độ.");
         } else if (action === "copy-link") {
@@ -599,13 +686,14 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
             directionsTo(point);
             return;
         } else if (action === "where") {
-            whereIsThis(point);
+            if (result) openResult(result, false);
+            else whereIsThis(point, kind === "me");
             return;
         } else if (action === "clear-pin") {
             clearPing();
             return;
         } else {
-            searchAround(point);
+            searchAround(point, kind !== "map");
             return;
         }
     }
@@ -614,7 +702,7 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
         const point = { lat: place.lat, lng: place.lng };
         directions.close();
         setPicking(null);
-        setPing(point);
+        pinAt(point);
         selectPoint(point, place);
         setPanel("place");
         mapRef.current?.flyTo(point, PIN_ZOOM);
@@ -736,6 +824,15 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
             <MapPlacePanel
                 selection={selection}
                 root={root}
+                onBack={
+                    placeFromResults && results
+                        ? () => {
+                              clear();
+                              setPlaceFromResults(false);
+                              setPanel("results");
+                          }
+                        : undefined
+                }
                 savedItem={saved.find(selection.point)}
                 onUpdateSaved={(patch) => {
                     const item = saved.find(selection.point);
@@ -743,7 +840,29 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                 }}
                 onToggleCompare={() => {
                     const item = saved.find(selection.point);
-                    if (item) toggleCompare(item);
+                    if (item) {
+                        toggleCompare(item);
+                        return;
+                    }
+                    if (selection.status !== "ready") return;
+                    const place = selection.place;
+                    void saved
+                        .addToCompare({
+                            point: selection.point,
+                            name: place?.name || formatCoordinates(selection.point),
+                            address: place?.display || place?.address || "",
+                            kind: place?.kind,
+                        })
+                        .then((message) =>
+                            showToast(
+                                message
+                                    ? { title: "Chưa thêm được vào so sánh", description: message, tone: "error" }
+                                    : {
+                                          title: "Đã lưu và thêm vào so sánh",
+                                          description: `${place?.name ?? "Địa điểm"} · xem ở mục “So sánh” trên thanh bên.`,
+                                      },
+                            ),
+                        );
                 }}
                 saving={saved.busyKey !== null && saved.busyKey === (saved.find(selection.point)?.id ?? pendingKey(selection.point))}
                 onToggleSave={() => {
@@ -811,6 +930,8 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                     return message;
                 }}
                 onToggleCompare={toggleCompare}
+                onCompareMany={compareMany}
+                onRemoveMany={removeMany}
                 onRemove={(item) => {
                     void saved.remove(item).then((message) => {
                         if (message) setNotice(message);
@@ -829,7 +950,7 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                 onDirections={() => openDirections({ to: { ...openListing.point, label: openListing.listing.title } })}
             />
         ) : panel === "results" && results ? (
-            <MapResultsPanel state={results} onOpen={(item) => openResult(item, true)} onClose={clearResults} />
+            <MapResultsPanel state={results} activeId={activeResultId} onOpen={(item) => openResult(item, true)} onClose={clearResults} />
         ) : panel === "usage" ? (
             <MapUsageCard onClose={closePanel} />
         ) : panel === "detail" ? (
@@ -855,7 +976,7 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                     const point = { lat: poi.lat, lng: poi.lng };
                     directions.close();
                     setPicking(null);
-                    setPing(point);
+                    pinAt(point);
                     selectPoint(point, undefined, poi.name || POI_STYLE[poi.category].label);
                     setPanel("place");
                 }}
@@ -866,10 +987,8 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                     setOpenListing(pin);
                     setPanel("listing");
                 }}
-                onResultClick={(id) => {
-                    const item = resultPins.find((entry) => entry.refId === id);
-                    if (item) openResult(item, false);
-                }}
+                onMarkerMenu={openMarkerMenu}
+                activeResultId={activeResultId}
                 onMapClick={onMapClick}
                 onContextMenu={openMenu}
                 onViewport={(next) => {
@@ -1012,6 +1131,9 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                                 overlays={overlays}
                                 onOverlaysChange={setOverlays}
                                 listingCount={allListingPins.length}
+                                onOverlayEnabled={() => {
+                                    if (viewport.zoom < POI_MIN_ZOOM) mapRef.current?.zoomTo(POI_MIN_ZOOM);
+                                }}
                             />
                             <MapScaleBar zoom={viewport.zoom} latitude={viewport.lat} />
                             <MapZoomControls
@@ -1027,7 +1149,25 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                     {sidePanel}
                 </div>
                 {weightsOpen ? <MapWeightsDialog onClose={() => setWeightsOpen(false)} /> : null}
-                {menu ? <MapContextMenu at={menu.at} bounds={menu.size} onSelect={runContextAction} onClose={closeMenu} /> : null}
+                {menu ? (
+                    <MapContextMenu
+                        at={menu.at}
+                        bounds={menu.size}
+                        onSelect={runContextAction}
+                        onClose={closeMenu}
+                        omit={menu.kind === "map" ? [] : ["clear-pin"]}
+                        heading={
+                            menu.kind === "me"
+                                ? "Vị trí của tôi"
+                                : menu.kind === "result"
+                                  ? (() => {
+                                        const index = resultPins.findIndex((item) => item.refId === menu.resultId);
+                                        return index >= 0 ? `Kết quả ${index + 1}: ${resultPins[index].name}` : undefined;
+                                    })()
+                                  : undefined
+                        }
+                    />
+                ) : null}
             </div>
         </div>
     );

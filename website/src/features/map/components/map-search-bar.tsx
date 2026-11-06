@@ -349,11 +349,11 @@ export default function MapSearchBar({
                                     <p className="m-0 px-4 pt-1 pb-1 text-xs font-semibold text-charcoal/60">Tìm kiếm gần đây</p>
                                     <ul className="m-0 list-none p-0">
                                         {history.map((entry) => (
-                                            <li key={`${entry.type}-${entry.text}`} className="group flex items-center">
+                                            <li key={`${entry.type}-${entry.text}`} className="group flex items-center hover:bg-charcoal/5 focus-within:bg-charcoal/5">
                                                 <button
                                                     type="button"
                                                     onClick={() => openHistory(entry)}
-                                                    className="flex min-w-0 flex-1 items-center gap-3 bg-transparent px-4 py-2 text-left hover:bg-charcoal/5 focus-visible:bg-charcoal/5 focus-visible:outline-none"
+                                                    className="flex min-w-0 flex-1 items-center gap-3 bg-transparent px-4 py-2 text-left focus-visible:outline-none"
                                                 >
                                                     {entry.type === "place" ? (
                                                         <MapPin size={16} className="shrink-0 text-charcoal/50" aria-hidden />

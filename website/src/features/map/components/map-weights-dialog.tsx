@@ -161,12 +161,10 @@ export default function MapWeightsDialog({ onClose }: { onClose: () => void }): 
                                                     </span>
                                                 </span>
                                                 <span className="flex items-center gap-1">
-                                                    {busy === item.id ? <Loader2 size={14} className="animate-spin text-charcoal/50" aria-hidden /> : null}
                                                     <WeightPicker
                                                         value={item.weight}
                                                         defaultValue={item.defaultWeight}
                                                         label={item.label}
-                                                        disabled={busy !== null}
                                                         onChange={(weight) => {
                                                             if (weight !== item.weight) void run(item.id, () => weights.set(item.id, weight));
                                                         }}
@@ -175,7 +173,7 @@ export default function MapWeightsDialog({ onClose }: { onClose: () => void }): 
                                                         type="button"
                                                         aria-label={`Về mặc định: ${item.label}`}
                                                         title={`Về mặc định (${item.defaultWeight})`}
-                                                        disabled={!item.custom || busy !== null}
+                                                        disabled={!item.custom}
                                                         onClick={() => void run(item.id, () => weights.reset(item.id))}
                                                         className="inline-flex size-8 items-center justify-center rounded-md bg-transparent text-charcoal/60 hover:bg-charcoal/5 hover:text-charcoal disabled:invisible"
                                                     >
@@ -195,7 +193,7 @@ export default function MapWeightsDialog({ onClose }: { onClose: () => void }): 
                     <p className="m-0 hidden text-xs text-charcoal/55 sm:block">Đổi là lưu ngay.</p>
                     <button
                         type="button"
-                        disabled={changed === 0 || busy !== null}
+                        disabled={changed === 0}
                         onClick={() => {
                             setOnlyChanged(false);
                             void run("all", () => weights.resetAll(), "Đã đặt lại trọng số mặc định");

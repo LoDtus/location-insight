@@ -426,14 +426,20 @@ export default function AppSidebar({
                             <span className="relative inline-flex shrink-0">
                                 <Icon className="size-[18px]" aria-hidden="true" />
                                 {compact && item.badge ? (
-                                    <span className="absolute -top-1 -right-1 size-2.5 rounded-full bg-gold ring-2 ring-cream" aria-hidden="true" />
+                                    // Thu gọn vẫn hiện đủ số như khi mở rộng (tràn sang phải icon, có viền để tách nền).
+                                    <span
+                                        className={`absolute -top-2 left-3 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] leading-none font-semibold tabular-nums ring-2 ${active ? "bg-cream text-green ring-green" : "bg-green text-cream ring-white"}`}
+                                        aria-label={`${item.badge} mục mới`}
+                                    >
+                                        {item.badge >= 99 ? "99+" : item.badge}
+                                    </span>
                                 ) : null}
                             </span>
                             {compact ? null : <span className="truncate">{item.label}</span>}
                             {!compact && item.badge ? (
                                 <span
                                     className={`ml-auto inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-semibold ${active ? "bg-cream text-green" : "bg-green text-cream"}`}
-                                    aria-label={`${item.badge} chưa đọc`}
+                                    aria-label={`${item.badge} mục mới`}
                                 >
                                     {item.badge >= 99 ? "99+" : item.badge}
                                 </span>

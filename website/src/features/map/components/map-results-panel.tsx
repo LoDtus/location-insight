@@ -15,10 +15,13 @@ export type ResultsState =
 /** Danh sách kết quả khi tìm theo loại hình; số thứ tự khớp số trên ghim kết quả. */
 export default function MapResultsPanel({
     state,
+    activeId,
     onOpen,
     onClose,
 }: {
     state: ResultsState;
+    /** Kết quả đang xem (ghim được làm nổi). */
+    activeId: string | null;
     onOpen: (item: PinResult) => void;
     onClose: () => void;
 }): JSX.Element {
@@ -47,11 +50,12 @@ export default function MapResultsPanel({
                         <ol className="m-0 list-none p-0">
                             {state.items.map((item, index) => (
                                 <li key={item.refId}>
-                                    {index > 0 ? <div role="presentation" className="my-0.5 h-px bg-charcoal/10" /> : null}
+                                    {index > 0 ? <div role="presentation" className="mx-3 my-0.5 h-px bg-charcoal/10" /> : null}
                                     <button
                                         type="button"
                                         onClick={() => onOpen(item)}
-                                        className="flex w-full items-start gap-2.5 rounded-md bg-transparent px-1 py-2 text-left hover:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-green"
+                                        aria-current={item.refId === activeId ? "true" : undefined}
+                                        className={`flex w-full items-start gap-3 rounded-md px-3 py-2.5 text-left hover:bg-charcoal/5 focus-visible:outline-2 focus-visible:outline-green ${item.refId === activeId ? "bg-[#c0392b]/[0.07]" : "bg-transparent"}`}
                                     >
                                         <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-[#c0392b] text-[10px] font-bold text-white tabular-nums">
                                             {index + 1}

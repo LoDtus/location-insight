@@ -1,9 +1,12 @@
 import {
   Body,
   Controller,
+  Get,
+  Header,
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   Req,
 } from '@nestjs/common';
 import { RequirePermission } from '../../common/decorators/access.decorator.js';
@@ -11,7 +14,7 @@ import type { RequestWithPrincipal } from '../auth/auth.guard.js';
 import { clientIp } from '../auth/auth.constants.js';
 import { Principal } from '../rbac/authorization.types.js';
 import { DiscussionsService } from './discussions.service.js';
-import { HidePostDto, ReasonStatusDto } from './dto/discussion.dto.js';
+import { HidePostDto, ReasonStatusDto, ReportListQueryDto, ResolveReportDto } from './dto/discussion.dto.js';
 
 @Controller('admin/discussions')
 export class DiscussionsAdminController {
@@ -47,6 +50,23 @@ export class DiscussionsAdminController {
       body.reason,
       clientIp(request.ip),
     );
+  }
+
+  @RequirePermission('discussion:moderate')
+  @Header('Cache-Control', 'private, no-store')
+  @Get('reports')
+  reports(@Query() query: ReportListQueryDto) {
+    return this.discussions.listReports(query.status ?? 'open');
+  }
+
+  @RequirePermission('discussion:moderate')
+  @Post('reports/:id/resolve')
+  resolve(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: ResolveReportDto,
+    @Req() request: RequestWithPrincipal,
+  ) {
+    return this.discussions.resolveReport(this.actor(request), id, body, clientIp(request.ip));
   }
 
   private actor(request: RequestWithPrincipal): Principal {

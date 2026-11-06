@@ -14,6 +14,8 @@ import {
   MinLength,
 } from 'class-validator';
 
+import { DISCUSSION_REPORT_REASONS, DISCUSSION_REPORT_STATUSES } from '../entities/discussion-report.entity.js';
+
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export class CursorQueryDto {
@@ -125,4 +127,32 @@ export class CreateMediaDto {
   @IsInt()
   @Min(1)
   byteSize: number;
+}
+
+/** Báo cáo bài: lý do trong danh sách cố định, ghi chú tùy chọn. */
+export class ReportPostDto {
+  @IsIn(DISCUSSION_REPORT_REASONS)
+  reason: (typeof DISCUSSION_REPORT_REASONS)[number];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string;
+}
+
+export class ReportListQueryDto {
+  @IsOptional()
+  @IsIn(DISCUSSION_REPORT_STATUSES)
+  status?: (typeof DISCUSSION_REPORT_STATUSES)[number];
+}
+
+/** Xử lý báo cáo: `actioned` thì ẩn bài (cần lý do), `dismissed` thì giữ bài. */
+export class ResolveReportDto {
+  @IsIn(['actioned', 'dismissed'])
+  status: 'actioned' | 'dismissed';
+
+  @IsString()
+  @MinLength(5)
+  @MaxLength(255)
+  reason: string;
 }

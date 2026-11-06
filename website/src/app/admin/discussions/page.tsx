@@ -1,5 +1,9 @@
-import { redirect } from "next/navigation";
+import type { Metadata } from "next";
 
-export default function Page(): never {
-    redirect("/admin/feed");
+import { AdminPostReportsScreen } from "@/features/discussions/components/admin-post-reports-screen";
+
+export const metadata: Metadata = { title: "Báo cáo bài viết" };
+
+export default function Page() {
+    return <AdminPostReportsScreen />;
 }

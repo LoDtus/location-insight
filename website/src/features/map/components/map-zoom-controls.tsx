@@ -9,7 +9,9 @@ interface MapZoomControlsProps {
     onResetNorth?: () => void;
 }
 
-const BUTTON = "rounded-lg border border-charcoal/15 bg-white p-2 shadow-sm hover:bg-charcoal/5";
+/** Nền đặc khi rê chuột (không dùng màu trong suốt: bản đồ phía sau sẽ lộ ra như bị mờ). */
+const BUTTON =
+    "rounded-lg border border-charcoal/15 bg-white p-2 text-charcoal shadow-sm hover:bg-[#f2f2f2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green disabled:cursor-wait";
 
 export default function MapZoomControls({
     onZoomIn,

@@ -18,8 +18,12 @@ import {
   CreatePostDto,
   CreateReplyDto,
   CreateTopicDto,
+  ReportPostDto,
+  ResolveReportDto,
 } from './dto/discussion.dto.js';
+import { DiscussionBookmarkEntity } from './entities/discussion-bookmark.entity.js';
 import { DiscussionLikeEntity } from './entities/discussion-like.entity.js';
+import { DiscussionReportEntity, type DiscussionReportStatus } from './entities/discussion-report.entity.js';
 import {
   DiscussionMediaEntity,
   MediaKind,
@@ -43,7 +47,28 @@ const LIMITS = {
   topic: { window: 24 * 60 * 60, max: 5 },
   post: { window: 60 * 60, max: 20 },
   media: { window: 60 * 60, max: 30 },
+  bookmark: { window: 60, max: 60 },
+  report: { window: 60 * 60, max: 20 },
 } as const;
+
+/**
+ * Ẩn bài của người mình đã chặn và của người đã chặn mình (dùng chung bảng user_blocks với nhắn tin).
+ * `alias` là bí danh bài trong query builder.
+ */
+const NOT_BLOCKED = (alias: string): string =>
+  `NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE (ub.blocker_id = :viewerId AND ub.blocked_id = ${alias}.author_id) OR (ub.blocker_id = ${alias}.author_id AND ub.blocked_id = :viewerId))`;
+
+export interface ReportView {
+  id: string;
+  reason: string;
+  note: string;
+  status: DiscussionReportStatus;
+  createdAt: Date;
+  /** Số người đã báo cáo cùng bài. */
+  reportCount: number;
+  post: { id: string; body: string; status: PostStatus; authorName: string; authorUsername: string | null; rootId: string | null } | null;
+  reporterName: string;
+}
 
 export interface MediaView {
   id: string;
@@ -69,6 +94,8 @@ export interface PostView {
   replyCount: number;
   likeCount: number;
   likedByMe: boolean;
+  /** Người xem đã lưu bài này. */
+  savedByMe: boolean;
   createdAt: Date;
   media: MediaView[];
 }
@@ -91,6 +118,10 @@ export class DiscussionsService {
     private readonly users: Repository<UserEntity>,
     @InjectRepository(AdminAuditLogEntity)
     private readonly audits: Repository<AdminAuditLogEntity>,
+    @InjectRepository(DiscussionBookmarkEntity)
+    private readonly bookmarks: Repository<DiscussionBookmarkEntity>,
+    @InjectRepository(DiscussionReportEntity)
+    private readonly reports: Repository<DiscussionReportEntity>,
     private readonly notifications: NotificationsService,
   ) {}
 
@@ -189,6 +220,7 @@ export class DiscussionsService {
       .createQueryBuilder('post')
       .where('post.rootId = :rootId', { rootId: root.id })
       .andWhere('post.status = :status', { status: 'visible' })
+      .andWhere(NOT_BLOCKED('post'), { viewerId })
       .orderBy('post.createdAt', 'ASC')
       .addOrderBy('post.id', 'ASC')
       .take(PAGE + 1);
@@ -306,6 +338,129 @@ export class DiscussionsService {
 
   async unlike(userId: string, id: string): Promise<{ likeCount: number }> {
     return this.setLike(userId, id, false);
+  }
+
+  /** Lưu / bỏ lưu một bài (idempotent). Chỉ lưu được bài đang hiện. */
+  async setBookmark(userId: string, id: string, on: boolean): Promise<{ saved: boolean }> {
+    await this.consume(userId, 'bookmark');
+    if (on) {
+      const post = await this.posts.findOne({ where: { id, status: 'visible' } });
+      if (!post) this.missing('Không tìm thấy bài.');
+      await this.bookmarks
+        .createQueryBuilder()
+        .insert()
+        .values({ userId, postId: id })
+        .orIgnore()
+        .execute();
+    } else {
+      await this.bookmarks.delete({ userId, postId: id });
+    }
+    return { saved: on };
+  }
+
+  /** Bài đã lưu, mới lưu trước; bỏ qua bài đã bị ẩn/xóa và bài của người bị chặn. */
+  async listBookmarks(viewerId: string, cursor?: string) {
+    const qb = this.bookmarks
+      .createQueryBuilder('b')
+      .innerJoin(DiscussionPostEntity, 'post', 'post.id = b.postId')
+      .where('b.userId = :viewerId', { viewerId })
+      .andWhere('post.status = :status', { status: 'visible' })
+      .andWhere(NOT_BLOCKED('post'), { viewerId })
+      .orderBy('b.createdAt', 'DESC')
+      .addOrderBy('b.postId', 'DESC')
+      // limit (không phải take): có join nên take sẽ dựng truy vấn phân trang hai bước không cần thiết.
+      .limit(PAGE + 1);
+    const point = readCursor(cursor);
+    if (point) {
+      qb.andWhere('(b.createdAt < :at OR (b.createdAt = :at AND b.postId < :id))', point);
+    }
+    const marks = await qb.getMany();
+    const hasMore = marks.length > PAGE;
+    const slice = hasMore ? marks.slice(0, PAGE) : marks;
+    const rows = slice.length ? await this.posts.find({ where: { id: In(slice.map((mark) => mark.postId)) } }) : [];
+    const ordered = slice.flatMap((mark) => rows.filter((row) => row.id === mark.postId));
+    const last = slice.at(-1);
+    return {
+      items: await this.present(ordered, viewerId),
+      nextCursor: hasMore && last ? writeCursor(last.createdAt, last.postId) : null,
+    };
+  }
+
+  /** Báo cáo bài của người khác. Báo lại cùng bài thì cập nhật lý do và mở lại nếu đã đóng. */
+  async report(userId: string, id: string, input: ReportPostDto): Promise<{ reported: true }> {
+    await this.consume(userId, 'report');
+    const post = await this.posts.findOne({ where: { id, status: 'visible' } });
+    if (!post) this.missing('Không tìm thấy bài.');
+    if (post.authorId === userId) this.invalid('Không thể báo cáo bài của chính mình.');
+    const note = plainText(input.note ?? '').slice(0, 500);
+    await this.reports
+      .createQueryBuilder()
+      .insert()
+      .values({ postId: id, reporterId: userId, reason: input.reason, note, status: 'open' })
+      .orUpdate(['reason', 'note', 'status', 'updated_at'], ['post_id', 'reporter_id'])
+      .execute();
+    return { reported: true };
+  }
+
+  /** Danh sách báo cáo cho kiểm duyệt (mới nhất trước), kèm tóm tắt bài và số lượt báo cáo của bài. */
+  async listReports(status: DiscussionReportStatus = 'open'): Promise<ReportView[]> {
+    const rows = await this.reports.find({ where: { status }, order: { createdAt: 'DESC' }, take: 100 });
+    if (!rows.length) return [];
+    const postIds = [...new Set(rows.map((row) => row.postId))];
+    const [posts, counts] = await Promise.all([
+      this.posts.find({ where: { id: In(postIds) }, withDeleted: true }),
+      this.reports
+        .createQueryBuilder('r')
+        .select('r.post_id', 'postId')
+        .addSelect('COUNT(*)::int', 'count')
+        .where('r.post_id IN (:...postIds)', { postIds })
+        .groupBy('r.post_id')
+        .getRawMany<{ postId: string; count: number }>(),
+    ]);
+    const people = await this.users.find({
+      where: { id: In([...new Set([...rows.map((row) => row.reporterId), ...posts.map((post) => post.authorId)])]) },
+    });
+    const person = (id: string) => people.find((user) => user.id === id);
+    return rows.map((row) => {
+      const post = posts.find((item) => item.id === row.postId);
+      const author = post ? person(post.authorId) : undefined;
+      return {
+        id: row.id,
+        reason: row.reason,
+        note: row.note,
+        status: row.status,
+        createdAt: row.createdAt,
+        reportCount: counts.find((item) => item.postId === row.postId)?.count ?? 1,
+        post: post
+          ? {
+              id: post.id,
+              body: post.body.slice(0, 280),
+              status: post.status,
+              authorName: author?.displayName ?? 'Người dùng',
+              authorUsername: author?.username ?? null,
+              rootId: post.rootId,
+            }
+          : null,
+        reporterName: person(row.reporterId)?.displayName ?? 'Người dùng',
+      };
+    });
+  }
+
+  /**
+   * Xử lý báo cáo: `actioned` ẩn bài (ghi nhật ký kiểm duyệt) và đóng mọi báo cáo mở của bài đó; `dismissed` chỉ
+   * đóng báo cáo này.
+   */
+  async resolveReport(actor: Principal, reportId: string, input: ResolveReportDto, ip: string | null) {
+    const row = await this.reports.findOne({ where: { id: reportId } });
+    if (!row) this.missing('Không tìm thấy báo cáo.');
+    if (input.status === 'actioned') {
+      await this.hidePost(actor, row.postId, true, input.reason, ip);
+      await this.reports.update({ postId: row.postId, status: 'open' }, { status: 'actioned', resolvedBy: actor.userId });
+    } else {
+      await this.reports.update({ id: row.id }, { status: 'dismissed', resolvedBy: actor.userId });
+      await this.audit(actor, 'discussion_report_dismiss', row.postId, input.reason, ip, { reportId });
+    }
+    return { id: reportId, status: input.status };
   }
 
   async setTopicStatus(
@@ -463,6 +618,7 @@ export class DiscussionsService {
       .createQueryBuilder('post')
       .where('post.rootId IS NULL')
       .andWhere('post.status = :status', { status: 'visible' })
+      .andWhere(NOT_BLOCKED('post'), { viewerId })
       .take(FEED_PAGE + 1);
     if (sort === 'oldest') {
       qb.orderBy('post.createdAt', 'ASC').addOrderBy('post.id', 'ASC');
@@ -505,7 +661,7 @@ export class DiscussionsService {
     const topicIds = [...new Set(posts.map((post) => post.topicId))];
     const parentIds = posts.flatMap((post) => (post.parentId ? [post.parentId] : []));
     const postIds = posts.map((post) => post.id);
-    const [people, topics, parents, files, liked] = await Promise.all([
+    const [people, topics, parents, files, liked, kept] = await Promise.all([
       this.users.find({ where: { id: In(userIds) } }),
       this.topics.find({ where: { id: In(topicIds) } }),
       parentIds.length
@@ -517,6 +673,9 @@ export class DiscussionsService {
       }),
       viewerId
         ? this.likes.find({ where: { userId: viewerId, postId: In(postIds) } })
+        : Promise.resolve([]),
+      viewerId
+        ? this.bookmarks.find({ where: { userId: viewerId, postId: In(postIds) } })
         : Promise.resolve([]),
     ]);
     const parentAuthorIds = parents.map((post) => post.authorId);
@@ -559,6 +718,7 @@ export class DiscussionsService {
           replyCount: post.replyCount,
           likeCount: post.likeCount,
           likedByMe: liked.some((row) => row.postId === post.id),
+          savedByMe: kept.some((row) => row.postId === post.id),
           createdAt: post.createdAt,
           media,
         };

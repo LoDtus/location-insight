@@ -8,7 +8,9 @@ import { DiscussionsMaintenanceService } from './discussions-maintenance.service
 import { DiscussionsController } from './discussions.controller.js';
 import { DiscussionsService } from './discussions.service.js';
 import { SeedDiscussionService } from './seed-discussion.service.js';
+import { DiscussionBookmarkEntity } from './entities/discussion-bookmark.entity.js';
 import { DiscussionLikeEntity } from './entities/discussion-like.entity.js';
+import { DiscussionReportEntity } from './entities/discussion-report.entity.js';
 import { DiscussionMediaEntity } from './entities/discussion-media.entity.js';
 import { DiscussionPostEntity } from './entities/discussion-post.entity.js';
 import { DiscussionTopicEntity } from './entities/discussion-topic.entity.js';
@@ -20,6 +22,8 @@ import { DiscussionTopicEntity } from './entities/discussion-topic.entity.js';
       DiscussionPostEntity,
       DiscussionMediaEntity,
       DiscussionLikeEntity,
+      DiscussionBookmarkEntity,
+      DiscussionReportEntity,
       UserEntity,
       AdminAuditLogEntity,
     ]),

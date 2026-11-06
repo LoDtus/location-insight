@@ -6,7 +6,8 @@ import { useCallback, useEffect, useState, type JSX } from "react";
 import type { ShellRoot } from "@/features/app/shell";
 import { AuthApiError } from "@/features/auth/auth.api";
 import { useAuth } from "@/features/auth/use-auth";
-import { PostCard, readSavedPosts, writeSavedPosts } from "@/features/discussions/components/post-card";
+import { PostCard } from "@/features/discussions/components/post-card";
+import { usePostActions } from "@/features/discussions/components/use-post-actions";
 import {
     createPost,
     deletePost,
@@ -35,7 +36,6 @@ export function ProfilePosts({
     const auth = useAuth();
     const router = useRouter();
     const [posts, setPosts] = useState<DiscussionPost[]>([]);
-    const [saved, setSaved] = useState<string[]>([]);
     const [message, setMessage] = useState("");
     const [loading, setLoading] = useState(true);
     const [sort, setSort] = useState<AuthorPostSort>("newest");
@@ -46,7 +46,6 @@ export function ProfilePosts({
     }, [username, sort]);
 
     useEffect(() => {
-        setSaved(readSavedPosts());
         let active = true;
         setLoading(true);
         void load()
@@ -69,11 +68,11 @@ export function ProfilePosts({
         );
     }
 
-    function toggleSaved(id: string): void {
-        const next = saved.includes(id) ? saved.filter((item) => item !== id) : [id, ...saved];
-        setSaved(next);
-        writeSavedPosts(next);
-    }
+    const actions = usePostActions({
+        root,
+        onSaved: (postId, value) => setPosts((current) => current.map((item) => (item.id === postId ? { ...item, savedByMe: value } : item))),
+        onBlocked: (authorId) => setPosts((current) => current.filter((item) => item.authorId !== authorId)),
+    });
 
     return (
         <section className="mt-8" aria-labelledby="bai-dang">
@@ -108,7 +107,6 @@ export function ProfilePosts({
                         <PostCard
                             post={post}
                             root={root}
-                            saved={saved.includes(post.id)}
                             mine={auth.user?.userId === post.authorId}
                             onLike={() => void toggleLike(post).catch(() => setMessage("Chưa thích được."))}
                             onReply={() => router.push(`${root}/feed/${post.id}`)}
@@ -128,7 +126,10 @@ export function ProfilePosts({
                                     .then(() => setMessage("Đã sao chép liên kết."))
                                     .catch(() => setMessage("Chưa sao chép được liên kết."));
                             }}
-                            onSave={() => toggleSaved(post.id)}
+                            onSave={() => actions.toggleSave(post)}
+                            onReport={() => actions.report(post)}
+                            onBlock={() => actions.block(post)}
+                            onCopyLink={() => actions.copyLink(post)}
                             onDelete={() => {
                                 void getConfirmModal({
                                     title: "Xóa bài",
@@ -147,6 +148,7 @@ export function ProfilePosts({
                 ))}
             </ol>
             ) : null}
+            {actions.dialog}
         </section>
     );
 }

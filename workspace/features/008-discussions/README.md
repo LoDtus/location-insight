@@ -37,6 +37,10 @@ Người đã đăng nhập tạo chủ đề, đăng một câu hỏi hoặc m�
 - **FR-05 (thích):** Một người một lượt thích trên một bài. Bấm lần nữa thì bỏ.
 - **FR-06 (xóa):** Tác giả xóa bài của mình. Xóa bài gốc thì cả mạch khuất. Xóa một trả lời thì chỉ trả lời đó khuất.
 - **FR-07 (kiểm duyệt):** Admin khóa chủ đề hoặc ẩn bài, có lý do, ghi `admin_audit_logs`. Người dùng báo cáo một lần cho mỗi bài.
+- **FR-09 (lưu bài):** Người dùng lưu/bỏ lưu bài (`PUT`/`DELETE /discussions/posts/:id/bookmark`, idempotent), lưu ở server (`discussion_bookmarks`) nên đồng bộ mọi thiết bị; mỗi bài trả `savedByMe`. Mục "Đã lưu" (`GET /discussions/bookmarks`, `?muc=da-luu` trên URL) liệt kê bài đã lưu, mới lưu trước. Danh sách cũ trong localStorage được chuyển lên server một lần rồi xóa. Lưu/bỏ lưu hiện thông báo góc trên bên phải.
+- **FR-10 (báo cáo):** `POST /discussions/posts/:id/report {reason, note?}` với lý do cố định (spam, lừa đảo, quấy rối, thông tin sai, không phù hợp, khác). Không báo cáo bài của mình (`422`). Mỗi người một báo cáo cho một bài (`discussion_reports` unique `post_id + reporter_id`; báo lại thì cập nhật lý do). Admin xem ở `/admin/discussions` (`GET /admin/discussions/reports?status`), "Ẩn bài" (ẩn + đóng mọi báo cáo mở của bài, ghi nhật ký) hoặc "Bỏ qua", đều cần lý do ≥ 5 ký tự.
+- **FR-11 (chặn):** Chặn tác giả từ menu ba chấm (dùng chung `user_blocks` với nhắn tin, `PUT /messaging/blocks/:userId`). Feed, mục đã lưu và trả lời trong mạch ẩn bài của người mình chặn và người chặn mình. Bỏ chặn ở Tin nhắn › Cài đặt.
+- **FR-12 (giao diện):** Cột nội dung rộng tối đa 680 px, giữa màn hình. Nút tương tác dồn trái; nút chỉ có icon tròn khi rê chuột. Mỗi bài có nút ba chấm: Sao chép liên kết, và Báo cáo + Chặn (bài người khác) hoặc Xóa (bài của mình). Diễn đàn không dùng đường dẫn Trang chủ › Diễn đàn › Chi tiết; trang chi tiết có thanh trên cùng với nút ←.
 - **FR-08 (danh sách):** Trang chủ diễn đàn là bài gốc mới nhất. Lọc một chủ đề giữ cùng dạng. Phân trang bằng con trỏ thời gian, không tải cả bảng.
 
 ## Quy tắc nghiệp vụ <!-- key: business_rules -->
@@ -94,6 +98,9 @@ Hình mạch bài và chỗ lưu tệp nằm trong `research.md`. Chữ và quan
 - [ ] **AC-05:** Given tác giả xóa bài gốc, When người khác mở id đó, Then `404`.
 - [ ] **AC-06:** Given admin ẩn một trả lời, When chủ mạch tải lại, Then trả lời đó không còn trong danh sách.
 - [ ] **AC-07:** Given khách chưa có phiên, When gọi `GET /discussions/posts`, Then `401`.
+- [ ] **AC-08:** Given A lưu một bài trên máy này, When A mở diễn đàn ở máy khác, Then bài có `savedByMe = true` và nằm trong mục "Đã lưu".
+- [ ] **AC-09:** Given B chặn A, When B tải feed, Then không còn bài của A; bỏ chặn thì hiện lại.
+- [ ] **AC-10:** Given B báo cáo bài của A với lý do không hợp lệ, Then `400`; người thường gọi `/admin/discussions/reports`, Then `403`; admin "Ẩn bài" thì bài khuất và báo cáo chuyển "Đã ẩn bài".
 
 ## Câu hỏi mở (Open Questions) <!-- key: open_questions -->
 
@@ -101,4 +108,5 @@ Hình mạch bài và chỗ lưu tệp nằm trong `research.md`. Chữ và quan
 
 ## Nhật ký cập nhật <!-- key: update_log -->
 
+- 2026-11-06: Lưu bài ở server + mục "Đã lưu", báo cáo bài + màn kiểm duyệt, chặn tác giả, menu ba chấm, bố cục cột giữa, nút ← thay đường dẫn.
 - 2026-11-01: Đặc tả đầu từ yêu cầu diễn đàn kiểu Threads hoặc X, dừng ở chủ đề, bài đăng và media.

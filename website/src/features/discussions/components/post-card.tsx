@@ -1,6 +1,6 @@
 "use client";
 
-import { Bookmark, Heart, MessageCircle, MoreHorizontal, Repeat2, Send } from "lucide-react";
+import { Ban, Bookmark, Flag, Heart, Link2, MessageCircle, MoreHorizontal, Repeat2, Send, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, type JSX } from "react";
 
@@ -9,6 +9,7 @@ import type { DiscussionPost } from "@/features/discussions/discussions.api";
 import { Avatar } from "@/features/discussions/components/post-composer";
 import ImageLightbox from "@/shared/components/lightbox/image-lightbox";
 
+/** Khóa cũ: trước đây bài đã lưu chỉ nằm ở trình duyệt; giờ chuyển lên server một lần rồi xóa. */
 const SAVED_KEY = "discussion-saved";
 
 export function readSavedPosts(): string[] {
@@ -21,8 +22,12 @@ export function readSavedPosts(): string[] {
     }
 }
 
-export function writeSavedPosts(ids: string[]): void {
-    window.localStorage.setItem(SAVED_KEY, JSON.stringify(ids));
+export function clearLegacySavedPosts(): void {
+    try {
+        window.localStorage.removeItem(SAVED_KEY);
+    } catch {
+        // storage bị chặn: bỏ qua
+    }
 }
 
 export function relativeTime(iso: string): string {
@@ -45,7 +50,6 @@ export function PostCard({
     post,
     root,
     connected,
-    saved,
     mine,
     onLike,
     onReply,
@@ -54,11 +58,13 @@ export function PostCard({
     onShare,
     onSave,
     onDelete,
+    onReport,
+    onBlock,
+    onCopyLink,
 }: {
     post: DiscussionPost;
     root: ShellRoot;
     connected?: boolean;
-    saved: boolean;
     mine: boolean;
     onLike: () => void;
     onReply: () => void;
@@ -67,7 +73,11 @@ export function PostCard({
     onShare: () => void;
     onSave: () => void;
     onDelete: () => void;
+    onReport: () => void;
+    onBlock: () => void;
+    onCopyLink: () => void;
 }): JSX.Element {
+    const saved = post.savedByMe;
     const [menu, setMenu] = useState(false);
     const [repostMenu, setRepostMenu] = useState(false);
     const rootRef = useRef<HTMLElement>(null);
@@ -105,29 +115,64 @@ export function PostCard({
                         <span className="text-charcoal/55"> · {relativeTime(post.createdAt)}</span>
                     </p>
                     <div className="relative">
-                        {mine ? (
-                            <button
-                                type="button"
-                                className="inline-flex size-11 items-center justify-center rounded-full text-charcoal/70 hover:bg-green/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
-                                aria-expanded={menu}
-                                aria-label="Thêm lựa chọn"
-                                onClick={() => setMenu((current) => !current)}
+                        <button
+                            type="button"
+                            className="inline-flex size-9 items-center justify-center rounded-full text-charcoal/60 hover:bg-charcoal/[0.06] hover:text-charcoal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
+                            aria-expanded={menu}
+                            aria-haspopup="menu"
+                            aria-label="Thêm lựa chọn"
+                            onClick={() => setMenu((current) => !current)}
+                        >
+                            <MoreHorizontal className="size-5" aria-hidden="true" />
+                        </button>
+                        {menu ? (
+                            <div
+                                role="menu"
+                                aria-label="Lựa chọn cho bài này"
+                                onKeyDown={(event) => {
+                                    if (event.key === "Escape") setMenu(false);
+                                }}
+                                className="absolute top-full right-0 z-20 mt-1 w-60 rounded-2xl bg-white p-1.5 shadow-[0_8px_24px_rgba(16,17,17,0.16)] ring-1 ring-charcoal/10"
                             >
-                                <MoreHorizontal className="size-5" aria-hidden="true" />
-                            </button>
-                        ) : null}
-                        {menu && mine ? (
-                            <div className="absolute right-0 z-20 w-56 rounded-2xl border border-charcoal/10 bg-white p-2 shadow-sm">
-                                <button
-                                    type="button"
-                                    className="flex min-h-11 w-full items-center rounded-xl px-3 text-left text-sm font-semibold hover:bg-charcoal/5"
+                                <MenuItem
+                                    icon={<Link2 className="size-4" aria-hidden="true" />}
+                                    label="Sao chép liên kết"
                                     onClick={() => {
                                         setMenu(false);
-                                        onDelete();
+                                        onCopyLink();
                                     }}
-                                >
-                                    Xóa bài
-                                </button>
+                                />
+                                {mine ? (
+                                    <MenuItem
+                                        danger
+                                        icon={<Trash2 className="size-4" aria-hidden="true" />}
+                                        label="Xóa bài"
+                                        onClick={() => {
+                                            setMenu(false);
+                                            onDelete();
+                                        }}
+                                    />
+                                ) : (
+                                    <>
+                                        <MenuItem
+                                            icon={<Flag className="size-4" aria-hidden="true" />}
+                                            label="Báo cáo bài viết"
+                                            onClick={() => {
+                                                setMenu(false);
+                                                onReport();
+                                            }}
+                                        />
+                                        <MenuItem
+                                            danger
+                                            icon={<Ban className="size-4" aria-hidden="true" />}
+                                            label={`Chặn ${post.authorUsername ? `@${post.authorUsername}` : post.authorName}`}
+                                            onClick={() => {
+                                                setMenu(false);
+                                                onBlock();
+                                            }}
+                                        />
+                                    </>
+                                )}
                             </div>
                         ) : null}
                     </div>
@@ -139,14 +184,15 @@ export function PostCard({
                     <p className="mt-1 mb-0 whitespace-pre-wrap text-base leading-relaxed">{post.body}</p>
                 </Link>
                 {post.media.length > 0 ? <MediaGrid media={post.media} /> : null}
-                <div className="relative mt-1 flex items-center justify-between text-charcoal/70">
+                {/* Nút tương tác dồn trái, cách đều; nút chỉ có icon là hình tròn. */}
+                <div className="relative mt-1 -ml-2 flex items-center gap-3 text-charcoal/70 sm:gap-5">
                     <Action icon="like" label={post.likedByMe ? "Bỏ thích" : "Thích"} count={post.likeCount} active={post.likedByMe} onClick={onLike} />
                     <Action icon="reply" label="Trả lời" count={post.replyCount} onClick={onReply} />
                     <Action icon="repost" label="Đăng lại hoặc trích dẫn" active={repostMenu} onClick={() => setRepostMenu((current) => !current)} />
                     <Action icon="share" label="Chia sẻ" onClick={onShare} />
                     <Action icon="save" label={saved ? "Bỏ lưu" : "Lưu bài"} active={saved} onClick={onSave} />
                     {repostMenu ? (
-                        <div className="absolute top-12 left-1/3 z-20 w-44 rounded-2xl border border-charcoal/10 bg-white p-2 shadow-sm">
+                        <div className="absolute top-11 left-24 z-20 w-44 rounded-2xl bg-white p-1.5 shadow-[0_8px_24px_rgba(16,17,17,0.16)] ring-1 ring-charcoal/10">
                             <button
                                 type="button"
                                 className="flex min-h-11 w-full items-center rounded-xl px-3 text-left text-sm font-semibold hover:bg-charcoal/5"
@@ -175,6 +221,20 @@ export function PostCard({
     );
 }
 
+function MenuItem({ icon, label, danger = false, onClick }: { icon: JSX.Element; label: string; danger?: boolean; onClick: () => void }): JSX.Element {
+    return (
+        <button
+            type="button"
+            role="menuitem"
+            onClick={onClick}
+            className={`flex min-h-10 w-full items-center gap-2.5 rounded-xl border-0 bg-transparent px-3 text-left text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-green ${danger ? "text-red-700 hover:bg-red-50" : "text-charcoal hover:bg-charcoal/5"}`}
+        >
+            {icon}
+            <span className="truncate">{label}</span>
+        </button>
+    );
+}
+
 function Action({
     icon,
     label,
@@ -198,7 +258,7 @@ function Action({
     return (
         <button
             type="button"
-            className={`inline-flex min-h-11 items-center gap-1.5 rounded-full px-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green ${active ? "text-green" : "hover:bg-green/10 hover:text-green"}`}
+            className={`inline-flex h-9 items-center justify-center rounded-full text-sm tabular-nums focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green ${count ? "min-w-9 gap-1.5 px-2" : "w-9 p-0"} ${active ? "text-green hover:bg-green/10" : "hover:bg-green/10 hover:text-green"}`}
             aria-pressed={active}
             aria-label={count ? `${label}, ${count}` : label}
             onClick={onClick}

@@ -8,6 +8,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Put,
   Query,
   Req,
 } from '@nestjs/common';
@@ -21,6 +22,7 @@ import {
   CreateReplyDto,
   CreateTopicDto,
   CursorQueryDto,
+  ReportPostDto,
 } from './dto/discussion.dto.js';
 
 @Controller('discussions')
@@ -128,6 +130,36 @@ export class DiscussionsController {
     @Req() request: RequestWithPrincipal,
   ) {
     return this.discussions.unlike(this.userId(request), id);
+  }
+
+  /** Lưu bài để đọc lại (riêng từng người, đồng bộ mọi thiết bị). */
+  @RequirePermission('discussion:read')
+  @Put('posts/:id/bookmark')
+  bookmark(@Param('id', ParseUUIDPipe) id: string, @Req() request: RequestWithPrincipal) {
+    return this.discussions.setBookmark(this.userId(request), id, true);
+  }
+
+  @RequirePermission('discussion:read')
+  @Delete('posts/:id/bookmark')
+  unbookmark(@Param('id', ParseUUIDPipe) id: string, @Req() request: RequestWithPrincipal) {
+    return this.discussions.setBookmark(this.userId(request), id, false);
+  }
+
+  @RequirePermission('discussion:read')
+  @Get('bookmarks')
+  bookmarks(@Query() query: CursorQueryDto, @Req() request: RequestWithPrincipal) {
+    return this.discussions.listBookmarks(this.userId(request), query.cursor);
+  }
+
+  @RequirePermission('discussion:read')
+  @Post('posts/:id/report')
+  @HttpCode(HttpStatus.OK)
+  report(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: ReportPostDto,
+    @Req() request: RequestWithPrincipal,
+  ) {
+    return this.discussions.report(this.userId(request), id, body);
   }
 
   @RequirePermission('discussion:write')

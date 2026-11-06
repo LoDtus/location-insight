@@ -33,6 +33,8 @@ export interface DiscussionPost {
     replyCount: number;
     likeCount: number;
     likedByMe: boolean;
+    /** Người xem đã lưu bài này (lưu ở server, đồng bộ mọi thiết bị). */
+    savedByMe: boolean;
     createdAt: string;
     media: DiscussionMedia[];
 }
@@ -130,6 +132,34 @@ export function unlikePost(id: string): Promise<{ likeCount: number }> {
     return apiRequest(`/discussions/posts/${id}/likes`, { method: "DELETE" });
 }
 
+export function bookmarkPost(id: string): Promise<{ saved: boolean }> {
+    return apiRequest(`/discussions/posts/${id}/bookmark`, { method: "PUT" });
+}
+
+export function unbookmarkPost(id: string): Promise<{ saved: boolean }> {
+    return apiRequest(`/discussions/posts/${id}/bookmark`, { method: "DELETE" });
+}
+
+/** Bài đã lưu, mới lưu trước. */
+export function listBookmarks(cursor?: string): Promise<DiscussionPage<DiscussionPost>> {
+    const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+    return apiRequest(`/discussions/bookmarks${query}`);
+}
+
+export const REPORT_REASONS = [
+    { id: "spam", label: "Spam, quảng cáo", hint: "Đăng lặp lại, rao vặt không liên quan, link rác" },
+    { id: "scam", label: "Lừa đảo", hint: "Mời chuyển tiền, đặt cọc giả, giả danh môi giới hay chủ nhà" },
+    { id: "harassment", label: "Quấy rối, xúc phạm", hint: "Công kích cá nhân, đe dọa, ngôn từ thù ghét" },
+    { id: "misinformation", label: "Thông tin sai", hint: "Sai sự thật về quy hoạch, pháp lý, giá" },
+    { id: "inappropriate", label: "Nội dung không phù hợp", hint: "Bạo lực, khiêu dâm, thông tin cá nhân của người khác" },
+    { id: "other", label: "Lý do khác", hint: "Mô tả thêm ở ô bên dưới" },
+] as const;
+export type ReportReason = (typeof REPORT_REASONS)[number]["id"];
+
+export function reportPost(id: string, input: { reason: ReportReason; note?: string }): Promise<{ reported: true }> {
+    return apiRequest(`/discussions/posts/${id}/report`, { method: "POST", body: JSON.stringify(input) });
+}
+
 export async function uploadDiscussionFile(file: File): Promise<string> {
     const created = await apiRequest<{ id: string; uploadUrl: string }>("/discussions/media", {
         method: "POST",
@@ -157,4 +187,25 @@ export function slugifyTopic(value: string): string {
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-+|-+$/g, "")
         .slice(0, 80);
+}
+
+export interface PostReport {
+    id: string;
+    reason: ReportReason;
+    note: string;
+    status: "open" | "actioned" | "dismissed";
+    createdAt: string;
+    reportCount: number;
+    post: { id: string; body: string; status: "visible" | "hidden" | "deleted"; authorName: string; authorUsername: string | null; rootId: string | null } | null;
+    reporterName: string;
+}
+
+/** Kiểm duyệt: báo cáo bài theo trạng thái (mới nhất trước, tối đa 100). */
+export function listPostReports(status: PostReport["status"]): Promise<PostReport[]> {
+    return apiRequest(`/admin/discussions/reports?status=${status}`);
+}
+
+/** `actioned` ẩn bài và đóng mọi báo cáo mở của bài; `dismissed` giữ bài. Lý do ≥ 5 ký tự, ghi nhật ký. */
+export function resolvePostReport(id: string, status: "actioned" | "dismissed", reason: string): Promise<{ id: string }> {
+    return apiRequest(`/admin/discussions/reports/${id}/resolve`, { method: "POST", body: JSON.stringify({ status, reason }) });
 }

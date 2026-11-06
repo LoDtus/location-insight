@@ -6,6 +6,7 @@ import {
     Bell,
     Database,
     Download,
+    Flag,
     GitCompareArrows,
     House,
     Mail,
@@ -270,6 +271,12 @@ export default function AppSidebar({
                       href: "/admin/messaging",
                       icon: ShieldAlert,
                       label: vi ? "Báo cáo tin nhắn" : "Message reports",
+                  },
+                  {
+                      kind: "item",
+                      href: "/admin/discussions",
+                      icon: Flag,
+                      label: vi ? "Báo cáo bài viết" : "Post reports",
                   },
               ]
             : [

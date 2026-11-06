@@ -11,6 +11,7 @@ import {
     createTopic,
     deletePost,
     likePost,
+    listBookmarks,
     listPosts,
     listTopics,
     slugifyTopic,
@@ -20,7 +21,8 @@ import {
     type DiscussionPost,
     type DiscussionTopic,
 } from "@/features/discussions/discussions.api";
-import { PostCard, readSavedPosts, writeSavedPosts } from "@/features/discussions/components/post-card";
+import { PostCard } from "@/features/discussions/components/post-card";
+import { usePostActions } from "@/features/discussions/components/use-post-actions";
 import { PostComposer } from "@/features/discussions/components/post-composer";
 import { ALL_FEED, readFeedView, writeFeedView, type FeedView } from "@/features/discussions/feed-params";
 import { SharePostDialog } from "@/features/messaging/components/share-post-dialog";
@@ -36,22 +38,27 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
     const [posts, setPosts] = useState<DiscussionPost[]>([]);
     const [cursor, setCursor] = useState<string | null>(null);
     const [filter, setFilter] = useState("");
-    const [scope, setScope] = useState<"all" | "following">("all");
+    const [scope, setScope] = useState<FeedView["scope"]>("all");
     const [topicSlug, setTopicSlug] = useState("");
     const [newTopic, setNewTopic] = useState("");
     const [body, setBody] = useState("");
     const [files, setFiles] = useState<File[]>([]);
     const [quote, setQuote] = useState<DiscussionPost | null>(null);
-    const [saved, setSaved] = useState<string[]>([]);
     const [message, setMessage] = useState("");
     const [sharing, setSharing] = useState<DiscussionPost | null>(null);
     const [pending, setPending] = useState(false);
     const [loading, setLoading] = useState(true);
 
-    const loadFirst = useCallback(async (nextFilter: string, nextScope: "all" | "following" = "all"): Promise<void> => {
+    const loadFirst = useCallback(async (nextFilter: string, nextScope: FeedView["scope"] = "all"): Promise<void> => {
         const [topicPage, postPage] = await Promise.all([
             listTopics(),
-            nextScope === "following" ? listPosts(undefined, "following") : nextFilter ? topicFeed(nextFilter) : listPosts(),
+            nextScope === "following"
+                ? listPosts(undefined, "following")
+                : nextScope === "saved"
+                  ? listBookmarks()
+                  : nextFilter
+                    ? topicFeed(nextFilter)
+                    : listPosts(),
         ]);
         setTopics(topicPage.items.filter((topic) => topic.status === "open"));
         setPosts(postPage.items);
@@ -60,7 +67,6 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
     }, []);
 
     useEffect(() => {
-        setSaved(readSavedPosts());
         // Bộ lọc nằm trên URL để chia sẻ được; đọc một lần khi vào trang.
         const initial = readFeedView(window.location.search);
         setFilter(initial.topic);
@@ -86,7 +92,9 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
             const page =
                 scope === "following"
                     ? await listPosts(cursor, "following")
-                    : filter
+                    : scope === "saved"
+                      ? await listBookmarks(cursor)
+                      : filter
                       ? await topicFeed(filter, cursor)
                       : await listPosts(cursor);
             setPosts((current) => {
@@ -190,18 +198,24 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
         setMessage("Đã đăng lại.");
     }
 
-    function toggleSaved(id: string): void {
-        const next = saved.includes(id) ? saved.filter((item) => item !== id) : [id, ...saved];
-        setSaved(next);
-        writeSavedPosts(next);
-        setMessage(next.includes(id) ? "Đã lưu. Chỉ mình bạn thấy bài đã lưu trên trình duyệt này." : "Đã bỏ lưu.");
-    }
+    const actions = usePostActions({
+        root,
+        onSaved: (postId, value) =>
+            setPosts((current) =>
+                // Ở mục "Đã lưu", bỏ lưu thì bài rời khỏi danh sách.
+                scope === "saved" && !value
+                    ? current.filter((item) => item.id !== postId)
+                    : current.map((item) => (item.id === postId ? { ...item, savedByMe: value } : item)),
+            ),
+        onBlocked: (authorId) => setPosts((current) => current.filter((item) => item.authorId !== authorId)),
+    });
 
     return (
         <main ref={scroller} className="h-full overflow-auto bg-white">
             {/* Viền hai bên chỉ khi cột đã chạm max-w-960 của FocusLayout (3840px) cộng sidebar mở rộng (272px);
                 hẹp hơn thì cột sát sidebar và mép màn, viền sẽ chồng lên viền của hàng xóm. */}
-            <div className="mx-auto min-h-full w-full bg-white min-[4112px]:border-x min-[4112px]:border-charcoal/10">
+            {/* Cột nội dung thu vào giữa (rộng tối đa ~680 px như các mạng xã hội), viền hai bên khi đủ rộng. */}
+            <div className="mx-auto min-h-full w-full max-w-[680px] bg-white md:border-x md:border-charcoal/10">
                 <div className="sticky top-0 z-10 flex gap-2 overflow-x-auto border-b border-charcoal/10 bg-white px-4 py-3">
                     <TopicTab
                         label="Mới nhất"
@@ -213,6 +227,7 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
                         current={scope === "following"}
                         onClick={() => choose({ scope: "following", topic: "" })}
                     />
+                    <TopicTab label="Đã lưu" current={scope === "saved"} onClick={() => choose({ scope: "saved", topic: "" })} />
                     {topics.map((topic) => (
                         <TopicTab
                             key={topic.id}
@@ -247,7 +262,13 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
                 ) : null}
                 {loading ? <p className="m-0 px-4 py-8 text-sm">Đang tải diễn đàn.</p> : null}
                 {!loading && posts.length === 0 ? (
-                    <p className="m-0 px-4 py-8 text-sm">{scope === "following" ? "Hãy theo dõi vài người để thấy bài của họ ở đây." : "Chưa có bài trong mục này. Hãy viết điều bạn đang thắc mắc."}</p>
+                    <p className="m-0 px-4 py-8 text-sm">
+                        {scope === "following"
+                            ? "Hãy theo dõi vài người để thấy bài của họ ở đây."
+                            : scope === "saved"
+                              ? "Chưa lưu bài nào. Bấm biểu tượng dấu trang ở một bài để đọc lại sau."
+                              : "Chưa có bài trong mục này. Hãy viết điều bạn đang thắc mắc."}
+                    </p>
                 ) : null}
                 <ol className="m-0 list-none p-0">
                     {posts.map((post) => (
@@ -256,7 +277,6 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
                                 post={post}
                                 root={root}
                                 connected={false}
-                                saved={saved.includes(post.id)}
                                 mine={auth.user?.userId === post.authorId}
                                 onLike={() => void toggleLike(post).catch(() => setMessage("Chưa thích được."))}
                                 onReply={() => router.push(`${root}/feed/${post.id}`)}
@@ -266,7 +286,10 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
                                     scroller.current?.scrollTo({ top: 0 });
                                 }}
                                 onShare={() => (setSharing(post))}
-                                onSave={() => toggleSaved(post.id)}
+                                onSave={() => actions.toggleSave(post)}
+                                onReport={() => actions.report(post)}
+                                onBlock={() => actions.block(post)}
+                                onCopyLink={() => actions.copyLink(post)}
                                 onDelete={() => {
                                     void getConfirmModal({
                                         title: "Xóa bài",
@@ -286,6 +309,7 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
                 </ol>
                 <div ref={sentinel} className="h-16" />
             </div>
+            {actions.dialog}
             {sharing ? (
                 <SharePostDialog
                     postId={sharing.id}

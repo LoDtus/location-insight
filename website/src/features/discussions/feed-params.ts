@@ -1,11 +1,12 @@
-/** Bộ lọc của trang diễn đàn: mới nhất, đang theo dõi, hoặc một chủ đề. */
-export type FeedView = { scope: "all"; topic: string } | { scope: "following"; topic: "" };
+/** Bộ lọc của trang diễn đàn: mới nhất, đang theo dõi, đã lưu, hoặc một chủ đề. */
+export type FeedView = { scope: "all"; topic: string } | { scope: "following"; topic: "" } | { scope: "saved"; topic: "" };
 
 export const ALL_FEED: FeedView = { scope: "all", topic: "" };
 
 const TOPIC_PARAM = "chu-de";
 const SCOPE_PARAM = "muc";
 const FOLLOWING = "dang-theo-doi";
+const SAVED = "da-luu";
 /** Khớp với slug do `slugifyTopic` tạo: chữ thường, số, gạch nối, tối đa 80 ký tự. */
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -13,6 +14,7 @@ const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export function readFeedView(search: string | URLSearchParams): FeedView {
     const params = typeof search === "string" ? new URLSearchParams(search) : search;
     if (params.get(SCOPE_PARAM) === FOLLOWING) return { scope: "following", topic: "" };
+    if (params.get(SCOPE_PARAM) === SAVED) return { scope: "saved", topic: "" };
     const topic = params.get(TOPIC_PARAM) ?? "";
     if (topic.length <= 80 && SLUG.test(topic)) return { scope: "all", topic };
     return ALL_FEED;
@@ -27,6 +29,7 @@ export function writeFeedView(search: string, view: FeedView): string {
     params.delete(TOPIC_PARAM);
     params.delete(SCOPE_PARAM);
     if (view.scope === "following") params.set(SCOPE_PARAM, FOLLOWING);
+    else if (view.scope === "saved") params.set(SCOPE_PARAM, SAVED);
     else if (view.topic) params.set(TOPIC_PARAM, view.topic);
     const query = params.toString();
     return query ? `?${query}` : "";

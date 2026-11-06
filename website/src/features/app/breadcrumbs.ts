@@ -8,7 +8,7 @@ const TABS: Record<string, Names & { create?: Names }> = {
     blogs: { vi: "Bài viết", en: "Articles", create: { vi: "Viết bài mới", en: "New article" } },
     users: { vi: "Người dùng", en: "Users" },
     feed: { vi: "Diễn đàn", en: "Discussions" },
-    discussions: { vi: "Thảo luận", en: "Discussions" },
+    discussions: { vi: "Báo cáo bài viết", en: "Post reports" },
     feedback: { vi: "Góp ý", en: "Feedback" },
     payments: { vi: "Thanh toán", en: "Payments" },
     profile: { vi: "Hồ sơ", en: "Profile" },
@@ -17,8 +17,11 @@ const TABS: Record<string, Names & { create?: Names }> = {
 /** Trang chi tiết tin đã có đường dẫn riêng ngay trong nội dung nên bỏ qua ở đây. */
 const OWN_TRAIL = new Set(["properties"]);
 
+/** Tab dùng nút ← của chính trang thay cho đường dẫn (cả trang gốc lẫn trang con), kiểu mạng xã hội. */
+const NO_TRAIL = new Set(["feed"]);
+
 /** Trang gốc của tab đã có thanh lọc riêng ở đầu cột nên không cần đường dẫn; trang con vẫn có. */
-const NO_ROOT_TRAIL = new Set(["feed"]);
+const NO_ROOT_TRAIL = new Set<string>([]);
 
 function safeDecode(value: string): string {
     try {
@@ -35,6 +38,7 @@ export function buildCrumbs(pathname: string, vi: boolean): Crumb[] | null {
     const [, root, tab, sub] = match;
     const names = tab ? TABS[tab] : undefined;
     if (!tab || !names) return null;
+    if (NO_TRAIL.has(tab)) return null;
     if (sub && sub !== "new" && OWN_TRAIL.has(tab)) return null;
     if (!sub && NO_ROOT_TRAIL.has(tab)) return null;
     const pick = (value: Names): string => (vi ? value.vi : value.en);

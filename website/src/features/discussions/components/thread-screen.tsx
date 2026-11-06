@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type JSX } from "react";
 
@@ -17,7 +17,8 @@ import {
     uploadDiscussionFile,
     type DiscussionPost,
 } from "@/features/discussions/discussions.api";
-import { PostCard, readSavedPosts, writeSavedPosts } from "@/features/discussions/components/post-card";
+import { PostCard } from "@/features/discussions/components/post-card";
+import { usePostActions } from "@/features/discussions/components/use-post-actions";
 import { PostComposer } from "@/features/discussions/components/post-composer";
 import { SharePostDialog } from "@/features/messaging/components/share-post-dialog";
 import { getConfirmModal } from "@/shared/utils/confirm.utils";
@@ -34,7 +35,6 @@ export function ThreadScreen({ id, root }: { id: string; root: ShellRoot }): JSX
     const [body, setBody] = useState("");
     const [files, setFiles] = useState<File[]>([]);
     const [quote, setQuote] = useState<DiscussionPost | null>(null);
-    const [saved, setSaved] = useState<string[]>([]);
     const [message, setMessage] = useState("");
     const [sharing, setSharing] = useState<DiscussionPost | null>(null);
     const [pending, setPending] = useState(false);
@@ -48,7 +48,6 @@ export function ThreadScreen({ id, root }: { id: string; root: ShellRoot }): JSX
     }, [id]);
 
     useEffect(() => {
-        setSaved(readSavedPosts());
         let active = true;
         void load().catch((error: unknown) => {
             if (!active) return;
@@ -102,11 +101,27 @@ export function ThreadScreen({ id, root }: { id: string; root: ShellRoot }): JSX
         applyLike(target, next.likeCount, !target.likedByMe);
     }
 
-    function toggleSaved(postId: string): void {
-        const next = saved.includes(postId) ? saved.filter((item) => item !== postId) : [postId, ...saved];
-        setSaved(next);
-        writeSavedPosts(next);
-        setMessage(next.includes(postId) ? "Đã lưu. Chỉ mình bạn thấy bài đã lưu trên trình duyệt này." : "Đã bỏ lưu.");
+    const actions = usePostActions({
+        root,
+        onSaved: (postId, value) => {
+            const next = (item: DiscussionPost): DiscussionPost => (item.id === postId ? { ...item, savedByMe: value } : item);
+            setPost((current) => (current ? next(current) : current));
+            setReplies((current) => current.map(next));
+        },
+        onBlocked: (authorId) => {
+            // Chặn tác giả bài gốc thì rời mạch; chặn người trả lời thì bỏ các trả lời của họ.
+            if (post?.authorId === authorId) {
+                router.push(`${root}/feed`);
+                return;
+            }
+            setReplies((current) => current.filter((item) => item.authorId !== authorId));
+        },
+    });
+
+    /** ← : về trang trước nếu đến từ trong app, không thì về diễn đàn. */
+    function goBack(): void {
+        if (window.history.length > 1 && document.referrer.startsWith(window.location.origin)) router.back();
+        else router.push(`${root}/feed`);
     }
 
     async function sendReply(): Promise<void> {
@@ -140,12 +155,19 @@ export function ThreadScreen({ id, root }: { id: string; root: ShellRoot }): JSX
 
     return (
         <main ref={scroller} className="h-full overflow-auto bg-white">
-            <div className="min-h-full w-full border-x border-charcoal/10 bg-white">
-                <p className="m-0 border-b border-charcoal/10 px-4 py-3 text-sm">
-                    <Link href={`${root}/feed`} className="font-semibold text-green no-underline">
-                        Diễn đàn
-                    </Link>
-                </p>
+            <div className="mx-auto min-h-full w-full max-w-[680px] bg-white md:border-x md:border-charcoal/10">
+                <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-charcoal/10 bg-white/95 px-2 py-1.5 backdrop-blur">
+                    <button
+                        type="button"
+                        aria-label="Quay lại"
+                        title="Quay lại"
+                        onClick={goBack}
+                        className="inline-flex size-10 items-center justify-center rounded-full bg-transparent text-charcoal hover:bg-charcoal/[0.06] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
+                    >
+                        <ArrowLeft className="size-5" aria-hidden="true" />
+                    </button>
+                    <h1 className="m-0 text-base font-semibold">Bài viết</h1>
+                </div>
                 {message ? (
                     <p role="status" className="m-0 border-b border-charcoal/10 px-4 py-3 text-sm">
                         {message}
@@ -158,7 +180,6 @@ export function ThreadScreen({ id, root }: { id: string; root: ShellRoot }): JSX
                                 post={item}
                                 root={root}
                                 connected={index < items.length - 1}
-                                saved={saved.includes(item.id)}
                                 mine={auth.user?.userId === item.authorId}
                                 onLike={() => void toggleLike(item).catch(() => setMessage("Chưa thích được."))}
                                 onReply={() => replyRef.current?.scrollIntoView({ block: "nearest" })}
@@ -176,7 +197,10 @@ export function ThreadScreen({ id, root }: { id: string; root: ShellRoot }): JSX
                                     replyRef.current?.scrollIntoView({ block: "nearest" });
                                 }}
                                 onShare={() => (setSharing(item))}
-                                onSave={() => toggleSaved(item.id)}
+                                onSave={() => actions.toggleSave(item)}
+                                onReport={() => actions.report(item)}
+                                onBlock={() => actions.block(item)}
+                                onCopyLink={() => actions.copyLink(item)}
                                 onDelete={() => {
                                     void getConfirmModal({
                                         title: "Xóa bài",
@@ -215,6 +239,7 @@ export function ThreadScreen({ id, root }: { id: string; root: ShellRoot }): JSX
                     />
                 </div>
             </div>
+            {actions.dialog}
             {sharing ? (
                 <SharePostDialog
                     postId={sharing.id}

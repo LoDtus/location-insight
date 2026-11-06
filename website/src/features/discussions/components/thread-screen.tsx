@@ -157,7 +157,7 @@ export function ThreadScreen({ id, root }: { id: string; root: ShellRoot }): JSX
 
     return (
         <main ref={scroller} className="h-full overflow-auto bg-white">
-            <div className="mx-auto min-h-full w-full max-w-[680px] bg-white">
+            <div className="mx-auto min-h-full w-full max-w-[860px] bg-white">
                 <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-charcoal/10 bg-white/95 px-2 py-1.5 backdrop-blur">
                     <button
                         type="button"

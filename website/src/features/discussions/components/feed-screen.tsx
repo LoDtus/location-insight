@@ -216,8 +216,8 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
         <main ref={scroller} className="h-full overflow-auto bg-white">
             {/* Viền hai bên chỉ khi cột đã chạm max-w-960 của FocusLayout (3840px) cộng sidebar mở rộng (272px);
                 hẹp hơn thì cột sát sidebar và mép màn, viền sẽ chồng lên viền của hàng xóm. */}
-            {/* Cột nội dung thu vào giữa (rộng tối đa ~680 px như các mạng xã hội), không viền hai bên. */}
-            <div className="mx-auto min-h-full w-full max-w-[680px] bg-white">
+            {/* Cột nội dung thu vào giữa (rộng tối đa 860 px), không viền hai bên. */}
+            <div className="mx-auto min-h-full w-full max-w-[860px] bg-white">
                 <div className="sticky top-0 z-10 flex gap-2 overflow-x-auto border-b border-charcoal/10 bg-white px-4 py-3">
                     <TopicTab
                         label="Mới nhất"

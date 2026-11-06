@@ -3,7 +3,7 @@ import type { ArticleTopic } from './article-rules.js';
 /**
  * Nội dung mẫu (Markdown) cho bài seed ở máy dev. Mỗi bài dùng một kiểu bố cục khác nhau để xem được đủ khối
  * mà trang bài viết hiển thị: tiêu đề mục h2/h3 (mục lục), danh sách gạch đầu dòng và đánh số, trích dẫn,
- * đường kẻ, chữ đậm/nghiêng/gạch ngang, liên kết nội bộ. Bài không có tiêu đề mục để xem trang khi không có mục lục.
+ * đường kẻ, chữ đậm/nghiêng/gạch ngang, liên kết nội bộ, ảnh có chú thích (bấm để mở trình xem ảnh). Bài không có tiêu đề mục để xem trang khi không có mục lục.
  */
 
 const HAND_WRITTEN: Record<string, string> = {
@@ -27,6 +27,8 @@ Những thứ vòng tròn **không** cho biết:
 - Cổng vào, giờ mở cửa và việc nơi đó còn hoạt động hay không.
 - Cảm giác an toàn khi đi bộ buổi tối.
 
+![Khu căn hộ cao tầng nhìn từ trên cao](/images/temp-004.jpg "Nhìn từ trên cao, vòng tròn không thấy dải phân cách, ngõ cụt hay cổng vào.")
+
 ## Ba tình huống hay đọc nhầm
 
 ### Hiệu thuốc bên kia đường lớn
@@ -36,6 +38,8 @@ Trên bản đồ, hiệu thuốc cách ghim 180 mét. Ngoài thực tế, giữ
 ### Ga nằm sát mép vòng
 
 Một ga cách ghim 480 mét vẫn được đếm là "trong vòng 500 mét". Nhưng nếu cửa lên ga nằm ở phía xa, quãng tới cửa có thể vượt 700 mét. Hãy mở bản đồ và tìm *lối vào*, không chỉ tìm chấm của ga.
+
+![Lối đi bộ trong công viên](/images/temp-003.jpg "Mép công viên gần ghim chưa chắc là cổng vào gần nhất.")
 
 ### Công viên sau dãy nhà liền kề
 
@@ -77,6 +81,8 @@ Các mức trên chỉ để hình dung. Cách chắc chắn nhất vẫn là **
 
 > Chuỗi chữ trên biển số nhà không phải tọa độ của thửa đất.
 
+![Phòng khách một căn hộ](/images/temp-002.jpg "Căn hộ trong ngõ: điểm rơi của ô tìm địa chỉ có thể lệch vài chục mét.")
+
 ## Cách kéo ghim cho đúng
 
 1. Tìm địa chỉ để bản đồ mở đúng khu.
@@ -95,6 +101,8 @@ Cách trang ghi các giới hạn này nằm trong [tài liệu pháp lý](/phap
 3. **Khung giá**: khoảng ước lượng từ dữ liệu so sánh, có ghi rõ nguồn và độ tin cậy.
 
 Ba con số này có thể chênh nhau đáng kể. Đặt chúng cạnh nhau là việc nên làm; ~~coi chúng là một~~ thì không.
+
+![Tòa căn hộ cao tầng](/images/temp-004.jpg "Hai căn cùng tòa có thể khác khung giá vì tầng, hướng và hồ sơ pháp lý.")
 
 ## Khi nào khung giá rộng ra
 

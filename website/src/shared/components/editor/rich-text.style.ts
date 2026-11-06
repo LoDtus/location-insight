@@ -21,7 +21,6 @@ export const RICH_TEXT_ARTICLE_CLASS = [
     "[&_h3]:mt-6 [&_h3]:mb-2 [&_h3]:scroll-mt-24 [&_h3]:font-serif [&_h3]:text-[1.1875rem] [&_h3]:leading-[1.5] [&_h3]:font-bold",
     "[&_ul]:mt-0 [&_ul]:mb-[18px] [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:mt-0 [&_ol]:mb-[18px] [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1",
     "[&_blockquote]:my-6 [&_blockquote]:border-l-4 [&_blockquote]:border-green [&_blockquote]:bg-charcoal/[0.03] [&_blockquote]:py-3 [&_blockquote]:pr-4 [&_blockquote]:pl-5",
-    "[&_img]:my-5 [&_img]:h-auto [&_img]:w-full",
     "[&_hr]:my-8 [&_hr]:border-charcoal/20",
     "[&_a]:text-green [&_a]:underline [&_a]:underline-offset-4",
 ].join(" ");

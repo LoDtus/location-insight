@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Download, LayoutGrid, Square, X, ZoomIn, ZoomOut } from "lucide-react";
+import { ArrowLeft, ArrowRight, Download, FlipHorizontal2, FlipVertical2, LayoutGrid, RotateCcw, RotateCw, Square, X, ZoomIn, ZoomOut } from "lucide-react";
 import {
     useCallback,
     useEffect,
@@ -18,6 +18,10 @@ export type LightboxImage = {
     src: string;
     alt?: string;
 };
+
+/** Trong bản lucide đang dùng, hình của FlipHorizontal2/FlipVertical2 bị đặt ngược tên: chọn theo hình vẽ. */
+const FLIP_X = FlipVertical2;
+const FLIP_Y = FlipHorizontal2;
 
 const MIN_SCALE = 1;
 const MAX_SCALE = 5;
@@ -58,8 +62,9 @@ async function downloadImage(src: string, index: number): Promise<void> {
 
 /**
  * Trình xem ảnh toàn màn hình dùng chung cho cả dự án (tin rao, tin nhắn, phản hồi, diễn đàn).
- * Số thứ tự góc trái; góc phải có kích thước thật, thu nhỏ, phóng to, tải xuống, đóng; mũi tên hai bên;
- * dải ảnh nhỏ bên dưới bật/tắt được. Bàn phím: ← → chuyển ảnh, + − phóng to/thu nhỏ, Esc đóng.
+ * Số thứ tự góc trái; góc phải có xoay trái/phải, lật ngang/dọc, kích thước thật, thu nhỏ, phóng to, tải xuống, đóng;
+ * mũi tên hai bên; dải ảnh nhỏ bên dưới bật/tắt được. Bàn phím: ← → chuyển ảnh, + − phóng to/thu nhỏ,
+ * R / Shift+R xoay phải/trái, H lật ngang, V lật dọc, Esc đóng. Xoay và lật đặt lại khi sang ảnh khác.
  * Chuột: lăn để phóng to, kéo để di chuyển ảnh đã phóng, bấm đúp để phóng/thu. Điện thoại: vuốt ngang để chuyển ảnh.
  */
 export default function ImageLightbox({
@@ -82,6 +87,12 @@ export default function ImageLightbox({
     const [dragging, setDragging] = useState(false);
     const [thumbs, setThumbs] = useState(true);
     const [atActual, setAtActual] = useState(false);
+    /** Góc xoay cộng dồn (bội của 90) để chuyển động luôn đi đúng chiều; lật theo trục của màn hình. */
+    const [rotation, setRotation] = useState(0);
+    const [flip, setFlip] = useState({ x: false, y: false });
+    /** Hệ số thu để ảnh xoay 90°/270° vẫn nằm vừa khung (chiều rộng và cao đổi chỗ). */
+    const [fit, setFit] = useState(1);
+    const orient = useRef({ quarter: false, fit: 1 });
     const root = useRef<HTMLDivElement>(null);
     const stage = useRef<HTMLDivElement>(null);
     const picture = useRef<HTMLImageElement>(null);
@@ -109,6 +120,10 @@ export default function ImageLightbox({
             const target = (next + count) % count;
             setIndex(target);
             resetZoom();
+            setRotation(0);
+            setFlip({ x: false, y: false });
+            setFit(1);
+            orient.current = { quarter: false, fit: 1 };
             onIndexRef.current?.(target);
         },
         [count, resetZoom],
@@ -119,8 +134,11 @@ export default function ImageLightbox({
         const img = picture.current;
         const box = stage.current;
         if (!img || !box) return { x, y };
-        const maxX = Math.max(0, (img.clientWidth * nextScale - box.clientWidth) / 2);
-        const maxY = Math.max(0, (img.clientHeight * nextScale - box.clientHeight) / 2);
+        const { quarter, fit: factor } = orient.current;
+        const width = (quarter ? img.clientHeight : img.clientWidth) * factor;
+        const height = (quarter ? img.clientWidth : img.clientHeight) * factor;
+        const maxX = Math.max(0, (width * nextScale - box.clientWidth) / 2);
+        const maxY = Math.max(0, (height * nextScale - box.clientHeight) / 2);
         return { x: clamp(x, -maxX, maxX), y: clamp(y, -maxY, maxY) };
     }, []);
 
@@ -138,8 +156,41 @@ export default function ImageLightbox({
     const actualScale = (): number => {
         const img = picture.current;
         if (!img || !img.clientWidth) return 1;
-        return clamp(img.naturalWidth / img.clientWidth, MIN_SCALE, MAX_SCALE);
+        return clamp(img.naturalWidth / (img.clientWidth * orient.current.fit), MIN_SCALE, MAX_SCALE);
     };
+
+    /** Tính lại hệ số vừa khung cho góc xoay hiện tại (gọi khi xoay, khi ảnh tải xong, khi đổi cỡ cửa sổ). */
+    const refit = useCallback((nextRotation: number): void => {
+        const img = picture.current;
+        const box = stage.current;
+        const quarter = Math.abs(nextRotation / 90) % 2 === 1;
+        const factor =
+            quarter && img && box && img.clientWidth && img.clientHeight
+                ? Math.min(1, box.clientWidth / img.clientHeight, box.clientHeight / img.clientWidth)
+                : 1;
+        orient.current = { quarter, fit: factor };
+        setFit(factor);
+    }, []);
+
+    const rotate = useCallback(
+        (step: 90 | -90): void => {
+            const next = rotation + step;
+            setRotation(next);
+            resetZoom();
+            refit(next);
+        },
+        [refit, resetZoom, rotation],
+    );
+
+    const toggleFlip = useCallback((axis: "x" | "y"): void => {
+        setFlip((old) => ({ ...old, [axis]: !old[axis] }));
+    }, []);
+
+    useEffect(() => {
+        const onResize = (): void => refit(rotation);
+        window.addEventListener("resize", onResize);
+        return () => window.removeEventListener("resize", onResize);
+    }, [refit, rotation]);
 
     // Khóa cuộn trang, đưa tiêu điểm vào nút đóng, trả tiêu điểm khi đóng.
     useEffect(() => {
@@ -166,6 +217,12 @@ export default function ImageLightbox({
                 zoomTo(scale * ZOOM_STEP);
             } else if (event.key === "-") {
                 zoomTo(scale / ZOOM_STEP);
+            } else if (event.key === "r" || event.key === "R") {
+                rotate(event.shiftKey ? -90 : 90);
+            } else if (event.key === "h" || event.key === "H") {
+                toggleFlip("x");
+            } else if (event.key === "v" || event.key === "V") {
+                toggleFlip("y");
             } else if (event.key === "Tab") {
                 // Giữ tiêu điểm trong trình xem.
                 const nodes = root.current?.querySelectorAll<HTMLElement>("button:not([disabled])");
@@ -179,7 +236,7 @@ export default function ImageLightbox({
         }
         document.addEventListener("keydown", onKey);
         return () => document.removeEventListener("keydown", onKey);
-    }, [go, index, scale, zoomTo]);
+    }, [go, index, rotate, scale, toggleFlip, zoomTo]);
 
     useEffect(() => {
         const node = strip.current?.querySelector<HTMLElement>(`[data-thumb="${index}"]`);
@@ -232,7 +289,7 @@ export default function ImageLightbox({
     if (typeof document === "undefined" || !current) return null;
 
     const tool =
-        "inline-flex size-11 items-center justify-center rounded-md bg-transparent text-white/80 hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-white disabled:opacity-35 disabled:hover:bg-transparent";
+        "inline-flex size-10 items-center justify-center rounded-md bg-transparent text-white/80 sm:size-11 hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-white disabled:opacity-35 disabled:hover:bg-transparent";
     const arrow =
         "absolute top-1/2 z-10 hidden size-12 -translate-y-1/2 items-center justify-center rounded-md bg-black/30 text-white/85 hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-white sm:inline-flex";
 
@@ -245,10 +302,23 @@ export default function ImageLightbox({
             className="fixed inset-0 z-[100] flex flex-col bg-black text-white select-none"
         >
             <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-2 bg-gradient-to-b from-black/70 to-transparent px-3 py-2 sm:px-5">
-                <p className="m-0 text-sm text-white/85 tabular-nums" aria-live="polite">
+                <p className="m-0 shrink-0 text-sm whitespace-nowrap text-white/85 tabular-nums" aria-live="polite">
                     {index + 1} / {count}
                 </p>
                 <div className="flex items-center gap-0.5">
+                    <button type="button" aria-label="Xoay trái" title="Xoay trái (Shift+R)" onClick={() => rotate(-90)} className={tool}>
+                        <RotateCcw size={19} aria-hidden="true" />
+                    </button>
+                    <button type="button" aria-label="Xoay phải" title="Xoay phải (R)" onClick={() => rotate(90)} className={tool}>
+                        <RotateCw size={19} aria-hidden="true" />
+                    </button>
+                    <button type="button" aria-label="Lật ngang" title="Lật ngang (H)" aria-pressed={flip.x} onClick={() => toggleFlip("x")} className={`${tool} ${flip.x ? "bg-white/15 text-white" : ""}`}>
+                        <FLIP_X size={19} aria-hidden="true" />
+                    </button>
+                    <button type="button" aria-label="Lật dọc" title="Lật dọc (V)" aria-pressed={flip.y} onClick={() => toggleFlip("y")} className={`${tool} ${flip.y ? "bg-white/15 text-white" : ""}`}>
+                        <FLIP_Y size={19} aria-hidden="true" />
+                    </button>
+                    <span aria-hidden="true" className="mx-1 h-6 w-px bg-white/20 max-sm:hidden" />
                     <button
                         type="button"
                         aria-label={atActual ? "Vừa khung" : "Kích thước thật"}
@@ -262,7 +332,7 @@ export default function ImageLightbox({
                             zoomTo(actualScale());
                             setAtActual(true);
                         }}
-                        className={tool}
+                        className={`${tool} max-sm:hidden`}
                     >
                         <Square size={18} aria-hidden="true" />
                     </button>
@@ -301,7 +371,11 @@ export default function ImageLightbox({
                     src={current.src}
                     alt={current.alt || `Ảnh ${index + 1} trên ${count}`}
                     draggable={false}
-                    style={{ transform: `translate3d(${offset.x}px, ${offset.y}px, 0) scale(${scale})` }}
+                    onLoad={() => refit(rotation)}
+                    // Lật đứng trước xoay trong chuỗi transform nên lật theo trục màn hình, không theo trục ảnh đã xoay.
+                    style={{
+                        transform: `translate3d(${offset.x}px, ${offset.y}px, 0) scale(${flip.x ? -1 : 1}, ${flip.y ? -1 : 1}) rotate(${rotation}deg) scale(${scale * fit})`,
+                    }}
                     className={`pointer-events-none max-h-full max-w-full object-contain ${dragging ? "" : "transition-transform duration-200 ease-out motion-reduce:transition-none"}`}
                 />
             </div>

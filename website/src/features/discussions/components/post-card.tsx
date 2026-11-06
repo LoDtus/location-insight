@@ -1,11 +1,32 @@
 "use client";
 
-import { Ban, Bookmark, ChevronRight, Flag, Heart, Link2, MessageCircle, MoreHorizontal, Repeat2, Send, Trash2 } from "lucide-react";
+import {
+    Ban,
+    Bookmark,
+    CalendarClock,
+    ChevronRight,
+    Eye,
+    Flag,
+    Heart,
+    Link2,
+    Lock,
+    MessageCircle,
+    MoreHorizontal,
+    Repeat2,
+    Send,
+    SlidersHorizontal,
+    Trash2,
+    Users,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useRef, useState, type JSX } from "react";
 
 import type { ShellRoot } from "@/features/app/shell";
-import type { DiscussionPost } from "@/features/discussions/discussions.api";
+import { POST_VISIBILITIES, type DiscussionPost, type PostVisibility } from "@/features/discussions/discussions.api";
+import { PostBody } from "@/features/discussions/post-markup";
+
+const VISIBILITY_LABEL = Object.fromEntries(POST_VISIBILITIES.map((item) => [item.id, `Ai xem: ${item.label}`])) as Record<PostVisibility, string>;
 import { Avatar } from "@/features/discussions/components/post-composer";
 import ImageLightbox from "@/shared/components/lightbox/image-lightbox";
 
@@ -75,6 +96,7 @@ export function PostCard({
     onCopyLink,
     online,
     onTopic,
+    onSettings,
 }: {
     post: DiscussionPost;
     root: ShellRoot;
@@ -94,7 +116,10 @@ export function PostCard({
     online?: boolean;
     /** Bấm chủ đề: lọc tại chỗ (feed). Không truyền thì mở feed lọc theo chủ đề. */
     onTopic?: (slug: string) => void;
+    /** Bài gốc của mình: mở hộp cài đặt (ai xem, trả lời, ẩn lượt thích/xem, chia sẻ). */
+    onSettings?: () => void;
 }): JSX.Element {
+    const router = useRouter();
     const saved = post.savedByMe;
     const [menu, setMenu] = useState(false);
     const [repostMenu, setRepostMenu] = useState(false);
@@ -159,25 +184,58 @@ export function PostCard({
                             )}
                         </>
                     ) : null}
-                    <time
-                        dateTime={post.createdAt}
-                        title={fullTime(post.createdAt)}
-                        className="shrink-0 text-sm text-charcoal/45"
-                    >
-                        {relativeTime(post.createdAt)}
-                    </time>
+                    <Link href={`${root}/feed/${post.id}`} className="shrink-0 text-sm text-charcoal/45 no-underline hover:underline">
+                        <time dateTime={post.createdAt} title={fullTime(post.createdAt)}>
+                            {relativeTime(post.createdAt)}
+                        </time>
+                    </Link>
+                    {post.visibility !== "public" ? (
+                        <span title={VISIBILITY_LABEL[post.visibility]} aria-label={VISIBILITY_LABEL[post.visibility]} className="inline-flex shrink-0 text-charcoal/40">
+                            {post.visibility === "private" ? <Lock className="size-3.5" aria-hidden="true" /> : <Users className="size-3.5" aria-hidden="true" />}
+                        </span>
+                    ) : null}
                 </header>
-                <Link href={`${root}/feed/${post.id}`} className="mt-0.5 block text-inherit no-underline">
-                    <p className="m-0 text-[15px] leading-relaxed whitespace-pre-wrap break-words">{post.body}</p>
-                </Link>
+                {post.scheduledFor ? (
+                    <p className="m-0 mt-1 inline-flex items-center gap-1.5 rounded-full bg-gold/15 px-2 py-0.5 text-xs font-semibold text-charcoal/80">
+                        <CalendarClock className="size-3.5" aria-hidden="true" /> Sẽ đăng lúc {fullTime(post.scheduledFor)}
+                    </p>
+                ) : null}
+                {/* Bấm vào nội dung (trừ liên kết bên trong) để mở bài; liên kết thời gian là đường vào bằng bàn phím. */}
+                <div
+                    className="mt-0.5 cursor-pointer"
+                    onClick={(event) => {
+                        if ((event.target as Element).closest("a,button")) return;
+                        if (window.getSelection()?.toString()) return;
+                        router.push(`${root}/feed/${post.id}`);
+                    }}
+                >
+                    <PostBody body={post.body} root={root} />
+                </div>
                 {post.media.length > 0 ? <MediaGrid media={post.media} /> : null}
                 {/* Nút tương tác dồn trái, cách đều; nút chỉ có icon là hình tròn. */}
                 <div className="relative mt-1.5 -ml-2 flex items-center gap-2 text-charcoal/70 sm:gap-4">
-                    <Action icon="like" label={post.likedByMe ? "Bỏ thích" : "Thích"} count={post.likeCount} active={post.likedByMe} onClick={onLike} />
-                    <Action icon="reply" label="Trả lời" count={post.replyCount} onClick={onReply} />
-                    <Action icon="repost" label="Đăng lại hoặc trích dẫn" active={repostMenu} onClick={() => setRepostMenu((current) => !current)} />
-                    <Action icon="share" label="Chia sẻ" onClick={onShare} />
+                    <Action icon="like" label={post.likedByMe ? "Bỏ thích" : "Thích"} count={post.likeCount ?? undefined} active={post.likedByMe} onClick={onLike} />
+                    <Action
+                        icon="reply"
+                        label={post.repliesAllowed || mine ? "Trả lời" : "Tác giả đã tắt trả lời"}
+                        count={post.replyCount}
+                        disabled={!post.repliesAllowed && !mine}
+                        onClick={onReply}
+                    />
+                    {post.allowShare || mine ? (
+                        <>
+                            <Action icon="repost" label="Đăng lại hoặc trích dẫn" active={repostMenu} onClick={() => setRepostMenu((current) => !current)} />
+                            <Action icon="share" label="Chia sẻ" onClick={onShare} />
+                        </>
+                    ) : null}
                     <Action icon="save" label={saved ? "Bỏ lưu" : "Lưu bài"} active={saved} onClick={onSave} />
+                    {post.viewCount !== null && post.viewCount > 0 ? (
+                        <span className="ml-auto inline-flex items-center gap-1 pr-1 text-xs text-charcoal/45 tabular-nums" title={`${post.viewCount} lượt xem`}>
+                            <Eye className="size-4" aria-hidden="true" />
+                            {compactCount(post.viewCount)}
+                            <span className="sr-only"> lượt xem</span>
+                        </span>
+                    ) : null}
                     {repostMenu ? (
                         <div className="absolute top-11 left-24 z-20 w-44 rounded-2xl bg-white p-1.5 shadow-[0_8px_24px_rgba(16,17,17,0.16)] ring-1 ring-charcoal/10">
                             <button
@@ -234,15 +292,27 @@ export function PostCard({
                             }}
                         />
                         {mine ? (
-                            <MenuItem
-                                danger
-                                icon={<Trash2 className="size-4" aria-hidden="true" />}
-                                label="Xóa bài"
-                                onClick={() => {
-                                    setMenu(false);
-                                    onDelete();
-                                }}
-                            />
+                            <>
+                                {!post.rootId && onSettings ? (
+                                    <MenuItem
+                                        icon={<SlidersHorizontal className="size-4" aria-hidden="true" />}
+                                        label="Cài đặt bài viết"
+                                        onClick={() => {
+                                            setMenu(false);
+                                            onSettings();
+                                        }}
+                                    />
+                                ) : null}
+                                <MenuItem
+                                    danger
+                                    icon={<Trash2 className="size-4" aria-hidden="true" />}
+                                    label={post.scheduledFor ? "Hủy bài hẹn giờ" : "Xóa bài"}
+                                    onClick={() => {
+                                        setMenu(false);
+                                        onDelete();
+                                    }}
+                                />
+                            </>
                         ) : (
                             <>
                                 <MenuItem
@@ -290,12 +360,14 @@ function Action({
     label,
     count,
     active,
+    disabled = false,
     onClick,
 }: {
     icon: "like" | "reply" | "repost" | "share" | "save";
     label: string;
     count?: number;
     active?: boolean;
+    disabled?: boolean;
     onClick: () => void;
 }): JSX.Element {
     const glyph = {
@@ -308,42 +380,65 @@ function Action({
     return (
         <button
             type="button"
-            className={`inline-flex h-9 items-center justify-center rounded-full text-sm tabular-nums focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green ${count ? "min-w-9 gap-1.5 px-2" : "w-9 p-0"} ${active ? "text-green hover:bg-green/10" : "hover:bg-green/10 hover:text-green"}`}
+            className={`inline-flex h-9 items-center justify-center rounded-full text-sm tabular-nums focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green ${count ? "min-w-9 gap-1.5 px-2" : "w-9 p-0"} ${active ? "text-green hover:bg-green/10" : "hover:bg-green/10 hover:text-green"} disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-inherit`}
             aria-pressed={active}
             aria-label={count ? `${label}, ${count}` : label}
+            title={label}
+            disabled={disabled}
             onClick={onClick}
         >
             {glyph}
-            {count ? <span>{count}</span> : null}
+            {count ? <span>{compactCount(count)}</span> : null}
         </button>
     );
 }
 
+/** Một tệp: hiện rộng; nhiều tệp: dải cuộn ngang (như Threads), ảnh mở trình xem ảnh dùng chung. */
 function MediaGrid({ media }: { media: DiscussionPost["media"] }): JSX.Element {
     const [zoom, setZoom] = useState<number | null>(null);
     const images = media.filter((item) => item.kind !== "video");
+    const single = media.length === 1;
     return (
-        <div className={`mt-3 grid gap-1 overflow-hidden rounded-2xl ${media.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
-            {media.map((item) =>
-                item.kind === "video" ? (
-                    <video key={item.id} className="max-h-80 w-full bg-charcoal" controls src={item.url} />
-                ) : (
-                    <button
-                        key={item.id}
-                        type="button"
-                        aria-label="Xem ảnh"
-                        onClick={() => setZoom(images.findIndex((image) => image.id === item.id))}
-                        className="block cursor-zoom-in border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-green"
-                    >
-                        {/* Signed media URLs expire and are not known at build time. */}
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={item.url} alt="" className="max-h-80 w-full object-cover" />
-                    </button>
-                ),
-            )}
+        <>
+            <ul
+                className={`m-0 mt-2.5 list-none p-0 ${single ? "" : "-mr-4 flex snap-x gap-2 overflow-x-auto pr-4 pb-1 [scrollbar-width:thin]"}`}
+                aria-label={single ? undefined : `${media.length} ảnh và video`}
+            >
+                {media.map((item) => (
+                    <li key={item.id} className={single ? "" : "shrink-0 snap-start"}>
+                        {item.kind === "video" ? (
+                            <video
+                                className={`rounded-xl bg-charcoal ${single ? "max-h-[28rem] w-full" : "h-64 w-auto max-w-[20rem]"}`}
+                                controls
+                                preload="metadata"
+                                playsInline
+                                src={item.url}
+                            />
+                        ) : (
+                            <button
+                                type="button"
+                                aria-label="Xem ảnh"
+                                onClick={() => setZoom(images.findIndex((image) => image.id === item.id))}
+                                className="block cursor-zoom-in overflow-hidden rounded-xl border-0 bg-charcoal/5 p-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
+                            >
+                                {/* Signed media URLs expire and are not known at build time. */}
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={item.url} alt="" loading="lazy" className={single ? "max-h-[28rem] w-full object-cover" : "h-64 w-auto max-w-[20rem] object-cover"} />
+                            </button>
+                        )}
+                    </li>
+                ))}
+            </ul>
             {zoom !== null ? (
                 <ImageLightbox images={images.map((item) => ({ id: item.id, src: item.url }))} start={Math.max(0, zoom)} onClose={() => setZoom(null)} />
             ) : null}
-        </div>
+        </>
     );
+}
+
+/** 1.234 → "1,2 N"; 12.500 → "12 N"; 2.100.000 → "2,1 Tr". */
+export function compactCount(value: number): string {
+    if (value < 1000) return String(value);
+    if (value < 1_000_000) return `${(Math.round(value / 100) / 10).toString().replace(".", ",")} N`;
+    return `${(Math.round(value / 100_000) / 10).toString().replace(".", ",")} Tr`;
 }

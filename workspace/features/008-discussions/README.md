@@ -33,13 +33,17 @@ Người đã đăng nhập tạo chủ đề, đăng một câu hỏi hoặc m�
 - **FR-01 (chủ đề):** Người dùng tạo tên, slug và một câu mô tả. Slug duy nhất. Trùng thì `409`.
 - **FR-02 (bài gốc):** Bài gắn một chủ đề đang mở, loại `question` hoặc `note`, chữ thường tối đa 2.000 ký tự, không HTML.
 - **FR-03 (trả lời):** Trả lời thuộc `root_id` của bài gốc và có `parent_id` là một bài còn hiện trong mạch đó. Danh sách trả lời theo thời gian tăng.
-- **FR-04 (media):** Bài nhận tối đa 4 ảnh hoặc một video, không cả hai. Chỉ nhận bản ghi `ready` do chính người đăng tải.
+- **FR-04 (media):** Bài nhận tối đa 10 ảnh và video, trộn được (ảnh ≤ 8 MB, video MP4 ≤ 50 MB). Chỉ nhận bản ghi `ready` do chính người đăng tải. Nhiều tệp hiện thành dải cuộn ngang; dán ảnh vào ô soạn cũng được.
 - **FR-05 (thích):** Một người một lượt thích trên một bài. Bấm lần nữa thì bỏ.
 - **FR-06 (xóa):** Tác giả xóa bài của mình. Xóa bài gốc thì cả mạch khuất. Xóa một trả lời thì chỉ trả lời đó khuất.
 - **FR-07 (kiểm duyệt):** Admin khóa chủ đề hoặc ẩn bài, có lý do, ghi `admin_audit_logs`. Người dùng báo cáo một lần cho mỗi bài.
 - **FR-09 (lưu bài):** Người dùng lưu/bỏ lưu bài (`PUT`/`DELETE /discussions/posts/:id/bookmark`, idempotent), lưu ở server (`discussion_bookmarks`) nên đồng bộ mọi thiết bị; mỗi bài trả `savedByMe`. Mục "Đã lưu" (`GET /discussions/bookmarks`, `?muc=da-luu` trên URL) liệt kê bài đã lưu, mới lưu trước. Danh sách cũ trong localStorage được chuyển lên server một lần rồi xóa. Lưu/bỏ lưu hiện thông báo góc trên bên phải.
 - **FR-10 (báo cáo):** `POST /discussions/posts/:id/report {reason, note?}` với lý do cố định (spam, lừa đảo, quấy rối, thông tin sai, không phù hợp, khác). Không báo cáo bài của mình (`422`). Mỗi người một báo cáo cho một bài (`discussion_reports` unique `post_id + reporter_id`; báo lại thì cập nhật lý do). Admin xem ở `/admin/discussions` (`GET /admin/discussions/reports?status`), "Ẩn bài" (ẩn + đóng mọi báo cáo mở của bài, ghi nhật ký) hoặc "Bỏ qua", đều cần lý do ≥ 5 ký tự.
 - **FR-11 (chặn):** Chặn tác giả từ menu ba chấm (dùng chung `user_blocks` với nhắn tin, `PUT /messaging/blocks/:userId`). Feed, mục đã lưu và trả lời trong mạch ẩn bài của người mình chặn và người chặn mình. Bỏ chặn ở Tin nhắn › Cài đặt.
+- **FR-14 (định dạng):** Nội dung là chữ có markup nhẹ, không HTML: `**đậm**`, `*nghiêng*`, `++gạch chân++`, `~~gạch ngang~~`, dòng `> ` là trích dẫn, `[chữ](https://…)` hoặc `[chữ](/map?…)` là liên kết, `https://…` đứng riêng tự thành liên kết. Hiển thị bằng React (không `dangerouslySetInnerHTML`); chỉ nhận `http(s)://` và đường dẫn nội bộ bắt đầu bằng "/" (không "//"); liên kết ngoài mở tab mới với `rel="noopener noreferrer nofollow ugc"`; "/map…" được gắn khu vực `/app` hoặc `/admin`. Server bỏ thẻ HTML và `<`, giữ `>` chỉ ở đầu dòng trích dẫn; markup tính vào giới hạn 2000 ký tự (cột không đổi: nới cột bằng synchronize sẽ xóa dữ liệu). Thông báo dùng bản đã bỏ markup.
+- **FR-15 (ô soạn kiểu Threads):** "Tên › Chủ đề" gõ trực tiếp (gợi ý chủ đề có sẵn; tên mới thì tạo chủ đề; để trống vào "Thảo luận chung"). Ô nội dung tự cao tới gần hết màn hình (`100dvh − 14rem`) rồi mới cuộn. Thanh công cụ: ảnh, video, đậm (Ctrl+B), nghiêng (Ctrl+I), gạch chân (Ctrl+U), gạch ngang, trích dẫn, emoji, liên kết (có chữ hoặc đường dẫn thuần), gắn địa điểm (tìm Vietmap, chèn tên có liên kết hoặc đường dẫn thuần tới bản đồ). Đếm ký tự còn lại khi gần hết; Ctrl+Enter để đăng; bản nháp (chữ + chủ đề) tự lưu theo người dùng.
+- **FR-16 (tùy chọn bài):** Nút "Tùy chọn bài": ai xem (`public` mọi người, `followers` người theo dõi tôi, `friends` theo dõi lẫn nhau, `private` chỉ mình tôi), cho phép trả lời, cho phép chia sẻ/đăng lại, ẩn số lượt thích, ẩn số lượt xem, lên lịch đăng (2 phút – 30 ngày). Server kiểm tra quyền xem ở feed, mạch, lưu bài, thích, báo cáo, trả lời (không thấy = 404); tắt trả lời thì người khác trả lời bị `422`; số bị ẩn trả `null` cho người không phải tác giả. Bài hẹn giờ có `status = scheduled`, job 30 giây đăng khi tới giờ (thời gian đăng = giờ hẹn), xem/hủy ở tab "Đã lên lịch". Tác giả sửa tùy chọn sau khi đăng qua "Cài đặt bài viết" (`PATCH /discussions/posts/:id/settings`).
+- **FR-17 (lượt xem):** Mở bài ghi một lượt xem (`POST /discussions/posts/:id/view`), mỗi người một lần mỗi 24 giờ (Redis NX), không tính tác giả.
 - **FR-13 (trực tuyến):** Ảnh đại diện có chấm xanh khi tác giả đang trực tuyến. Dùng chung presence của nhắn tin (Redis `presence:online:{id}`, TTL 90 s, làm mới qua kết nối realtime). Hai chiều như nhắn tin: chỉ hiện khi cả người xem lẫn tác giả bật "hiện trạng thái hoạt động" (Tin nhắn › Cài đặt). Mỗi bài trả `authorOnline`; feed và mạch gọi `GET /discussions/presence?ids=` (≤ 50 uuid) mỗi phút khi tab đang mở.
 - **FR-12 (giao diện):** Cột nội dung rộng tối đa 860 px, giữa màn hình, không viền hai bên; giữa các bài chỉ một đường kẻ. Thẻ bài ba cột: ảnh đại diện | tên · @username › chủ đề · thời gian (một dòng, chủ đề bấm để lọc, thời gian có tooltip ngày giờ đầy đủ) và nội dung ngay bên dưới | nút ba chấm riêng bên phải. Nút tương tác dồn trái; nút chỉ có icon tròn khi rê chuột. Thông báo "Đã sao chép liên kết" không kèm đường link. Mỗi bài có nút ba chấm: Sao chép liên kết, và Báo cáo + Chặn (bài người khác) hoặc Xóa (bài của mình). Diễn đàn không dùng đường dẫn Trang chủ › Diễn đàn › Chi tiết; trang chi tiết có thanh trên cùng với nút ←.
 - **FR-08 (danh sách):** Trang chủ diễn đàn là bài gốc mới nhất. Lọc một chủ đề giữ cùng dạng. Phân trang bằng con trỏ thời gian, không tải cả bảng.
@@ -101,6 +105,10 @@ Hình mạch bài và chỗ lưu tệp nằm trong `research.md`. Chữ và quan
 - [ ] **AC-07:** Given khách chưa có phiên, When gọi `GET /discussions/posts`, Then `401`.
 - [ ] **AC-08:** Given A lưu một bài trên máy này, When A mở diễn đàn ở máy khác, Then bài có `savedByMe = true` và nằm trong mục "Đã lưu".
 - [ ] **AC-09:** Given B chặn A, When B tải feed, Then không còn bài của A; bỏ chặn thì hiện lại.
+- [ ] **AC-12:** Given bài “Chỉ mình tôi”/“Người theo dõi tôi”, When người chưa theo dõi mở, Then `404`; theo dõi thì xem được, bỏ theo dõi lại `404`.
+- [ ] **AC-13:** Given bài tắt trả lời và ẩn lượt thích, When người khác trả lời, Then `422`; người khác thấy `likeCount = null`, tác giả thấy số.
+- [ ] **AC-14:** Given bài hẹn giờ, Then không có trong feed người khác cho tới giờ hẹn; sau giờ hẹn hiện với thời gian đăng bằng giờ hẹn.
+- [ ] **AC-15:** Given nội dung `[x](javascript:…)`, `<img onerror>` hoặc `[x](//evil)`, Then hiển thị dạng chữ, không có liên kết hay thẻ HTML.
 - [ ] **AC-11:** Given tác giả đang trực tuyến và cả hai bật trạng thái hoạt động, When mở feed, Then ảnh đại diện có chấm xanh; người xem tắt thì không thấy chấm của ai.
 - [ ] **AC-10:** Given B báo cáo bài của A với lý do không hợp lệ, Then `400`; người thường gọi `/admin/discussions/reports`, Then `403`; admin "Ẩn bài" thì bài khuất và báo cáo chuyển "Đã ẩn bài".
 
@@ -110,6 +118,7 @@ Hình mạch bài và chỗ lưu tệp nằm trong `research.md`. Chữ và quan
 
 ## Nhật ký cập nhật <!-- key: update_log -->
 
+- 2026-11-06: Ô soạn kiểu Threads (chủ đề gõ trực tiếp, định dạng, emoji, trích dẫn, liên kết, địa điểm, ≤ 10 ảnh/video), tùy chọn bài (ai xem, trả lời, chia sẻ, ẩn lượt thích/xem, hẹn giờ), lượt xem.
 - 2026-11-06: Chấm trực tuyến (riêng tư hai chiều), thẻ bài ba cột kiểu Threads, bỏ viền hai bên.
 - 2026-11-06: Lưu bài ở server + mục "Đã lưu", báo cáo bài + màn kiểm duyệt, chặn tác giả, menu ba chấm, bố cục cột giữa, nút ← thay đường dẫn.
 - 2026-11-01: Đặc tả đầu từ yêu cầu diễn đàn kiểu Threads hoặc X, dừng ở chủ đề, bài đăng và media.

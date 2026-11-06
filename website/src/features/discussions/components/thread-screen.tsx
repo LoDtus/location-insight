@@ -20,7 +20,10 @@ import {
 import { PostCard } from "@/features/discussions/components/post-card";
 import { useAuthorPresence } from "@/features/discussions/components/use-author-presence";
 import { usePostActions } from "@/features/discussions/components/use-post-actions";
-import { PostComposer } from "@/features/discussions/components/post-composer";
+import { PostComposer, type ComposerDraft } from "@/features/discussions/components/post-composer";
+import { quoteBlock, stripMarkup } from "@/features/discussions/post-markup";
+import { recordView } from "@/features/discussions/discussions.api";
+import { showToast } from "@/shared/components/toast/toast-store";
 import { SharePostDialog } from "@/features/messaging/components/share-post-dialog";
 import { getConfirmModal } from "@/shared/utils/confirm.utils";
 
@@ -33,12 +36,9 @@ export function ThreadScreen({ id, root }: { id: string; root: ShellRoot }): JSX
     const [post, setPost] = useState<DiscussionPost | null>(null);
     const [replies, setReplies] = useState<DiscussionPost[]>([]);
     const [cursor, setCursor] = useState<string | null>(null);
-    const [body, setBody] = useState("");
-    const [files, setFiles] = useState<File[]>([]);
     const [quote, setQuote] = useState<DiscussionPost | null>(null);
     const [message, setMessage] = useState("");
     const [sharing, setSharing] = useState<DiscussionPost | null>(null);
-    const [pending, setPending] = useState(false);
     const replyRef = useRef<HTMLDivElement>(null);
 
     const load = useCallback(async (): Promise<void> => {
@@ -46,6 +46,11 @@ export function ThreadScreen({ id, root }: { id: string; root: ShellRoot }): JSX
         setPost(thread.post);
         setReplies(thread.replies);
         setCursor(thread.nextCursor);
+    }, [id]);
+
+    // Mở bài: ghi một lượt xem (server bỏ trùng trong 24 giờ, không tính tác giả).
+    useEffect(() => {
+        void recordView(id).catch(() => undefined);
     }, [id]);
 
     useEffect(() => {
@@ -110,6 +115,10 @@ export function ThreadScreen({ id, root }: { id: string; root: ShellRoot }): JSX
             setPost((current) => (current ? next(current) : current));
             setReplies((current) => current.map(next));
         },
+        onUpdated: (updated) => {
+            setPost((current) => (current && current.id === updated.id ? updated : current));
+            setReplies((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+        },
         onBlocked: (authorId) => {
             // Chặn tác giả bài gốc thì rời mạch; chặn người trả lời thì bỏ các trả lời của họ.
             if (post?.authorId === authorId) {
@@ -126,22 +135,19 @@ export function ThreadScreen({ id, root }: { id: string; root: ShellRoot }): JSX
         else router.push(`${root}/feed`);
     }
 
-    async function sendReply(): Promise<void> {
-        setPending(true);
+    async function sendReply(draft: ComposerDraft): Promise<boolean> {
         setMessage("");
         try {
             const mediaIds: string[] = [];
-            for (const file of files) mediaIds.push(await uploadDiscussionFile(file));
-            const text = quote ? `${body.trim()}\n\nTrích ${quote.authorName}: ${quote.body}`.trim() : body.trim();
+            for (const file of draft.files) mediaIds.push(await uploadDiscussionFile(file));
+            const text = quote ? `${draft.body}\n\n${quoteBlock(quote)}`.trim() : draft.body;
             await replyToPost(id, { body: text, mediaIds });
-            setBody("");
-            setFiles([]);
             setQuote(null);
             await load();
+            return true;
         } catch (error) {
-            setMessage(error instanceof AuthApiError ? error.message : "Chưa gửi được trả lời.");
-        } finally {
-            setPending(false);
+            showToast({ title: "Chưa gửi được trả lời", description: error instanceof AuthApiError ? error.message : "Vui lòng thử lại.", tone: "error" });
+            return false;
         }
     }
 
@@ -190,7 +196,7 @@ export function ThreadScreen({ id, root }: { id: string; root: ShellRoot }): JSX
                                     void createPost({
                                         topicSlug: item.topicSlug,
                                         kind: "note",
-                                        body: `Đăng lại từ @${item.authorUsername ?? item.authorName}:\n${item.body}`,
+                                        body: `Đăng lại từ @${item.authorUsername ?? item.authorName}\n\n${quoteBlock(item)}`,
                                     })
                                         .then(() => setMessage("Đã đăng lại lên diễn đàn."))
                                         .catch(() => setMessage("Chưa đăng lại được."));
@@ -204,6 +210,7 @@ export function ThreadScreen({ id, root }: { id: string; root: ShellRoot }): JSX
                                 onReport={() => actions.report(item)}
                                 onBlock={() => actions.block(item)}
                                 onCopyLink={() => actions.copyLink(item)}
+                                onSettings={() => actions.editSettings(item)}
                                 onDelete={() => {
                                     void getConfirmModal({
                                         title: "Xóa bài",
@@ -226,20 +233,21 @@ export function ThreadScreen({ id, root }: { id: string; root: ShellRoot }): JSX
                 </ol>
                 <div ref={sentinel} className="h-8" />
                 <div ref={replyRef} className="border-t border-charcoal/10">
-                    <PostComposer
-                        displayName={auth.user?.displayName ?? "Bạn"}
-                        avatarUrl={auth.user?.avatarUrl}
-                        placeholder={`Trả lời ${post.authorName}`}
-                        body={body}
-                        onBody={setBody}
-                        files={files}
-                        onFiles={setFiles}
-                        pending={pending}
-                        submitLabel="Trả lời"
-                        quote={quote ? { author: quote.authorName, body: quote.body } : null}
-                        onClearQuote={() => setQuote(null)}
-                        onSubmit={() => void sendReply()}
-                    />
+                    {post.repliesAllowed || auth.user?.userId === post.authorId ? (
+                        <PostComposer
+                            mode="reply"
+                            displayName={auth.user?.displayName ?? "Bạn"}
+                            avatarUrl={auth.user?.avatarUrl}
+                            placeholder={`Trả lời ${post.authorName}`}
+                            draftKey={auth.user ? `discussion-reply-draft:${auth.user.userId}:${post.id}` : undefined}
+                            submitLabel="Trả lời"
+                            quote={quote ? { author: quote.authorName, body: stripMarkup(quote.body) } : null}
+                            onClearQuote={() => setQuote(null)}
+                            onSubmit={sendReply}
+                        />
+                    ) : (
+                        <p className="m-0 px-4 py-5 text-sm text-charcoal/60">{post.authorName} đã tắt trả lời cho bài này.</p>
+                    )}
                 </div>
             </div>
             {actions.dialog}

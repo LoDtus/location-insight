@@ -4,7 +4,8 @@ import { useEffect, useState, type JSX } from "react";
 
 import type { ShellRoot } from "@/features/app/shell";
 import { AuthApiError } from "@/features/auth/auth.api";
-import { bookmarkPost, reportPost, unbookmarkPost, type DiscussionPost } from "@/features/discussions/discussions.api";
+import { bookmarkPost, reportPost, unbookmarkPost, updatePostSettings, type DiscussionPost } from "@/features/discussions/discussions.api";
+import { PostSettingsDialog } from "@/features/discussions/components/post-settings-dialog";
 import { clearLegacySavedPosts, readSavedPosts } from "@/features/discussions/components/post-card";
 import { ReportPostDialog } from "@/features/discussions/components/report-post-dialog";
 import { blockUser } from "@/features/messaging/messaging.api";
@@ -23,18 +24,23 @@ export function usePostActions({
     root,
     onSaved,
     onBlocked,
+    onUpdated,
 }: {
     root: ShellRoot;
     onSaved: (postId: string, saved: boolean) => void;
     onBlocked: (authorId: string) => void;
+    /** Bài vừa đổi cài đặt (thay bản cũ trong danh sách). */
+    onUpdated?: (post: DiscussionPost) => void;
 }): {
     toggleSave: (post: DiscussionPost) => void;
     copyLink: (post: DiscussionPost) => void;
     report: (post: DiscussionPost) => void;
     block: (post: DiscussionPost) => void;
+    editSettings: (post: DiscussionPost) => void;
     dialog: JSX.Element | null;
 } {
     const [reporting, setReporting] = useState<DiscussionPost | null>(null);
+    const [editing, setEditing] = useState<DiscussionPost | null>(null);
 
     // Một lần: chuyển danh sách đã lưu cũ (chỉ ở trình duyệt) lên server rồi xóa.
     useEffect(() => {
@@ -92,7 +98,25 @@ export function usePostActions({
         });
     }
 
-    const dialog = reporting ? (
+    const settingsDialog = editing ? (
+        <PostSettingsDialog
+            post={editing}
+            onClose={() => setEditing(null)}
+            onSave={async (settings) => {
+                try {
+                    const updated = await updatePostSettings(editing.id, settings);
+                    onUpdated?.(updated);
+                    setEditing(null);
+                    showToast({ title: "Đã lưu cài đặt bài viết" });
+                    return null;
+                } catch (error) {
+                    return errorText(error, "Chưa lưu được, vui lòng thử lại.");
+                }
+            }}
+        />
+    ) : null;
+
+    const reportDialog = reporting ? (
         <ReportPostDialog
             authorName={reporting.authorName}
             onClose={() => setReporting(null)}
@@ -109,5 +133,17 @@ export function usePostActions({
         />
     ) : null;
 
-    return { toggleSave, copyLink, report: setReporting, block, dialog };
+    return {
+        toggleSave,
+        copyLink,
+        report: setReporting,
+        block,
+        editSettings: setEditing,
+        dialog: (
+            <>
+                {reportDialog}
+                {settingsDialog}
+            </>
+        ),
+    };
 }

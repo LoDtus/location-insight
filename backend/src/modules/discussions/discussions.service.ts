@@ -13,12 +13,13 @@ import { UserRole } from '../rbac/authorization.types.js';
 import { Principal } from '../rbac/authorization.types.js';
 import { AdminAuditLogEntity } from '../rbac/entities/admin-audit-log.entity.js';
 import { MESSAGING_KEYS } from '../messaging/messaging.constants.js';
-import { plainText, sniffMedia } from './discussion-text.js';
+import { plainText, sniffMedia, stripMarkup } from './discussion-text.js';
 import {
   CreateMediaDto,
   CreatePostDto,
   CreateReplyDto,
   CreateTopicDto,
+  PostSettingsDto,
   ReportPostDto,
   ResolveReportDto,
 } from './dto/discussion.dto.js';
@@ -32,6 +33,7 @@ import {
 import {
   DiscussionPostEntity,
   PostStatus,
+  PostVisibility,
 } from './entities/discussion-post.entity.js';
 import {
   DiscussionTopicEntity,
@@ -39,6 +41,17 @@ import {
 } from './entities/discussion-topic.entity.js';
 
 const PAGE = 20;
+/** Độ dài tối đa của nội dung (gồm markup), khớp cột varchar(2000). */
+const BODY_MAX = 2000;
+/** Tối đa ảnh + video trong một bài (trộn được). */
+const MEDIA_MAX = 10;
+/** Bài không chọn chủ đề vào đây (tự tạo lần đầu). */
+const DEFAULT_TOPIC = { slug: 'thao-luan-chung', name: 'Thảo luận chung', summary: 'Bài không thuộc chủ đề riêng.' };
+/** Hẹn giờ đăng: sớm nhất 2 phút, muộn nhất 30 ngày. */
+const SCHEDULE_MIN_MS = 2 * 60 * 1000;
+const SCHEDULE_MAX_MS = 30 * 24 * 60 * 60 * 1000;
+/** Một người xem tính một lượt xem cho mỗi bài trong 24 giờ. */
+const VIEW_DEDUPE_SECONDS = 24 * 60 * 60;
 const FEED_PAGE = 6;
 const IMAGE_MAX = 8 * 1024 * 1024;
 const VIDEO_MAX = 50 * 1024 * 1024;
@@ -51,6 +64,15 @@ const LIMITS = {
   bookmark: { window: 60, max: 60 },
   report: { window: 60 * 60, max: 20 },
 } as const;
+
+/**
+ * Người xem thấy được bài gốc theo `visibility`: tác giả luôn thấy; public cho mọi người; followers cho người đang
+ * theo dõi tác giả; friends cho người theo dõi lẫn nhau; private chỉ tác giả. Cần tham số `:viewerId`.
+ */
+const CAN_SEE = (alias: string): string => `(${alias}.author_id = :viewerId OR ${alias}.visibility = 'public'
+  OR (${alias}.visibility = 'followers' AND EXISTS (SELECT 1 FROM user_follows vf WHERE vf.follower_id = :viewerId AND vf.followee_id = ${alias}.author_id))
+  OR (${alias}.visibility = 'friends' AND EXISTS (SELECT 1 FROM user_follows vf1 WHERE vf1.follower_id = :viewerId AND vf1.followee_id = ${alias}.author_id)
+      AND EXISTS (SELECT 1 FROM user_follows vf2 WHERE vf2.follower_id = ${alias}.author_id AND vf2.followee_id = :viewerId)))`;
 
 /**
  * Ẩn bài của người mình đã chặn và của người đã chặn mình (dùng chung bảng user_blocks với nhắn tin).
@@ -93,10 +115,20 @@ export interface PostView {
   kind: DiscussionPostEntity['kind'];
   body: string;
   replyCount: number;
-  likeCount: number;
   likedByMe: boolean;
   /** Người xem đã lưu bài này. */
   savedByMe: boolean;
+  /** null khi tác giả ẩn số lượt thích (người xem không phải tác giả). */
+  likeCount: number | null;
+  /** null khi tác giả ẩn số lượt xem (người xem không phải tác giả). */
+  viewCount: number | null;
+  visibility: PostVisibility;
+  repliesAllowed: boolean;
+  hideLikeCount: boolean;
+  hideViewCount: boolean;
+  allowShare: boolean;
+  /** Giờ hẹn đăng (chỉ tác giả thấy, khi bài còn chờ). */
+  scheduledFor: Date | null;
   /**
    * Tác giả đang trực tuyến. Chỉ true khi cả người xem lẫn tác giả đều bật "hiện trạng thái hoạt động" (như nhắn
    * tin); một bên tắt thì luôn false.
@@ -190,14 +222,9 @@ export class DiscussionsService {
   async createPost(userId: string, input: CreatePostDto): Promise<PostView> {
     await this.consume(userId, 'post');
     const body = this.requireBody(input.body);
+    const publishAt = this.schedule(input.publishAt);
     const saved = await this.dataSource.transaction(async (manager) => {
-      const topic = await manager.findOne(DiscussionTopicEntity, {
-        where: { slug: input.topicSlug },
-        lock: { mode: 'pessimistic_write' },
-      });
-      if (!topic || topic.status !== 'open') {
-        this.invalid('Chủ đề không còn nhận bài mới.');
-      }
+      const topic = await this.topicForPost(manager, userId, input.topicSlug);
       const files = await this.takeMedia(manager, userId, input.mediaIds);
       const post = await manager.save(
         manager.create(DiscussionPostEntity, {
@@ -207,9 +234,16 @@ export class DiscussionsService {
           parentId: null,
           kind: input.kind,
           body,
-          status: 'visible',
+          status: publishAt ? 'scheduled' : 'visible',
+          publishAt,
           replyCount: 0,
           likeCount: 0,
+          viewCount: 0,
+          visibility: input.visibility ?? 'public',
+          repliesAllowed: input.repliesAllowed ?? true,
+          hideLikeCount: input.hideLikeCount ?? false,
+          hideViewCount: input.hideViewCount ?? false,
+          allowShare: input.allowShare ?? true,
         }),
       );
       await this.attach(manager, post.id, files);
@@ -219,9 +253,58 @@ export class DiscussionsService {
     return view;
   }
 
+  /** Sửa cài đặt bài gốc của chính mình (ai xem, trả lời, ẩn lượt thích/xem, chia sẻ). */
+  async updateSettings(userId: string, id: string, input: PostSettingsDto): Promise<PostView> {
+    const post = await this.posts.findOne({ where: { id, authorId: userId, rootId: IsNull() } });
+    if (!post || (post.status !== 'visible' && post.status !== 'scheduled')) this.missing('Không tìm thấy bài của bạn.');
+    if (input.visibility !== undefined) post.visibility = input.visibility;
+    if (input.repliesAllowed !== undefined) post.repliesAllowed = input.repliesAllowed;
+    if (input.hideLikeCount !== undefined) post.hideLikeCount = input.hideLikeCount;
+    if (input.hideViewCount !== undefined) post.hideViewCount = input.hideViewCount;
+    if (input.allowShare !== undefined) post.allowShare = input.allowShare;
+    const [view] = await this.present([await this.posts.save(post)], userId);
+    return view;
+  }
+
+  /** Bài đã hẹn giờ của chính mình, sắp đăng trước. */
+  async listScheduled(userId: string) {
+    const rows = await this.posts.find({
+      where: { authorId: userId, status: 'scheduled', rootId: IsNull() },
+      order: { publishAt: 'ASC' },
+      take: 50,
+    });
+    return { items: await this.present(rows, userId), nextCursor: null };
+  }
+
+  /** Đăng các bài đã tới giờ hẹn; thời gian đăng = giờ hẹn để xếp đúng chỗ trong feed. */
+  async publishDue(): Promise<number> {
+    const result: [unknown[], number] | unknown[] = await this.dataSource.query(
+      `UPDATE discussion_posts SET status = 'visible', created_at = publish_at, updated_at = now()
+       WHERE status = 'scheduled' AND publish_at <= now()`,
+    );
+    return Array.isArray(result) && typeof result[1] === 'number' ? result[1] : 0;
+  }
+
+  /** Tính một lượt xem (mỗi người một lần trong 24 giờ, không tính tác giả). */
+  async recordView(viewerId: string, id: string): Promise<{ counted: boolean }> {
+    const post = await this.posts.findOne({ where: { id, status: 'visible', rootId: IsNull() } });
+    if (!post || !(await this.canSee(viewerId, post))) this.missing('Không tìm thấy bài.');
+    if (post.authorId === viewerId) return { counted: false };
+    try {
+      const fresh = await this.redis
+        .getClient()
+        .set(`discussion:view:${id}:${viewerId}`, '1', 'EX', VIEW_DEDUPE_SECONDS, 'NX');
+      if (fresh !== 'OK') return { counted: false };
+    } catch {
+      return { counted: false };
+    }
+    await this.posts.increment({ id }, 'viewCount', 1);
+    return { counted: true };
+  }
+
   async getThread(id: string, viewerId: string, cursor?: string) {
     const root = await this.posts.findOne({ where: { id, rootId: IsNull(), status: 'visible' } });
-    if (!root) this.missing('Không tìm thấy bài.');
+    if (!root || !(await this.canSee(viewerId, root))) this.missing('Không tìm thấy bài.');
     const qb = this.posts
       .createQueryBuilder('post')
       .where('post.rootId = :rootId', { rootId: root.id })
@@ -260,7 +343,8 @@ export class DiscussionsService {
         where: { id: rootId, rootId: IsNull() },
         lock: { mode: 'pessimistic_write' },
       });
-      if (!root || root.status !== 'visible') this.missing('Không tìm thấy bài.');
+      if (!root || root.status !== 'visible' || !(await this.canSee(userId, root))) this.missing('Không tìm thấy bài.');
+      if (!root.repliesAllowed && root.authorId !== userId) this.invalid('Tác giả đã tắt trả lời cho bài này.');
       const topic = await manager.findOne(DiscussionTopicEntity, {
         where: { id: root.topicId },
       });
@@ -286,6 +370,8 @@ export class DiscussionsService {
           status: 'visible',
           replyCount: 0,
           likeCount: 0,
+          viewCount: 0,
+          visibility: 'public',
         }),
       );
       root.replyCount += 1;
@@ -306,7 +392,7 @@ export class DiscussionsService {
           userId: root.authorId,
           type: 'discussion.reply',
           link: `${rootPath}/feed/${root.id}`,
-          params: { actorName: actor?.displayName ?? 'Một người dùng', preview: saved.body.slice(0, 80) },
+          params: { actorName: actor?.displayName ?? 'Một người dùng', preview: stripMarkup(saved.body).slice(0, 80) },
           actorId: userId,
           collapseKey: `discussion.reply:${root.id}`,
         });
@@ -351,7 +437,7 @@ export class DiscussionsService {
     await this.consume(userId, 'bookmark');
     if (on) {
       const post = await this.posts.findOne({ where: { id, status: 'visible' } });
-      if (!post) this.missing('Không tìm thấy bài.');
+      if (!post || !(await this.canSee(userId, post))) this.missing('Không tìm thấy bài.');
       await this.bookmarks
         .createQueryBuilder()
         .insert()
@@ -372,6 +458,7 @@ export class DiscussionsService {
       .where('b.userId = :viewerId', { viewerId })
       .andWhere('post.status = :status', { status: 'visible' })
       .andWhere(NOT_BLOCKED('post'), { viewerId })
+      .andWhere(CAN_SEE('post'), { viewerId })
       .orderBy('b.createdAt', 'DESC')
       .addOrderBy('b.postId', 'DESC')
       // limit (không phải take): có join nên take sẽ dựng truy vấn phân trang hai bước không cần thiết.
@@ -396,7 +483,7 @@ export class DiscussionsService {
   async report(userId: string, id: string, input: ReportPostDto): Promise<{ reported: true }> {
     await this.consume(userId, 'report');
     const post = await this.posts.findOne({ where: { id, status: 'visible' } });
-    if (!post) this.missing('Không tìm thấy bài.');
+    if (!post || !(await this.canSee(userId, post))) this.missing('Không tìm thấy bài.');
     if (post.authorId === userId) this.invalid('Không thể báo cáo bài của chính mình.');
     const note = plainText(input.note ?? '').slice(0, 500);
     await this.reports
@@ -467,6 +554,50 @@ export class DiscussionsService {
       await this.audit(actor, 'discussion_report_dismiss', row.postId, input.reason, ip, { reportId });
     }
     return { id: reportId, status: input.status };
+  }
+
+  /** Người xem có được thấy bài gốc này không (cùng quy tắc CAN_SEE). Trả lời theo quyền của bài gốc. */
+  private async canSee(viewerId: string, post: DiscussionPostEntity): Promise<boolean> {
+    if (post.authorId === viewerId || post.visibility === 'public') return true;
+    if (post.visibility === 'private') return false;
+    const rows: Array<{ follows: boolean; followed: boolean }> = await this.dataSource.query(
+      `SELECT EXISTS (SELECT 1 FROM user_follows WHERE follower_id = $1 AND followee_id = $2) AS follows,
+              EXISTS (SELECT 1 FROM user_follows WHERE follower_id = $2 AND followee_id = $1) AS followed`,
+      [viewerId, post.authorId],
+    );
+    const relation = rows[0];
+    if (!relation?.follows) return false;
+    return post.visibility === 'followers' || Boolean(relation.followed);
+  }
+
+  /** Chủ đề cho bài mới: theo slug (phải đang mở), không có thì chủ đề mặc định (tự tạo lần đầu). */
+  private async topicForPost(manager: DataSource['manager'], userId: string, slug: string | undefined): Promise<DiscussionTopicEntity> {
+    if (slug) {
+      const topic = await manager.findOne(DiscussionTopicEntity, { where: { slug }, lock: { mode: 'pessimistic_write' } });
+      if (!topic || topic.status !== 'open') this.invalid('Chủ đề không còn nhận bài mới.');
+      return topic;
+    }
+    await manager
+      .createQueryBuilder()
+      .insert()
+      .into(DiscussionTopicEntity)
+      .values({ id: uuidv7(), slug: DEFAULT_TOPIC.slug, name: DEFAULT_TOPIC.name, summary: DEFAULT_TOPIC.summary, authorId: userId, status: 'open' })
+      .orIgnore()
+      .execute();
+    const topic = await manager.findOne(DiscussionTopicEntity, { where: { slug: DEFAULT_TOPIC.slug } });
+    if (!topic || topic.status !== 'open') this.invalid('Hãy chọn một chủ đề.');
+    return topic;
+  }
+
+  /** Giờ hẹn hợp lệ hoặc null (đăng ngay). */
+  private schedule(value: string | undefined): Date | null {
+    if (!value) return null;
+    const at = new Date(value);
+    const delta = at.getTime() - Date.now();
+    if (!Number.isFinite(at.getTime()) || delta < SCHEDULE_MIN_MS || delta > SCHEDULE_MAX_MS) {
+      this.invalid('Giờ hẹn đăng phải từ 2 phút tới 30 ngày kể từ bây giờ.');
+    }
+    return at;
   }
 
   /** Làm mới chấm trực tuyến cho các tác giả đang hiện trên màn hình (tối đa 50), cùng quy tắc riêng tư. */
@@ -656,6 +787,7 @@ export class DiscussionsService {
       .where('post.rootId IS NULL')
       .andWhere('post.status = :status', { status: 'visible' })
       .andWhere(NOT_BLOCKED('post'), { viewerId })
+      .andWhere(CAN_SEE('post'), { viewerId })
       .take(FEED_PAGE + 1);
     if (sort === 'oldest') {
       qb.orderBy('post.createdAt', 'ASC').addOrderBy('post.id', 'ASC');
@@ -754,7 +886,14 @@ export class DiscussionsService {
           kind: post.kind,
           body: post.body,
           replyCount: post.replyCount,
-          likeCount: post.likeCount,
+          likeCount: post.hideLikeCount && post.authorId !== viewerId ? null : post.likeCount,
+          viewCount: post.hideViewCount && post.authorId !== viewerId ? null : post.viewCount,
+          visibility: post.visibility,
+          repliesAllowed: post.repliesAllowed,
+          hideLikeCount: post.hideLikeCount,
+          hideViewCount: post.hideViewCount,
+          allowShare: post.allowShare,
+          scheduledFor: post.status === 'scheduled' && post.authorId === viewerId ? post.publishAt : null,
           likedByMe: liked.some((row) => row.postId === post.id),
           savedByMe: kept.some((row) => row.postId === post.id),
           authorOnline: online.has(post.authorId),
@@ -777,11 +916,7 @@ export class DiscussionsService {
     if (rows.length !== new Set(ids).size) {
       this.invalid('Có tệp chưa sẵn sàng hoặc không phải của bạn.');
     }
-    const videos = rows.filter((row) => row.kind === 'video').length;
-    const images = rows.filter((row) => row.kind === 'image').length;
-    if (videos > 1 || (videos > 0 && images > 0)) {
-      this.invalid('Một bài chỉ có 4 ảnh hoặc một video.');
-    }
+    if (rows.length > MEDIA_MAX) this.invalid(`Một bài có tối đa ${MEDIA_MAX} ảnh và video.`);
     const order = new Map(ids.map((id, index) => [id, index]));
     return rows.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
   }
@@ -804,7 +939,7 @@ export class DiscussionsService {
         where: { id, status: 'visible' },
         lock: { mode: 'pessimistic_write' },
       });
-      if (!post) this.missing('Không tìm thấy bài.');
+      if (!post || !(await this.canSee(userId, post))) this.missing('Không tìm thấy bài.');
       const existing = await manager.findOne(DiscussionLikeEntity, {
         where: { postId: id, userId },
       });
@@ -825,7 +960,7 @@ export class DiscussionsService {
   private requireBody(value: string): string {
     const body = plainText(value);
     if (!body) this.invalid('Nội dung không được để trống.');
-    if (body.length > 2000) this.invalid('Nội dung dài hơn 2000 ký tự.');
+    if (body.length > BODY_MAX) this.invalid(`Nội dung dài hơn ${BODY_MAX} ký tự.`);
     return body;
   }
 

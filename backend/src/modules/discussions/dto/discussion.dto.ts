@@ -5,6 +5,7 @@ import {
   IsBoolean,
   IsIn,
   IsInt,
+  IsISO8601,
   IsOptional,
   IsString,
   IsUUID,
@@ -14,6 +15,7 @@ import {
   MinLength,
 } from 'class-validator';
 
+import { POST_VISIBILITIES } from '../entities/discussion-post.entity.js';
 import { DISCUSSION_REPORT_REASONS, DISCUSSION_REPORT_STATUSES } from '../entities/discussion-report.entity.js';
 
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -61,11 +63,36 @@ export class CreateTopicDto {
   summary?: string;
 }
 
-export class CreatePostDto {
+/** Tùy chọn của bài gốc (dùng khi đăng và khi sửa cài đặt sau). */
+export class PostSettingsDto {
+  @IsOptional()
+  @IsIn(POST_VISIBILITIES)
+  visibility?: (typeof POST_VISIBILITIES)[number];
+
+  @IsOptional()
+  @IsBoolean()
+  repliesAllowed?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  hideLikeCount?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  hideViewCount?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  allowShare?: boolean;
+}
+
+export class CreatePostDto extends PostSettingsDto {
+  /** Không gửi thì vào chủ đề mặc định "Thảo luận chung". */
+  @IsOptional()
   @IsString()
   @MinLength(3)
   @MaxLength(80)
-  topicSlug: string;
+  topicSlug?: string;
 
   @IsIn(['question', 'note'])
   kind: 'question' | 'note';
@@ -77,9 +104,14 @@ export class CreatePostDto {
 
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(4)
+  @ArrayMaxSize(10)
   @IsUUID('all', { each: true })
   mediaIds?: string[];
+
+  /** Hẹn giờ đăng (ISO 8601), từ 2 phút tới 30 ngày sau. */
+  @IsOptional()
+  @IsISO8601({ strict: true })
+  publishAt?: string;
 }
 
 export class CreateReplyDto {
@@ -94,7 +126,7 @@ export class CreateReplyDto {
 
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(4)
+  @ArrayMaxSize(10)
   @IsUUID('all', { each: true })
   mediaIds?: string[];
 }

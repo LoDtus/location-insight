@@ -72,6 +72,7 @@ export function ProfilePosts({
         root,
         onSaved: (postId, value) => setPosts((current) => current.map((item) => (item.id === postId ? { ...item, savedByMe: value } : item))),
         onBlocked: (authorId) => setPosts((current) => current.filter((item) => item.authorId !== authorId)),
+        onUpdated: (updated) => setPosts((current) => current.map((item) => (item.id === updated.id ? updated : item))),
     });
 
     return (
@@ -130,6 +131,7 @@ export function ProfilePosts({
                             onReport={() => actions.report(post)}
                             onBlock={() => actions.block(post)}
                             onCopyLink={() => actions.copyLink(post)}
+                            onSettings={() => actions.editSettings(post)}
                             onDelete={() => {
                                 void getConfirmModal({
                                     title: "Xóa bài",

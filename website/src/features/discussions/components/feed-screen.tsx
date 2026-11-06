@@ -8,23 +8,25 @@ import { AuthApiError } from "@/features/auth/auth.api";
 import { useAuth } from "@/features/auth/use-auth";
 import {
     createPost,
-    createTopic,
     deletePost,
     likePost,
     listBookmarks,
     listPosts,
+    listScheduled,
     listTopics,
-    slugifyTopic,
     topicFeed,
     unlikePost,
-    uploadDiscussionFile,
     type DiscussionPost,
     type DiscussionTopic,
 } from "@/features/discussions/discussions.api";
 import { PostCard } from "@/features/discussions/components/post-card";
 import { useAuthorPresence } from "@/features/discussions/components/use-author-presence";
 import { usePostActions } from "@/features/discussions/components/use-post-actions";
-import { PostComposer } from "@/features/discussions/components/post-composer";
+import { PostComposer, type ComposerDraft } from "@/features/discussions/components/post-composer";
+import { fullTime } from "@/features/discussions/components/post-card";
+import { quoteBlock, stripMarkup } from "@/features/discussions/post-markup";
+import { DraftError, publishDraft } from "@/features/discussions/publish-draft";
+import { showToast } from "@/shared/components/toast/toast-store";
 import { ALL_FEED, readFeedView, writeFeedView, type FeedView } from "@/features/discussions/feed-params";
 import { SharePostDialog } from "@/features/messaging/components/share-post-dialog";
 import { getConfirmModal } from "@/shared/utils/confirm.utils";
@@ -40,14 +42,9 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
     const [cursor, setCursor] = useState<string | null>(null);
     const [filter, setFilter] = useState("");
     const [scope, setScope] = useState<FeedView["scope"]>("all");
-    const [topicSlug, setTopicSlug] = useState("");
-    const [newTopic, setNewTopic] = useState("");
-    const [body, setBody] = useState("");
-    const [files, setFiles] = useState<File[]>([]);
     const [quote, setQuote] = useState<DiscussionPost | null>(null);
     const [message, setMessage] = useState("");
     const [sharing, setSharing] = useState<DiscussionPost | null>(null);
-    const [pending, setPending] = useState(false);
     const [loading, setLoading] = useState(true);
 
     const loadFirst = useCallback(async (nextFilter: string, nextScope: FeedView["scope"] = "all"): Promise<void> => {
@@ -57,6 +54,8 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
                 ? listPosts(undefined, "following")
                 : nextScope === "saved"
                   ? listBookmarks()
+                  : nextScope === "scheduled"
+                    ? listScheduled()
                   : nextFilter
                     ? topicFeed(nextFilter)
                     : listPosts(),
@@ -64,7 +63,6 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
         setTopics(topicPage.items.filter((topic) => topic.status === "open"));
         setPosts(postPage.items);
         setCursor(postPage.nextCursor);
-        setTopicSlug((current) => current || topicPage.items.find((topic) => topic.status === "open")?.slug || "");
     }, []);
 
     useEffect(() => {
@@ -95,6 +93,8 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
                     ? await listPosts(cursor, "following")
                     : scope === "saved"
                       ? await listBookmarks(cursor)
+                      : scope === "scheduled"
+                        ? { items: [], nextCursor: null }
                       : filter
                       ? await topicFeed(filter, cursor)
                       : await listPosts(cursor);
@@ -135,48 +135,31 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
         });
     }
 
-    async function publish(): Promise<void> {
-        const images = files.filter((file) => file.type.startsWith("image/"));
-        const videos = files.filter((file) => file.type === "video/mp4");
-        if (videos.length > 1 || (videos.length > 0 && images.length > 0) || images.length > 4) {
-            setMessage("Một bài chỉ có 4 ảnh hoặc một video.");
-            return;
-        }
-        setPending(true);
+    /**
+     * Đăng bài từ ô soạn: chủ đề gõ trùng tên (không phân biệt dấu) thì dùng chủ đề có sẵn, không thì tạo mới; để
+     * trống thì vào "Thảo luận chung". Bài hẹn giờ không vào feed ngay mà nằm ở mục "Đã lên lịch".
+     */
+    async function publish(draft: ComposerDraft): Promise<boolean> {
         setMessage("");
         try {
-            let slug = topicSlug;
-            const named = newTopic.trim();
-            if (named) {
-                const nextSlug = slugifyTopic(named);
-                if (nextSlug.length < 3) {
-                    setMessage("Tên chủ đề cần ra được slug ít nhất 3 ký tự.");
-                    return;
-                }
-                const topic = await createTopic({ name: named, slug: nextSlug });
-                slug = topic.slug;
-                setTopics((current) => [topic, ...current]);
-                setTopicSlug(topic.slug);
-                setNewTopic("");
-            }
-            if (!slug) {
-                setMessage("Hãy chọn hoặc tạo một chủ đề.");
-                return;
-            }
-            const text = quote
-                ? `${body.trim()}\n\nTrích ${quote.authorName}: ${quote.body}`.trim()
-                : body.trim();
-            const mediaIds: string[] = [];
-            for (const file of files) mediaIds.push(await uploadDiscussionFile(file));
-            const post = await createPost({ topicSlug: slug, kind: "note", body: text, mediaIds });
-            setBody("");
-            setFiles([]);
+            const { post, createdTopic } = await publishDraft(draft, topics, quote ? quoteBlock(quote) : "");
+            if (createdTopic) setTopics((current) => [createdTopic, ...current]);
             setQuote(null);
-            if (!filter || filter === slug) setPosts((current) => [post, ...current]);
+            if (post.scheduledFor) {
+                showToast({
+                    title: "Đã lên lịch đăng bài",
+                    description: `Bài sẽ đăng lúc ${fullTime(post.scheduledFor)}. Xem hoặc hủy ở mục “Đã lên lịch”.`,
+                });
+                if (scope === "scheduled") setPosts((current) => [...current, post]);
+            } else {
+                showToast({ title: "Đã đăng bài", description: post.topicName ? `Trong chủ đề ${post.topicName}.` : undefined });
+                if (scope !== "saved" && scope !== "scheduled" && (!filter || filter === post.topicSlug)) setPosts((current) => [post, ...current]);
+            }
+            return true;
         } catch (error) {
-            setMessage(error instanceof AuthApiError ? error.message : "Chưa đăng được bài.");
-        } finally {
-            setPending(false);
+            const text = error instanceof AuthApiError || error instanceof DraftError ? error.message : "Vui lòng thử lại.";
+            showToast({ title: "Chưa đăng được bài", description: text, tone: "error" });
+            return false;
         }
     }
 
@@ -193,7 +176,7 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
         const created = await createPost({
             topicSlug: post.topicSlug,
             kind: "note",
-            body: `Đăng lại từ @${post.authorUsername ?? post.authorName}:\n${post.body}`,
+            body: `Đăng lại từ @${post.authorUsername ?? post.authorName}\n\n${quoteBlock(post)}`,
         });
         if (!filter || filter === post.topicSlug) setPosts((current) => [created, ...current]);
         setMessage("Đã đăng lại.");
@@ -210,6 +193,7 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
                     : current.map((item) => (item.id === postId ? { ...item, savedByMe: value } : item)),
             ),
         onBlocked: (authorId) => setPosts((current) => current.filter((item) => item.authorId !== authorId)),
+        onUpdated: (updated) => setPosts((current) => current.map((item) => (item.id === updated.id ? updated : item))),
     });
 
     return (
@@ -230,6 +214,7 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
                         onClick={() => choose({ scope: "following", topic: "" })}
                     />
                     <TopicTab label="Đã lưu" current={scope === "saved"} onClick={() => choose({ scope: "saved", topic: "" })} />
+                    <TopicTab label="Đã lên lịch" current={scope === "scheduled"} onClick={() => choose({ scope: "scheduled", topic: "" })} />
                     {topics.map((topic) => (
                         <TopicTab
                             key={topic.id}
@@ -240,22 +225,16 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
                     ))}
                 </div>
                 <PostComposer
+                    key={filter}
                     displayName={auth.user?.displayName ?? "Bạn"}
                     avatarUrl={auth.user?.avatarUrl}
                     placeholder="Có gì mới?"
-                    body={body}
-                    onBody={setBody}
                     topics={topics}
-                    topicSlug={topicSlug}
-                    onTopic={setTopicSlug}
-                    newTopic={newTopic}
-                    onNewTopic={setNewTopic}
-                    files={files}
-                    onFiles={setFiles}
-                    pending={pending}
-                    quote={quote ? { author: quote.authorName, body: quote.body } : null}
+                    initialTopic={topics.find((topic) => topic.slug === filter)?.name ?? ""}
+                    draftKey={auth.user ? `discussion-draft:${auth.user.userId}` : undefined}
+                    quote={quote ? { author: quote.authorName, body: stripMarkup(quote.body) } : null}
                     onClearQuote={() => setQuote(null)}
-                    onSubmit={() => void publish()}
+                    onSubmit={publish}
                 />
                 {message ? (
                     <p role="status" className="m-0 border-t border-charcoal/10 px-4 py-3 text-sm">
@@ -269,6 +248,8 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
                             ? "Hãy theo dõi vài người để thấy bài của họ ở đây."
                             : scope === "saved"
                               ? "Chưa lưu bài nào. Bấm biểu tượng dấu trang ở một bài để đọc lại sau."
+                              : scope === "scheduled"
+                                ? "Chưa có bài hẹn giờ. Mở “Tùy chọn bài” ở ô soạn để lên lịch đăng."
                               : "Chưa có bài trong mục này. Hãy viết điều bạn đang thắc mắc."}
                     </p>
                 ) : null}
@@ -298,6 +279,7 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
                                 onReport={() => actions.report(post)}
                                 onBlock={() => actions.block(post)}
                                 onCopyLink={() => actions.copyLink(post)}
+                                onSettings={() => actions.editSettings(post)}
                                 onDelete={() => {
                                     void getConfirmModal({
                                         title: "Xóa bài",

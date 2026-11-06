@@ -31,7 +31,17 @@ export interface DiscussionPost {
     kind: "question" | "note" | "reply";
     body: string;
     replyCount: number;
-    likeCount: number;
+    /** null khi tác giả ẩn lượt thích (bạn không phải tác giả). */
+    likeCount: number | null;
+    /** null khi tác giả ẩn lượt xem. */
+    viewCount: number | null;
+    visibility: PostVisibility;
+    repliesAllowed: boolean;
+    hideLikeCount: boolean;
+    hideViewCount: boolean;
+    allowShare: boolean;
+    /** Giờ hẹn đăng (chỉ tác giả thấy, khi bài còn chờ). */
+    scheduledFor: string | null;
     likedByMe: boolean;
     /** Người xem đã lưu bài này (lưu ở server, đồng bộ mọi thiết bị). */
     savedByMe: boolean;
@@ -92,12 +102,40 @@ export function topicFeed(
     return apiRequest(`/discussions/topics/${encodeURIComponent(slug)}${query}`);
 }
 
+export const POST_VISIBILITIES = [
+    { id: "public", label: "Mọi người", hint: "Ai đăng nhập cũng thấy" },
+    { id: "followers", label: "Người theo dõi tôi", hint: "Chỉ người đang theo dõi bạn" },
+    { id: "friends", label: "Bạn bè", hint: "Người bạn theo dõi và theo dõi lại bạn" },
+    { id: "private", label: "Chỉ mình tôi", hint: "Không ai khác thấy" },
+] as const;
+export type PostVisibility = (typeof POST_VISIBILITIES)[number]["id"];
+
+/** Tùy chọn bài: ai xem, trả lời, ẩn lượt thích/xem, chia sẻ. */
+export interface PostSettings {
+    visibility: PostVisibility;
+    repliesAllowed: boolean;
+    hideLikeCount: boolean;
+    hideViewCount: boolean;
+    allowShare: boolean;
+}
+
+export const DEFAULT_POST_SETTINGS: PostSettings = {
+    visibility: "public",
+    repliesAllowed: true,
+    hideLikeCount: false,
+    hideViewCount: false,
+    allowShare: true,
+};
+
 export function createPost(input: {
-    topicSlug: string;
+    /** Không gửi thì vào "Thảo luận chung". */
+    topicSlug?: string;
     kind: "question" | "note";
     body: string;
     mediaIds?: string[];
-}): Promise<DiscussionPost> {
+    /** ISO, từ 2 phút tới 30 ngày sau. */
+    publishAt?: string;
+} & Partial<PostSettings>): Promise<DiscussionPost> {
     return apiRequest("/discussions/posts", {
         method: "POST",
         body: JSON.stringify(input),
@@ -120,6 +158,20 @@ export function replyToPost(
         method: "POST",
         body: JSON.stringify(input),
     });
+}
+
+export function updatePostSettings(id: string, settings: Partial<PostSettings>): Promise<DiscussionPost> {
+    return apiRequest(`/discussions/posts/${id}/settings`, { method: "PATCH", body: JSON.stringify(settings) });
+}
+
+/** Bài hẹn giờ của chính mình (hủy = xóa bài). */
+export function listScheduled(): Promise<DiscussionPage<DiscussionPost>> {
+    return apiRequest("/discussions/scheduled");
+}
+
+/** Ghi một lượt xem (mỗi người một lần mỗi 24 giờ; lỗi thì bỏ qua). */
+export function recordView(id: string): Promise<{ counted: boolean }> {
+    return apiRequest(`/discussions/posts/${id}/view`, { method: "POST" });
 }
 
 export function deletePost(id: string): Promise<void> {

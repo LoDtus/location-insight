@@ -8,6 +8,7 @@ import {
   HttpStatus,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Put,
   Query,
@@ -23,6 +24,7 @@ import {
   CreateReplyDto,
   CreateTopicDto,
   CursorQueryDto,
+  PostSettingsDto,
   PresenceQueryDto,
   ReportPostDto,
 } from './dto/discussion.dto.js';
@@ -145,6 +147,33 @@ export class DiscussionsController {
   @Delete('posts/:id/bookmark')
   unbookmark(@Param('id', ParseUUIDPipe) id: string, @Req() request: RequestWithPrincipal) {
     return this.discussions.setBookmark(this.userId(request), id, false);
+  }
+
+  /** Sửa cài đặt bài gốc của chính mình. */
+  @RequirePermission('discussion:write')
+  @Patch('posts/:id/settings')
+  settings(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: PostSettingsDto,
+    @Req() request: RequestWithPrincipal,
+  ) {
+    return this.discussions.updateSettings(this.userId(request), id, body);
+  }
+
+  /** Bài hẹn giờ của chính mình (hủy = xóa bài). */
+  @RequirePermission('discussion:write')
+  @Header('Cache-Control', 'private, no-store')
+  @Get('scheduled')
+  scheduled(@Req() request: RequestWithPrincipal) {
+    return this.discussions.listScheduled(this.userId(request));
+  }
+
+  /** Ghi một lượt xem khi mở bài (mỗi người một lần mỗi 24 giờ). */
+  @RequirePermission('discussion:read')
+  @Post('posts/:id/view')
+  @HttpCode(HttpStatus.OK)
+  view(@Param('id', ParseUUIDPipe) id: string, @Req() request: RequestWithPrincipal) {
+    return this.discussions.recordView(this.userId(request), id);
   }
 
   /** Làm mới chấm trực tuyến của các tác giả đang hiện (feed gọi định kỳ khi tab đang mở). */

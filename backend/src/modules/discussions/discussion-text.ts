@@ -1,7 +1,33 @@
 const TAG = /<[^>]*>/g;
 
+/**
+ * Bỏ thẻ HTML và ký tự `<`. Giữ `>` chỉ khi là dấu trích dẫn đầu dòng (`> `) của markup nhẹ; `>` ở chỗ khác bị bỏ.
+ * Nội dung luôn hiển thị qua React (đã thoát ký tự), đây là lớp phòng thủ thêm.
+ */
 export function plainText(value: string): string {
-  return value.replace(TAG, '').replace(/[<>]/g, '').trim();
+  return value
+    .replace(/\r\n?/g, '\n')
+    .replace(TAG, '')
+    .replace(/</g, '')
+    .split('\n')
+    .map((line) => {
+      const quote = /^\s*> /.test(line);
+      const rest = (quote ? line.replace(/^\s*> /, '') : line).replace(/>/g, '');
+      return quote ? `> ${rest}` : rest;
+    })
+    .join('\n')
+    .trim();
+}
+
+/** Bỏ markup nhẹ để làm bản xem trước (thông báo, chỉ mục tìm kiếm). */
+export function stripMarkup(value: string): string {
+  return value
+    .replace(/\[([^\]\n]+)\]\((?:https?:\/\/|\/)[^)\s]+\)/g, '$1')
+    .replace(/(\*\*|\+\+|~~)(.+?)\1/g, '$2')
+    .replace(/\*([^*\n]+)\*/g, '$1')
+    .replace(/^> /gm, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 export function sniffMedia(bytes: Buffer, declared: string): boolean {

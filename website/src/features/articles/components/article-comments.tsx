@@ -308,7 +308,7 @@ export default function ArticleComments(): JSX.Element {
     return (
         <section id="binh-luan" aria-labelledby="binh-luan-tieu-de" className="scroll-mt-20 border-t border-charcoal/15 pt-8 font-serif">
             <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 id="binh-luan-tieu-de" className="m-0 text-2xl font-semibold">
+                <h2 id="binh-luan-tieu-de" className="m-0 text-xl font-bold">
                     {vi ? "Bình luận" : "Comments"} <span className="text-charcoal/55">({stats.comments})</span>
                 </h2>
                 <div role="radiogroup" aria-label={vi ? "Sắp xếp bình luận" : "Sort comments"} className="flex gap-1 font-sans">

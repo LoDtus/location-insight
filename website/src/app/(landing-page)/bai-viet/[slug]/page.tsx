@@ -33,6 +33,24 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     };
 }
 
+/** Ngày đăng kiểu báo: "Thứ hai, 12/10/2026, 08:00 (GMT+7)" theo giờ Việt Nam. */
+function formatPublished(iso: string, locale: string): string {
+    const parts = new Intl.DateTimeFormat(locale === "en" ? "en-GB" : "vi-VN", {
+        weekday: "long",
+        day: "numeric",
+        month: "numeric",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+        timeZone: "Asia/Ho_Chi_Minh",
+    }).formatToParts(new Date(iso));
+    const part = (type: Intl.DateTimeFormatPartTypes): string => parts.find((item) => item.type === type)?.value ?? "";
+    const weekday = part("weekday");
+    const day = `${weekday.charAt(0).toLocaleUpperCase(locale)}${weekday.slice(1).toLocaleLowerCase(locale)}`;
+    return `${day}, ${part("day")}/${part("month")}/${part("year")}, ${part("hour")}:${part("minute")} (GMT+7)`;
+}
+
 /** JSON-LD an toàn khi nhúng vào thẻ script: `<` được thoát nên chuỗi không đóng được thẻ. */
 function jsonLd(value: unknown): string {
     return JSON.stringify(value).replace(/</g, "\\u003c");
@@ -46,6 +64,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
     const topics = Object.fromEntries(ARTICLE_TOPICS.map((topic) => [topic, getLocaleValue(messages, ["articles", "topics", topic])]));
     const baseText: ArticleViewText = {
         back: getLocaleValue(messages, ["articles", "title"]),
+        backTo: t("Trở lại danh sách bài", "Back to articles"),
         topic: "",
         toc: t("Trong bài này", "On this page"),
         related: t("Bài viết liên quan", "Related articles"),
@@ -71,14 +90,8 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
     }
 
     const related = await loadRelatedArticles(slug);
-    const published = article.publishedAt
-        ? new Intl.DateTimeFormat(locale === "en" ? "en-GB" : "vi-VN", {
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-              timeZone: "UTC",
-          }).format(new Date(article.publishedAt))
-        : "";
+    const published = article.publishedAt ? formatPublished(article.publishedAt, locale) : "";
+    const topic = topics[article.topic] ?? article.topic;
 
     return (
         <>
@@ -103,7 +116,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
                 related={related}
                 topics={topics}
                 locale={locale}
-                text={{ ...baseText, topic: topics[article.topic] ?? article.topic, published }}
+                text={{ ...baseText, topic, backTo: t(`Trở lại ${topic}`, `Back to ${topic}`), published }}
             />
         </>
     );

@@ -10,9 +10,9 @@ import {
     Link2,
     Loader2,
     MapPin,
+    MoreHorizontal,
     Quote,
     Smile,
-    SlidersHorizontal,
     Strikethrough,
     Underline,
     X,
@@ -357,6 +357,34 @@ export function PostComposer({
                             </div>
                         </>
                     ) : null}
+                    {mode === "post" ? (
+                        <div className="relative ml-auto flex shrink-0 items-center gap-1 self-start">
+                            {changedOptions ? (
+                                <span className="hidden max-w-48 items-center gap-1 truncate text-xs font-semibold text-green sm:inline-flex">
+                                    {publishAt ? <CalendarClock className="size-3.5 shrink-0" aria-hidden="true" /> : null}
+                                    {[visibilityLabel, publishAt ? `Hẹn ${formatSchedule(publishAt)}` : null].filter(Boolean).join(" · ")}
+                                </span>
+                            ) : null}
+                            <button
+                                type="button"
+                                aria-label="Tùy chọn bài"
+                                title="Tùy chọn bài: ai xem, trả lời, chia sẻ, ẩn lượt thích/xem, hẹn giờ"
+                                aria-haspopup="dialog"
+                                aria-expanded={popover === "options"}
+                                data-popover-toggle=""
+                                onClick={() => setPopover((current) => (current === "options" ? null : "options"))}
+                                className={`relative -mt-1.5 -mr-2 inline-flex size-8 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-green ${popover === "options" ? "bg-charcoal/[0.06] text-charcoal" : "text-charcoal/55 hover:bg-charcoal/[0.06] hover:text-charcoal"}`}
+                            >
+                                <MoreHorizontal className="size-5" aria-hidden="true" />
+                                {changedOptions ? <span className="absolute top-1 right-1 size-2 rounded-full bg-green ring-2 ring-white" aria-hidden="true" /> : null}
+                            </button>
+                            {popover === "options" ? (
+                                <Popover onClose={() => setPopover(null)} label="Tùy chọn bài" align="right" wide>
+                                    <PostOptionsForm settings={settings} onChange={setSettings} publishAt={publishAt} onPublishAt={setPublishAt} />
+                                </Popover>
+                            ) : null}
+                        </div>
+                    ) : null}
                 </div>
 
                 <label htmlFor={`${ids}-body`} className="sr-only">
@@ -413,8 +441,9 @@ export function PostComposer({
                     </ul>
                 ) : null}
 
-                {/* Thanh công cụ */}
-                <div className="relative mt-2 -ml-2 flex flex-wrap items-center gap-0.5" role="toolbar" aria-label="Định dạng và đính kèm">
+                {/* Một hàng: công cụ bên trái, số ký tự còn lại + nút Đăng/Trả lời bên phải. */}
+                <div className="mt-2 flex items-center gap-2">
+                <div className="relative -ml-2 flex min-w-0 flex-1 flex-wrap items-center gap-0.5" role="toolbar" aria-label="Định dạng và đính kèm">
                     <input
                         ref={fileRef}
                         type="file"
@@ -507,50 +536,27 @@ export function PostComposer({
                         </Popover>
                     ) : null}
                 </div>
-
-                {error ? (
-                    <p role="alert" className="m-0 mt-2 text-sm text-red-700">
-                        {error}
-                    </p>
-                ) : null}
-
-                <div className="relative mt-2 flex items-center gap-2">
-                    {mode === "post" ? (
-                        <button
-                            type="button"
-                            aria-expanded={popover === "options"}
-                            data-popover-toggle=""
-                            onClick={() => setPopover((current) => (current === "options" ? null : "options"))}
-                            className={`inline-flex min-h-9 min-w-0 items-center gap-1.5 rounded-full px-2.5 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-green ${changedOptions ? "bg-green/10 text-green" : "-ml-2.5 text-charcoal/60 hover:bg-charcoal/[0.06] hover:text-charcoal"}`}
-                        >
-                            {publishAt ? <CalendarClock className="size-4 shrink-0" aria-hidden="true" /> : <SlidersHorizontal className="size-4 shrink-0" aria-hidden="true" />}
-                            <span className="truncate">
-                                {changedOptions
-                                    ? [visibilityLabel, publishAt ? `Hẹn ${formatSchedule(publishAt)}` : null].filter(Boolean).join(" · ")
-                                    : "Tùy chọn bài"}
-                            </span>
-                        </button>
-                    ) : null}
-                    {popover === "options" && mode === "post" ? (
-                        <Popover onClose={() => setPopover(null)} label="Tùy chọn bài" wide>
-                            <PostOptionsForm settings={settings} onChange={setSettings} publishAt={publishAt} onPublishAt={setPublishAt} />
-                        </Popover>
-                    ) : null}
                     <span
-                        className={`ml-auto text-xs tabular-nums ${remaining < 0 ? "text-red-700" : remaining <= 200 ? "text-gold" : "text-charcoal/40"}`}
+                        className={`shrink-0 text-xs tabular-nums ${remaining < 0 ? "text-red-700" : remaining <= 200 ? "text-gold" : "text-charcoal/40"}`}
                         aria-live="polite"
                     >
                         {remaining <= 300 ? remaining : ""}
                     </span>
                     <button
                         type="submit"
-                        className="inline-flex min-h-10 items-center gap-2 rounded-full bg-charcoal px-5 text-sm font-semibold text-white hover:bg-charcoal/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green disabled:cursor-not-allowed disabled:opacity-35"
+                        className="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-full bg-charcoal px-4 text-sm font-semibold text-white hover:bg-charcoal/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green disabled:cursor-not-allowed disabled:opacity-35"
                         disabled={pending || (!body.trim() && files.length === 0 && !quote)}
                     >
                         {pending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
                         {pending ? "Đang đăng" : publishAt ? "Lên lịch" : (submitLabel ?? "Đăng")}
                     </button>
                 </div>
+
+                {error ? (
+                    <p role="alert" className="m-0 mt-2 text-sm text-red-700">
+                        {error}
+                    </p>
+                ) : null}
             </div>
         </form>
     );
@@ -592,12 +598,14 @@ function Popover({
     label,
     onClose,
     placement = "below",
+    align = "left",
     wide = false,
     children,
 }: {
     label: string;
     onClose: () => void;
     placement?: "below" | "above";
+    align?: "left" | "right";
     wide?: boolean;
     children: ReactNode;
 }): JSX.Element {
@@ -631,7 +639,7 @@ function Popover({
                     onClose();
                 }
             }}
-            className={`absolute left-0 z-30 rounded-2xl bg-white p-2 shadow-[0_12px_32px_rgba(16,17,17,0.18)] ring-1 ring-charcoal/10 ${placement === "above" ? "bottom-full mb-2" : "top-full mt-1"} ${wide ? "w-[min(22rem,calc(100vw-3rem))]" : "w-[min(20rem,calc(100vw-3rem))]"}`}
+            className={`absolute ${align === "right" ? "right-0" : "left-0"} z-30 rounded-2xl bg-white p-2 shadow-[0_12px_32px_rgba(16,17,17,0.18)] ring-1 ring-charcoal/10 ${placement === "above" ? "bottom-full mb-2" : "top-full mt-1"} ${wide ? "w-[min(22rem,calc(100vw-3rem))]" : "w-[min(20rem,calc(100vw-3rem))]"}`}
         >
             {children}
         </div>

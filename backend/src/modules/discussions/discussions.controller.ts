@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   HttpCode,
   HttpStatus,
   Param,
@@ -22,6 +23,7 @@ import {
   CreateReplyDto,
   CreateTopicDto,
   CursorQueryDto,
+  PresenceQueryDto,
   ReportPostDto,
 } from './dto/discussion.dto.js';
 
@@ -143,6 +145,14 @@ export class DiscussionsController {
   @Delete('posts/:id/bookmark')
   unbookmark(@Param('id', ParseUUIDPipe) id: string, @Req() request: RequestWithPrincipal) {
     return this.discussions.setBookmark(this.userId(request), id, false);
+  }
+
+  /** Làm mới chấm trực tuyến của các tác giả đang hiện (feed gọi định kỳ khi tab đang mở). */
+  @RequirePermission('discussion:read')
+  @Header('Cache-Control', 'private, no-store')
+  @Get('presence')
+  presence(@Query() query: PresenceQueryDto, @Req() request: RequestWithPrincipal) {
+    return this.discussions.presence(this.userId(request), query.ids);
   }
 
   @RequirePermission('discussion:read')

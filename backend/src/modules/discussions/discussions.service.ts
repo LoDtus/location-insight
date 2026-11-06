@@ -12,6 +12,7 @@ import { NotificationsService } from '../notification/notification.service.js';
 import { UserRole } from '../rbac/authorization.types.js';
 import { Principal } from '../rbac/authorization.types.js';
 import { AdminAuditLogEntity } from '../rbac/entities/admin-audit-log.entity.js';
+import { MESSAGING_KEYS } from '../messaging/messaging.constants.js';
 import { plainText, sniffMedia } from './discussion-text.js';
 import {
   CreateMediaDto,
@@ -96,6 +97,11 @@ export interface PostView {
   likedByMe: boolean;
   /** Người xem đã lưu bài này. */
   savedByMe: boolean;
+  /**
+   * Tác giả đang trực tuyến. Chỉ true khi cả người xem lẫn tác giả đều bật "hiện trạng thái hoạt động" (như nhắn
+   * tin); một bên tắt thì luôn false.
+   */
+  authorOnline: boolean;
   createdAt: Date;
   media: MediaView[];
 }
@@ -463,6 +469,37 @@ export class DiscussionsService {
     return { id: reportId, status: input.status };
   }
 
+  /** Làm mới chấm trực tuyến cho các tác giả đang hiện trên màn hình (tối đa 50), cùng quy tắc riêng tư. */
+  async presence(viewerId: string, userIds: string[]): Promise<{ online: string[] }> {
+    const ids = [...new Set(userIds)].slice(0, 50);
+    return { online: [...(await this.onlineAmong(viewerId, ids))] };
+  }
+
+  /**
+   * Ai trong `userIds` đang trực tuyến mà người xem được phép thấy: dùng chung khóa presence của nhắn tin (Redis,
+   * TTL 90 s, làm mới qua kết nối realtime) và tùy chọn `show_activity_status` (không có hàng = bật). Hai chiều:
+   * người xem tắt thì không thấy ai. Người bị chặn đã bị lọc khỏi feed trước đó. Redis lỗi thì coi như không ai.
+   */
+  private async onlineAmong(viewerId: string, userIds: string[]): Promise<Set<string>> {
+    if (!viewerId || userIds.length === 0) return new Set();
+    try {
+      const rows: Array<{ user_id: string; show_activity_status: boolean }> = await this.dataSource.query(
+        'SELECT user_id, show_activity_status FROM messaging_preferences WHERE user_id = ANY($1::uuid[])',
+        [[viewerId, ...userIds]],
+      );
+      const hidden = new Set(rows.filter((row) => !row.show_activity_status).map((row) => row.user_id));
+      if (hidden.has(viewerId)) return new Set();
+      const candidates = userIds.filter((id) => !hidden.has(id));
+      if (candidates.length === 0) return new Set();
+      const pipeline = this.redis.getClient().pipeline();
+      for (const id of candidates) pipeline.exists(MESSAGING_KEYS.online(id));
+      const results = (await pipeline.exec()) ?? [];
+      return new Set(candidates.filter((_, index) => Number(results[index]?.[1] ?? 0) > 0));
+    } catch {
+      return new Set();
+    }
+  }
+
   async setTopicStatus(
     actor: Principal,
     id: string,
@@ -678,6 +715,7 @@ export class DiscussionsService {
         ? this.bookmarks.find({ where: { userId: viewerId, postId: In(postIds) } })
         : Promise.resolve([]),
     ]);
+    const online = await this.onlineAmong(viewerId, userIds);
     const parentAuthorIds = parents.map((post) => post.authorId);
     const extra = parentAuthorIds.filter((id) => !userIds.includes(id));
     const morePeople = extra.length
@@ -719,6 +757,7 @@ export class DiscussionsService {
           likeCount: post.likeCount,
           likedByMe: liked.some((row) => row.postId === post.id),
           savedByMe: kept.some((row) => row.postId === post.id),
+          authorOnline: online.has(post.authorId),
           createdAt: post.createdAt,
           media,
         };

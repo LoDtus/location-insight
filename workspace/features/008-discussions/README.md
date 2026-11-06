@@ -40,7 +40,8 @@ Người đã đăng nhập tạo chủ đề, đăng một câu hỏi hoặc m�
 - **FR-09 (lưu bài):** Người dùng lưu/bỏ lưu bài (`PUT`/`DELETE /discussions/posts/:id/bookmark`, idempotent), lưu ở server (`discussion_bookmarks`) nên đồng bộ mọi thiết bị; mỗi bài trả `savedByMe`. Mục "Đã lưu" (`GET /discussions/bookmarks`, `?muc=da-luu` trên URL) liệt kê bài đã lưu, mới lưu trước. Danh sách cũ trong localStorage được chuyển lên server một lần rồi xóa. Lưu/bỏ lưu hiện thông báo góc trên bên phải.
 - **FR-10 (báo cáo):** `POST /discussions/posts/:id/report {reason, note?}` với lý do cố định (spam, lừa đảo, quấy rối, thông tin sai, không phù hợp, khác). Không báo cáo bài của mình (`422`). Mỗi người một báo cáo cho một bài (`discussion_reports` unique `post_id + reporter_id`; báo lại thì cập nhật lý do). Admin xem ở `/admin/discussions` (`GET /admin/discussions/reports?status`), "Ẩn bài" (ẩn + đóng mọi báo cáo mở của bài, ghi nhật ký) hoặc "Bỏ qua", đều cần lý do ≥ 5 ký tự.
 - **FR-11 (chặn):** Chặn tác giả từ menu ba chấm (dùng chung `user_blocks` với nhắn tin, `PUT /messaging/blocks/:userId`). Feed, mục đã lưu và trả lời trong mạch ẩn bài của người mình chặn và người chặn mình. Bỏ chặn ở Tin nhắn › Cài đặt.
-- **FR-12 (giao diện):** Cột nội dung rộng tối đa 680 px, giữa màn hình. Nút tương tác dồn trái; nút chỉ có icon tròn khi rê chuột. Mỗi bài có nút ba chấm: Sao chép liên kết, và Báo cáo + Chặn (bài người khác) hoặc Xóa (bài của mình). Diễn đàn không dùng đường dẫn Trang chủ › Diễn đàn › Chi tiết; trang chi tiết có thanh trên cùng với nút ←.
+- **FR-13 (trực tuyến):** Ảnh đại diện có chấm xanh khi tác giả đang trực tuyến. Dùng chung presence của nhắn tin (Redis `presence:online:{id}`, TTL 90 s, làm mới qua kết nối realtime). Hai chiều như nhắn tin: chỉ hiện khi cả người xem lẫn tác giả bật "hiện trạng thái hoạt động" (Tin nhắn › Cài đặt). Mỗi bài trả `authorOnline`; feed và mạch gọi `GET /discussions/presence?ids=` (≤ 50 uuid) mỗi phút khi tab đang mở.
+- **FR-12 (giao diện):** Cột nội dung rộng tối đa 680 px, giữa màn hình, không viền hai bên; giữa các bài chỉ một đường kẻ. Thẻ bài ba cột: ảnh đại diện | tên · @username › chủ đề · thời gian (một dòng, chủ đề bấm để lọc, thời gian có tooltip ngày giờ đầy đủ) và nội dung ngay bên dưới | nút ba chấm riêng bên phải. Nút tương tác dồn trái; nút chỉ có icon tròn khi rê chuột. Thông báo "Đã sao chép liên kết" không kèm đường link. Mỗi bài có nút ba chấm: Sao chép liên kết, và Báo cáo + Chặn (bài người khác) hoặc Xóa (bài của mình). Diễn đàn không dùng đường dẫn Trang chủ › Diễn đàn › Chi tiết; trang chi tiết có thanh trên cùng với nút ←.
 - **FR-08 (danh sách):** Trang chủ diễn đàn là bài gốc mới nhất. Lọc một chủ đề giữ cùng dạng. Phân trang bằng con trỏ thời gian, không tải cả bảng.
 
 ## Quy tắc nghiệp vụ <!-- key: business_rules -->
@@ -100,6 +101,7 @@ Hình mạch bài và chỗ lưu tệp nằm trong `research.md`. Chữ và quan
 - [ ] **AC-07:** Given khách chưa có phiên, When gọi `GET /discussions/posts`, Then `401`.
 - [ ] **AC-08:** Given A lưu một bài trên máy này, When A mở diễn đàn ở máy khác, Then bài có `savedByMe = true` và nằm trong mục "Đã lưu".
 - [ ] **AC-09:** Given B chặn A, When B tải feed, Then không còn bài của A; bỏ chặn thì hiện lại.
+- [ ] **AC-11:** Given tác giả đang trực tuyến và cả hai bật trạng thái hoạt động, When mở feed, Then ảnh đại diện có chấm xanh; người xem tắt thì không thấy chấm của ai.
 - [ ] **AC-10:** Given B báo cáo bài của A với lý do không hợp lệ, Then `400`; người thường gọi `/admin/discussions/reports`, Then `403`; admin "Ẩn bài" thì bài khuất và báo cáo chuyển "Đã ẩn bài".
 
 ## Câu hỏi mở (Open Questions) <!-- key: open_questions -->
@@ -108,5 +110,6 @@ Hình mạch bài và chỗ lưu tệp nằm trong `research.md`. Chữ và quan
 
 ## Nhật ký cập nhật <!-- key: update_log -->
 
+- 2026-11-06: Chấm trực tuyến (riêng tư hai chiều), thẻ bài ba cột kiểu Threads, bỏ viền hai bên.
 - 2026-11-06: Lưu bài ở server + mục "Đã lưu", báo cáo bài + màn kiểm duyệt, chặn tác giả, menu ba chấm, bố cục cột giữa, nút ← thay đường dẫn.
 - 2026-11-01: Đặc tả đầu từ yêu cầu diễn đàn kiểu Threads hoặc X, dừng ở chủ đề, bài đăng và media.

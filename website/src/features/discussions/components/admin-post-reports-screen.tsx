@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState, type JSX } from "react";
+import { useEffect, useState, type JSX } from "react";
 
 import { AuthApiError } from "@/features/auth/auth.api";
 import { REPORT_REASONS, listPostReports, resolvePostReport, type PostReport } from "@/features/discussions/discussions.api";
@@ -21,17 +21,20 @@ export function AdminPostReportsScreen(): JSX.Element {
     const [status, setStatus] = useState<PostReport["status"]>("open");
     const [state, setState] = useState<{ status: PostReport["status"]; items: PostReport[]; error: string } | null>(null);
 
-    const load = useCallback(async (next: PostReport["status"]): Promise<void> => {
-        try {
-            setState({ status: next, items: await listPostReports(next), error: "" });
-        } catch (error) {
-            setState({ status: next, items: [], error: error instanceof AuthApiError ? error.message : "Không tải được báo cáo." });
-        }
-    }, []);
-
+    // Đổi tab: tải danh sách mới; bỏ kết quả về muộn của tab trước.
     useEffect(() => {
-        void load(status);
-    }, [load, status]);
+        let active = true;
+        listPostReports(status)
+            .then((items) => {
+                if (active) setState({ status, items, error: "" });
+            })
+            .catch((error: unknown) => {
+                if (active) setState({ status, items: [], error: error instanceof AuthApiError ? error.message : "Không tải được báo cáo." });
+            });
+        return () => {
+            active = false;
+        };
+    }, [status]);
 
     const ready = state?.status === status;
     const items = ready ? state.items : [];

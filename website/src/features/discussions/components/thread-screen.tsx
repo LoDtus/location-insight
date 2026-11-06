@@ -18,6 +18,7 @@ import {
     type DiscussionPost,
 } from "@/features/discussions/discussions.api";
 import { PostCard } from "@/features/discussions/components/post-card";
+import { useAuthorPresence } from "@/features/discussions/components/use-author-presence";
 import { usePostActions } from "@/features/discussions/components/use-post-actions";
 import { PostComposer } from "@/features/discussions/components/post-composer";
 import { SharePostDialog } from "@/features/messaging/components/share-post-dialog";
@@ -101,6 +102,7 @@ export function ThreadScreen({ id, root }: { id: string; root: ShellRoot }): JSX
         applyLike(target, next.likeCount, !target.likedByMe);
     }
 
+    const online = useAuthorPresence([...(post ? [post.authorId] : []), ...replies.map((item) => item.authorId)]);
     const actions = usePostActions({
         root,
         onSaved: (postId, value) => {
@@ -155,7 +157,7 @@ export function ThreadScreen({ id, root }: { id: string; root: ShellRoot }): JSX
 
     return (
         <main ref={scroller} className="h-full overflow-auto bg-white">
-            <div className="mx-auto min-h-full w-full max-w-[680px] bg-white md:border-x md:border-charcoal/10">
+            <div className="mx-auto min-h-full w-full max-w-[680px] bg-white">
                 <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-charcoal/10 bg-white/95 px-2 py-1.5 backdrop-blur">
                     <button
                         type="button"
@@ -177,6 +179,7 @@ export function ThreadScreen({ id, root }: { id: string; root: ShellRoot }): JSX
                     {items.map((item, index) => (
                         <li key={item.id}>
                             <PostCard
+                                online={online ? online.has(item.authorId) : undefined}
                                 post={item}
                                 root={root}
                                 connected={index < items.length - 1}

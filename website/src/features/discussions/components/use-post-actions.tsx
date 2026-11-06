@@ -70,7 +70,7 @@ export function usePostActions({
         const link = `${window.location.origin}${root}/feed/${post.id}`;
         void navigator.clipboard
             .writeText(link)
-            .then(() => showToast({ title: "Đã sao chép liên kết", description: link }))
+            .then(() => showToast({ title: "Đã sao chép liên kết" }))
             .catch(() => showToast({ title: "Không sao chép được", description: "Hãy cấp quyền clipboard cho trang này.", tone: "error" }));
     }
 

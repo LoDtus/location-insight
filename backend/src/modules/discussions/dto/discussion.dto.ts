@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
@@ -155,4 +155,13 @@ export class ResolveReportDto {
   @MinLength(5)
   @MaxLength(255)
   reason: string;
+}
+
+/** `ids=a,b,c`: tối đa 50 uuid. */
+export class PresenceQueryDto {
+  @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.split(',').filter(Boolean) : value))
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsUUID('all', { each: true })
+  ids: string[];
 }

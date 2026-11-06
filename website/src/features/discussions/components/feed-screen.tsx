@@ -22,6 +22,7 @@ import {
     type DiscussionTopic,
 } from "@/features/discussions/discussions.api";
 import { PostCard } from "@/features/discussions/components/post-card";
+import { useAuthorPresence } from "@/features/discussions/components/use-author-presence";
 import { usePostActions } from "@/features/discussions/components/use-post-actions";
 import { PostComposer } from "@/features/discussions/components/post-composer";
 import { ALL_FEED, readFeedView, writeFeedView, type FeedView } from "@/features/discussions/feed-params";
@@ -198,6 +199,7 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
         setMessage("Đã đăng lại.");
     }
 
+    const online = useAuthorPresence(posts.map((post) => post.authorId));
     const actions = usePostActions({
         root,
         onSaved: (postId, value) =>
@@ -214,8 +216,8 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
         <main ref={scroller} className="h-full overflow-auto bg-white">
             {/* Viền hai bên chỉ khi cột đã chạm max-w-960 của FocusLayout (3840px) cộng sidebar mở rộng (272px);
                 hẹp hơn thì cột sát sidebar và mép màn, viền sẽ chồng lên viền của hàng xóm. */}
-            {/* Cột nội dung thu vào giữa (rộng tối đa ~680 px như các mạng xã hội), viền hai bên khi đủ rộng. */}
-            <div className="mx-auto min-h-full w-full max-w-[680px] bg-white md:border-x md:border-charcoal/10">
+            {/* Cột nội dung thu vào giữa (rộng tối đa ~680 px như các mạng xã hội), không viền hai bên. */}
+            <div className="mx-auto min-h-full w-full max-w-[680px] bg-white">
                 <div className="sticky top-0 z-10 flex gap-2 overflow-x-auto border-b border-charcoal/10 bg-white px-4 py-3">
                     <TopicTab
                         label="Mới nhất"
@@ -270,10 +272,16 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
                               : "Chưa có bài trong mục này. Hãy viết điều bạn đang thắc mắc."}
                     </p>
                 ) : null}
-                <ol className="m-0 list-none p-0">
+                {/* Một đường kẻ giữa các bài (và một đường ngăn với ô soạn bài). */}
+                <ol className="m-0 list-none divide-y divide-charcoal/10 border-t border-charcoal/10 p-0">
                     {posts.map((post) => (
-                        <li key={post.id} className="border-t border-charcoal/10">
+                        <li key={post.id}>
                             <PostCard
+                                online={online ? online.has(post.authorId) : undefined}
+                                onTopic={(slug) => {
+                                    choose({ scope: "all", topic: slug });
+                                    scroller.current?.scrollTo({ top: 0 });
+                                }}
                                 post={post}
                                 root={root}
                                 connected={false}

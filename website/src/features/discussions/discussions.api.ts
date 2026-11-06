@@ -35,6 +35,8 @@ export interface DiscussionPost {
     likedByMe: boolean;
     /** Người xem đã lưu bài này (lưu ở server, đồng bộ mọi thiết bị). */
     savedByMe: boolean;
+    /** Tác giả đang trực tuyến (chỉ khi cả hai bên bật "hiện trạng thái hoạt động"). */
+    authorOnline: boolean;
     createdAt: string;
     media: DiscussionMedia[];
 }
@@ -130,6 +132,11 @@ export function likePost(id: string): Promise<{ likeCount: number }> {
 
 export function unlikePost(id: string): Promise<{ likeCount: number }> {
     return apiRequest(`/discussions/posts/${id}/likes`, { method: "DELETE" });
+}
+
+/** Làm mới trạng thái trực tuyến của các tác giả đang hiện (tối đa 50). */
+export function getAuthorPresence(ids: string[], signal?: AbortSignal): Promise<{ online: string[] }> {
+    return apiRequest(`/discussions/presence?ids=${ids.slice(0, 50).join(",")}`, signal ? { signal } : {});
 }
 
 export function bookmarkPost(id: string): Promise<{ saved: boolean }> {

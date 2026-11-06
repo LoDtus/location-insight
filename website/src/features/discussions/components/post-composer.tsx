@@ -156,20 +156,32 @@ export function PostComposer({
 export function Avatar({
     name,
     url,
+    online = false,
 }: {
     name: string;
     url?: string | null;
+    /** Chấm xanh góc dưới phải: đang trực tuyến. */
+    online?: boolean;
 }): JSX.Element {
-    if (url) {
-        // Profile photos are remote and may be signed.
-        // eslint-disable-next-line @next/next/no-img-element
-        return <img src={url} alt="" className="size-10 shrink-0 rounded-full object-cover" />;
-    }
     const parts = name.trim().split(/\s+/).filter((part) => part.length > 0);
     const letter = (parts.at(-1) ?? "?").slice(0, 1).toUpperCase();
     return (
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-green text-sm font-semibold text-cream">
-            {letter}
+        <span className="relative inline-flex size-10 shrink-0">
+            {url ? (
+                // Profile photos are remote and may be signed.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={url} alt="" className="size-10 rounded-full object-cover" />
+            ) : (
+                <span className="flex size-10 items-center justify-center rounded-full bg-green text-sm font-semibold text-cream">{letter}</span>
+            )}
+            {online ? (
+                <span
+                    role="img"
+                    aria-label="Đang trực tuyến"
+                    title="Đang trực tuyến"
+                    className="absolute -right-0.5 -bottom-0.5 size-3.5 rounded-full bg-[#22c55e] ring-[2.5px] ring-white"
+                />
+            ) : null}
         </span>
     );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, Bookmark, Flag, Heart, Link2, MessageCircle, MoreHorizontal, Repeat2, Send, Trash2 } from "lucide-react";
+import { Ban, Bookmark, ChevronRight, Flag, Heart, Link2, MessageCircle, MoreHorizontal, Repeat2, Send, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, type JSX } from "react";
 
@@ -46,6 +46,18 @@ export function relativeTime(iso: string): string {
     }).format(new Date(iso));
 }
 
+/** "06/11/2026 14:05" theo giờ Việt Nam (tooltip của thời gian tương đối). */
+export function fullTime(iso: string): string {
+    return new Intl.DateTimeFormat("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "Asia/Ho_Chi_Minh",
+    }).format(new Date(iso));
+}
+
 export function PostCard({
     post,
     root,
@@ -61,6 +73,8 @@ export function PostCard({
     onReport,
     onBlock,
     onCopyLink,
+    online,
+    onTopic,
 }: {
     post: DiscussionPost;
     root: ShellRoot;
@@ -76,6 +90,10 @@ export function PostCard({
     onReport: () => void;
     onBlock: () => void;
     onCopyLink: () => void;
+    /** Trạng thái trực tuyến đã làm mới; không truyền thì dùng `post.authorOnline`. */
+    online?: boolean;
+    /** Bấm chủ đề: lọc tại chỗ (feed). Không truyền thì mở feed lọc theo chủ đề. */
+    onTopic?: (slug: string) => void;
 }): JSX.Element {
     const saved = post.savedByMe;
     const [menu, setMenu] = useState(false);
@@ -96,96 +114,65 @@ export function PostCard({
     }, [menu, repostMenu]);
 
     return (
-        <article ref={rootRef} className="flex gap-3 px-4 py-3">
-            <div className="flex w-10 flex-col items-center">
-                <Avatar name={post.authorName} url={post.authorAvatarUrl} />
-                {connected ? <span className="-mb-6 mt-2 w-0.5 flex-1 bg-charcoal/25" aria-hidden="true" /> : null}
+        <article ref={rootRef} className="flex gap-3 px-4 pt-3 pb-1.5">
+            <div className="flex w-10 shrink-0 flex-col items-center">
+                <Avatar name={post.authorName} url={post.authorAvatarUrl} online={online ?? post.authorOnline} />
+                {connected ? <span className="-mb-6 mt-2 w-0.5 flex-1 bg-charcoal/20" aria-hidden="true" /> : null}
             </div>
+            {/* Cột giữa: dòng người đăng + chủ đề + thời gian, nội dung ngay bên dưới. */}
             <div className="min-w-0 flex-1">
-                <header className="flex items-start gap-2">
-                    <p className="m-0 min-w-0 flex-1 text-sm">
-                        <Link href={`${root}/feed/${post.id}`} className="font-semibold text-inherit no-underline">
-                            {post.authorName}
-                        </Link>
-                        {post.authorUsername ? (
-                            <Link href={`${root}/profile/@${post.authorUsername}`} className="text-charcoal/55 no-underline">
-                                {" "}@{post.authorUsername}
-                            </Link>
-                        ) : null}
-                        <span className="text-charcoal/55"> · {relativeTime(post.createdAt)}</span>
-                    </p>
-                    <div className="relative">
-                        <button
-                            type="button"
-                            className="inline-flex size-9 items-center justify-center rounded-full text-charcoal/60 hover:bg-charcoal/[0.06] hover:text-charcoal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
-                            aria-expanded={menu}
-                            aria-haspopup="menu"
-                            aria-label="Thêm lựa chọn"
-                            onClick={() => setMenu((current) => !current)}
+                <header className="flex min-w-0 items-center gap-1 text-[15px] leading-5">
+                    <Link
+                        href={post.authorUsername ? `${root}/profile/@${post.authorUsername}` : `${root}/feed/${post.id}`}
+                        className="min-w-0 shrink truncate font-semibold text-charcoal no-underline hover:underline"
+                    >
+                        {post.authorName}
+                    </Link>
+                    {post.authorUsername ? (
+                        <Link
+                            href={`${root}/profile/@${post.authorUsername}`}
+                            className="hidden min-w-0 truncate text-sm text-charcoal/50 no-underline hover:underline sm:inline"
                         >
-                            <MoreHorizontal className="size-5" aria-hidden="true" />
-                        </button>
-                        {menu ? (
-                            <div
-                                role="menu"
-                                aria-label="Lựa chọn cho bài này"
-                                onKeyDown={(event) => {
-                                    if (event.key === "Escape") setMenu(false);
-                                }}
-                                className="absolute top-full right-0 z-20 mt-1 w-60 rounded-2xl bg-white p-1.5 shadow-[0_8px_24px_rgba(16,17,17,0.16)] ring-1 ring-charcoal/10"
-                            >
-                                <MenuItem
-                                    icon={<Link2 className="size-4" aria-hidden="true" />}
-                                    label="Sao chép liên kết"
-                                    onClick={() => {
-                                        setMenu(false);
-                                        onCopyLink();
-                                    }}
-                                />
-                                {mine ? (
-                                    <MenuItem
-                                        danger
-                                        icon={<Trash2 className="size-4" aria-hidden="true" />}
-                                        label="Xóa bài"
-                                        onClick={() => {
-                                            setMenu(false);
-                                            onDelete();
-                                        }}
-                                    />
-                                ) : (
-                                    <>
-                                        <MenuItem
-                                            icon={<Flag className="size-4" aria-hidden="true" />}
-                                            label="Báo cáo bài viết"
-                                            onClick={() => {
-                                                setMenu(false);
-                                                onReport();
-                                            }}
-                                        />
-                                        <MenuItem
-                                            danger
-                                            icon={<Ban className="size-4" aria-hidden="true" />}
-                                            label={`Chặn ${post.authorUsername ? `@${post.authorUsername}` : post.authorName}`}
-                                            onClick={() => {
-                                                setMenu(false);
-                                                onBlock();
-                                            }}
-                                        />
-                                    </>
-                                )}
-                            </div>
-                        ) : null}
-                    </div>
-                </header>
-                <Link href={`${root}/feed/${post.id}`} className="mt-1 block text-inherit no-underline">
-                    {post.topicName ? (
-                        <p className="m-0 text-sm font-semibold text-green">Chủ đề: {post.topicName}</p>
+                            @{post.authorUsername}
+                        </Link>
                     ) : null}
-                    <p className="mt-1 mb-0 whitespace-pre-wrap text-base leading-relaxed">{post.body}</p>
+                    {post.topicName ? (
+                        <>
+                            <ChevronRight className="size-3.5 shrink-0 text-charcoal/35" aria-hidden="true" />
+                            {onTopic ? (
+                                <button
+                                    type="button"
+                                    onClick={() => onTopic(post.topicSlug)}
+                                    title={`Xem chủ đề ${post.topicName}`}
+                                    className="min-w-0 truncate rounded bg-transparent p-0 text-sm font-semibold text-green hover:underline focus-visible:outline-2 focus-visible:outline-green"
+                                >
+                                    {post.topicName}
+                                </button>
+                            ) : (
+                                <Link
+                                    href={`${root}/feed?chu-de=${encodeURIComponent(post.topicSlug)}`}
+                                    title={`Xem chủ đề ${post.topicName}`}
+                                    className="min-w-0 truncate text-sm font-semibold text-green no-underline hover:underline"
+                                >
+                                    {post.topicName}
+                                </Link>
+                            )}
+                        </>
+                    ) : null}
+                    <time
+                        dateTime={post.createdAt}
+                        title={fullTime(post.createdAt)}
+                        className="shrink-0 text-sm text-charcoal/45"
+                    >
+                        {relativeTime(post.createdAt)}
+                    </time>
+                </header>
+                <Link href={`${root}/feed/${post.id}`} className="mt-0.5 block text-inherit no-underline">
+                    <p className="m-0 text-[15px] leading-relaxed whitespace-pre-wrap break-words">{post.body}</p>
                 </Link>
                 {post.media.length > 0 ? <MediaGrid media={post.media} /> : null}
                 {/* Nút tương tác dồn trái, cách đều; nút chỉ có icon là hình tròn. */}
-                <div className="relative mt-1 -ml-2 flex items-center gap-3 text-charcoal/70 sm:gap-5">
+                <div className="relative mt-1.5 -ml-2 flex items-center gap-2 text-charcoal/70 sm:gap-4">
                     <Action icon="like" label={post.likedByMe ? "Bỏ thích" : "Thích"} count={post.likeCount} active={post.likedByMe} onClick={onLike} />
                     <Action icon="reply" label="Trả lời" count={post.replyCount} onClick={onReply} />
                     <Action icon="repost" label="Đăng lại hoặc trích dẫn" active={repostMenu} onClick={() => setRepostMenu((current) => !current)} />
@@ -216,6 +203,69 @@ export function PostCard({
                         </div>
                     ) : null}
                 </div>
+            </div>
+            {/* Cột phải: nút ba chấm tách riêng. */}
+            <div className="relative -mt-1 -mr-2 shrink-0">
+                <button
+                    type="button"
+                    className="inline-flex size-8 items-center justify-center rounded-full text-charcoal/55 hover:bg-charcoal/[0.06] hover:text-charcoal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
+                    aria-expanded={menu}
+                    aria-haspopup="menu"
+                    aria-label="Thêm lựa chọn"
+                    onClick={() => setMenu((current) => !current)}
+                >
+                    <MoreHorizontal className="size-5" aria-hidden="true" />
+                </button>
+                {menu ? (
+                    <div
+                        role="menu"
+                        aria-label="Lựa chọn cho bài này"
+                        onKeyDown={(event) => {
+                            if (event.key === "Escape") setMenu(false);
+                        }}
+                        className="absolute top-full right-0 z-20 mt-1 w-60 rounded-2xl bg-white p-1.5 shadow-[0_8px_24px_rgba(16,17,17,0.16)] ring-1 ring-charcoal/10"
+                    >
+                        <MenuItem
+                            icon={<Link2 className="size-4" aria-hidden="true" />}
+                            label="Sao chép liên kết"
+                            onClick={() => {
+                                setMenu(false);
+                                onCopyLink();
+                            }}
+                        />
+                        {mine ? (
+                            <MenuItem
+                                danger
+                                icon={<Trash2 className="size-4" aria-hidden="true" />}
+                                label="Xóa bài"
+                                onClick={() => {
+                                    setMenu(false);
+                                    onDelete();
+                                }}
+                            />
+                        ) : (
+                            <>
+                                <MenuItem
+                                    icon={<Flag className="size-4" aria-hidden="true" />}
+                                    label="Báo cáo bài viết"
+                                    onClick={() => {
+                                        setMenu(false);
+                                        onReport();
+                                    }}
+                                />
+                                <MenuItem
+                                    danger
+                                    icon={<Ban className="size-4" aria-hidden="true" />}
+                                    label={`Chặn ${post.authorUsername ? `@${post.authorUsername}` : post.authorName}`}
+                                    onClick={() => {
+                                        setMenu(false);
+                                        onBlock();
+                                    }}
+                                />
+                            </>
+                        )}
+                    </div>
+                ) : null}
             </div>
         </article>
     );

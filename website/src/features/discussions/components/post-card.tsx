@@ -204,8 +204,8 @@ export function PostCard({
                     ) : null}
                 </div>
             </div>
-            {/* Cột phải: nút ba chấm tách riêng. */}
-            <div className="relative -mt-1 -mr-2 shrink-0">
+            {/* Cột phải: nút ba chấm tách riêng; self-start để cột không dãn theo chiều cao bài (menu bám ngay dưới nút). */}
+            <div className="relative -mt-1 -mr-2 shrink-0 self-start">
                 <button
                     type="button"
                     className="inline-flex size-8 items-center justify-center rounded-full text-charcoal/55 hover:bg-charcoal/[0.06] hover:text-charcoal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"

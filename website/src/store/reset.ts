@@ -13,6 +13,8 @@ export type ResetClientStateOptions = {
     keepPreference?: boolean;
     extraCookieNames?: string[];
     extraStorageKeys?: string[];
+    /** Khóa localStorage/sessionStorage gắn với thiết bị (không phải dữ liệu người dùng) được giữ lại. */
+    preserveStorageKeys?: readonly string[];
 };
 
 const clientCleaners = new Map<string, ClientCleaner>();
@@ -96,8 +98,12 @@ export async function resetClientState(
         preservedCookies.delete(name);
     });
 
+    options.preserveStorageKeys?.forEach((key) => {
+        preservedStorageKeys.add(key);
+    });
+
     clearWebStorage(window.localStorage, preservedStorageKeys);
-    clearWebStorage(window.sessionStorage, new Set());
+    clearWebStorage(window.sessionStorage, new Set(options.preserveStorageKeys ?? []));
     clearClientCookies(preservedCookies);
 
     if (!keepPreference) {

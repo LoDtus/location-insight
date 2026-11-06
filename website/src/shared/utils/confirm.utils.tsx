@@ -62,7 +62,7 @@ function ConfirmDialog({
     return (
         <dialog
             ref={dialogRef}
-            className="w-[min(28rem,calc(100%-2rem))] border border-charcoal bg-white p-0 text-charcoal backdrop:bg-charcoal/40"
+            className="m-auto w-[min(28rem,calc(100%-2rem))] rounded-2xl border border-charcoal/15 bg-white p-0 text-charcoal shadow-xl backdrop:bg-charcoal/40"
             aria-labelledby="confirm-title"
         >
             <form method="dialog" className="flex flex-col gap-4 p-5" onSubmit={(event) => event.preventDefault()}>
@@ -71,10 +71,10 @@ function ConfirmDialog({
                 </h2>
                 <p className="m-0 text-sm leading-relaxed">{content}</p>
                 <div className="flex justify-end gap-2">
-                    <button type="button" className="inline-flex min-h-11 items-center border border-current px-4" onClick={onCancel}>
+                    <button type="button" className="inline-flex min-h-11 items-center rounded-full border border-charcoal/25 px-4" onClick={onCancel}>
                         {cancelText}
                     </button>
-                    <button type="button" className="inline-flex min-h-11 items-center bg-green px-4 text-cream" onClick={onOk}>
+                    <button type="button" className="inline-flex min-h-11 items-center rounded-full bg-green px-4 font-semibold text-cream" onClick={onOk}>
                         {okText}
                     </button>
                 </div>

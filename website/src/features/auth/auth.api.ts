@@ -163,17 +163,49 @@ export async function resetPassword(token: string, password: string): Promise<vo
     });
 }
 
+/**
+ * Khóa trình duyệt gắn với thiết bị chứ không với người dùng: giữ qua đăng xuất (đếm phiên PWA, "để sau" của lời mời
+ * cài đặt/bật thông báo, id thiết bị nhận push, cờ chống tải lại vòng lặp của service worker).
+ */
+const DEVICE_STORAGE_KEYS = [
+    "pwa-session-count",
+    "pwa-install-later",
+    "pwa-saw-notification",
+    "notification-device-id",
+    "notification-push-later",
+    "sw-guard-reloaded",
+    "pwa-reload",
+    "pwa-no-sw",
+    "pwa-dev-sw",
+] as const;
+
+/**
+ * Đăng xuất đầy đủ:
+ * 1. Ngắt realtime trước (không để client tự nối lại bằng vé mới); backend cũng ngắt mọi socket của phiên khi thu hồi.
+ * 2. Tạm dừng push của thiết bị, báo service worker, xóa badge; gọi /auth/logout (thu hồi phiên, xóa cookie refresh).
+ * 3. Dù bước 2 lỗi: xóa các store trong bộ nhớ (địa điểm đã lưu, trọng số, tin nhắn, badge thông báo), đặt lại Redux,
+ *    xóa localStorage/sessionStorage/cookie không httpOnly (giữ giao diện, ngôn ngữ và các khóa của thiết bị).
+ */
 export async function logout(): Promise<void> {
+    await import("@/features/messaging/messaging.actions").then((module) => module.stopMessaging()).catch(() => undefined);
     try {
         const { preparePwaLogout } = await import("@/features/pwa/pwa-client");
         await preparePwaLogout();
         await apiRequest("/auth/logout", { method: "POST" }, false);
     } finally {
-        // Khung nhìn bản đồ nhớ trong phiên, lịch sử tìm kiếm và danh sách đã lưu chỉ xóa khi đăng xuất.
         clearSavedMapView();
         clearSearchHistory();
-        void import("@/features/map/hooks/use-saved-places").then((module) => module.resetSavedPlaces());
-        void import("@/features/map/hooks/use-criterion-weights").then((module) => module.resetWeightsStore());
+        const [saved, weights, badge, reset] = await Promise.all([
+            import("@/features/map/hooks/use-saved-places"),
+            import("@/features/map/hooks/use-criterion-weights"),
+            import("@/features/notification/notification-badge"),
+            import("@/store/reset"),
+        ]);
+        saved.resetSavedPlaces();
+        weights.resetWeightsStore();
+        badge.setNotificationUnread(0);
+        await reset.resetClientState({ keepPreference: true, preserveStorageKeys: DEVICE_STORAGE_KEYS }).catch(() => undefined);
+        // resetAppState đưa auth về "unknown"; đặt hẳn "anonymous" để không thử khôi phục phiên vừa thu hồi.
         store.dispatch(sessionCleared());
     }
 }

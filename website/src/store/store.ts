@@ -53,7 +53,9 @@ function rootReducer(
     action: Action,
 ): RootReducerState {
     if (resetAppState.match(action)) {
-        const nextState = reducers(undefined, action);
+        const fresh = reducers(undefined, action);
+        // Đặt lại = đăng xuất: auth về "anonymous" luôn, không để "unknown" kích hoạt khôi phục phiên vừa thu hồi.
+        const nextState: RootReducerState = { ...fresh, auth: { ...fresh.auth, status: "anonymous" } };
 
         if (action.payload.keepPreference && state?.preference) {
             return {

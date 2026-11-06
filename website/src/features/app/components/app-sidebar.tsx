@@ -30,6 +30,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type CSSProperties, type JSX } from "react";
 
 import { logout } from "@/features/auth/auth.api";
+import { confirmLogout } from "@/features/auth/confirm-logout";
 import { usePwaInstall } from "@/features/pwa/components/pwa-provider";
 import { useAuth } from "@/features/auth/use-auth";
 import { useFeedbackBadge } from "@/features/feedback/use-feedback-badge";
@@ -341,9 +342,14 @@ export default function AppSidebar({
               ];
 
     async function handleLogout(): Promise<void> {
+        setAccountOpen(false);
+        if (!(await confirmLogout(vi))) return;
         setSigningOut(true);
-        await logout();
-        router.replace("/auth/login");
+        try {
+            await logout();
+        } finally {
+            router.replace("/auth/login");
+        }
     }
 
     return (

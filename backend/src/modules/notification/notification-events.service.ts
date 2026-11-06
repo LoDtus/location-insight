@@ -27,6 +27,11 @@ export class NotificationEventsService implements OnModuleInit, OnModuleDestroy 
       if (visible) void client.set(key, '1', 'EX', 45).catch(() => undefined);
       else void client.del(key).catch(() => undefined);
     });
+    // Socket cuối của người dùng đóng (đăng xuất, đóng tab): bỏ cờ "đang xem" ngay để push không bị bỏ qua thêm 45 giây.
+    this.registry.onDisconnect(async (context, remaining) => {
+      if (remaining > 0) return;
+      await this.redis.getClient().del(`notif:active:${context.userId}`).catch(() => undefined);
+    });
     const subscriber = this.redis.getClient().duplicate();
     this.subscriber = subscriber;
     await subscriber.subscribe(...Object.values(CHANNELS));

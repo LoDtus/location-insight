@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { articleIssues, searchTextOf } from './article-rules.js';
 import { ArticleEntity } from './entities/article.entity.js';
-import { SEED_ARTICLES } from './seed.config.js';
+import { SEED_ARTICLES, type SeedArticle } from './seed.config.js';
 
 @Injectable()
 export class SeedArticleService implements OnModuleInit {
@@ -19,7 +19,10 @@ export class SeedArticleService implements OnModuleInit {
 
     for (const seed of SEED_ARTICLES) {
       const existing = await this.articles.findOne({ where: { slug: seed.slug } });
-      if (existing) continue;
+      if (existing) {
+        await this.refreshUntouched(existing, seed);
+        continue;
+      }
 
       const publishedAt = new Date(seed.publishedAt);
       const draft = {
@@ -52,5 +55,23 @@ export class SeedArticleService implements OnModuleInit {
       );
       this.logger.log(`Đã tạo bài seed ${seed.slug}`);
     }
+  }
+
+  /**
+   * Bài seed chưa ai sửa (updated_at = created_at) được cập nhật nội dung theo seed mới; bài admin đã sửa thì giữ nguyên.
+   * Giữ updated_at = created_at để lần đổi seed sau vẫn nhận ra bài chưa bị sửa.
+   */
+  private async refreshUntouched(existing: ArticleEntity, seed: SeedArticle): Promise<void> {
+    if (existing.idempotencyKey !== `seed:${seed.slug}`) return;
+    if (existing.updatedAt.getTime() !== existing.createdAt.getTime()) return;
+    if (existing.body === seed.body && existing.lede === seed.lede && existing.title === seed.title) return;
+    const draft = { title: seed.title, lede: seed.lede, body: seed.body, topic: seed.topic };
+    await this.articles
+      .createQueryBuilder()
+      .update(ArticleEntity)
+      .set({ ...draft, searchText: searchTextOf(draft), updatedAt: () => 'created_at' })
+      .where('id = :id', { id: existing.id })
+      .execute();
+    this.logger.log(`Đã cập nhật nội dung bài seed ${seed.slug}`);
   }
 }

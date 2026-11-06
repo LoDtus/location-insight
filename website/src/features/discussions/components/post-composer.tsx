@@ -17,7 +17,10 @@ import {
     Underline,
     X,
 } from "lucide-react";
-import { useEffect, useId, useLayoutEffect, useRef, useState, type ClipboardEvent, type JSX, type ReactNode } from "react";
+import Placeholder from "@tiptap/extension-placeholder";
+import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import { useEffect, useId, useRef, useState, type JSX, type ReactNode } from "react";
 
 import {
     DEFAULT_POST_SETTINGS,
@@ -25,7 +28,7 @@ import {
     type DiscussionTopic,
     type PostSettings,
 } from "@/features/discussions/discussions.api";
-import { FORMATS, toggleQuote, toggleWrap, type FormatKind } from "@/features/discussions/post-markup";
+import { docToMarkup, markupToDoc } from "@/features/discussions/post-editor-doc";
 import { isAbortError, resolvePlace, searchPlaces } from "@/features/map/map.service";
 import type { MapSuggestion } from "@/features/map/map.types";
 
@@ -68,6 +71,22 @@ function localInputValue(date: Date): string {
 function formatSchedule(iso: string): string {
     return new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" }).format(new Date(iso));
 }
+
+type FormatKind = "bold" | "italic" | "underline" | "strike";
+
+/** Chỉ nhận liên kết http(s) và đường dẫn nội bộ bắt đầu bằng "/" (không "//"), khớp phần hiển thị bài. */
+function allowedHref(url: string): boolean {
+    return /^https?:\/\/\S+$/.test(url) || (url.startsWith("/") && !url.startsWith("//"));
+}
+
+/** Lớp chữ cho vùng soạn: giống phần hiển thị bài (đoạn sát nhau, trích dẫn viền trái, liên kết xanh). */
+const EDITOR_CLASS = [
+    "min-h-12 text-[15px] leading-relaxed outline-none break-words",
+    "[&_p]:m-0 [&_strong]:font-semibold [&_u]:underline-offset-2",
+    "[&_blockquote]:my-1.5 [&_blockquote]:border-l-[3px] [&_blockquote]:border-charcoal/20 [&_blockquote]:py-0.5 [&_blockquote]:pl-3 [&_blockquote]:text-charcoal/75",
+    "[&_a]:font-medium [&_a]:text-green [&_a]:underline [&_a]:decoration-green/40 [&_a]:underline-offset-2",
+    "[&_.is-editor-empty:first-child::before]:pointer-events-none [&_.is-editor-empty:first-child::before]:float-left [&_.is-editor-empty:first-child::before]:h-0 [&_.is-editor-empty:first-child::before]:text-charcoal/40 [&_.is-editor-empty:first-child::before]:content-[attr(data-placeholder)]",
+].join(" ");
 
 /** Kiểm tra tệp trước khi tải (backend kiểm lại). Trả về thông báo lỗi hoặc null. */
 function checkFiles(files: File[]): string | null {
@@ -115,8 +134,8 @@ export function PostComposer({
     onSubmit: (draft: ComposerDraft) => Promise<boolean>;
 }): JSX.Element {
     const ids = useId();
-    const textRef = useRef<HTMLTextAreaElement>(null);
     const fileRef = useRef<HTMLInputElement>(null);
+    /** Markup đang soạn (sinh từ trình soạn), là thứ được gửi và lưu. */
     const [body, setBody] = useState("");
     const [topicName, setTopicName] = useState(initialTopic);
     const [topicFocus, setTopicFocus] = useState(false);
@@ -130,25 +149,93 @@ export function PostComposer({
     const [error, setError] = useState<string | null>(null);
     const [pending, setPending] = useState(false);
     const restored = useRef(false);
-    /** Vùng chọn cần đặt lại ngay sau lần cập nhật nội dung kế tiếp (trước khi người dùng gõ tiếp). */
-    const pendingSelection = useRef<{ start: number; end: number } | null>(null);
+    // Trình xử lý của trình soạn được tạo một lần: gọi hàm mới nhất qua ref.
+    const submitRef = useRef<() => void>(() => undefined);
+    const addFilesRef = useRef<(files: File[]) => void>(() => undefined);
 
-    // Khôi phục bản nháp một lần.
+    /*
+     * Trình soạn Tiptap: định dạng hiện ngay khi gõ (đậm, nghiêng, gạch chân, gạch ngang, trích dẫn, liên kết).
+     * Không có tiêu đề, danh sách, code hay HTML thô: chỉ những gì markup nhẹ biểu diễn được, để lưu ra không mất gì.
+     */
+    const editor = useEditor({
+        immediatelyRender: false,
+        extensions: [
+            StarterKit.configure({
+                heading: false,
+                bulletList: false,
+                orderedList: false,
+                listItem: false,
+                listKeymap: false,
+                code: false,
+                codeBlock: false,
+                horizontalRule: false,
+                link: {
+                    openOnClick: false,
+                    autolink: false,
+                    linkOnPaste: true,
+                    defaultProtocol: "https",
+                    isAllowedUri: (url) => allowedHref(url),
+                    HTMLAttributes: { rel: "noopener noreferrer nofollow ugc", target: null },
+                },
+            }),
+            Placeholder.configure({ placeholder }),
+        ],
+        editorProps: {
+            attributes: {
+                role: "textbox",
+                "aria-multiline": "true",
+                "aria-label": placeholder,
+                class: EDITOR_CLASS,
+            },
+            handleKeyDown: (_view, event) => {
+                if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+                    event.preventDefault();
+                    submitRef.current();
+                    return true;
+                }
+                return false;
+            },
+            handlePaste: (_view, event) => {
+                const pasted = Array.from(event.clipboardData?.files ?? []).filter((file) => ACCEPT.split(",").includes(file.type));
+                if (pasted.length === 0) return false;
+                addFilesRef.current(pasted);
+                return true;
+            },
+        },
+        onUpdate: ({ editor: current }) => setBody(docToMarkup(current.getJSON())),
+    });
+
+    /** Định dạng đang bật tại con trỏ (nút trên thanh công cụ sáng lên). */
+    const active = useEditorState({
+        editor,
+        selector: ({ editor: current }) => ({
+            bold: current?.isActive("bold") ?? false,
+            italic: current?.isActive("italic") ?? false,
+            underline: current?.isActive("underline") ?? false,
+            strike: current?.isActive("strike") ?? false,
+            quote: current?.isActive("blockquote") ?? false,
+            link: current?.isActive("link") ?? false,
+        }),
+    });
+
+    // Khôi phục bản nháp một lần, khi trình soạn đã sẵn sàng.
     useEffect(() => {
-        if (!draftKey || restored.current) return;
+        if (!editor || !draftKey || restored.current) return;
         restored.current = true;
         try {
             const raw = window.localStorage.getItem(draftKey);
             const saved = raw ? (JSON.parse(raw) as { body?: unknown; topic?: unknown }) : null;
+            if (typeof saved?.body === "string" && saved.body.trim()) {
+                editor.commands.setContent(markupToDoc(saved.body.slice(0, BODY_MAX)), { emitUpdate: true });
+            }
             // eslint-disable-next-line react-hooks/set-state-in-effect -- đọc storage khi gắn
-            if (typeof saved?.body === "string") setBody(saved.body.slice(0, BODY_MAX));
             if (typeof saved?.topic === "string" && !initialTopic) setTopicName(saved.topic.slice(0, 80));
         } catch {
             // bản nháp hỏng: bỏ qua
         }
-    }, [draftKey, initialTopic]);
+    }, [editor, draftKey, initialTopic]);
 
-    // Lưu bản nháp (chữ + chủ đề; tệp không lưu được).
+    // Lưu bản nháp (markup + chủ đề; tệp không lưu được).
     useEffect(() => {
         if (!draftKey) return;
         const timer = setTimeout(() => {
@@ -171,53 +258,37 @@ export function PostComposer({
         };
     }, [files]);
 
-    // Tự cao theo nội dung; trần là CSS max-height (gần hết màn hình), vượt thì cuộn.
-    useLayoutEffect(() => {
-        const element = textRef.current;
-        if (!element) return;
-        element.style.height = "auto";
-        element.style.height = `${element.scrollHeight}px`;
-        const selection = pendingSelection.current;
-        if (selection) {
-            pendingSelection.current = null;
-            element.focus();
-            element.setSelectionRange(selection.start, selection.end);
-        }
-    }, [body]);
-
-    function edit(transform: (value: string, start: number, end: number) => { value: string; start: number; end: number }): void {
-        const element = textRef.current;
-        if (!element) return;
-        const result = transform(body, element.selectionStart, element.selectionEnd);
-        if (result.value.length > BODY_MAX) {
-            setError(`Nội dung tối đa ${BODY_MAX} ký tự.`);
-            return;
-        }
-        pendingSelection.current = { start: result.start, end: result.end };
-        setBody(result.value);
-    }
-
     function format(kind: FormatKind): void {
-        const placeholders: Record<FormatKind, string> = { bold: "chữ đậm", italic: "chữ nghiêng", underline: "gạch chân", strike: "gạch ngang" };
-        edit((value, start, end) => toggleWrap(value, start, end, FORMATS[kind], placeholders[kind]));
+        if (!editor) return;
+        const chain = editor.chain().focus();
+        if (kind === "bold") chain.toggleBold().run();
+        else if (kind === "italic") chain.toggleItalic().run();
+        else if (kind === "underline") chain.toggleUnderline().run();
+        else chain.toggleStrike().run();
     }
 
     function insert(text: string): void {
-        edit((value, start, end) => {
-            const next = value.slice(0, start) + text + value.slice(end);
-            return { value: next, start: start + text.length, end: start + text.length };
-        });
+        editor?.chain().focus().insertContent(text).run();
     }
 
-    /** Chèn một cụm (liên kết, địa điểm) và tự thêm khoảng trắng hai bên nếu dính chữ. */
-    function insertToken(text: string): void {
-        edit((value, start, end) => {
-            const before = start > 0 && !/\s/.test(value[start - 1] ?? "") ? " " : "";
-            const after = end < value.length && !/\s/.test(value[end] ?? "") ? " " : "";
-            const token = `${before}${text}${after}`;
-            const next = value.slice(0, start) + token + value.slice(end);
-            return { value: next, start: start + token.length, end: start + token.length };
-        });
+    /** Chèn một cụm ở dạng markup (liên kết, địa điểm) thành chữ có định dạng; tự thêm khoảng trắng nếu dính chữ. */
+    function insertToken(markup: string): void {
+        if (!editor) return;
+        const { from, to } = editor.state.selection;
+        const before = from > 1 ? editor.state.doc.textBetween(from - 1, from, "\n") : "";
+        const after = editor.state.doc.textBetween(to, Math.min(to + 1, editor.state.doc.content.size), "\n");
+        const nodes = markupToDoc(markup).content?.[0]?.content ?? [];
+        editor
+            .chain()
+            .focus()
+            .insertContent([
+                ...(before && !/\s/.test(before) ? [{ type: "text", text: " " }] : []),
+                ...nodes,
+                ...(after && !/\s/.test(after) ? [] : [{ type: "text", text: " " }]),
+            ])
+            // Gõ tiếp sau liên kết thì không kéo dài liên kết.
+            .unsetMark("link")
+            .run();
     }
 
     function addFiles(incoming: File[]): void {
@@ -231,32 +302,18 @@ export function PostComposer({
         setFiles(next);
     }
 
-    function onPaste(event: ClipboardEvent<HTMLTextAreaElement>): void {
-        const pasted = Array.from(event.clipboardData.files).filter((file) => ACCEPT.split(",").includes(file.type));
-        if (pasted.length === 0) return;
-        event.preventDefault();
-        addFiles(pasted);
-    }
-
-    function onKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>): void {
-        if (!(event.ctrlKey || event.metaKey)) return;
-        const key = event.key.toLowerCase();
-        if (key === "b" || key === "i" || key === "u") {
-            event.preventDefault();
-            format(key === "b" ? "bold" : key === "i" ? "italic" : "underline");
-        } else if (key === "enter") {
-            event.preventDefault();
-            void submit();
-        }
-    }
-
     async function submit(): Promise<void> {
         if (pending || (!body.trim() && files.length === 0 && !quote)) return;
+        if (body.length > BODY_MAX) {
+            setError(`Nội dung tối đa ${BODY_MAX} ký tự (tính cả định dạng).`);
+            return;
+        }
         setPending(true);
         setError(null);
         try {
             const done = await onSubmit({ body: body.trim(), files, topicName: topicName.trim(), settings, publishAt });
             if (done) {
+                editor?.commands.clearContent(true);
                 setBody("");
                 setFiles([]);
                 setPublishAt(null);
@@ -273,6 +330,11 @@ export function PostComposer({
             setPending(false);
         }
     }
+
+    useEffect(() => {
+        submitRef.current = () => void submit();
+        addFilesRef.current = addFiles;
+    });
 
     const topicMatches = topics
         .filter((topic) => !topicName.trim() || foldText(topic.name).includes(foldText(topicName)))
@@ -323,7 +385,7 @@ export function PostComposer({
                                     onKeyDown={(event) => {
                                         if (event.key === "Enter") {
                                             event.preventDefault();
-                                            textRef.current?.focus();
+                                            editor?.commands.focus("end");
                                         }
                                     }}
                                     className="w-full min-w-0 border-0 bg-transparent p-0 text-[15px] text-green outline-none placeholder:font-normal placeholder:text-charcoal/40"
@@ -339,7 +401,7 @@ export function PostComposer({
                                                         event.preventDefault();
                                                         setTopicName(topic.name);
                                                         setTopicFocus(false);
-                                                        textRef.current?.focus();
+                                                        editor?.commands.focus("end");
                                                     }}
                                                     className="flex w-full items-center rounded-lg bg-transparent px-2.5 py-1.5 text-left text-sm hover:bg-charcoal/5"
                                                 >
@@ -387,21 +449,10 @@ export function PostComposer({
                     ) : null}
                 </div>
 
-                <label htmlFor={`${ids}-body`} className="sr-only">
-                    {placeholder}
-                </label>
-                <textarea
-                    id={`${ids}-body`}
-                    ref={textRef}
-                    rows={1}
-                    value={body}
-                    maxLength={BODY_MAX}
-                    placeholder={placeholder}
-                    onChange={(event) => setBody(event.target.value)}
-                    onPaste={onPaste}
-                    onKeyDown={onKeyDown}
-                    className="mt-1 block max-h-[calc(100dvh-14rem)] min-h-12 w-full resize-none overflow-y-auto border-0 bg-transparent p-0 text-[15px] leading-relaxed outline-none placeholder:text-charcoal/40 [scrollbar-width:thin]"
-                />
+                {/* Tự cao theo nội dung tới gần hết màn hình rồi cuộn. */}
+                <div className="mt-1 max-h-[calc(100dvh-14rem)] overflow-y-auto [scrollbar-width:thin]">
+                    <EditorContent editor={editor} />
+                </div>
 
                 {quote ? (
                     <div className="mt-2 rounded-2xl border-l-[3px] border-charcoal/20 bg-charcoal/[0.03] py-2 pr-2 pl-3 text-sm">
@@ -463,19 +514,19 @@ export function PostComposer({
                         <Film className="size-[18px]" aria-hidden="true" />
                     </ToolButton>
                     <span className="mx-1 h-5 w-px bg-charcoal/10" aria-hidden="true" />
-                    <ToolButton label="In đậm (Ctrl+B)" onClick={() => format("bold")}>
+                    <ToolButton label="In đậm (Ctrl+B)" active={active?.bold} onClick={() => format("bold")}>
                         <Bold className="size-[18px]" aria-hidden="true" />
                     </ToolButton>
-                    <ToolButton label="In nghiêng (Ctrl+I)" onClick={() => format("italic")}>
+                    <ToolButton label="In nghiêng (Ctrl+I)" active={active?.italic} onClick={() => format("italic")}>
                         <Italic className="size-[18px]" aria-hidden="true" />
                     </ToolButton>
-                    <ToolButton label="Gạch chân (Ctrl+U)" onClick={() => format("underline")}>
+                    <ToolButton label="Gạch chân (Ctrl+U)" active={active?.underline} onClick={() => format("underline")}>
                         <Underline className="size-[18px]" aria-hidden="true" />
                     </ToolButton>
-                    <ToolButton label="Gạch ngang" onClick={() => format("strike")}>
+                    <ToolButton label="Gạch ngang (Ctrl+Shift+S)" active={active?.strike} onClick={() => format("strike")}>
                         <Strikethrough className="size-[18px]" aria-hidden="true" />
                     </ToolButton>
-                    <ToolButton label="Trích dẫn" onClick={() => edit(toggleQuote)}>
+                    <ToolButton label="Trích dẫn" active={active?.quote} onClick={() => editor?.chain().focus().toggleBlockquote().run()}>
                         <Quote className="size-[18px]" aria-hidden="true" />
                     </ToolButton>
                     <span className="mx-1 h-5 w-px bg-charcoal/10" aria-hidden="true" />
@@ -485,9 +536,12 @@ export function PostComposer({
                     <ToolButton
                         label="Chèn liên kết"
                         pressed={popover === "link"}
+                        active={active?.link}
                         onClick={() => {
-                            const element = textRef.current;
-                            setLinkSelection(element ? body.slice(element.selectionStart, element.selectionEnd) : "");
+                            if (editor) {
+                                const { from, to } = editor.state.selection;
+                                setLinkSelection(editor.state.doc.textBetween(from, to, " "));
+                            }
                             setPopover((current) => (current === "link" ? null : "link"));
                         }}
                     >
@@ -567,12 +621,16 @@ function ToolButton({
     onClick,
     disabled,
     pressed,
+    active,
     children,
 }: {
     label: string;
     onClick: () => void;
     disabled?: boolean;
+    /** Nút mở bảng (emoji, liên kết…) đang mở. */
     pressed?: boolean;
+    /** Định dạng đang bật tại con trỏ. */
+    active?: boolean;
     children: ReactNode;
 }): JSX.Element {
     return (
@@ -580,7 +638,7 @@ function ToolButton({
             type="button"
             title={label}
             aria-label={label}
-            aria-pressed={pressed}
+            aria-pressed={pressed ?? active}
             data-popover-toggle={pressed === undefined ? undefined : ""}
             disabled={disabled}
             // Giữ vùng chọn trong ô soạn khi bấm nút định dạng.

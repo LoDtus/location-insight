@@ -3,6 +3,8 @@ import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 export type AuthUser = {
     userId: string;
     displayName: string;
+    /** Không có khi người dùng chưa đặt username (hoặc phiên cũ trước khi trả trường này). */
+    username?: string | null;
     email?: string;
     avatarUrl?: string | null;
     role: "user" | "admin";
@@ -53,11 +55,13 @@ const authSlice = createSlice({
             action: PayloadAction<{
                 displayName: string;
                 avatarUrl: string | null;
+                username?: string | null;
             }>,
         ) {
             if (!state.user) return;
             state.user.displayName = action.payload.displayName;
             state.user.avatarUrl = action.payload.avatarUrl;
+            if (action.payload.username !== undefined) state.user.username = action.payload.username;
         },
     },
 });

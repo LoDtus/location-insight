@@ -268,6 +268,7 @@ function ProfileScreenContent({
                 profileUpdated({
                     displayName: next.displayName,
                     avatarUrl: next.avatarUrl,
+                    username: next.username,
                 }),
             );
         } catch (error) {
@@ -548,7 +549,7 @@ function ProfileScreenContent({
                             .then((next) => {
                                 setProfile(next);
                                 setDraft((current) => ({ ...current, avatarUrl: next.avatarUrl ?? "" }));
-                                dispatch(profileUpdated({ displayName: next.displayName, avatarUrl: next.avatarUrl }));
+                                dispatch(profileUpdated({ displayName: next.displayName, avatarUrl: next.avatarUrl, username: next.username }));
                                 setMessage("Đã cập nhật ảnh đại diện.");
                                 URL.revokeObjectURL(cropSrc);
                                 setCropSrc(null);

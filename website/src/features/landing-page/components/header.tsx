@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type MouseEvent } from "react";
 
+import HeaderAccount from "@/features/landing-page/components/header-account";
 import { LANDING_SECTION_EVENT, scrollToSection } from "@/features/landing-page/landing-sections";
 
 import { useLocale, useLocaleMessages } from "@/shared/hooks/useLocale";
@@ -118,12 +119,7 @@ export default function Header() {
                 ))}
             </nav>
             <div className="ml-auto flex shrink-0 items-center gap-x-3 py-2 min-[88rem]:ml-0">
-                <a
-                    href="/auth/login"
-                    className="inline-flex min-h-11 items-center px-3 py-1 text-[0.95rem] tracking-wide text-cream decoration-gold decoration-2 underline-offset-[0.45em] hover:underline focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-current"
-                >
-                    {getLocaleValue(landing, ["login"])}
-                </a>
+                <HeaderAccount loginLabel={getLocaleValue(landing, ["login"])} vi={locale !== LOCALE.LOCALES.EN} />
                 {/* Một nút duy nhất: bấm vào bất kỳ đâu trên công tắc là chuyển sang ngôn ngữ còn lại. */}
                 <button
                     type="button"

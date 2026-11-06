@@ -315,6 +315,7 @@ export class SessionService {
     return {
       userId: user.id,
       displayName: user.displayName,
+      username: user.username,
       email: user.email,
       avatarUrl: presentAvatarUrl(user.avatarUrl),
       role: user.role,

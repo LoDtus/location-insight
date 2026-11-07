@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, LayoutDashboard, LogOut, UserRound } from "lucide-react";
+import { ChevronDown, LayoutDashboard, LogOut, UserRound, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, type JSX } from "react";
@@ -23,11 +23,33 @@ function initialsOf(name: string): string {
         .toLocaleUpperCase("vi");
 }
 
+/** Một mục trong menu tài khoản: liên kết, hoặc hành động (vd. cài ứng dụng). "divider" là đường kẻ ngăn nhóm. */
+export type AccountMenuItem = { label: string; icon: LucideIcon; href: string } | { label: string; icon: LucideIcon; onSelect: () => void } | "divider";
+
+/** Mục mặc định ở trang công khai: Trang quản lý (/app, admin là /admin), Trang cá nhân. */
+function landingItems({ root, profile, vi }: { root: ShellRoot; profile: string; vi: boolean }): AccountMenuItem[] {
+    return [
+        { href: root, icon: LayoutDashboard, label: vi ? "Trang quản lý" : "Dashboard" },
+        { href: profile, icon: UserRound, label: vi ? "Trang cá nhân" : "Profile" },
+    ];
+}
+
 /**
- * Góc phải header trang công khai: khách thấy "Đăng nhập"; đã đăng nhập thấy ảnh đại diện + tên hiển thị + @username,
- * bấm mở menu: Trang quản lý (/app, admin là /admin), Trang cá nhân, Đăng xuất.
+ * Nút tài khoản trên header nền xanh (trang công khai và khu /app): khách thấy "Đăng nhập"; đã đăng nhập thấy ảnh đại diện
+ * + tên hiển thị + @username, bấm mở menu gồm các mục của từng nơi (`items`) và luôn có Đăng xuất (hỏi xác nhận) ở cuối.
  */
-export default function HeaderAccount({ loginLabel, vi }: { loginLabel: string; vi: boolean }): JSX.Element {
+export default function HeaderAccount({
+    loginLabel,
+    vi,
+    items = landingItems,
+    afterSignOut = "refresh",
+}: {
+    loginLabel: string;
+    vi: boolean;
+    items?: (context: { root: ShellRoot; profile: string; vi: boolean }) => AccountMenuItem[];
+    /** Trang công khai: ở lại và làm mới; khu /app: về trang đăng nhập. */
+    afterSignOut?: "refresh" | "login";
+}): JSX.Element {
     const auth = useAuth();
     const router = useRouter();
     const [open, setOpen] = useState(false);
@@ -85,7 +107,8 @@ export default function HeaderAccount({ loginLabel, vi }: { loginLabel: string; 
         } finally {
             setSigningOut(false);
             setOpen(false);
-            router.refresh();
+            if (afterSignOut === "login") router.replace("/auth/login");
+            else router.refresh();
         }
     }
 
@@ -138,23 +161,40 @@ export default function HeaderAccount({ loginLabel, vi }: { loginLabel: string; 
                             moveFocus(-1);
                         }
                     }}
-                    className="absolute top-full right-0 z-50 mt-2 w-64 rounded-xl border border-charcoal/10 bg-white p-1.5 font-sans shadow-lg"
+                    className="absolute top-full right-0 z-[60] mt-2 w-64 rounded-xl border border-charcoal/10 bg-white p-1.5 font-sans shadow-lg"
                 >
                     <div className="border-b border-charcoal/10 px-3 pt-1.5 pb-2.5">
                         <p className="m-0 truncate text-sm font-semibold text-charcoal">{user.displayName}</p>
                         {user.username ? <p className="m-0 truncate text-xs text-charcoal/60">@{user.username}</p> : null}
                     </div>
                     <div className="pt-1.5">
-                        <Link role="menuitem" href={root} className={item} onClick={() => setOpen(false)}>
-                            <LayoutDashboard size={18} aria-hidden className="text-charcoal/70" />
-                            {vi ? "Trang quản lý" : "Dashboard"}
-                        </Link>
-                        <Link role="menuitem" href={profile} className={item} onClick={() => setOpen(false)}>
-                            <UserRound size={18} aria-hidden className="text-charcoal/70" />
-                            {vi ? "Trang cá nhân" : "Profile"}
-                        </Link>
-                        <button role="menuitem" type="button" disabled={signingOut} onClick={() => void signOut()} className={item}>
-                            <LogOut size={18} aria-hidden className="text-charcoal/70" />
+                        {items({ root, profile, vi }).map((entry, index) => {
+                            if (entry === "divider") return <div key={`d${index}`} role="separator" className="my-1 h-px bg-charcoal/10" />;
+                            const Icon = entry.icon;
+                            return "href" in entry ? (
+                                <Link key={entry.href} role="menuitem" href={entry.href} className={item} onClick={() => setOpen(false)}>
+                                    <Icon size={18} aria-hidden className="text-charcoal/70" />
+                                    {entry.label}
+                                </Link>
+                            ) : (
+                                <button
+                                    key={entry.label}
+                                    role="menuitem"
+                                    type="button"
+                                    className={item}
+                                    onClick={() => {
+                                        setOpen(false);
+                                        entry.onSelect();
+                                    }}
+                                >
+                                    <Icon size={18} aria-hidden className="text-charcoal/70" />
+                                    {entry.label}
+                                </button>
+                            );
+                        })}
+                        <div role="separator" className="my-1 h-px bg-charcoal/10" />
+                        <button role="menuitem" type="button" disabled={signingOut} onClick={() => void signOut()} className={`${item} text-red-700`}>
+                            <LogOut size={18} aria-hidden className="text-red-700" />
                             {signingOut ? (vi ? "Đang đăng xuất…" : "Signing out…") : vi ? "Đăng xuất" : "Sign out"}
                         </button>
                     </div>

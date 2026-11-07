@@ -39,6 +39,8 @@ interface MapPlacePanelProps {
     onEvaluated?: () => void;
     /** Mở từ danh sách kết quả: nút mũi tên trái quay lại danh sách. */
     onBack?: () => void;
+    /** Nhãn nút quay lại (theo danh sách đã mở thẻ này). */
+    backLabel?: string;
 }
 
 function Row({ label, children }: { label: string; children: ReactNode }): JSX.Element {
@@ -70,6 +72,7 @@ export default function MapPlacePanel({
     onCriterionSelect,
     onEvaluated,
     onBack,
+    backLabel = "Quay lại danh sách kết quả",
 }: MapPlacePanelProps) {
     const [copied, setCopied] = useState(false);
     const [viewer, setViewer] = useState<number | null>(null);
@@ -141,7 +144,7 @@ export default function MapPlacePanel({
     }
 
     return (
-        <MapPanel title="Địa điểm" titleId="tieu-de-dia-diem" onClose={onClose} size="wide" actions={actions} onBack={onBack} backLabel="Quay lại danh sách kết quả">
+        <MapPanel title="Địa điểm" titleId="tieu-de-dia-diem" onClose={onClose} size="wide" actions={actions} onBack={onBack} backLabel={backLabel}>
             {selection.status === "loading" ? (
                 <div aria-busy="true" className="grid gap-2">
                     <p className="m-0 flex items-center gap-2 text-sm text-charcoal/70" role="status">

@@ -20,7 +20,7 @@ type LoadState = { status: "loading" } | { status: "ready"; items: CompareItem[]
 
 function mapHref(root: string, point: MapPoint): string {
     const at = `${Number(point.lat.toFixed(6))},${Number(point.lng.toFixed(6))}`;
-    return `${root}/map?c=${at}&z=${PIN_ZOOM}&pin=${at}`;
+    return `${root}/map?c=${at}&z=${PIN_ZOOM}&pin=${at}&ve=so-sanh`;
 }
 
 const LABEL_CELL = "sticky left-0 z-10 w-36 min-w-36 bg-white px-3 py-3 text-left align-top text-sm font-normal text-charcoal/65 sm:w-48 sm:min-w-48";

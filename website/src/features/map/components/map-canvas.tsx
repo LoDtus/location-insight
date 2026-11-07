@@ -85,6 +85,8 @@ interface MapCanvasProps {
     /** Điểm tiện ích của các lớp đang bật (đã lọc theo nhóm). */
     pois: PoiFeatureCollection;
     onPoiClick: (poi: { category: PoiCategory; name: string; kind: string; lat: number; lng: number }) => void;
+    /** Điểm tiện ích đang mở thẻ Địa điểm: vẽ vòng nhấn quanh chấm thay vì thả thêm một ghim đè lên. */
+    activePoi?: { lat: number; lng: number } | null;
     /** Tin rao (lớp "Tin đang rao"): nhãn giá. */
     listings: readonly ListingMarker[];
     onListingClick: (id: string) => void;
@@ -119,6 +121,8 @@ const LAYER_RADIUS_LINE = "li-search-radius-line";
 const RADIUS_IDLE_MS = 900;
 const RADIUS_FADE_MS = 900;
 const SRC_POIS = "li-pois";
+const SRC_POI_ACTIVE = "li-poi-active";
+const LAYER_POI_ACTIVE = "li-poi-active-ring";
 const LAYER_POIS = "li-pois-circle";
 const LAYER_POI_CLUSTERS = "li-pois-cluster";
 const LAYER_POI_COUNTS = "li-pois-cluster-count";
@@ -164,6 +168,7 @@ export default function MapCanvas({
     results,
     pois,
     onPoiClick,
+    activePoi = null,
     listings,
     onListingClick,
     onMapClick,
@@ -197,9 +202,9 @@ export default function MapCanvas({
     const appliedStyleRef = useRef(styleId);
 
     // Giá trị mới nhất cho trình xử lý sự kiện của bản đồ (tránh gắn lại sự kiện).
-    const latest = useRef({ routes, activeRoute, trafficOn, from, to, circle, results, pois, onPoiClick, listings, onListingClick, onMapClick, onContextMenu, onMarkerMenu, activeResultId, onViewport, onFailure });
+    const latest = useRef({ routes, activeRoute, trafficOn, from, to, circle, results, pois, activePoi, onPoiClick, listings, onListingClick, onMapClick, onContextMenu, onMarkerMenu, activeResultId, onViewport, onFailure });
     useEffect(() => {
-        latest.current = { routes, activeRoute, trafficOn, from, to, circle, results, pois, onPoiClick, listings, onListingClick, onMapClick, onContextMenu, onMarkerMenu, activeResultId, onViewport, onFailure };
+        latest.current = { routes, activeRoute, trafficOn, from, to, circle, results, pois, activePoi, onPoiClick, listings, onListingClick, onMapClick, onContextMenu, onMarkerMenu, activeResultId, onViewport, onFailure };
     });
 
     useImperativeHandle(
@@ -446,6 +451,35 @@ export default function MapCanvas({
      * Lớp điểm tiện ích: nguồn GeoJSON gom cụm (đến zoom 15). Cụm là chấm xám đậm có số; điểm lẻ là chấm màu theo
      * nhóm. Chỉ có dữ liệu của các ô trong khung nhìn (tải lười theo ô ở hook), nên không vẽ điểm ngoài màn hình.
      */
+    function activePoiData(): unknown {
+        const point = latest.current.activePoi;
+        return {
+            type: "FeatureCollection",
+            features: point ? [{ type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [point.lng, point.lat] } }] : [],
+        };
+    }
+
+    /** Vòng nhấn quanh điểm tiện ích đang chọn (nằm trên lớp điểm, không bắt sự kiện bấm). */
+    function ensureActivePoi(map: VietmapMap): void {
+        const source = map.getSource(SRC_POI_ACTIVE);
+        if (source && "setData" in source) {
+            (source as unknown as { setData: (d: unknown) => void }).setData(activePoiData());
+            return;
+        }
+        map.addSource(SRC_POI_ACTIVE, { type: "geojson", data: activePoiData() } as never);
+        map.addLayer({
+            id: LAYER_POI_ACTIVE,
+            type: "circle",
+            source: SRC_POI_ACTIVE,
+            paint: {
+                "circle-color": "rgba(0,0,0,0)",
+                "circle-radius": ["interpolate", ["linear"], ["zoom"], 13, 8, 16, 11, 18, 13] as never,
+                "circle-stroke-color": "#0f172a",
+                "circle-stroke-width": 3,
+            },
+        });
+    }
+
     function ensurePoiLayers(map: VietmapMap): void {
         const data = latest.current.pois as never;
         const source = map.getSource(SRC_POIS);
@@ -722,6 +756,7 @@ export default function MapCanvas({
                 const setup = (): void => {
                     if (!map) return;
                     ensurePoiLayers(map);
+                    ensureActivePoi(map);
                     ensureCircleLayers(map);
                     ensureRadiusLayers(map);
                     ensureRouteLayers(map);
@@ -894,6 +929,17 @@ export default function MapCanvas({
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps -- hàm vẽ đọc giá trị mới nhất qua ref
     }, [pois]);
+
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map) return;
+        try {
+            ensureActivePoi(map);
+        } catch {
+            // style chưa sẵn sàng: lần "load"/"styledata" sẽ vẽ
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- hàm vẽ đọc giá trị mới nhất qua ref
+    }, [activePoi]);
 
     // Tin rao.
     useEffect(() => {

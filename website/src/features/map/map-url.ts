@@ -61,6 +61,8 @@ export interface MapUrlParseResult {
 const KNOWN_PARAMS = [
     "c", "z", "b", "p", "s", "layers", "q", "cats", "scope", "city", "dist", "ward", "r",
     "pin", "from", "to", "v", "alt", "route", "avoid", "t",
+    // "ve=so-sanh": thẻ Địa điểm mở từ bảng so sánh, có nút quay lại. Chỉ đọc lúc mở, không ghi lại vào URL.
+    "ve",
 ] as const;
 
 /** Các param chỉ có nghĩa khi đang chỉ đường. */

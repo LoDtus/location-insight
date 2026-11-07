@@ -44,6 +44,15 @@ function setup() {
     async count({ where }: { where: Row }) {
       return rows.filter((row) => matches(row, where)).length;
     },
+    manager: {
+      async transaction(run: (manager: { update: (entity: unknown, where: Row, patch: Row) => Promise<void> }) => Promise<void>) {
+        await run({
+          async update(_entity, where, patch) {
+            rows.filter((row) => matches(row, where)).forEach((row) => Object.assign(row, patch));
+          },
+        });
+      },
+    },
   };
   let placeSeq = 0;
   const service = new MapPlacesService(
@@ -106,5 +115,31 @@ describe('cleanNote', () => {
   it('giữ xuống dòng, bỏ ký tự điều khiển, cắt 1000 ký tự', () => {
     expect(cleanNote('a\u0007b\tc\nd')).toBe('a b c\nd');
     expect(cleanNote('x'.repeat(1200))).toHaveLength(1000);
+  });
+
+  it('lưu thứ tự cột so sánh; bỏ khỏi so sánh thì mất vị trí đã sắp', async () => {
+    const { service, rows } = setup();
+    const a = await saveOne(service, 'user-a', 1);
+    const b = await saveOne(service, 'user-a', 2);
+    const c = await saveOne(service, 'user-a', 3);
+    for (const item of [a, b, c]) await service.update('user-a', item.id, { compared: true });
+    await service.reorderCompare('user-a', [c.id, a.id, b.id]);
+    const order = (id: string) => rows.find((row) => row.id === id)?.compareOrder;
+    expect([order(c.id), order(a.id), order(b.id)]).toEqual([0, 1, 2]);
+    await service.update('user-a', a.id, { compared: false });
+    expect(order(a.id)).toBeNull();
+  });
+
+  it('thứ tự lệch danh sách đang so sánh (thiếu, thừa, lặp, của người khác) thì 409', async () => {
+    const { service } = setup();
+    const a = await saveOne(service, 'user-a', 1);
+    const b = await saveOne(service, 'user-a', 2);
+    const other = await saveOne(service, 'user-b', 3);
+    for (const item of [a, b]) await service.update('user-a', item.id, { compared: true });
+    await service.update('user-b', other.id, { compared: true });
+    await expect(service.reorderCompare('user-a', [a.id])).rejects.toMatchObject({ status: 409 });
+    await expect(service.reorderCompare('user-a', [a.id, a.id])).rejects.toMatchObject({ status: 409 });
+    await expect(service.reorderCompare('user-a', [a.id, other.id])).rejects.toMatchObject({ status: 409 });
+    await expect(service.reorderCompare('user-a', [b.id, a.id])).resolves.toEqual({ ids: [b.id, a.id] });
   });
 });

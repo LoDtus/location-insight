@@ -42,6 +42,13 @@ export class MapSavedPlaceEntity {
   @Column({ type: 'timestamptz', name: 'compared_at', nullable: true })
   comparedAt: Date | null;
 
+  /**
+   * Vị trí cột trong bảng so sánh do người dùng kéo thả (0 = đầu). null = chưa sắp: xếp sau các cột đã sắp,
+   * theo lúc thêm vào. Bỏ khỏi so sánh thì về null.
+   */
+  @Column({ type: 'smallint', name: 'compare_order', nullable: true })
+  compareOrder: number | null;
+
   @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
   createdAt: Date;
 }

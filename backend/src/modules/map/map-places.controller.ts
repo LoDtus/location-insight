@@ -10,6 +10,7 @@ import {
   ReleaseDatasetDto,
   SavePlaceDto,
   UpdateSavedPlaceDto,
+  CompareOrderDto,
 } from './dto/map.dto.js';
 import { MapDatasetService } from './map-dataset.service.js';
 import { MapEvaluationService } from './map-evaluation.service.js';
@@ -90,6 +91,14 @@ export class MapPlacesController {
   @Get('compare')
   compare(@Req() request: RequestWithPrincipal) {
     return this.places.compare(userId(request));
+  }
+
+  /** Kéo thả cột trong bảng so sánh: lưu thứ tự mới (toàn bộ id đang so sánh). */
+  @RequirePermission('map:use')
+  @Header('Cache-Control', 'private, no-store')
+  @Put('compare/order')
+  reorderCompare(@Body() body: CompareOrderDto, @Req() request: RequestWithPrincipal) {
+    return this.places.reorderCompare(userId(request), body.ids);
   }
 
   @RequirePermission('map:use')

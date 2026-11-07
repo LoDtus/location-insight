@@ -148,8 +148,10 @@ export class MapPlacesService {
           );
         }
         row.comparedAt = new Date();
+        row.compareOrder = null;
       } else {
         row.comparedAt = null;
+        row.compareOrder = null;
       }
     }
     const saved = await this.saved.save(row);
@@ -160,13 +162,43 @@ export class MapPlacesService {
   /** Danh sách so sánh (theo thứ tự thêm vào), mỗi mục kèm đánh giá đầy đủ của chính người dùng. */
   async compare(userId: string): Promise<CompareItemView[]> {
     await this.limits.consumeUser('saved', userId);
-    const rows = await this.saved.find({
-      where: { userId, comparedAt: Not(IsNull()) },
-      order: { comparedAt: 'ASC' },
-      take: MAP_COMPARE_MAX,
-    });
+    const rows = await this.comparedRows(userId);
     const views = await this.evaluations.latestViews(userId, rows.map((row) => row.placeId));
     return rows.map((row) => ({ ...toView(row), evaluation: views.get(row.placeId) ?? null }));
+  }
+
+  /** Các mục đang so sánh theo thứ tự cột: đã sắp (compare_order) trước, chưa sắp sau theo lúc thêm vào. */
+  private comparedRows(userId: string): Promise<MapSavedPlaceEntity[]> {
+    return this.saved.find({
+      where: { userId, comparedAt: Not(IsNull()) },
+      order: { compareOrder: { direction: 'ASC', nulls: 'LAST' }, comparedAt: 'ASC' },
+      take: MAP_COMPARE_MAX,
+    });
+  }
+
+  /**
+   * Lưu thứ tự cột của bảng so sánh. `ids` phải đúng là toàn bộ danh sách đang so sánh của người dùng (không thừa,
+   * không thiếu, không lặp); lệch (vd. tab khác vừa thêm/bỏ) thì 409 để client tải lại.
+   */
+  async reorderCompare(userId: string, ids: readonly string[]): Promise<{ ids: string[] }> {
+    await this.limits.consumeUser('saved', userId);
+    const rows = await this.saved.find({ where: { userId, comparedAt: Not(IsNull()) }, take: MAP_COMPARE_MAX + 1 });
+    const current = new Set(rows.map((row) => row.id));
+    const unique = new Set(ids);
+    if (unique.size !== ids.length || unique.size !== current.size || ids.some((id) => !current.has(id))) {
+      throw new BusinessException(
+        ErrorCode.CONFLICT,
+        'Danh sách so sánh vừa thay đổi. Tải lại trang rồi sắp xếp lại.',
+        undefined,
+        HttpStatus.CONFLICT,
+      );
+    }
+    await this.saved.manager.transaction(async (manager) => {
+      for (const [index, id] of ids.entries()) {
+        await manager.update(MapSavedPlaceEntity, { id, userId }, { compareOrder: index });
+      }
+    });
+    return { ids: [...ids] };
   }
 
   private notFound(): BusinessException {

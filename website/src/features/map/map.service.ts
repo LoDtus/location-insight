@@ -144,6 +144,11 @@ export function updateSavedPlace(id: string, patch: { label?: string | null; not
     return apiRequest(`/map/saved/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(patch) });
 }
 
+/** Lưu thứ tự cột của bảng so sánh (toàn bộ id đang so sánh). 409 nếu danh sách vừa đổi ở nơi khác. */
+export function reorderCompare(ids: readonly string[]): Promise<{ ids: string[] }> {
+    return apiRequest("/map/compare/order", { method: "PUT", body: JSON.stringify({ ids }) });
+}
+
 export function getCompare(signal?: AbortSignal): Promise<CompareItem[]> {
     return apiRequest("/map/compare", withSignal(signal));
 }

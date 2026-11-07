@@ -1,11 +1,16 @@
 import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  ArrayUnique,
+  IsArray,
   IsBoolean,
   IsIn,
   IsInt,
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   Matches,
   Max,
   MaxLength,
@@ -14,6 +19,7 @@ import {
 } from 'class-validator';
 import {
   MAP_CATS_PATTERN,
+  MAP_COMPARE_MAX,
   MAP_LABEL_MAX,
   MAP_NOTE_MAX,
   MAP_MAX_SUGGESTIONS,
@@ -252,4 +258,14 @@ export class ReleaseDatasetDto {
   @MinLength(3)
   @MaxLength(500)
   note: string;
+}
+
+/** Thứ tự cột bảng so sánh: toàn bộ id mục đang so sánh, theo thứ tự mới (kiểm tra khớp danh sách ở service). */
+export class CompareOrderDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(MAP_COMPARE_MAX)
+  @ArrayUnique()
+  @IsUUID('all', { each: true })
+  ids: string[];
 }

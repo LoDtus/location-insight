@@ -239,12 +239,6 @@ export default function AppSidebar({
                       badge: feedbackBadge,
                   },
                   {
-                      kind: "item",
-                      href: "/admin/email",
-                      icon: Mail,
-                      label: "Email",
-                  },
-                  {
                       kind: "divider",
                       id: "admin",
                       label: vi ? "Quản trị" : "Admin",
@@ -278,6 +272,12 @@ export default function AppSidebar({
                       href: "/admin/discussions",
                       icon: Flag,
                       label: vi ? "Báo cáo bài viết" : "Post reports",
+                  },
+                  {
+                      kind: "item",
+                      href: "/admin/email",
+                      icon: Mail,
+                      label: "Email",
                   },
               ]
             : [

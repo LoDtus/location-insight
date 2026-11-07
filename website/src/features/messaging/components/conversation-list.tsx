@@ -180,7 +180,7 @@ export function ConversationList({
                         )}
                     </div>
                 ) : (
-                    <ul className="m-0 p-1">
+                    <ul className="m-0 flex flex-col gap-1 p-1">
                         {items.map((item) => (
                             <Row key={item.id} item={item} active={item.id === activeId} root={root} />
                         ))}

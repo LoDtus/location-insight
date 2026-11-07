@@ -202,7 +202,7 @@ function CommentItem({
                 )}
                 {!editing ? (
                     <div className="mt-1 -ml-2 flex flex-wrap items-center gap-1 font-sans">
-                        <button type="button" disabled={!signedIn} aria-pressed={liked} onClick={() => void toggleLike()} className={`${action} ${liked ? "text-green" : ""} disabled:cursor-default`}>
+                        <button type="button" disabled={!signedIn} aria-pressed={liked} onClick={() => void toggleLike()} className={`${action} ${liked ? "text-red-600" : ""} disabled:cursor-default`}>
                             <Heart size={14} aria-hidden fill={liked ? "currentColor" : "none"} />
                             <span className="sr-only">{vi ? "Thích" : "Like"}</span>
                             {likes}

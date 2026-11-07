@@ -68,7 +68,12 @@ export default async function Layout({
             <header className="bg-header text-cream">
                 <Header />
             </header>
-            <div className="flex min-h-0 flex-1 flex-col overflow-auto scroll-smooth [container-type:size] motion-reduce:scroll-auto">
+            {/* relative: phần tử absolute bên trong (sr-only…) nằm trong vùng cuộn này, không kéo dài cả trang
+                rồi làm khung nhìn bị cuộn khi nhảy tới #neo (header trôi mất, footer bị đẩy lên). */}
+            <div
+                data-scroll-root
+                className="relative flex min-h-0 flex-1 flex-col overflow-auto scroll-smooth [container-type:size] motion-reduce:scroll-auto"
+            >
                 <main
                     id="noi-dung"
                     className={flush ? "w-full" : "flex w-full flex-col"}

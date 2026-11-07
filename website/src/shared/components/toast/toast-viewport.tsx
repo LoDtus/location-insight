@@ -27,9 +27,10 @@ function Toast({ item }: { item: ToastItem }): JSX.Element {
             onMouseLeave={() => setPaused(false)}
             onFocus={() => setPaused(true)}
             onBlur={() => setPaused(false)}
-            className="toast-enter pointer-events-auto flex w-full items-start gap-3 rounded-lg border border-charcoal/10 bg-white p-3 pr-2 text-charcoal shadow-[0_10px_30px_rgba(16,17,17,0.16)]"
+            className={`toast-enter pointer-events-auto flex w-full ${item.description ? "items-start" : "items-center"} gap-3 rounded-lg border border-charcoal/10 bg-white p-3 pr-2 text-charcoal shadow-[0_10px_30px_rgba(16,17,17,0.16)]`}
         >
-            <span className="mt-0.5 shrink-0">{ICON[item.tone]}</span>
+            {/* Có mô tả: icon thẳng hàng với dòng tiêu đề; không có: căn giữa theo chiều dọc cùng tiêu đề và nút đóng. */}
+            <span className={`flex shrink-0 ${item.description ? "mt-0.5" : ""}`}>{ICON[item.tone]}</span>
             <span className="min-w-0 flex-1">
                 <span className="block text-sm font-semibold">{item.title}</span>
                 {item.description ? <span className="mt-0.5 block text-sm text-charcoal/70">{item.description}</span> : null}

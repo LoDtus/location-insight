@@ -371,7 +371,7 @@ function Action({
     onClick: () => void;
 }): JSX.Element {
     const glyph = {
-        like: <Heart className={`size-5 ${active ? "fill-green" : ""}`} aria-hidden="true" />,
+        like: <Heart className={`size-5 ${active ? "fill-current" : ""}`} aria-hidden="true" />,
         reply: <MessageCircle className="size-5" aria-hidden="true" />,
         repost: <Repeat2 className="size-5" aria-hidden="true" />,
         share: <Send className="size-5" aria-hidden="true" />,
@@ -380,7 +380,15 @@ function Action({
     return (
         <button
             type="button"
-            className={`inline-flex h-9 items-center justify-center rounded-full text-sm tabular-nums focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green ${count ? "min-w-9 gap-1.5 px-2" : "w-9 p-0"} ${active ? "text-green hover:bg-green/10" : "hover:bg-green/10 hover:text-green"} disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-inherit`}
+            className={`inline-flex h-9 items-center justify-center rounded-full text-sm tabular-nums focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green ${count ? "min-w-9 gap-1.5 px-2" : "w-9 p-0"} ${
+                icon === "like"
+                    ? active
+                        ? "text-red-600 hover:bg-red-600/10"
+                        : "hover:bg-red-600/10 hover:text-red-600"
+                    : active
+                      ? "text-green hover:bg-green/10"
+                      : "hover:bg-green/10 hover:text-green"
+            } disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-inherit`}
             aria-pressed={active}
             aria-label={count ? `${label}, ${count}` : label}
             title={label}

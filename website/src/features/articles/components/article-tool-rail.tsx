@@ -10,6 +10,15 @@ import { useLocale } from "@/shared/hooks/useLocale";
 const ICON_BUTTON =
     "inline-flex size-10 items-center justify-center rounded-full text-charcoal/70 hover:bg-charcoal/[0.06] hover:text-charcoal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green disabled:cursor-default disabled:hover:bg-transparent";
 
+/** Phần tử đang cuộn chứa `node` (trang công khai cuộn trong một khung riêng, không phải window). */
+function scrollParent(node: Element | null): Element | null {
+    for (let el = node?.parentElement ?? null; el; el = el.parentElement) {
+        const { overflowY } = getComputedStyle(el);
+        if ((overflowY === "auto" || overflowY === "scroll") && el.scrollHeight > el.clientHeight) return el;
+    }
+    return document.scrollingElement;
+}
+
 function pageUrl(): string {
     // Bỏ phần #… để liên kết luôn mở đầu bài.
     return window.location.href.split("#")[0] ?? window.location.href;
@@ -79,7 +88,10 @@ export default function ArticleToolRail({ title, preview = false }: { title: str
                 <button
                     type="button"
                     title={vi ? "Lên đầu trang" : "Back to top"}
-                    onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+                    onClick={(event) => {
+                        const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+                        scrollParent(event.currentTarget)?.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+                    }}
                     className={ICON_BUTTON}
                 >
                     <ArrowUp size={18} aria-hidden />
@@ -92,7 +104,8 @@ export default function ArticleToolRail({ title, preview = false }: { title: str
 function RailVotes({ vi }: { vi: boolean }): JSX.Element {
     const { stats, myVote, signedIn, voting, vote } = useArticleEngagement();
     const hint = vi ? "Đăng nhập để bình chọn" : "Sign in to vote";
-    const tone = (active: boolean): string => (active ? "bg-green/10 text-green" : "");
+    const tone = (kind: 1 | -1): string =>
+        myVote !== kind ? "" : kind === 1 ? "bg-red-600 text-white hover:bg-red-700 hover:text-white" : "bg-charcoal text-white hover:bg-charcoal/90 hover:text-white";
     return (
         <>
             <RailItem label={`${vi ? "Thích" : "Upvote"}: ${stats.upvotes}`} count={stats.upvotes}>
@@ -102,9 +115,9 @@ function RailVotes({ vi }: { vi: boolean }): JSX.Element {
                     disabled={voting || !signedIn}
                     title={signedIn ? (vi ? "Thích" : "Upvote") : hint}
                     onClick={() => vote(1)}
-                    className={`${ICON_BUTTON} ${tone(myVote === 1)}`}
+                    className={`${ICON_BUTTON} ${tone(1)}`}
                 >
-                    <ThumbsUp size={18} aria-hidden />
+                    <ThumbsUp size={18} aria-hidden fill={myVote === 1 ? "currentColor" : "none"} />
                 </button>
             </RailItem>
             <RailItem label={`${vi ? "Không thích" : "Downvote"}: ${stats.downvotes}`} count={stats.downvotes}>
@@ -114,9 +127,9 @@ function RailVotes({ vi }: { vi: boolean }): JSX.Element {
                     disabled={voting || !signedIn}
                     title={signedIn ? (vi ? "Không thích" : "Downvote") : hint}
                     onClick={() => vote(-1)}
-                    className={`${ICON_BUTTON} ${tone(myVote === -1)}`}
+                    className={`${ICON_BUTTON} ${tone(-1)}`}
                 >
-                    <ThumbsDown size={18} aria-hidden />
+                    <ThumbsDown size={18} aria-hidden fill={myVote === -1 ? "currentColor" : "none"} />
                 </button>
             </RailItem>
             <RailItem label={`${vi ? "Bình luận" : "Comments"}: ${stats.comments}`} count={stats.comments}>

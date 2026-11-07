@@ -14,6 +14,13 @@ export default function ArticleVoteBar({ compact = false }: { compact?: boolean 
     const vi = locale === "vi";
     const base = `inline-flex min-h-10 items-center gap-1.5 rounded-full border px-3 text-sm font-semibold tabular-nums focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green ${compact ? "" : "px-4"}`;
     const tone = (active: boolean): string => (active ? "border-green bg-green/10 text-green" : "border-charcoal/25 bg-white text-charcoal");
+    /** Đã bình chọn: icon đặc; thích nền đỏ, không thích nền xám đậm, chữ và icon trắng. */
+    const voteTone = (kind: 1 | -1): string =>
+        myVote !== kind
+            ? "border-charcoal/25 bg-white text-charcoal hover:border-charcoal/45"
+            : kind === 1
+              ? "border-red-600 bg-red-600 text-white"
+              : "border-charcoal bg-charcoal text-white";
     const loginHint = vi ? "Đăng nhập để bình chọn" : "Sign in to vote";
     return (
         <div className="flex flex-wrap items-center gap-2" role="group" aria-label={vi ? "Tương tác với bài viết" : "Article reactions"}>
@@ -23,9 +30,9 @@ export default function ArticleVoteBar({ compact = false }: { compact?: boolean 
                 disabled={voting || !signedIn}
                 title={signedIn ? undefined : loginHint}
                 onClick={() => vote(1)}
-                className={`${base} ${tone(myVote === 1)} disabled:cursor-default`}
+                className={`${base} ${voteTone(1)} disabled:cursor-default`}
             >
-                <ThumbsUp size={16} aria-hidden />
+                <ThumbsUp size={16} aria-hidden fill={myVote === 1 ? "currentColor" : "none"} />
                 <span className="sr-only">{vi ? "Thích" : "Upvote"}</span>
                 {stats.upvotes}
             </button>
@@ -35,9 +42,9 @@ export default function ArticleVoteBar({ compact = false }: { compact?: boolean 
                 disabled={voting || !signedIn}
                 title={signedIn ? undefined : loginHint}
                 onClick={() => vote(-1)}
-                className={`${base} ${tone(myVote === -1)} disabled:cursor-default`}
+                className={`${base} ${voteTone(-1)} disabled:cursor-default`}
             >
-                <ThumbsDown size={16} aria-hidden />
+                <ThumbsDown size={16} aria-hidden fill={myVote === -1 ? "currentColor" : "none"} />
                 <span className="sr-only">{vi ? "Không thích" : "Downvote"}</span>
                 {stats.downvotes}
             </button>

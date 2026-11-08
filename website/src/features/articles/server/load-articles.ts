@@ -1,6 +1,7 @@
 import "server-only";
 
 import {
+    type ArticleHome,
     readArticlePage,
     readArticleSort,
     readArticleTopic,
@@ -83,5 +84,14 @@ export async function loadRelatedArticles(slug: string): Promise<PublicArticle[]
         return (await readJson<PublicArticle[]>(`/articles/${encodeURIComponent(slug)}/related`)) ?? [];
     } catch {
         return [];
+    }
+}
+
+/** Trang /bai-viet: các mục Mới nhất, Nổi bật, Được quan tâm, Đề xuất, Video / Ảnh, khối chủ đề. */
+export async function loadArticleHome(): Promise<ArticleHome | null> {
+    try {
+        return await readJson<ArticleHome>("/articles/home");
+    } catch {
+        return null;
     }
 }

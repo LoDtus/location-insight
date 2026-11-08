@@ -15,6 +15,8 @@ function form(overrides: Partial<ArticleWrite> = {}): ArticleWrite {
         coverImage: null,
         seoTitle: null,
         seoDescription: null,
+        format: "standard",
+        videoUrl: null,
         ...overrides,
     };
 }
@@ -44,5 +46,14 @@ describe("articleChecklist", () => {
     it("mục tối ưu tìm kiếm không bắt buộc", () => {
         const optional = articleChecklist(form()).filter((item) => !item.required);
         expect(optional.every((item) => !item.done)).toBe(true);
+    });
+});
+
+describe("bài dạng video", () => {
+    it("chặn đăng khi thiếu liên kết YouTube/Vimeo", () => {
+        expect(blockingIssues(form({ format: "video" }))).toContain("Có liên kết video YouTube/Vimeo (https)");
+        expect(blockingIssues(form({ format: "video", videoUrl: "http://youtube.com/watch?v=x" }))).toContain("Có liên kết video YouTube/Vimeo (https)");
+        expect(blockingIssues(form({ format: "video", videoUrl: "https://youtu.be/dQw4w9WgXcQ" }))).not.toContain("Có liên kết video YouTube/Vimeo (https)");
+        expect(blockingIssues(form({ format: "standard" }))).not.toContain("Có liên kết video YouTube/Vimeo (https)");
     });
 });

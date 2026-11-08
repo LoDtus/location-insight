@@ -1,5 +1,5 @@
 import { apiRequest } from "@/features/auth/auth.api";
-import { ARTICLE_TOPICS, type ArticleTopic } from "@/features/articles/articles";
+import { ARTICLE_TOPICS, type ArticleCard, type ArticleFormat, type ArticleTopic } from "@/features/articles/articles";
 
 export type ArticleStatus = "draft" | "scheduled" | "published" | "hidden";
 
@@ -15,6 +15,8 @@ export type AdminArticle = {
     coverImage: string | null;
     seoTitle: string | null;
     seoDescription: string | null;
+    format?: ArticleFormat;
+    videoUrl?: string | null;
     source: "manual" | "ai";
     idempotencyKey: string | null;
     reviewNote: string | null;
@@ -76,6 +78,16 @@ export type ArticleWrite = {
     coverImage: string | null;
     seoTitle: string | null;
     seoDescription: string | null;
+    /** standard | photo | video: bài ảnh/video lên mục "Video / Ảnh" của trang /bai-viet. */
+    format: ArticleFormat;
+    /** Liên kết YouTube/Vimeo (bắt buộc với bài video). */
+    videoUrl: string | null;
+};
+
+export const ARTICLE_FORMAT_LABEL: Record<ArticleFormat, string> = {
+    standard: "Bài thường",
+    photo: "Ảnh",
+    video: "Video",
 };
 
 export const ARTICLE_STATUS_LABEL: Record<ArticleStatus, string> = {
@@ -193,4 +205,14 @@ export function likeArticleComment(id: string, liked: boolean): Promise<{ id: st
 
 export function getArticleStats(slug: string): Promise<ArticleStats> {
     return apiRequest(`${articlePath(slug)}/stats`);
+}
+
+/** Đề xuất riêng cho người đã đăng nhập (theo chủ đề họ hay tương tác). */
+export function listRecommendedForMe(): Promise<ArticleCard[]> {
+    return apiRequest<ArticleCard[]>("/articles/recommended/me");
+}
+
+/** Ghi một lượt đọc (máy chủ chỉ tính một lần/người/bài/ngày). */
+export function recordArticleView(slug: string): Promise<{ counted: boolean }> {
+    return apiRequest(`/articles/${encodeURIComponent(slug)}/view`, { method: "POST" });
 }

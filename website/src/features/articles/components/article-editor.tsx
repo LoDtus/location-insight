@@ -16,7 +16,9 @@ import {
     blockingIssues,
     slugifyTitle,
 } from "@/features/articles/article-rules";
+import { ARTICLE_FORMATS } from "@/features/articles/articles";
 import {
+    ARTICLE_FORMAT_LABEL,
     ARTICLE_STATUS_LABEL,
     ARTICLE_TOPICS,
     createAdminArticle,
@@ -81,6 +83,8 @@ function emptyWrite(): ArticleWrite {
         coverImage: null,
         seoTitle: null,
         seoDescription: null,
+        format: "standard",
+        videoUrl: null,
     };
 }
 
@@ -96,6 +100,8 @@ function fromArticle(article: AdminArticle): ArticleWrite {
         coverImage: article.coverImage,
         seoTitle: article.seoTitle,
         seoDescription: article.seoDescription,
+        format: article.format ?? "standard",
+        videoUrl: article.videoUrl ?? null,
     };
 }
 
@@ -162,6 +168,7 @@ export default function ArticleEditor({ article }: { article: AdminArticle | nul
             coverImage: form.coverImage?.trim() || null,
             seoTitle: form.seoTitle?.trim() || null,
             seoDescription: form.seoDescription?.trim() || null,
+            videoUrl: form.format === "video" ? form.videoUrl?.trim() || null : null,
         };
     }
 
@@ -291,6 +298,28 @@ export default function ArticleEditor({ article }: { article: AdminArticle | nul
                             {form.coverImage?.trim() ? (
                                 // eslint-disable-next-line @next/next/no-img-element -- xem trước địa chỉ tùy ý của quản trị viên
                                 <img src={form.coverImage.trim()} alt="" className="aspect-video w-full rounded-xl border border-charcoal/15 object-cover" />
+                            ) : null}
+                            <Field id="ab-format" label="Định dạng bài" vi hint="Bài Ảnh hoặc Video lên mục “Video / Ảnh” của trang Bài viết. Bài Video hiện video thay ảnh bìa ở đầu bài.">
+                                <Segmented
+                                    label="Định dạng bài"
+                                    value={form.format}
+                                    options={ARTICLE_FORMATS.map((format) => ({ id: format, label: ARTICLE_FORMAT_LABEL[format] }))}
+                                    onChange={(value) => set("format", value)}
+                                />
+                            </Field>
+                            {form.format === "video" ? (
+                                <Field id="ab-video" label="Liên kết video" required vi hint="YouTube (youtube.com/watch?v=…, youtu.be/…, shorts) hoặc Vimeo, bắt đầu bằng https://.">
+                                    <input
+                                        id="ab-video"
+                                        type="url"
+                                        inputMode="url"
+                                        className={INPUT_CLASS}
+                                        value={form.videoUrl ?? ""}
+                                        placeholder="https://www.youtube.com/watch?v=…"
+                                        maxLength={300}
+                                        onChange={(event) => set("videoUrl", event.target.value || null)}
+                                    />
+                                </Field>
                             ) : null}
                         </SectionCard>
 

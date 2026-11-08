@@ -1,6 +1,6 @@
 "use client";
 
-import { X } from "lucide-react";
+import { ChevronLeft, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -20,8 +20,11 @@ import { getLocaleValue } from "@/shared/utils/locale.utils";
 const FIELD_CLASS =
     "box-border min-h-11 w-full rounded-full border border-charcoal/20 bg-white px-4 text-sm text-charcoal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green";
 
-const CHIP_CLASS =
-    "inline-flex min-h-11 items-center gap-2 rounded-full border border-charcoal/20 bg-white px-3 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green";
+const CHIP_BASE =
+    "inline-flex min-h-11 items-center gap-2 rounded-full border px-3 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green";
+const CHIP_CLASS = `${CHIP_BASE} border-charcoal/20 bg-white`;
+/** Chip đang chọn: không kèm bg-white (hai lớp nền cùng lúc làm chữ kem nằm trên nền trắng). */
+const CHIP_SELECTED = `${CHIP_BASE} border-green bg-green text-cream`;
 
 export default function ArticleBrowser({ list }: { list: PublishedList }) {
     const router = useRouter();
@@ -80,6 +83,9 @@ export default function ArticleBrowser({ list }: { list: PublishedList }) {
     return (
         <div className="box-border px-4 py-8 sm:px-8 xl:px-50">
             <header className="max-w-3xl">
+                <Link href="/bai-viet" className="mb-3 inline-flex items-center gap-1 text-sm font-semibold text-green no-underline hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green">
+                    <ChevronLeft size={16} aria-hidden="true" /> {text(["articles", "front", "back"])}
+                </Link>
                 <h1 className="m-0 text-3xl leading-tight font-semibold tracking-tight md:text-4xl">
                     {text(["articles", "title"])}
                 </h1>
@@ -127,7 +133,7 @@ export default function ArticleBrowser({ list }: { list: PublishedList }) {
                     type="button"
                     role="radio"
                     aria-checked={topic === ""}
-                    className={topic === "" ? `${CHIP_CLASS} border-green bg-green text-cream` : CHIP_CLASS}
+                    className={topic === "" ? CHIP_SELECTED : CHIP_CLASS}
                     onClick={() => commit({ "chu-de": null })}
                 >
                     {text(["articles", "topicAll"])}
@@ -140,7 +146,7 @@ export default function ArticleBrowser({ list }: { list: PublishedList }) {
                             type="button"
                             role="radio"
                             aria-checked={selected}
-                            className={selected ? `${CHIP_CLASS} border-green bg-green text-cream` : CHIP_CLASS}
+                            className={selected ? CHIP_SELECTED : CHIP_CLASS}
                             onClick={() => commit({ "chu-de": key })}
                         >
                             {text(["articles", "topics", key])}

@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import ArticleBrowser from "@/features/articles/components/article-browser";
-import { loadPublishedArticles } from "@/features/articles/server/load-articles";
+import ArticleFront from "@/features/articles/components/article-front";
+import { loadArticleHome, loadPublishedArticles } from "@/features/articles/server/load-articles";
 import { getLandingMessages } from "@/features/landing-page/server/get-landing-messages";
 import { getLocaleValue } from "@/shared/utils/locale.utils";
 
@@ -26,6 +27,11 @@ export default async function Page({
 }) {
     const params = await searchParams;
     const messages = await getLandingMessages();
+    // Không lọc/tìm/phân trang: trang nhất kiểu báo (các mục). Có tham số (hoặc ?xem=tat-ca): danh sách đầy đủ có bộ lọc.
+    const browsing = ["q", "chu-de", "sort", "page", "xem"].some((key) => first(params[key]) !== "");
+    if (!browsing) {
+        return <ArticleFront home={await loadArticleHome()} />;
+    }
     const list = await loadPublishedArticles({
         q: first(params.q),
         topic: first(params["chu-de"]),

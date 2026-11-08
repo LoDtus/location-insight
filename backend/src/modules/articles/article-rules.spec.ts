@@ -55,3 +55,22 @@ describe('cleanCommentBody', () => {
     expect(cleanCommentBody(' \n\t ')).toBe('');
   });
 });
+
+describe('liên kết video nhúng', () => {
+  it('chỉ nhận YouTube/Vimeo https với mã hợp lệ', async () => {
+    const { videoEmbedUrl } = await import('./article-rules.js');
+    expect(videoEmbedUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ');
+    expect(videoEmbedUrl('https://youtu.be/dQw4w9WgXcQ?t=10')).toBe('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ');
+    expect(videoEmbedUrl('https://www.youtube.com/shorts/dQw4w9WgXcQ')).toBe('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ');
+    expect(videoEmbedUrl('https://vimeo.com/76979871')).toBe('https://player.vimeo.com/video/76979871');
+    expect(videoEmbedUrl('http://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBeNull();
+    expect(videoEmbedUrl('https://evil.example/watch?v=dQw4w9WgXcQ')).toBeNull();
+    expect(videoEmbedUrl('https://youtu.be/abc"><script>')).toBeNull();
+    expect(videoEmbedUrl('javascript:alert(1)')).toBeNull();
+  });
+
+  it('bài dạng video bắt buộc có liên kết hợp lệ', () => {
+    expect(articleIssues(draft({ format: 'video', videoUrl: null }))).toContain('Bài dạng video cần liên kết video.');
+    expect(articleIssues(draft({ format: 'video', videoUrl: 'https://example.com/a.mp4' }))).toContain('Video phải là liên kết YouTube hoặc Vimeo (https).');
+  });
+});

@@ -404,6 +404,38 @@
                 "title": "Linh Dam: a hospital within 2 km is which distance",
                 "lede": "Two kilometres on the map is a straight line from the pin, not minutes in a car."
             }
+        },
+        "front": {
+            "sections": "Article sections",
+            "allArticles": "All articles",
+            "seeAll": "See all",
+            "seeMore": "More",
+            "latest": "Latest",
+            "popular": "Most read",
+            "popularHint": {
+                "7d": "Most read in the past 7 days",
+                "30d": "Most read in the past 30 days",
+                "all": "Most read"
+            },
+            "recommended": "Recommended for you",
+            "recommendedGuest": "Picked from well-rated, widely read recent articles.",
+            "recommendedMine": "Based on the topics you read and vote on.",
+            "engaged": "Most discussed",
+            "engagedHint": "Most comments and votes",
+            "media": "Video / Photos",
+            "mediaHint": "Articles with a video or many photos",
+            "video": "Video",
+            "photo": "Photos",
+            "views": "{count} reads",
+            "comments": "{count} comments",
+            "likes": "{count} likes",
+            "previous": "Previous",
+            "next": "Next",
+            "empty": "No article has been published yet.",
+            "search": "Search articles",
+            "searchSubmit": "Search",
+            "back": "Articles home",
+            "error": "Could not load the articles page. Try again in a few minutes."
         }
     }
 }

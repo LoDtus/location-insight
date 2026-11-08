@@ -29,6 +29,9 @@ export function hasInternalLink(body: string): boolean {
 export type ChecklistItem = { key: string; label: string; done: boolean; required: boolean };
 
 /** Các điều kiện trước khi đăng, theo thứ tự trên trang. `required` là điều kiện backend chặn. */
+/** Kiểm tra sơ bộ; máy chủ kiểm tra chặt mã video trước khi nhúng. */
+const VIDEO_URL = /^https:\/\/(www\.|m\.)?(youtube\.com|youtu\.be|youtube-nocookie\.com|vimeo\.com|player\.vimeo\.com)\//;
+
 export function articleChecklist(form: ArticleWrite): ChecklistItem[] {
     const title = form.title.trim().length;
     const lede = form.lede.trim().length;
@@ -39,6 +42,9 @@ export function articleChecklist(form: ArticleWrite): ChecklistItem[] {
         { key: "body", label: `Nội dung từ ${BODY_MIN} ký tự`, done: form.body.trim().length >= BODY_MIN, required: true },
         { key: "link", label: "Có liên kết nội bộ (/nha-dat, /phap-ly, /bai-viet/)", done: hasInternalLink(form.body), required: true },
         { key: "cover", label: "Có ảnh bìa", done: Boolean(form.coverImage?.trim()), required: false },
+        ...(form.format === "video"
+            ? [{ key: "video", label: "Có liên kết video YouTube/Vimeo (https)", done: VIDEO_URL.test(form.videoUrl?.trim() ?? ""), required: true }]
+            : []),
         { key: "seoTitle", label: "Có tiêu đề tìm kiếm riêng", done: Boolean(form.seoTitle?.trim()), required: false },
         { key: "seoDescription", label: "Có mô tả tìm kiếm riêng", done: Boolean(form.seoDescription?.trim()), required: false },
     ];

@@ -10,6 +10,8 @@ import ArticleImageViewer from "@/features/articles/components/article-image-vie
 import ArticleEngagementProvider from "@/features/articles/components/article-engagement-provider";
 import ArticleRelated from "@/features/articles/components/article-related";
 import ArticleToc from "@/features/articles/components/article-toc";
+import ArticleVideo, { isSafeVideoEmbed } from "@/features/articles/components/article-video";
+import ArticleViewBeacon from "@/features/articles/components/article-view-beacon";
 import ArticleToolRail, {
   ArticleShareButtons,
 } from "@/features/articles/components/article-tool-rail";
@@ -82,6 +84,7 @@ export default function ArticleView({
   const topicHref = `/bai-viet?chu-de=${encodeURIComponent(article.topic)}`;
   return (
     <ArticleEngagementProvider slug={article.slug} initialStats={article.stats}>
+      {preview ? null : <ArticleViewBeacon slug={article.slug} />}
       <div className="mx-auto box-border w-full max-w-[1180px] px-4 pt-5 pb-12 sm:px-6">
         <div className="grid items-start lg:grid-cols-[3rem_minmax(0,680px)] lg:justify-center lg:gap-x-10 xl:grid-cols-[3rem_680px_300px] xl:gap-x-[55px]">
           <div className="sticky top-24 hidden self-start lg:block">
@@ -162,7 +165,9 @@ export default function ArticleView({
               <ArticleToc headings={headings} title={text.toc} collapsible />
             </div>
             <ArticleImageViewer label={article.title}>
-              {article.coverImage?.startsWith("/") ? (
+              {isSafeVideoEmbed(article.videoEmbed) ? (
+                <ArticleVideo src={article.videoEmbed} title={article.title} />
+              ) : article.coverImage?.startsWith("/") ? (
                 <figure className="m-0 mt-5">
                   <Image
                     src={article.coverImage}

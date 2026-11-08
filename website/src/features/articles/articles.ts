@@ -16,6 +16,36 @@ export type PublicArticle = {
     coverImage: string | null;
     seoTitle: string | null;
     seoDescription: string | null;
+    /** standard | photo | video (bài cũ trước khi có cột có thể thiếu). */
+    format?: ArticleFormat;
+    /** Liên kết nhúng đã được máy chủ kiểm tra (youtube-nocookie / player.vimeo). */
+    videoEmbed?: string | null;
+};
+
+export const ARTICLE_FORMATS = ["standard", "photo", "video"] as const;
+export type ArticleFormat = (typeof ARTICLE_FORMATS)[number];
+
+/** Thẻ bài trên trang /bai-viet, kèm số liệu hiển thị. */
+export type ArticleCard = PublicArticle & {
+    publishedAt: string;
+    format: ArticleFormat;
+    videoEmbed: string | null;
+    views: number;
+    comments: number;
+    upvotes: number;
+};
+
+/** Dữ liệu trang /bai-viet (GET /articles/home). */
+export type ArticleHome = {
+    lead: ArticleCard | null;
+    secondary: ArticleCard[];
+    latest: ArticleCard[];
+    popular: ArticleCard[];
+    popularWindow: "7d" | "30d" | "all";
+    engaged: ArticleCard[];
+    recommended: ArticleCard[];
+    media: ArticleCard[];
+    topics: { topic: string; items: ArticleCard[] }[];
 };
 
 export type PublishedList = {

@@ -404,6 +404,38 @@
                 "title": "Linh Đàm: bệnh viện trong 2 km là khoảng cách nào",
                 "lede": "2 km trên bản đồ là đường chim bay từ ghim, không phải phút đi xe."
             }
+        },
+        "front": {
+            "sections": "Mục bài viết",
+            "allArticles": "Tất cả bài viết",
+            "seeAll": "Xem tất cả",
+            "seeMore": "Xem thêm",
+            "latest": "Mới nhất",
+            "popular": "Nổi bật",
+            "popularHint": {
+                "7d": "Đọc nhiều nhất 7 ngày qua",
+                "30d": "Đọc nhiều nhất 30 ngày qua",
+                "all": "Được đọc nhiều nhất"
+            },
+            "recommended": "Đề xuất cho bạn",
+            "recommendedGuest": "Chọn từ những bài được đánh giá tốt và đọc nhiều gần đây.",
+            "recommendedMine": "Dựa trên các chủ đề bạn hay đọc và bình chọn.",
+            "engaged": "Được quan tâm",
+            "engagedHint": "Nhiều bình luận và bình chọn nhất",
+            "media": "Video / Ảnh",
+            "mediaHint": "Bài có video hoặc nhiều ảnh minh họa",
+            "video": "Video",
+            "photo": "Ảnh",
+            "views": "{count} lượt đọc",
+            "comments": "{count} bình luận",
+            "likes": "{count} lượt thích",
+            "previous": "Trước",
+            "next": "Tiếp",
+            "empty": "Chưa có bài viết nào được đăng.",
+            "search": "Tìm bài viết",
+            "searchSubmit": "Tìm",
+            "back": "Trang bài viết",
+            "error": "Chưa tải được trang bài viết. Thử tải lại sau ít phút."
         }
     }
 }

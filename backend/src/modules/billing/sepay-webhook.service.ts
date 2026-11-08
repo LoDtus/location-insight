@@ -88,9 +88,13 @@ export class SepayWebhookService {
     const order = code
       ? await manager.findOne(PaymentOrderEntity, { where: { code } })
       : null;
+    // Tài khoản ảo (VA): SePay gửi số tài khoản chính ở accountNumber và số VA ở subAccount.
+    // Cấu hình có thể là số tài khoản chính hoặc số VA mà người trả chuyển tới.
+    const configured = this.normalize(this.config.accountNumber);
     const accountMatches =
-      this.normalize(payload.accountNumber) ===
-      this.normalize(this.config.accountNumber);
+      this.normalize(payload.accountNumber) === configured ||
+      (payload.subAccount !== null &&
+        this.normalize(payload.subAccount) === configured);
     const result = decideIncoming({
       transferType: payload.transferType,
       code,
@@ -198,7 +202,7 @@ export class SepayWebhookService {
   }
 
   private normalize(value: string): string {
-    return value.replace(/\s/g, '');
+    return value.replace(/\s/g, '').toUpperCase();
   }
 }
 

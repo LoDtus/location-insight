@@ -13,11 +13,14 @@ import {
 } from '@nestjs/common';
 import {
   AuthenticatedOnly,
+  AuthRateLimit,
   Public,
   RequirePermission,
 } from '../../common/decorators/access.decorator.js';
 import type { RequestWithPrincipal } from '../auth/auth.guard.js';
 import { UserRole } from '../rbac/authorization.types.js';
+import { clientIp } from '../auth/auth.constants.js';
+import { ArticleDiscoveryService } from './article-discovery.service.js';
 import { ArticleEngagementService } from './article-engagement.service.js';
 import { ArticlesService } from './articles.service.js';
 import {
@@ -38,12 +41,36 @@ export class ArticlesController {
   constructor(
     private readonly articles: ArticlesService,
     private readonly engagement: ArticleEngagementService,
+    private readonly discovery: ArticleDiscoveryService,
   ) {}
 
   @Public()
   @Get()
   list(@Query() query: ArticleListQueryDto) {
     return this.articles.listPublic(query);
+  }
+
+  /** Trang /bai-viet: bài dẫn, Mới nhất, Nổi bật, Được quan tâm, Đề xuất (khách), Video / Ảnh, khối chủ đề. Khai báo trước `:slug`. */
+  @Public()
+  @Get('home')
+  home() {
+    return this.discovery.home();
+  }
+
+  /** Đề xuất riêng cho người đã đăng nhập (theo chủ đề họ hay tương tác, bỏ bài đã đọc/bình chọn). */
+  @AuthenticatedOnly()
+  @Get('recommended/me')
+  recommendedForMe(@Req() request: RequestWithPrincipal) {
+    return this.discovery.recommended(userId(request));
+  }
+
+  /** Ghi lượt đọc (mỗi người đọc một lần/bài/ngày); trang chi tiết gọi khi mở bài. */
+  @Public()
+  @AuthRateLimit('articleView')
+  @Post(':slug/view')
+  async view(@Param('slug') slug: string, @Req() request: RequestWithPrincipal) {
+    const article = await this.articles.findVisible(slug);
+    return this.discovery.recordView(article.id, clientIp(request.ip), request.header('user-agent'));
   }
 
   @Public()

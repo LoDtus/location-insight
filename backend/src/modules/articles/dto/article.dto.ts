@@ -14,6 +14,7 @@ import {
   MinLength,
 } from 'class-validator';
 import {
+  ARTICLE_FORMATS,
   ARTICLE_SOURCES,
   ARTICLE_STATUSES,
   ARTICLE_TOPICS,
@@ -64,6 +65,15 @@ export class ArticleWriteDto {
   @IsString()
   @MaxLength(160)
   seoDescription?: string | null;
+
+  @IsOptional()
+  @IsIn(ARTICLE_FORMATS)
+  format?: (typeof ARTICLE_FORMATS)[number];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  videoUrl?: string | null;
 }
 
 export class IngestArticleDto {

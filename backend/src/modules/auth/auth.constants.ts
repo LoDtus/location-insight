@@ -33,6 +33,8 @@ export const AUTH_RATE_LIMITS = {
   googleIp: { limit: 30, windowSeconds: 10 * 60 },
   sepayIp: { limit: 300, windowSeconds: 60 },
   unsubscribeIp: { limit: 30, windowSeconds: 10 * 60 },
+  /** Ghi lượt đọc bài: đủ rộng cho người đọc lướt nhiều bài, chặn spam đếm lượt. */
+  articleViewIp: { limit: 120, windowSeconds: 60 },
   apiUser: { limit: 300, windowSeconds: 60 },
 } as const;
 
@@ -54,6 +56,7 @@ export const REDIS_KEYS = {
   googleIp: (ip: string) => `ratelimit:google:ip_${ip}`,
   sepayIp: (ip: string) => `ratelimit:sepay:ip_${ip}`,
   unsubscribeIp: (ip: string) => `ratelimit:unsubscribe:ip_${ip}`,
+  articleViewIp: (ip: string) => `ratelimit:article-view:ip_${ip}`,
 };
 
 export const REDIS_CHANNELS = {

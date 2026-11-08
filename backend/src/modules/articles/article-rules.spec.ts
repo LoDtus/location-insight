@@ -20,6 +20,8 @@ function draft(overrides: Partial<ArticleDraft> = {}): ArticleDraft {
     coverImage: '/images/temp-002.jpg',
     seoTitle: null,
     seoDescription: null,
+    format: 'standard',
+    videoUrl: null,
     ...overrides,
   };
 }

@@ -4,9 +4,13 @@ export const ARTICLE_STATUSES = ['draft', 'scheduled', 'published', 'hidden'] as
 
 export const ARTICLE_SOURCES = ['manual', 'ai'] as const;
 
+/** Định dạng trình bày: bài thường, phóng sự ảnh, hoặc bài có video (YouTube/Vimeo) ở đầu bài. */
+export const ARTICLE_FORMATS = ['standard', 'photo', 'video'] as const;
+
 export type ArticleTopic = (typeof ARTICLE_TOPICS)[number];
 export type ArticleStatus = (typeof ARTICLE_STATUSES)[number];
 export type ArticleSource = (typeof ARTICLE_SOURCES)[number];
+export type ArticleFormat = (typeof ARTICLE_FORMATS)[number];
 
 const TOPIC_LABEL: Record<ArticleTopic, string> = {
   'cach-doc': 'cách đọc',
@@ -29,6 +33,8 @@ export type ArticleDraft = {
   coverImage: string | null;
   seoTitle: string | null;
   seoDescription: string | null;
+  format: ArticleFormat;
+  videoUrl: string | null;
 };
 
 export function foldText(value: string): string {
@@ -80,6 +86,15 @@ export function articleIssues(draft: ArticleDraft, now = new Date()): string[] {
   if (draft.coverImage && !isCoverImage(draft.coverImage)) {
     issues.push('Ảnh bìa phải là đường dẫn /images/ hoặc một URL https.');
   }
+  if (!(ARTICLE_FORMATS as readonly string[]).includes(draft.format)) {
+    issues.push('Định dạng bài không hợp lệ.');
+  }
+  if (draft.videoUrl && !videoEmbedUrl(draft.videoUrl)) {
+    issues.push('Video phải là liên kết YouTube hoặc Vimeo (https).');
+  }
+  if (draft.format === 'video' && !draft.videoUrl) {
+    issues.push('Bài dạng video cần liên kết video.');
+  }
   if (draft.seoTitle && draft.seoTitle.length > 70) {
     issues.push('Tiêu đề tìm kiếm tối đa 70 ký tự.');
   }
@@ -105,6 +120,32 @@ export function articleIssues(draft: ArticleDraft, now = new Date()): string[] {
   }
 
   return issues;
+}
+
+/**
+ * Liên kết nhúng an toàn cho video: chỉ YouTube (bản không cookie) và Vimeo, mã video kiểm tra chặt.
+ * Trả null nếu không phải liên kết được hỗ trợ.
+ */
+export function videoEmbedUrl(value: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(value.trim());
+  } catch {
+    return null;
+  }
+  if (url.protocol !== 'https:') return null;
+  const host = url.hostname.replace(/^(www\.|m\.)/, '');
+  let youtube: string | null = null;
+  if (host === 'youtu.be') youtube = url.pathname.slice(1);
+  else if (host === 'youtube.com' || host === 'youtube-nocookie.com') {
+    youtube = url.pathname === '/watch' ? url.searchParams.get('v') : (/^\/(embed|shorts|live)\/([^/]+)/.exec(url.pathname)?.[2] ?? null);
+  }
+  if (youtube !== null) return /^[A-Za-z0-9_-]{11}$/.test(youtube) ? `https://www.youtube-nocookie.com/embed/${youtube}` : null;
+  if (host === 'vimeo.com' || host === 'player.vimeo.com') {
+    const id = /(\d{6,12})/.exec(url.pathname)?.[1];
+    return id ? `https://player.vimeo.com/video/${id}` : null;
+  }
+  return null;
 }
 
 function isCoverImage(value: string): boolean {

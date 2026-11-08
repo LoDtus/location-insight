@@ -36,6 +36,8 @@ export class SeedArticleService implements OnModuleInit {
         coverImage: seed.coverImage,
         seoTitle: seed.title.slice(0, 70),
         seoDescription: seed.lede.slice(0, 160),
+        format: seed.format ?? 'standard',
+        videoUrl: null,
       };
       const issues = articleIssues(draft, publishedAt);
       if (issues.length) {
@@ -64,12 +66,13 @@ export class SeedArticleService implements OnModuleInit {
   private async refreshUntouched(existing: ArticleEntity, seed: SeedArticle): Promise<void> {
     if (existing.idempotencyKey !== `seed:${seed.slug}`) return;
     if (existing.updatedAt.getTime() !== existing.createdAt.getTime()) return;
-    if (existing.body === seed.body && existing.lede === seed.lede && existing.title === seed.title) return;
+    const format = seed.format ?? 'standard';
+    if (existing.body === seed.body && existing.lede === seed.lede && existing.title === seed.title && existing.format === format) return;
     const draft = { title: seed.title, lede: seed.lede, body: seed.body, topic: seed.topic };
     await this.articles
       .createQueryBuilder()
       .update(ArticleEntity)
-      .set({ ...draft, searchText: searchTextOf(draft), updatedAt: () => 'created_at' })
+      .set({ ...draft, format, searchText: searchTextOf(draft), updatedAt: () => 'created_at' })
       .where('id = :id', { id: existing.id })
       .execute();
     this.logger.log(`Đã cập nhật nội dung bài seed ${seed.slug}`);

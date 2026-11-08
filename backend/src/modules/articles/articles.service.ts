@@ -12,6 +12,8 @@ import {
   searchTextOf,
   slugifyTitle,
   type ArticleDraft,
+  type ArticleFormat,
+  videoEmbedUrl,
   type ArticleStatus,
 } from './article-rules.js';
 import {
@@ -58,6 +60,9 @@ export type ArticlePublicView = {
   coverImage: string | null;
   seoTitle: string | null;
   seoDescription: string | null;
+  format: ArticleFormat;
+  /** Liên kết nhúng đã kiểm tra (youtube-nocookie / player.vimeo); null nếu không có video. */
+  videoEmbed: string | null;
 };
 
 export type ArticleDetailView = ArticlePublicView & {
@@ -75,6 +80,8 @@ export type ArticleAdminView = ArticlePublicView & {
   idempotencyKey: string | null;
   reviewNote: string | null;
   authorUserId: string | null;
+  /** Liên kết video gốc người biên tập nhập (công khai chỉ trả bản nhúng đã kiểm tra). */
+  videoUrl: string | null;
   updatedAt: Date;
   deletedAt: Date | null;
 };
@@ -171,6 +178,8 @@ export class ArticlesService {
       coverImage: current.coverImage,
       seoTitle: current.seoTitle,
       seoDescription: current.seoDescription,
+      format: current.format,
+      videoUrl: current.videoUrl,
     };
     this.assertIssues(draft);
     current.status = 'published';
@@ -574,6 +583,8 @@ export class ArticlesService {
       coverImage: dto.coverImage?.trim() || null,
       seoTitle: dto.seoTitle?.trim() || null,
       seoDescription: dto.seoDescription?.trim() || null,
+      format: dto.format ?? 'standard',
+      videoUrl: dto.videoUrl?.trim() || null,
     };
   }
 
@@ -627,6 +638,8 @@ export class ArticlesService {
       coverImage: row.coverImage,
       seoTitle: row.seoTitle,
       seoDescription: row.seoDescription,
+      format: row.format,
+      videoEmbed: row.videoUrl ? videoEmbedUrl(row.videoUrl) : null,
     };
   }
 
@@ -640,6 +653,7 @@ export class ArticlesService {
       idempotencyKey: row.idempotencyKey,
       reviewNote: row.reviewNote,
       authorUserId: row.authorUserId,
+      videoUrl: row.videoUrl,
       updatedAt: row.updatedAt,
       deletedAt: row.deletedAt,
     };

@@ -18,7 +18,8 @@ export type AuthRateLimitAction =
   | 'reset'
   | 'refresh'
   | 'sepay'
-  | 'unsubscribe';
+  | 'unsubscribe'
+  | 'articleView';
 
 export const Public = () => SetMetadata(PUBLIC_KEY, true);
 export const AuthenticatedOnly = () => SetMetadata(AUTHENTICATED_KEY, true);

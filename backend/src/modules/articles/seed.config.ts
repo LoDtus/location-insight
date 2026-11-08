@@ -1,4 +1,4 @@
-import type { ArticleTopic } from './article-rules.js';
+import type { ArticleFormat, ArticleTopic } from './article-rules.js';
 import { extraArticleBody, handWrittenBody } from './seed-article-bodies.js';
 
 export type SeedArticle = {
@@ -9,6 +9,8 @@ export type SeedArticle = {
   publishedAt: string;
   coverImage: string;
   body: string;
+  /** Mặc định standard; bài nhiều ảnh minh họa đánh dấu photo để có mục "Video / Ảnh" khi xem thử. */
+  format?: ArticleFormat;
 };
 
 const SEED_ARTICLE_BASE: readonly SeedArticle[] = [
@@ -20,6 +22,7 @@ const SEED_ARTICLE_BASE: readonly SeedArticle[] = [
     publishedAt: '2026-10-12T01:00:00.000Z',
     coverImage: '/images/temp-002.jpg',
     body: handWrittenBody('ban-kinh-500-met') ?? '',
+    format: 'photo',
   },
   {
     slug: 'ghim-lech',
@@ -38,6 +41,7 @@ const SEED_ARTICLE_BASE: readonly SeedArticle[] = [
     publishedAt: '2026-08-21T01:00:00.000Z',
     coverImage: '/images/temp-004.jpg',
     body: handWrittenBody('khung-gia') ?? '',
+    format: 'photo',
   },
 ];
 

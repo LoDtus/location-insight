@@ -1,6 +1,7 @@
 import { Column, Entity, Index } from 'typeorm';
 import { AppBaseEntity } from '../../../shared/database/typeorm/base.entity.js';
 import type {
+  ArticleFormat,
   ArticleSource,
   ArticleStatus,
   ArticleTopic,
@@ -51,6 +52,13 @@ export class ArticleEntity extends AppBaseEntity {
 
   @Column({ type: 'varchar', length: 16, default: 'manual' })
   source: ArticleSource;
+
+  /** standard | photo | video: quyết định bài nằm ở mục "Video / Ảnh" và cách trình bày đầu bài. */
+  @Column({ type: 'varchar', length: 10, default: 'standard' })
+  format: ArticleFormat;
+
+  @Column({ type: 'varchar', length: 300, name: 'video_url', nullable: true })
+  videoUrl: string | null;
 
   @Column({
     type: 'varchar',

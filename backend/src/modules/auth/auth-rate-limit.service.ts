@@ -24,6 +24,7 @@ export class AuthRateLimitService {
         ...AUTH_RATE_LIMITS.unsubscribeIp,
       },
       reset: { key: REDIS_KEYS.resetIp(ip), ...AUTH_RATE_LIMITS.resetIp },
+      articleView: { key: REDIS_KEYS.articleViewIp(ip), ...AUTH_RATE_LIMITS.articleViewIp },
     }[action];
     await this.hit(rule.key, rule.limit, rule.windowSeconds);
     if (action === 'reset') {

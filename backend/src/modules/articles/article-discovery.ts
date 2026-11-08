@@ -54,3 +54,15 @@ export function isBotAgent(userAgent: string | undefined): boolean {
   if (!userAgent) return true;
   return /bot|crawl|spider|slurp|preview|facebookexternalhit|headless|lighthouse|curl|wget|python-requests/i.test(userAgent);
 }
+
+/** Các mục của /bai-viet có phân trang (Đề xuất là băng trượt, khối chủ đề dẫn sang trang lọc nên không phân trang). */
+export const HOME_SECTIONS = ['latest', 'popular', 'engaged', 'media'] as const;
+export type HomeSection = (typeof HOME_SECTIONS)[number];
+
+/** Số bài mỗi trang của từng mục, và số bài tối đa được xếp hạng cho mục đó. */
+export const HOME_PAGING: Record<HomeSection, { pageSize: number; cap: number }> = {
+  latest: { pageSize: 8, cap: 80 },
+  popular: { pageSize: 5, cap: 20 },
+  engaged: { pageSize: 5, cap: 30 },
+  media: { pageSize: 5, cap: 30 },
+};

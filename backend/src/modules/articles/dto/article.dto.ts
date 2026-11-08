@@ -13,6 +13,7 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
+import { HOME_SECTIONS, type HomeSection } from '../article-discovery.js';
 import {
   ARTICLE_FORMATS,
   ARTICLE_SOURCES,
@@ -131,6 +132,20 @@ export class IngestArticleDto {
   @IsOptional()
   @IsIn(ARTICLE_SOURCES)
   source?: (typeof ARTICLE_SOURCES)[number];
+}
+
+export class HomeSectionParamsDto {
+  @IsIn(HOME_SECTIONS)
+  section: HomeSection;
+}
+
+export class HomeSectionQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  page?: number;
 }
 
 export class ArticleListQueryDto {

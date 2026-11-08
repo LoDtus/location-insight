@@ -25,6 +25,8 @@ import { ArticleEngagementService } from './article-engagement.service.js';
 import { ArticlesService } from './articles.service.js';
 import {
   ArticleListQueryDto,
+  HomeSectionParamsDto,
+  HomeSectionQueryDto,
   ArticleVoteDto,
   CommentEditDto,
   CommentLikeDto,
@@ -55,6 +57,13 @@ export class ArticlesController {
   @Get('home')
   home() {
     return this.discovery.home();
+  }
+
+  /** Một trang của một mục trên /bai-viet (Mới nhất, Nổi bật, Được quan tâm, Video / Ảnh). */
+  @Public()
+  @Get('home/sections/:section')
+  homeSection(@Param() params: HomeSectionParamsDto, @Query() query: HomeSectionQueryDto) {
+    return this.discovery.section(params.section, query.page ?? 1);
   }
 
   /** Đề xuất riêng cho người đã đăng nhập (theo chủ đề họ hay tương tác, bỏ bài đã đọc/bình chọn). */

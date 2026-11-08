@@ -1,5 +1,6 @@
 import type { ArticleFormat, ArticleTopic } from './article-rules.js';
 import { extraArticleBody, handWrittenBody } from './seed-article-bodies.js';
+import { LONG_SECTIONS, RECENT_SEEDS } from './seed-article-recent.js';
 
 export type SeedArticle = {
   slug: string;
@@ -7,7 +8,8 @@ export type SeedArticle = {
   lede: string;
   topic: ArticleTopic;
   publishedAt: string;
-  coverImage: string;
+  /** null: bài chỉ có chữ. */
+  coverImage: string | null;
   body: string;
   /** Mặc định standard; bài nhiều ảnh minh họa đánh dấu photo để có mục "Video / Ảnh" khi xem thử. */
   format?: ArticleFormat;
@@ -81,7 +83,25 @@ function extraSeedArticles(): SeedArticle[] {
   });
 }
 
+/** Bài "gần đây": ngày đăng lùi từ lúc seed chạy; bài đã tạo giữ nguyên ngày (seed không sửa ngày đăng). */
+function recentSeedArticles(now: number = Date.now()): SeedArticle[] {
+  return RECENT_SEEDS.map((seed, index) => {
+    const base = extraArticleBody({ title: seed.title, lede: seed.lede, topic: seed.topic, index: index + EXTRA.length });
+    return {
+      slug: seed.slug,
+      title: seed.title,
+      lede: seed.lede,
+      topic: seed.topic,
+      publishedAt: new Date(now - seed.hoursAgo * 3_600_000).toISOString(),
+      coverImage: seed.cover,
+      body: seed.long ? `${base}\n\n${LONG_SECTIONS[seed.topic]}` : base,
+      format: seed.format,
+    };
+  });
+}
+
 export const SEED_ARTICLES: readonly SeedArticle[] = [
   ...SEED_ARTICLE_BASE,
   ...extraSeedArticles(),
+  ...recentSeedArticles(),
 ];

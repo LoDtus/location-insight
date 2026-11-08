@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { RedisService } from '../../integrations/redis/redis.service.js';
 import { vnDayKey } from './article-frequency.js';
-import { engagementScore, isBotAgent, recommendScore, topicAffinity, type RankInput } from './article-discovery.js';
+import { HOME_PAGING, HOME_SECTIONS, type HomeSection, engagementScore, isBotAgent, recommendScore, topicAffinity, type RankInput } from './article-discovery.js';
 import { ARTICLE_TOPICS, type ArticleFormat, videoEmbedUrl } from './article-rules.js';
 import { ArticleEntity } from './entities/article.entity.js';
 
@@ -21,22 +21,32 @@ export type ArticleCard = {
   views: number;
   comments: number;
   upvotes: number;
+  /** Thời gian đọc ước tính (phút, ≥ 1), tính từ số từ của thân bài. */
+  readingMinutes: number;
 };
+
+export type SectionPage = { items: ArticleCard[]; page: number; pageSize: number; total: number };
 
 export type ArticleHome = {
   /** Bài dẫn đầu trang (mới nhất có ảnh bìa). */
   lead: ArticleCard | null;
   /** Bài phụ cạnh bài dẫn. */
   secondary: ArticleCard[];
+  /** Trang đầu của các mục phân trang. */
   latest: ArticleCard[];
   /** Đọc nhiều nhất; `popularWindow` cho biết cửa sổ đã dùng. */
   popular: ArticleCard[];
   popularWindow: '7d' | '30d' | 'all';
   engaged: ArticleCard[];
-  recommended: ArticleCard[];
   media: ArticleCard[];
+  /** Tổng số bài và cỡ trang của từng mục phân trang. */
+  paging: Record<HomeSection, { total: number; pageSize: number }>;
+  recommended: ArticleCard[];
   topics: { topic: string; items: ArticleCard[] }[];
 };
+
+/** Toàn bộ danh sách đã xếp hạng (đệm trên Redis); trang chủ và các trang của từng mục cắt từ đây. */
+type Ranked = Omit<ArticleHome, HomeSection | 'paging'> & Record<HomeSection, ArticleCard[]>;
 
 type Row = {
   id: string;
@@ -48,6 +58,7 @@ type Row = {
   cover_image: string | null;
   format: ArticleFormat;
   video_url: string | null;
+  words: number;
   views_all: number;
   views_7: number;
   views_30: number;
@@ -61,9 +72,11 @@ type Row = {
 type Pool = { row: Row; card: ArticleCard; rank: RankInput };
 
 const POOL_LIMIT = 500;
-const HOME_CACHE_KEY = 'articles:home:v1';
+const RANKED_CACHE_KEY = 'articles:home:v2';
 const HOME_CACHE_MS = 60_000;
 const VIEW_DEDUPE_MS = 24 * 60 * 60 * 1000;
+/** Tốc độ đọc tiếng Việt trên màn hình, từ/phút (Medium dùng 265 cho tiếng Anh; tiếng Việt chậm hơn vì từ ngắn hơn). */
+const WORDS_PER_MINUTE = 220;
 
 /**
  * Trang /bai-viet kiểu báo lớn: các mục Mới nhất, Nổi bật (đọc nhiều), Được quan tâm (bình luận/phiếu), Đề xuất,
@@ -100,14 +113,43 @@ export class ArticleDiscoveryService {
   }
 
   async home(): Promise<ArticleHome> {
-    return this.redis.getOrSet(HOME_CACHE_KEY, () => this.buildHome(), HOME_CACHE_MS);
+    const ranked = await this.ranked();
+    const first = (section: HomeSection): ArticleCard[] => ranked[section].slice(0, HOME_PAGING[section].pageSize);
+    const paging = Object.fromEntries(
+      HOME_SECTIONS.map((section) => [section, { total: ranked[section].length, pageSize: HOME_PAGING[section].pageSize }]),
+    ) as ArticleHome['paging'];
+    return {
+      lead: ranked.lead,
+      secondary: ranked.secondary,
+      latest: first('latest'),
+      popular: first('popular'),
+      popularWindow: ranked.popularWindow,
+      engaged: first('engaged'),
+      media: first('media'),
+      paging,
+      recommended: ranked.recommended,
+      topics: ranked.topics,
+    };
+  }
+
+  /** Một trang của một mục; trang vượt quá thì trả trang cuối (không lỗi, tránh trang trống khi dữ liệu vừa đổi). */
+  async section(section: HomeSection, page: number): Promise<SectionPage> {
+    const list = (await this.ranked())[section];
+    const { pageSize } = HOME_PAGING[section];
+    const last = Math.max(1, Math.ceil(list.length / pageSize));
+    const current = Math.min(Math.max(1, Math.floor(page)), last);
+    return { items: list.slice((current - 1) * pageSize, current * pageSize), page: current, pageSize, total: list.length };
+  }
+
+  private ranked(): Promise<Ranked> {
+    return this.redis.getOrSet(RANKED_CACHE_KEY, () => this.buildRanked(), HOME_CACHE_MS);
   }
 
   /**
    * Đề xuất. Khách: xếp theo chất lượng × độ phổ biến × độ mới. Người đã đăng nhập: cộng mức hợp chủ đề từ phiếu và
    * bình luận của họ, bỏ bài họ đã tương tác. Đây là chỗ cắm mô hình đề xuất riêng sau này (cùng đầu ra).
    */
-  async recommended(userId: string | null, limit = 8, exclude: readonly string[] = []): Promise<ArticleCard[]> {
+  async recommended(userId: string | null, limit = 12, exclude: readonly string[] = []): Promise<ArticleCard[]> {
     const pool = await this.pool();
     const now = new Date();
     let affinity = new Map<string, number>();
@@ -133,7 +175,7 @@ export class ArticleDiscoveryService {
       .map(({ entry }) => entry.card);
   }
 
-  private async buildHome(): Promise<ArticleHome> {
+  private async buildRanked(): Promise<Ranked> {
     const pool = await this.pool();
     const cards = pool.map((entry) => entry.card);
     const lead = pool.find((entry) => entry.card.coverImage)?.card ?? cards[0] ?? null;
@@ -144,15 +186,16 @@ export class ArticleDiscoveryService {
       pool
         .filter((entry) => entry.row[key] > 0)
         .sort((a, b) => b.row[key] - a.row[key] || b.card.publishedAt.getTime() - a.card.publishedAt.getTime())
-        .slice(0, 5)
+        .slice(0, HOME_PAGING.popular.cap)
         .map((entry) => ({ ...entry.card, views: entry.row[key] }));
+    // Cửa sổ ngắn nhất có đủ bài để xếp hạng (≥ 5); chưa đủ thì nới ra 30 ngày, rồi toàn thời gian.
     let popularWindow: ArticleHome['popularWindow'] = '7d';
     let popular = byViews('views_7');
-    if (popular.length < 3) {
+    if (popular.length < 5) {
       popularWindow = '30d';
       popular = byViews('views_30');
     }
-    if (popular.length < 3) {
+    if (popular.length < 5) {
       popularWindow = 'all';
       popular = byViews('views_all');
     }
@@ -170,20 +213,20 @@ export class ArticleDiscoveryService {
     const engaged30 = pool.filter((entry) => entry.row.comments_30 + entry.row.votes_30 > 0);
     const engagedPool = engaged30.length >= 3 ? engaged30 : pool.filter((entry) => engagementScore(entry.rank) > 0);
     const engaged = engagedPool
-      .sort((a, b) => engagementScore(b.rank) - engagementScore(a.rank))
-      .slice(0, 6)
+      .sort((a, b) => engagementScore(b.rank) - engagementScore(a.rank) || b.card.publishedAt.getTime() - a.card.publishedAt.getTime())
+      .slice(0, HOME_PAGING.engaged.cap)
       .map((entry) => entry.card);
 
     return {
       lead,
       secondary,
-      latest: cards.filter((card) => !top.has(card.slug)).slice(0, 10),
+      latest: cards.filter((card) => !top.has(card.slug)).slice(0, HOME_PAGING.latest.cap),
       popular,
       popularWindow,
       engaged,
-      recommended: await this.recommended(null, 8, [...top].filter((slug): slug is string => Boolean(slug))),
-      media: cards.filter((card) => card.format !== 'standard').slice(0, 8),
-      topics: ARTICLE_TOPICS.map((topic) => ({ topic, items: cards.filter((card) => card.topic === topic).slice(0, 4) })).filter(
+      recommended: await this.recommended(null, 12, [...top].filter((slug): slug is string => Boolean(slug))),
+      media: cards.filter((card) => card.format !== 'standard').slice(0, HOME_PAGING.media.cap),
+      topics: ARTICLE_TOPICS.map((topic) => ({ topic, items: cards.filter((card) => card.topic === topic).slice(0, 5) })).filter(
         (block) => block.items.length > 0,
       ),
     };
@@ -201,7 +244,8 @@ export class ArticleDiscoveryService {
     const since30 = new Date(now.getTime() - 30 * 86_400_000);
     const rows = await this.articles.query<Row[]>(
       `WITH a AS (
-         SELECT id, slug, title, lede, topic, published_at, cover_image, format, video_url
+         SELECT id, slug, title, lede, topic, published_at, cover_image, format, video_url,
+                COALESCE(array_length(regexp_split_to_array(NULLIF(btrim(body), ''), '\\s+'), 1), 0) AS words
            FROM articles
           WHERE deleted_at IS NULL AND published_at IS NOT NULL AND published_at <= $1
             AND (status = 'published' OR status = 'scheduled')
@@ -242,6 +286,7 @@ export class ArticleDiscoveryService {
           views: row.views_all,
           comments: row.comments,
           upvotes: row.up,
+          readingMinutes: Math.max(1, Math.ceil(Number(row.words) / WORDS_PER_MINUTE)),
         },
         rank: {
           id: row.id,

@@ -33,7 +33,15 @@ export type ArticleCard = PublicArticle & {
     views: number;
     comments: number;
     upvotes: number;
+    /** Thời gian đọc ước tính, phút (bài cũ trong bộ đệm có thể thiếu). */
+    readingMinutes?: number;
 };
+
+/** Các mục phân trang của /bai-viet (GET /articles/home/sections/:section?page=). */
+export const HOME_SECTIONS = ["latest", "popular", "engaged", "media"] as const;
+export type HomeSection = (typeof HOME_SECTIONS)[number];
+
+export type SectionPage = { items: ArticleCard[]; page: number; pageSize: number; total: number };
 
 /** Dữ liệu trang /bai-viet (GET /articles/home). */
 export type ArticleHome = {
@@ -45,6 +53,8 @@ export type ArticleHome = {
     engaged: ArticleCard[];
     recommended: ArticleCard[];
     media: ArticleCard[];
+    /** Tổng số bài và cỡ trang của từng mục phân trang. */
+    paging?: Record<HomeSection, { total: number; pageSize: number }>;
     topics: { topic: string; items: ArticleCard[] }[];
 };
 

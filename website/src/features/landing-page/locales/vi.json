@@ -435,7 +435,26 @@
             "search": "Tìm bài viết",
             "searchSubmit": "Tìm",
             "back": "Trang bài viết",
-            "error": "Chưa tải được trang bài viết. Thử tải lại sau ít phút."
+            "error": "Chưa tải được trang bài viết. Thử tải lại sau ít phút.",
+            "spotlight": "Tiêu điểm",
+            "spotlightHint": "Bài đáng đọc nhất lúc này",
+            "latestHint": "Theo thứ tự đăng, mới nhất ở trên",
+            "topicsTitle": "Theo chủ đề",
+            "topicsHint": "Mỗi chủ đề vài bài gần nhất",
+            "onThisPage": "Trên trang này",
+            "anchor": "Liên kết tới mục {name}",
+            "pagination": "Phân trang mục {name}",
+            "pageOf": "Trang {page}/{pages}",
+            "pagePrev": "Trang trước",
+            "pageNext": "Trang sau",
+            "pageGo": "Trang {page}",
+            "pageLoading": "Đang tải trang {page}",
+            "loadError": "Chưa tải được trang này.",
+            "retry": "Thử lại",
+            "readMinutes": "{count} phút đọc",
+            "fresh": "Mới",
+            "rank": "Hạng {count}",
+            "noCover": "Bài không có ảnh"
         }
     }
 }

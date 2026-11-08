@@ -1,5 +1,5 @@
 import { apiRequest } from "@/features/auth/auth.api";
-import { ARTICLE_TOPICS, type ArticleCard, type ArticleFormat, type ArticleTopic } from "@/features/articles/articles";
+import { ARTICLE_TOPICS, type ArticleCard, type ArticleFormat, type ArticleTopic, type HomeSection, type SectionPage } from "@/features/articles/articles";
 
 export type ArticleStatus = "draft" | "scheduled" | "published" | "hidden";
 
@@ -210,6 +210,11 @@ export function getArticleStats(slug: string): Promise<ArticleStats> {
 /** Đề xuất riêng cho người đã đăng nhập (theo chủ đề họ hay tương tác). */
 export function listRecommendedForMe(): Promise<ArticleCard[]> {
     return apiRequest<ArticleCard[]>("/articles/recommended/me");
+}
+
+/** Một trang của một mục trên /bai-viet. */
+export function listHomeSection(section: HomeSection, page: number): Promise<SectionPage> {
+    return apiRequest<SectionPage>(`/articles/home/sections/${section}?page=${page}`);
 }
 
 /** Ghi một lượt đọc (máy chủ chỉ tính một lần/người/bài/ngày). */

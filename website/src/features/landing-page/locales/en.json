@@ -435,7 +435,26 @@
             "search": "Search articles",
             "searchSubmit": "Search",
             "back": "Articles home",
-            "error": "Could not load the articles page. Try again in a few minutes."
+            "error": "Could not load the articles page. Try again in a few minutes.",
+            "spotlight": "Top stories",
+            "spotlightHint": "What's most worth reading now",
+            "latestHint": "In publishing order, newest first",
+            "topicsTitle": "By topic",
+            "topicsHint": "The latest few articles in each topic",
+            "onThisPage": "On this page",
+            "anchor": "Link to section {name}",
+            "pagination": "{name} pages",
+            "pageOf": "Page {page} of {pages}",
+            "pagePrev": "Previous page",
+            "pageNext": "Next page",
+            "pageGo": "Page {page}",
+            "pageLoading": "Loading page {page}",
+            "loadError": "Couldn't load this page.",
+            "retry": "Try again",
+            "readMinutes": "{count} min read",
+            "fresh": "New",
+            "rank": "Rank {count}",
+            "noCover": "Article without a photo"
         }
     }
 }

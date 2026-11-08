@@ -294,7 +294,7 @@ export default function CompareScreen({ root = "/app" }: { root?: "/app" | "/adm
 
     return (
         <div className="h-full w-full overflow-y-auto bg-white">
-            <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6">
+            <div className="w-full px-4 py-6 sm:px-6">
                 <header className="flex flex-wrap items-end justify-between gap-3">
                     <div className="min-w-0">
                         <h1 className="m-0 text-2xl font-semibold text-balance">So sánh địa điểm</h1>

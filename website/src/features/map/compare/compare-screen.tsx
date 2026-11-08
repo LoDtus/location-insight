@@ -44,6 +44,7 @@ import {
     writeRowOrder,
     type OverallSort,
 } from "@/features/map/compare/compare-order";
+import CompareCharts from "@/features/map/compare/compare-charts";
 import { buildCompareTable } from "@/features/map/compare/compare-table";
 import { COMPARE_MAX, reloadSavedPlaces, savedTitle } from "@/features/map/hooks/use-saved-places";
 import { PLACE_KIND_LABEL } from "@/features/map/map-place-match";
@@ -616,6 +617,7 @@ export default function CompareScreen({ root = "/app" }: { root?: "/app" | "/adm
                         tiêu chí (trong cùng nhóm).
                     </p>
                 ) : null}
+                {items.length > 0 ? <CompareCharts items={items} table={table} titleOf={savedTitle} /> : null}
             </div>
         </div>
     );

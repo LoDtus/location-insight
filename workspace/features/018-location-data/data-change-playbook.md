@@ -1,65 +1,69 @@
 # Sổ tay thay đổi dữ liệu (018-location-data)
 
-Mỗi tình huống ghi: nhận biết thế nào, làm gì, bảng nào đổi, và kết quả cũ ra sao. Bốn quy tắc luôn đúng:
+Mỗi tình huống ghi cách nhận biết, việc phải làm, chỗ dữ liệu đổi và kết quả cũ ra sao. Cột **GĐ** cho biết tình huống được hỗ trợ từ giai đoạn nào (research.md Bản ghi 11).
 
-1. Không sửa dòng đã nhập, không sửa bản phát hành đã `staged` trở đi. Mọi thay đổi là một phiên bản mới.
-2. Phát hành phải đi qua: kiểm tra chất lượng, rồi chạy điểm mẫu, rồi admin xem báo cáo.
-3. Kết quả đánh giá đã lưu không bao giờ tự đổi. Người dùng bấm "Đánh giá lại" thì mới dùng bản mới.
-4. Thu hồi luôn là tạo bản mới (tiến tới), không xóa lịch sử.
+Năm quy tắc luôn đúng:
+
+1. Không sửa đối tượng đã nhập, không sửa bảng kê hay snapshot tiêu chí của bản đã phát hành. Mọi thay đổi là một phiên bản mới.
+2. Phát hành phải đi qua: phiên bản lớp `ready`, chạy script điểm mẫu, kiểm tra mức bản lúc bấm phát hành.
+3. Kết quả đã lưu không tự đổi. Người dùng bấm "Đánh giá lại" thì mới dùng bản mới.
+4. Thu hồi luôn tạo bản mới, không xóa lịch sử.
+5. Không có khóa ngoại giữa `geo` và `public`. `/reset` không đụng `geo`.
 
 ## Bảng tình huống
 
-| # | Tình huống | Ví dụ | Làm gì | Bảng đổi | Kết quả cũ |
-| --- | --- | --- | --- | --- | --- |
-| 1 | **Làm mới nguồn, cùng schema** | OSM tháng 11 | Snapshot mới, rồi phiên bản lớp mới cho từng lớp lấy từ nguồn đó, rồi bản nháp `kind = data` thay các lớp đó | `source_snapshots`, `layer_versions`, `*_features`, `map_dataset_layers` | Giữ nguyên, gắn bản cũ |
-| 2 | **Thêm nguồn bổ sung cho lớp đã có** | Chợ trong CSDL quy hoạch bù chợ OSM | Phiên bản lớp mới có hai `layer_version_inputs` (`primary` và `supplement`, có `priority`). Gộp trùng cùng loại cách nhau dưới 40 m, giữ `attrs.merged_from` | `layer_version_inputs` | Giữ nguyên |
-| 3 | **Thêm lớp mới** | Đường dây điện, PCCC | Thêm `geo.layers`, dựng phiên bản đầu, thêm vào bảng kê | `layers`, `map_dataset_layers` | Giữ nguyên; tiêu chí mới không có trong kết quả cũ |
-| 4 | **Thêm tiêu chí mới, phương pháp đã có** | "Khoảng cách tới PCCC" (`nearest`) | Thêm `map_criteria` và phiên bản 1 (`draft`), khai `inputs`, `params`, `scoring`, đưa vào bảng kê tiêu chí. Không deploy code | `map_criteria`, `map_criterion_versions`, `map_dataset_criteria` | Kết quả cũ hiện "chưa đánh giá tiêu chí này" |
-| 5 | **Thêm tiêu chí cần phương pháp mới** | Đo theo đường đi bộ thật | Code phương pháp mới vào `criterion_method`, deploy, rồi làm như #4. Bản phát hành chỉ staged được khi backend đang chạy hỗ trợ method đó | Enum + như #4 | Như #4 |
-| 6 | **Đổi ngưỡng hoặc thang điểm** | Hiệu thuốc: tốt từ 150 m thành 200 m | Phiên bản tiêu chí mới, bản nháp `kind = criteria` (không cần nhập dữ liệu) | `map_criterion_versions`, `map_dataset_criteria` | Giữ nguyên, hiện theo định nghĩa cũ |
-| 7 | **Đổi cách đo** | Bệnh viện: khoảng cách thành thời gian đi (Vietmap) | Phiên bản mới `method = travel_time`, `fallback_method = nearest`. Báo cáo tác động phải xem kỹ | Như #6 | Như #6 |
-| 8 | **Bỏ tiêu chí** | Bỏ "Cửa hàng vật tư" vì quá thưa | Bỏ khỏi bảng kê bản mới, đặt `map_criteria.deprecated_at`. Trọng số, chỉnh tay của người dùng giữ lại nhưng ẩn | `map_dataset_criteria`, `map_criteria` | Vẫn hiện, ghi "tiêu chí đã ngừng" |
-| 9 | **Thay nguồn bằng nguồn tốt hơn** | Ô JRC đúng (`N30_E100`), thêm ô WorldCover phía nam | Phiên bản lớp mới; `coverage` rộng hơn | Như #1 | Chỗ trước đây `no_data` sẽ có số khi đánh giá lại |
-| 10 | **Nguồn đổi schema hoặc tên trường** | CSDL quy hoạch đổi `maLoaiDat` | Bước nhập đối chiếu hợp đồng cột và dừng ngay (`failed`). Sửa adapter trong `tools/data`, tăng `pipeline_version`, nhập lại | `layer_versions` | Không ảnh hưởng |
-| 11 | **Số lượng tăng hoặc giảm bất thường** | OSM mất 30% điểm buýt | Kiểm tra `row_count_delta` (chặn nếu lệch quá ±20%, cảnh báo nếu quá ±5%). Muốn chấp nhận phải ghi lý do khi phát hành | `quality_checks` | Không ảnh hưởng |
-| 12 | **Phát hiện lỗi sau khi đã phát hành** | Lệch tọa độ do sai hệ VN-2000 | Làm theo `diagrams/flow-rollback.mmd`: bản mới `kind = rollback`, bản lỗi thành `withdrawn` | `map_dataset_versions` | Kết quả trên bản lỗi được gắn nhãn "nên đánh giá lại" |
-| 13 | **Sửa tay một đối tượng** | Chợ đã giải tỏa vẫn còn trên OSM | Thêm `feature_patches` (`hide`). Có hiệu lực từ phiên bản lớp dựng sau đó; cần ngay thì làm bản `hotfix` dựng lại đúng lớp đó | `feature_patches` | Giữ nguyên |
-| 14 | **Bản sửa tay mồ côi** | `feature_key` đổi sau khi nguồn sửa tên | Kiểm tra `orphan_patches` cảnh báo; admin gắn lại khóa hoặc thu hồi bản sửa | `feature_patches` | — |
-| 15 | **Đổi ranh hành chính** | Sắp xếp phường 07/2025 | Lớp `admin.ward` phiên bản mới có `valid_from`. Thêm `admin_unit_mappings` cũ sang mới để `map_benchmarks` và báo cáo cũ quy đổi được | `area_features`, `admin_unit_mappings` | Kết quả cũ giữ mã phường cũ, hiển thị kèm tên mới qua bảng nối |
-| 16 | **Gỡ dữ liệu vì giấy phép** | Nguồn bên thứ ba yêu cầu gỡ | Đặt `sources.usage = blocked`, dựng lại các lớp không có nguồn đó, phát hành `hotfix`, `DROP` phân vùng cũ ngay (không chờ 30 ngày). Xóa `evidence` chứa tên đối tượng của nguồn đó trong kết quả cũ, giữ số | `sources`, `layer_versions`, `map_place_measurements.evidence` | Giữ điểm số, bỏ chi tiết |
-| 17 | **Dữ liệu chỉ dùng nội bộ** | CSDL quy hoạch Thủ đô | `usage = internal`: lớp vẫn dùng để tính. API lớp bản đồ không trả đối tượng; `evidence` chỉ ghi loại và khoảng cách | `sources` | — |
-| 18 | **Đổi độ phân giải lưới** | 100 m thành 50 m | Thêm `geo.grids` mới, phiên bản lớp lưới mới trên lưới đó | `grids`, `grid_values` | Giữ nguyên |
-| 19 | **Dữ liệu theo giờ bị gián đoạn** | OpenAQ lỗi 6 giờ | Không khí lấy giá trị mới nhất trong khung `params.max_age`; quá hạn thì `no_data` | `env_observations` | Số đo cũ hết `expires_at` thì hiện "số đo cũ" |
-| 20 | **Vietmap hết ngân sách hoặc lỗi** | Quá `MAP_DAILY_BUDGET` | `travel_time` chuyển sang `fallback_method`, `status = fallback`, `confidence` giảm một bậc | `map_place_measurements` | — |
-| 21 | **Đổi prompt hoặc model AI** | Prompt ngập úng v2 | Tăng `prompt_version`. Job cũ giữ nguyên; đánh giá lại thì tạo job mới (khóa unique có `prompt_version`) | `map_ai_jobs` | Giữ nguyên |
-| 22 | **AI trả kết quả không có nguồn** | — | `verdict = unknown`, `confidence = low`. Không dùng cho điểm tổng | `map_place_measurements` | — |
-| 23 | **Mở rộng tỉnh khác** | Bắc Ninh | Lớp giữ nguyên code, phiên bản mới có `coverage` rộng hơn, hoặc thêm lớp theo vùng. Benchmark tính theo `scope` | `layer_versions.coverage` | Giữ nguyên |
-| 24 | **Hai người cùng làm bản nháp** | — | Chỉ một bản `draft` hoặc `staged` tại một thời điểm (unique partial index). Người thứ hai thêm vào bản nháp đang mở | `map_dataset_versions` | — |
-| 25 | **Dung lượng phình** | Nhiều phiên bản lưới | Job dọn: `retired` sau 30 ngày không ai trỏ, rồi `DROP` phân vùng. Không bao giờ dọn lớp trong bảng kê của bản hiện hành hoặc bản liền trước | `layer_versions` | Không ảnh hưởng (kết quả tự chứa số đo) |
+| # | GĐ | Tình huống | Ví dụ | Làm gì | Chỗ đổi | Kết quả cũ |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | 1 | **Làm mới nguồn, cùng schema** | OSM tháng 11 | Biên bản catalog mới → `tools/data` dựng phiên bản `osm.places`, `osm.roads` mới → bản nháp `kind = data` thay hai lớp đó | `geo.layer_versions`, `*_features`, `layer_manifest` | Giữ nguyên |
+| 2 | 2 | **Thêm nguồn bổ sung cho lớp đã có** | Chợ CSDL quy hoạch bù chợ OSM | Tạo lớp riêng `qhtd.places`. Tiêu chí chợ khai `inputs: [osm.places, qhtd.places]`; truy vấn gộp trùng cùng loại dưới 40 m lúc đo. Không trộn hai nguồn vào một lớp, vì giấy phép khác nhau (ODbL và internal) | `geo.layers`, `CRITERIA` | Giữ nguyên |
+| 3 | 1 | **Thêm lớp mới** | Đường dây điện, PCCC | Thêm `geo.layers`, dựng phiên bản đầu, đưa vào bảng kê | `geo.layers`, `layer_manifest` | Giữ nguyên; tiêu chí mới không có trong kết quả cũ |
+| 4 | 1 | **Thêm tiêu chí mới, method đã có** | "Khoảng cách tới PCCC" (`nearest`) | Thêm vào `CRITERIA` trong code, deploy, phát hành bản `kind = criteria` (hoặc gộp với bản `data` nếu cần lớp mới) | Code, `criteria_snapshot` | Kết quả cũ hiện "chưa đánh giá tiêu chí này" |
+| 5 | 1 | **Thêm tiêu chí cần method mới** | Đo theo đường đi bộ thật | Code method mới, deploy, rồi làm như #4. Kiểm tra `METHOD_UNSUPPORTED` chặn trường hợp phát hành trước khi deploy | Code | Như #4 |
+| 6 | 1 | **Đổi ngưỡng hoặc thang điểm** | Hiệu thuốc: ngưỡng "tốt" từ 150 m lên 200 m | Sửa `CRITERIA`, deploy. Backend vẫn tính theo snapshot cũ cho tới khi phát hành bản `kind = criteria`. Chạy điểm mẫu trước | Code, `criteria_snapshot`, `criteria_hash` | Giữ nguyên theo định nghĩa cũ |
+| 7 | 2 | **Đổi cách đo** | Bệnh viện: khoảng cách → thời gian đi (Vietmap) | Như #6, `method = travel_time`, fallback `nearest` | Như #6 | Như #6 |
+| 8 | 1 | **Bỏ tiêu chí** | Bỏ "Cửa hàng vật tư" vì quá thưa | Xóa khỏi `CRITERIA`, phát hành. Trọng số và chỉnh tay của người dùng giữ trong DB nhưng ẩn | Code | Vẫn hiện, ghi "tiêu chí đã ngừng" |
+| 9 | 2 | **Thay nguồn bằng nguồn tốt hơn** | Đúng ô JRC `N30_E100`; thêm ô WorldCover phía nam | Phiên bản lớp mới, `coverage` rộng hơn | Như #1 | Chỗ trước đây `no_data` sẽ có số khi đánh giá lại |
+| 10 | 1 | **Nguồn đổi schema hoặc tên trường** | CSDL quy hoạch đổi `maLoaiDat` | Kiểm tra `contract_columns` chặn → `failed`. Sửa adapter trong `tools/data`, commit, dựng lại (`pipeline_version` mới) | `geo.layer_versions` | Không ảnh hưởng |
+| 11 | 1 | **Số lượng tăng hoặc giảm bất thường** | OSM mất 30% điểm buýt | `row_count_delta`: lệch quá ±20% so với bản đang phát hành thì chặn, quá ±5% thì cảnh báo. Lỗi do nguồn thật sự đổi thì sửa ngưỡng trong script kèm lý do trong commit | `checks` | Không ảnh hưởng |
+| 12 | 1 | **Phát hiện lỗi sau khi đã phát hành** | Lệch tọa độ do sai hệ VN-2000 | Theo `diagrams/flow-rollback.mmd`: bản mới `kind = rollback`, bản lỗi `withdrawn` | `map_dataset_versions` | Gắn nhãn "dữ liệu đã thu hồi, nên đánh giá lại" |
+| 13 | 1 | **Thu hồi về bản có lớp đã `retired`** | Quay về bản cách đây 2 tháng | API trả `BASE_LAYER_RETIRED` kèm danh sách lớp → dựng lại bằng `tools/data` từ `catalog_paths` (file raw còn giữ theo data/README), rồi thu hồi | `geo.layer_versions` | — |
+| 14 | 3 | **Sửa tay một đối tượng** | Chợ đã giải tỏa vẫn còn trên OSM | GĐ1–2: ghi vào `tools/data/patches/*.json` (commit git), script áp lúc dựng lớp. GĐ3: bảng `feature_patches` | File patch | Giữ nguyên |
+| 15 | 2 | **Đổi ranh hành chính** | Sắp xếp phường 07/2025 | Lớp `admin.ward` phiên bản mới có `valid_from`. Tên phường của địa điểm lấy từ Vietmap Reverse (ranh mới). Bảng nối cũ–mới để GĐ3 | `geo.area_features`, `map_places.ward_code` | Giữ mã cũ |
+| 16 | 1 | **Gỡ dữ liệu vì giấy phép** | Nguồn bên thứ ba yêu cầu gỡ | `geo.layers.usage = blocked` → bản `hotfix` bỏ lớp đó (kiểm tra `SOURCE_BLOCKED` chặn mọi bản còn dùng) → `retired` ngay, không chờ 30 ngày → xóa `evidence` mang tên đối tượng của lớp đó trong kết quả cũ, giữ số | `geo.layers`, `map_place_measurements.evidence` | Giữ điểm, bỏ chi tiết |
+| 17 | 2 | **Dữ liệu chỉ dùng nội bộ** | CSDL quy hoạch Thủ đô | `usage = internal`: tính được; API lớp bản đồ không trả; `evidence` chỉ ghi loại + khoảng cách | `geo.layers` | — |
+| 18 | 1 | **Đổi độ phân giải lưới** | 100 m → 50 m | Thêm `geo.grids` mới, phiên bản lớp lưới mới | `geo.grids`, `geo.grid_values` | Giữ nguyên |
+| 19 | 2 | **Vietmap hết ngân sách hoặc lỗi** | Quá `MAP_DAILY_BUDGET` | `travel_time` → `nearest`, `status = fallback`, `confidence` giảm một bậc | `map_place_measurements` | — |
+| 20 | 2 | **Số đo Vietmap hết hạn** | Thời gian đi đo cách đây 40 ngày | Hiện "số đo cũ", cho đo lại riêng tiêu chí đó | `expires_at` | — |
+| 21 | 1 | **`/reset` trên máy dev** | Dựng lại database dev | `public` bị xóa và dựng lại; `geo` còn nguyên. Seed tạo bản phát hành 1 từ phiên bản lớp `ready` mới nhất mỗi lớp. Không gỡ lớp bảo vệ nào của `/reset` | `map_dataset_versions` | Mất cùng toàn bộ dữ liệu dev, như hiện nay |
+| 22 | 1 | **Hai người cùng làm bản nháp** | — | Chỉ một bản `draft` (unique partial index). Người thứ hai sửa tiếp bản nháp đang mở | `map_dataset_versions` | — |
+| 23 | 1 | **Dung lượng tăng** | Nhiều phiên bản lưới | Job dọn: ngoài bản hiện hành, bản liền trước, bản nháp quá 30 ngày → `retired` → `DELETE` đối tượng. Lưới quá ~20 triệu dòng → cân nhắc phân vùng (`future-schema.md`) | `geo.*_features`, `geo.grid_values` | Không ảnh hưởng (kết quả tự chứa số đo) |
+| 24 | 2 | **Mở rộng tỉnh khác** | Bắc Ninh | Phiên bản lớp mới có `coverage` rộng hơn | `coverage` | Giữ nguyên |
+| 25 | 3 | **Không khí theo giờ, kết luận AI** | — | Xem `future-schema.md` | — | — |
 
-## Kiểm tra chất lượng mặc định
+## Kiểm tra mặc định
+
+Kiểm tra mức lớp chạy trong `tools/data` và ghi vào `geo.layer_versions.checks`. Kiểm tra mức bản chạy trong backend lúc bấm phát hành.
 
 | Mã | Mức | Kiểm gì |
 | --- | --- | --- |
-| `contract_columns` | chặn | Đủ cột bắt buộc theo adapter, đúng kiểu |
-| `geometry_valid` | chặn | `ST_IsValid`, không rỗng, đúng SRID |
-| `inside_bbox` | chặn | 99,9% đối tượng nằm trong hộp Hà Nội mở rộng 5 km |
-| `row_count_delta` | chặn hoặc cảnh báo | Lệch so với phiên bản trước: quá ±20% thì chặn, quá ±5% thì cảnh báo |
-| `required_categories` | chặn | Mỗi `category` mà tiêu chí cần có ít nhất 1 đối tượng |
-| `duplicate_key` | chặn | `feature_key` không trùng trong một phiên bản (trừ lớp vùng đã chia nhỏ) |
-| `coverage_change` | cảnh báo | Diện tích `coverage` giảm |
-| `orphan_patches` | cảnh báo | Bản sửa tay không khớp đối tượng nào |
-| `criteria_inputs_present` | chặn (mức bản) | Mọi `inputs` của tiêu chí trong bảng kê đều có lớp |
-| `method_supported` | chặn (mức bản) | Backend đang chạy hỗ trợ mọi `method` |
-| `golden_expectations` | chặn (mức bản) | Điểm mẫu không vi phạm `expectations` |
-| `license_usage` | chặn (mức bản) | Không có lớp dựng từ nguồn `blocked` |
+| `source_checksum` | chặn (lớp) | sha256 file khớp biên bản catalog |
+| `contract_columns` | chặn (lớp) | Đủ cột bắt buộc theo adapter, đúng kiểu |
+| `geometry_valid` | chặn (lớp) | `ST_IsValid`, không rỗng, đúng SRID |
+| `inside_bbox` | chặn (lớp) | 99,9% đối tượng nằm trong hộp Hà Nội mở rộng 5 km |
+| `row_count_delta` | chặn/cảnh báo (lớp) | Lệch so với phiên bản đang phát hành: ±20% chặn, ±5% cảnh báo (cả từng `category`) |
+| `duplicate_key` | chặn (lớp) | `feature_key` không trùng trong một phiên bản (trừ lớp vùng) |
+| `coverage_change` | cảnh báo (lớp) | Diện tích `coverage` giảm |
+| `criteria_inputs_present` | chặn (bản) | Mọi `inputs` của tiêu chí trong `CRITERIA` đều có lớp trong bảng kê |
+| `layers_ready` | chặn (bản) | Mọi phiên bản lớp trong bảng kê đang `ready` |
+| `method_supported` | chặn (bản) | Backend hỗ trợ mọi `method` |
+| `source_blocked` | chặn (bản) | Không có lớp `usage = blocked` |
+| `golden_points` | thủ công | Script điểm mẫu đã chạy; admin ghi tóm tắt vào ghi chú phát hành |
 
 ## Lịch vận hành gợi ý
 
-| Nguồn | Chu kỳ | Ghi chú |
+| Nguồn | Chu kỳ | Tình huống |
 | --- | --- | --- |
-| OSM | Tháng | Tình huống 1 |
-| CSDL quy hoạch Thủ đô | Khi có bản công bố mới | Tình huống 1 hoặc 10 |
-| WorldPop, WorldCover, JRC, FABDEM | Khi có phát hành mới (năm) | Tình huống 9 |
-| OpenAQ | Giờ (job nền) | Tình huống 19 |
-| Ranh hành chính | Khi có nghị quyết | Tình huống 15 |
+| OSM | Tháng | 1 |
+| CSDL quy hoạch Thủ đô | Khi có bản công bố mới | 1 hoặc 10 |
+| WorldPop, WorldCover, JRC, FABDEM | Khi có phát hành mới (năm) | 9 |
+| Ranh hành chính | Khi có nghị quyết | 15 |

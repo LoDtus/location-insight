@@ -1,11 +1,8 @@
 stateDiagram-v2
   [*] --> draft
-  draft --> staged: khóa bảng kê
-  staged --> draft: mở khóa để sửa (xóa kết quả kiểm tra, tác động)
+  draft --> published: admin phát hành, kiểm tra mức bản đạt
   draft --> abandoned
-  staged --> abandoned
-  staged --> published: admin phát hành (kiểm tra mức bản đạt)
-  published --> withdrawn: thu hồi (luôn kèm bản rollback mới)
-  published --> published: vẫn là "từng phát hành" khi có bản mới hơn
+  published --> withdrawn: thu hồi, luôn kèm một bản rollback mới
+  note right of published: Vẫn là published khi có bản mới hơn; bản hiện hành = version lớn nhất có status published
   abandoned --> [*]
   withdrawn --> [*]

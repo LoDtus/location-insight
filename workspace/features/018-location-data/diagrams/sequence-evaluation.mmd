@@ -1,4 +1,4 @@
-%% Một lượt đánh giá tọa độ với bản phát hành đã ghim.
+%% Một lượt đánh giá tọa độ (GĐ1; các bước opt là GĐ2).
 sequenceDiagram
   autonumber
   actor U as Người dùng
@@ -6,32 +6,23 @@ sequenceDiagram
   participant R as Redis
   participant DB as Postgres + PostGIS
   participant VM as Vietmap
-  participant Q as Hàng đợi AI
   U->>API: POST đánh giá (lat, lng)
-  API->>DB: bản hiện hành + bảng kê lớp/tiêu chí (cache Redis theo version)
-  API->>R: cache kết quả dùng chung (version, tọa độ làm tròn)?
-  alt có cache
+  API->>R: bản hiện hành: layer_manifest + criteria_snapshot (cache theo version)
+  API->>R: kết quả dùng chung (version, tọa độ làm tròn)?
+  alt đã có
     R-->>API: analysis_id
   else chưa có
-    API->>VM: Reverse (phường, tên đường) — có cache
-    API->>DB: tạo map_place_analyses (computing, dataset_version)
-    loop mỗi tiêu chí stable
-      API->>DB: SQL theo method, lọc layer_version_id của bảng kê
-      API->>DB: ghi map_place_measurements (lineage = layer_versions)
+    opt GĐ2
+      API->>VM: Reverse (phường, tên đường), có cache
     end
-    opt tiêu chí travel_time và còn ngân sách
-      API->>VM: Matrix 1 × n đích
-      VM-->>API: phút đi (lỗi → fallback nearest)
+    API->>DB: tạo map_place_analyses (dataset_version, sample = false)
+    API->>DB: 1 câu LATERAL cho các tiêu chí nearest/count trên geo.point_features và geo.line_features
+    API->>DB: 1 câu tra geo.grid_values theo cell_id; 1 câu ST_Covers trên geo.area_features
+    opt GĐ2, tiêu chí travel_time và còn ngân sách
+      API->>VM: Matrix 1 điểm tới n đích
+      VM-->>API: số phút (lỗi thì fallback nearest)
     end
-    opt tiêu chí timeseries
-      API->>DB: trạm gần nhất ≤ 3 km, giá trị mới nhất → expires_at
-    end
-    opt tiêu chí ai hoặc no_data có ai_allowed
-      API->>DB: map_ai_jobs queued, measurement pending_ai
-      API->>Q: đẩy job
-    end
-    API->>DB: status = partial hoặc done, coverage
+    API->>API: chấm điểm theo scoring trong snapshot, no_data ngoài coverage
+    API->>DB: ghi map_place_measurements (lineage) + coverage
   end
-  API-->>U: điểm mạnh/yếu (ghép trọng số + chỉnh tay lúc đọc)
-  Q-->>DB: job xong → cập nhật measurement, có trích dẫn
-  DB-->>U: (thông báo) đánh giá đã đủ
+  API-->>U: điểm mạnh/yếu; điểm tổng ghép trọng số và chỉnh tay lúc đọc

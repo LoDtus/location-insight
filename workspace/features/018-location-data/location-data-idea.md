@@ -92,14 +92,15 @@
 
 - Pipeline chạy thủ công từ máy dev hoặc CI (`tools/data`), backend không tự tải dữ liệu.
 - Dùng Postgres + PostGIS hiện có, chuyển sang image `postgis/postgis` cùng bản 17.
-- Bảng dữ liệu nền dùng migration SQL viết tay, không để TypeORM `synchronize` quản lý.
+- Bảng dữ liệu nền (schema `geo`) dùng migration SQL viết tay. Cột mới của các bảng `map_*` khai báo trong entity TypeORM. Không có khóa ngoại giữa hai vùng.
+- Định nghĩa tiêu chí nằm trong code; bản phát hành giữ bản chụp. Admin không chỉnh ngưỡng trên giao diện ở giai đoạn đầu.
+- Làm theo ba giai đoạn; giai đoạn 1 chỉ có tiện ích, đường, nội đô, dân số.
 - Mỗi lần chỉ có một bản phát hành hiện hành cho toàn hệ thống, không chia theo vùng.
 - Giữ dữ liệu nền của bản hiện hành, bản trước đó và bản nháp. Kết quả đánh giá cũ tự chứa số đo nên không cần giữ dữ liệu nền cũ.
 
 ## Câu hỏi mở (Open Questions) <!-- key: open_questions -->
 
 - Có tự đánh giá lại các địa điểm người dùng đã lưu khi có bản mới không (chỉ tốn tài nguyên nội bộ), hay chỉ báo để người dùng tự bấm?
-- Ai được duyệt bản phát hành: chỉ một admin, hay cần người thứ hai xác nhận?
 - Tập điểm mẫu để chạy thử gồm những địa điểm nào? Đề xuất khoảng 50 điểm, chia đều nội thành, ven đô và ngoại thành.
 
 ## Tính năng liên quan <!-- key: related_features -->
@@ -111,3 +112,4 @@
 ## Nhật ký cập nhật <!-- key: update_log -->
 
 - Bản đầu: gom từ trao đổi về dữ liệu raw, Vietmap và thiết kế database. Người dùng đã chốt hướng: logic nội bộ hoặc Vietmap trước, tiêu chí bất ổn mới chuyển cho AI.
+- Rà lại thiết kế: chốt một admin duyệt phát hành (thu hồi được ngay), tiêu chí ở trong code, chia ba giai đoạn (xem research.md Bản ghi 8–11).

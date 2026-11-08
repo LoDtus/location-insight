@@ -1,14 +1,14 @@
 openapi: 3.0.3
 info:
-  title: Địa Thế — Dữ liệu nền và bản phát hành (018-location-data)
-  version: 0.1.0
+  title: Địa Thế — Dữ liệu nền và bản phát hành (018-location-data, GĐ1–2)
+  version: 0.2.0
   description: |
     Tiền tố `/api/v1`. Envelope chung `{success,status,data,error}`; lỗi nghiệp vụ có `error.details.code`.
-    Thay thế `POST /admin/map/dataset-versions` (phát hành một bước, không có bảng kê) của 013-map bằng luồng
-    nháp → staged → published. `GET /admin/map/dataset-versions` giữ nguyên, thêm trường mới.
-    Nhập dữ liệu (tạo layer version, COPY đối tượng) chạy bằng `tools/data` từ máy vận hành, KHÔNG có endpoint:
-    backend chỉ đọc kết quả và điều phối phát hành.
-    Mọi route `admin:access` + CIDR admin sẵn có. Thao tác ghi bị ghi nhật ký kiểm toán (ai, lúc nào, bản nào).
+    Thay `POST /admin/map/dataset-versions` một bước của 013-map bằng luồng nháp → phát hành.
+    `GET /admin/map/dataset-versions` giữ nguyên đường dẫn, thêm trường.
+    Dựng phiên bản lớp, kiểm tra chất lượng và chạy điểm mẫu chạy bằng `tools/data` từ máy vận hành, không có endpoint.
+    Định nghĩa tiêu chí nằm trong code (research.md Bản ghi 9), không có API sửa tiêu chí.
+    Mọi route cần `admin:access` + CIDR admin sẵn có. Thao tác ghi vào nhật ký kiểm toán.
 paths:
   /admin/map/dataset-versions:
     get:
@@ -17,7 +17,7 @@ paths:
       responses:
         "200": { description: OK, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/DatasetRelease" } } } } }
     post:
-      summary: Tạo bản nháp, chép bảng kê từ bản hiện hành (hoặc từ baseVersion khi rollback)
+      summary: Tạo bản nháp, chép bảng kê từ bản hiện hành
       x-permission: admin:access
       requestBody:
         required: true
@@ -27,81 +27,51 @@ paths:
               type: object
               required: [kind, note]
               properties:
-                kind: { type: string, enum: [data, criteria, mixed, rollback, hotfix] }
+                kind: { type: string, enum: [data, criteria, hotfix] }
                 note: { type: string, minLength: 3, maxLength: 500 }
-                baseVersion: { type: integer, minimum: 1, description: Bắt buộc khi kind = rollback }
       responses:
-        "201": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/DatasetRelease" } } } }
-        "409": { description: Đã có một bản draft/staged (RELEASE_DRAFT_EXISTS) }
+        "201": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/DatasetReleaseDetail" } } } }
+        "409": { description: Đã có một bản nháp (RELEASE_DRAFT_EXISTS) }
   /admin/map/dataset-versions/{version}:
     get:
-      summary: Chi tiết một bản — bảng kê lớp, bảng kê tiêu chí, kiểm tra, tác động
+      summary: Chi tiết — bảng kê lớp (so với bản hiện hành), kiểm tra của từng phiên bản lớp, tiêu chí đổi so với snapshot hiện hành
       x-permission: admin:access
       parameters: [{ $ref: "#/components/parameters/Version" }]
       responses:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/DatasetReleaseDetail" } } } }
         "404": { description: Không có bản này }
+    delete:
+      summary: Bỏ bản nháp (status → abandoned)
+      x-permission: admin:access
+      parameters: [{ $ref: "#/components/parameters/Version" }]
+      responses:
+        "200": { description: OK }
+        "409": { description: Không phải bản nháp (RELEASE_NOT_DRAFT) }
   /admin/map/dataset-versions/{version}/layers/{layerCode}:
     put:
-      summary: Đổi phiên bản một lớp trong bản nháp (chỉ layer version status = ready)
+      summary: Đặt phiên bản cho một lớp trong bản nháp (chỉ phiên bản ready)
       x-permission: admin:access
       parameters:
         - { $ref: "#/components/parameters/Version" }
-        - { name: layerCode, in: path, required: true, schema: { type: string, pattern: '^[a-z]+\.[a-z0-9_]+$', maxLength: 60 } }
+        - { $ref: "#/components/parameters/LayerCode" }
       requestBody:
         required: true
         content: { application/json: { schema: { type: object, required: [layerVersionId], properties: { layerVersionId: { type: string, format: uuid } } } } }
       responses:
         "200": { description: OK }
-        "409": { description: Bản không còn draft (RELEASE_LOCKED) hoặc layer version chưa ready (LAYER_NOT_READY) }
+        "409": { description: RELEASE_NOT_DRAFT / LAYER_NOT_READY / LAYER_MISMATCH (phiên bản không thuộc lớp này) }
     delete:
-      summary: Bỏ một lớp khỏi bản nháp (bị chặn nếu tiêu chí trong bảng kê còn cần lớp này)
+      summary: Bỏ lớp khỏi bản nháp
       x-permission: admin:access
       parameters:
         - { $ref: "#/components/parameters/Version" }
-        - { name: layerCode, in: path, required: true, schema: { type: string } }
+        - { $ref: "#/components/parameters/LayerCode" }
       responses:
         "200": { description: OK }
-        "409": { description: CRITERIA_INPUT_MISSING — kèm danh sách tiêu chí phụ thuộc }
-  /admin/map/dataset-versions/{version}/criteria/{criterionId}:
-    put:
-      summary: Ghim phiên bản tiêu chí vào bản nháp (thêm hoặc thay)
-      x-permission: admin:access
-      parameters:
-        - { $ref: "#/components/parameters/Version" }
-        - { $ref: "#/components/parameters/CriterionId" }
-      requestBody:
-        required: true
-        content: { application/json: { schema: { type: object, required: [criterionVersionId], properties: { criterionVersionId: { type: string, format: uuid } } } } }
-      responses:
-        "200": { description: OK }
-        "409": { description: RELEASE_LOCKED }
-    delete:
-      summary: Bỏ tiêu chí khỏi bản nháp (ngừng tiêu chí ở bản này)
-      x-permission: admin:access
-      parameters:
-        - { $ref: "#/components/parameters/Version" }
-        - { $ref: "#/components/parameters/CriterionId" }
-      responses:
-        "200": { description: OK }
-  /admin/map/dataset-versions/{version}/stage:
-    post:
-      summary: Khóa bảng kê, chạy kiểm tra mức bản, tính benchmark và tác động trên điểm mẫu (job nền)
-      x-permission: admin:access
-      parameters: [{ $ref: "#/components/parameters/Version" }]
-      responses:
-        "202": { description: Đã nhận; theo dõi qua GET chi tiết }
-        "409": { description: RELEASE_LOCKED / RELEASE_NOT_DRAFT }
-  /admin/map/dataset-versions/{version}/unstage:
-    post:
-      summary: Mở khóa để sửa tiếp (xóa kết quả kiểm tra mức bản và tác động)
-      x-permission: admin:access
-      parameters: [{ $ref: "#/components/parameters/Version" }]
-      responses:
-        "200": { description: OK }
+        "409": { description: RELEASE_NOT_DRAFT }
   /admin/map/dataset-versions/{version}/publish:
     post:
-      summary: Phát hành (chỉ khi staged, không có kiểm tra chặn fail)
+      summary: Phát hành — chạy kiểm tra mức bản, chụp CRITERIA vào criteria_snapshot, published trong một transaction
       x-permission: admin:access
       parameters: [{ $ref: "#/components/parameters/Version" }]
       requestBody:
@@ -110,10 +80,10 @@ paths:
             schema:
               type: object
               properties:
-                acceptWarnings: { type: string, maxLength: 500, description: Lý do chấp nhận các cảnh báo; bắt buộc nếu có cảnh báo }
+                acceptWarnings: { type: string, maxLength: 500, description: Lý do chấp nhận cảnh báo; bắt buộc nếu có cảnh báo }
       responses:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/DatasetRelease" } } } }
-        "409": { description: RELEASE_NOT_STAGED / RELEASE_BLOCKED (kèm danh sách kiểm tra fail) / WARNINGS_NOT_ACCEPTED }
+        "409": { description: RELEASE_NOT_DRAFT / RELEASE_BLOCKED (kèm danh sách kiểm tra fail, ví dụ CRITERIA_INPUT_MISSING, METHOD_UNSUPPORTED, SOURCE_BLOCKED) / WARNINGS_NOT_ACCEPTED }
   /admin/map/dataset-versions/{version}/withdraw:
     post:
       summary: Thu hồi bản đang hiện hành — tạo và phát hành ngay bản rollback từ baseVersion
@@ -130,86 +100,30 @@ paths:
                 reason: { type: string, minLength: 3, maxLength: 500 }
                 baseVersion: { type: integer, minimum: 1 }
       responses:
-        "200": { description: OK — trả về bản rollback mới }
-        "409": { description: BASE_PURGED — lớp của baseVersion đã xóa, phải dựng lại bằng tools/data }
+        "200": { description: OK — trả về bản rollback mới, content: { application/json: { schema: { $ref: "#/components/schemas/DatasetRelease" } } } }
+        "409": { description: NOT_CURRENT (chỉ thu hồi bản hiện hành) / BASE_LAYER_RETIRED (kèm danh sách lớp phải dựng lại bằng tools/data) / RELEASE_DRAFT_EXISTS }
   /admin/map/layers:
     get:
-      summary: Danh sách lớp và các phiên bản (status, row_count, diff, kiểm tra)
+      summary: Danh sách lớp và phiên bản (status, số dòng, khác biệt, kiểm tra)
       x-permission: admin:access
       parameters:
-        - { name: status, in: query, schema: { type: string, enum: [building, validating, ready, failed, retired, purged] } }
+        - { name: status, in: query, schema: { type: string, enum: [building, ready, failed, retired] } }
       responses:
         "200": { description: OK, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/LayerSummary" } } } } }
-  /admin/map/criteria:
-    get:
-      summary: Danh sách tiêu chí và các phiên bản
-      x-permission: admin:access
-      responses:
-        "200": { description: OK }
-    post:
-      summary: Tạo tiêu chí mới (kèm phiên bản 1 dạng draft)
-      x-permission: admin:access
-      requestBody:
-        required: true
-        content: { application/json: { schema: { $ref: "#/components/schemas/CriterionDraftInput" } } }
-      responses:
-        "201": { description: OK }
-        "400": { description: params/scoring không khớp schema của method }
-  /admin/map/criteria/{criterionId}/versions:
-    post:
-      summary: Tạo phiên bản draft mới từ phiên bản mới nhất (đổi ngưỡng, nguồn, cách đo)
-      x-permission: admin:access
-      parameters: [{ $ref: "#/components/parameters/CriterionId" }]
-      requestBody:
-        required: true
-        content: { application/json: { schema: { $ref: "#/components/schemas/CriterionDraftInput" } } }
-      responses:
-        "201": { description: OK }
-  /admin/map/criteria/{criterionId}/versions/{versionId}:
-    patch:
-      summary: Sửa phiên bản draft (frozen → 409 CRITERION_VERSION_FROZEN)
-      x-permission: admin:access
-      parameters:
-        - { $ref: "#/components/parameters/CriterionId" }
-        - { name: versionId, in: path, required: true, schema: { type: string, format: uuid } }
-      requestBody:
-        required: true
-        content: { application/json: { schema: { $ref: "#/components/schemas/CriterionDraftInput" } } }
-      responses:
-        "200": { description: OK }
-        "409": { description: CRITERION_VERSION_FROZEN }
-  /admin/map/feature-patches:
-    post:
-      summary: Sửa tay một đối tượng (ẩn, sửa, thêm); có hiệu lực từ phiên bản lớp dựng sau
-      x-permission: admin:access
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [layerCode, featureKey, action, reason]
-              properties:
-                layerCode: { type: string, maxLength: 60 }
-                featureKey: { type: string, maxLength: 120 }
-                action: { type: string, enum: [add, update, hide] }
-                payload: { type: object, description: "Chỉ các trường cho phép: name, category, kind, lat, lng, attrs (≤ 2 KB)" }
-                reason: { type: string, minLength: 3, maxLength: 500 }
-      responses:
-        "201": { description: OK }
 components:
   parameters:
     Version: { name: version, in: path, required: true, schema: { type: integer, minimum: 1 } }
-    CriterionId: { name: criterionId, in: path, required: true, schema: { type: string, pattern: '^[a-z0-9-]{2,40}$' } }
+    LayerCode: { name: layerCode, in: path, required: true, schema: { type: string, pattern: '^[a-z0-9-]+\.[a-z0-9_]+$', maxLength: 60 } }
   schemas:
     DatasetRelease:
       type: object
       properties:
         version: { type: integer }
-        kind: { type: string, enum: [data, criteria, mixed, rollback, hotfix] }
-        status: { type: string, enum: [draft, staged, published, withdrawn, abandoned] }
+        kind: { type: string, enum: [data, criteria, rollback, hotfix] }
+        status: { type: string, enum: [draft, published, withdrawn, abandoned] }
         baseVersion: { type: integer, nullable: true }
         note: { type: string }
+        criteriaHash: { type: string, nullable: true }
         releasedBy: { type: string, format: uuid, nullable: true }
         releasedAt: { type: string, format: date-time, nullable: true }
         withdrawnAt: { type: string, format: date-time, nullable: true }
@@ -219,45 +133,36 @@ components:
         - $ref: "#/components/schemas/DatasetRelease"
         - type: object
           properties:
-            layers: { type: array, items: { type: object, properties: { layerCode: { type: string }, layerVersionId: { type: string }, label: { type: string }, changedFromBase: { type: boolean }, diffSummary: { type: object } } } }
-            criteria: { type: array, items: { type: object, properties: { criterionId: { type: string }, version: { type: integer }, changedFromBase: { type: boolean } } } }
-            checks: { type: array, items: { $ref: "#/components/schemas/QualityCheck" } }
-            impact:
-              type: object
-              properties:
-                goldenPoints: { type: integer }
-                verdictFlips: { type: integer }
-                expectationFailures: { type: integer }
-                byCriterion: { type: array, items: { type: object, properties: { criterionId: { type: string }, flips: { type: integer }, meanScoreDelta: { type: number } } } }
-    QualityCheck:
-      type: object
-      properties:
-        code: { type: string }
-        severity: { type: string, enum: [blocking, warning] }
-        status: { type: string, enum: [pass, fail, skip] }
-        expected: { type: object }
-        observed: { type: object }
+            layers:
+              type: array
+              items:
+                type: object
+                properties:
+                  layerCode: { type: string }
+                  layerVersionId: { type: string, format: uuid }
+                  label: { type: string }
+                  changedFromCurrent: { type: boolean }
+                  diffSummary: { type: object }
+                  warnings: { type: array, items: { type: string } }
+            criteriaChanged:
+              type: array
+              description: Tiêu chí trong code khác snapshot của bản hiện hành (thêm, bỏ, đổi tham số)
+              items: { type: object, properties: { criterionId: { type: string }, change: { type: string, enum: [added, removed, changed] } } }
     LayerSummary:
       type: object
       properties:
         code: { type: string }
         geometryKind: { type: string, enum: [point, line, area, grid] }
-        versions: { type: array, items: { type: object, properties: { id: { type: string }, label: { type: string }, status: { type: string }, rowCount: { type: integer }, diffSummary: { type: object }, sources: { type: array, items: { type: string } } } } }
-    CriterionDraftInput:
-      type: object
-      required: [method, inputs, params, scoring, stability, defaultWeight, sourceLabel, changeNote]
-      properties:
-        id: { type: string, pattern: '^[a-z0-9-]{2,40}$', description: Chỉ khi tạo tiêu chí mới }
-        label: { type: string, maxLength: 80 }
-        groupCode: { type: string, enum: [walk, move, health, env, plan] }
-        method: { type: string, enum: [nearest, count, within_area, grid, travel_time, timeseries, ai] }
-        inputs: { type: array, maxItems: 10, items: { type: string, maxLength: 60 } }
-        params: { type: object, description: Kiểm bằng schema riêng của từng method; trường lạ bị từ chối }
-        scoring: { type: object }
-        stability: { type: string, enum: [stable, volatile] }
-        expiresAfterSeconds: { type: integer, minimum: 60, maximum: 31536000 }
-        fallbackMethod: { type: string, enum: [nearest, count] }
-        aiAllowed: { type: boolean }
-        defaultWeight: { type: integer, minimum: 0, maximum: 5 }
-        sourceLabel: { type: string, maxLength: 120 }
-        changeNote: { type: string, minLength: 3, maxLength: 500 }
+        usage: { type: string, enum: [public, internal, blocked] }
+        versions:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              label: { type: string }
+              status: { type: string, enum: [building, ready, failed, retired] }
+              rowCount: { type: integer }
+              diffSummary: { type: object }
+              checks: { type: array, items: { type: object, properties: { code: { type: string }, severity: { type: string, enum: [blocking, warning] }, status: { type: string, enum: [pass, fail] } } } }
+              inReleases: { type: array, items: { type: integer } }

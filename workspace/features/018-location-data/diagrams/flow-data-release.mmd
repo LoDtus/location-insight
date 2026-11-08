@@ -1,21 +1,21 @@
-%% Quy trình từ nguồn mới tới bản phát hành hiện hành.
+%% Từ nguồn mới tới bản phát hành hiện hành (GĐ1–2).
 flowchart TD
-  A[Tải nguồn vào data/raw + viết biên bản catalog có sha256] --> B[tools/data: cắt Hà Nội → interim → processed → curated]
-  B --> C[Đăng ký geo.source_snapshots]
-  C --> D[Tạo geo.layer_versions = building, tạo phân vùng mới]
-  D --> E[COPY đối tượng vào phân vùng + tính feature_key]
-  E --> F[Áp geo.feature_patches còn hiệu lực]
-  F --> G[validating: kiểm tra chất lượng + diff với phiên bản đang phát hành]
-  G -->|có kiểm tra chặn fail| X[failed: giữ để xem lỗi, không đưa vào bản nháp]
-  G -->|đạt| H[ready]
-  H --> I[Admin: bản nháp map_dataset_versions = draft, chép bảng kê từ bản hiện hành, thay lớp mới / tiêu chí mới]
-  I --> J[Khóa bảng kê → staged]
-  J --> K[Kiểm tra mức bản: mọi inputs của tiêu chí có lớp; lớp internal không lộ ra API]
-  K -->|fail| I
-  K -->|đạt| L[Tính map_benchmarks + chạy điểm mẫu → map_release_impacts]
-  L --> M{Admin xem báo cáo tác động}
-  M -->|chưa ổn| I
-  M -->|bỏ| Z[abandoned]
-  M -->|phát hành| N[Transaction: status = published, released_at, xóa cache bản hiện hành]
-  N --> O[Báo người dùng có địa điểm đã lưu: có dữ liệu mới]
-  N --> P[Job dọn: layer_version không bản nào trỏ tới quá 30 ngày → retired → DROP phân vùng → purged]
+  A[Tải nguồn vào data/raw + biên bản catalog có sha256] --> B[tools/data: cắt Hà Nội, chuẩn hóa, curated]
+  B --> C[Đối chiếu sha256 với biên bản]
+  C -->|sai| X1[Dừng, không tạo phiên bản]
+  C -->|khớp| D[geo.layer_versions = building]
+  D --> E[COPY đối tượng + feature_key + coverage]
+  E --> F[Kiểm tra chất lượng, ghi checks + diff_summary so với bản hiện hành]
+  F -->|có kiểm tra chặn fail| X2[failed]
+  F -->|đạt| G[ready]
+  G --> H[Admin: tạo bản nháp, chép bảng kê bản hiện hành, thay phiên bản lớp]
+  H --> I[Script điểm mẫu: bản nháp so với bản hiện hành, in bảng chênh lệch]
+  I --> J{Admin xem}
+  J -->|chưa ổn| H
+  J -->|bỏ| Z[abandoned]
+  J -->|phát hành| K[Kiểm tra mức bản: inputs đủ lớp, lớp ready, không nguồn blocked, method được hỗ trợ]
+  K -->|fail| H
+  K -->|đạt| L[Transaction: chụp CRITERIA vào criteria_snapshot + hash, status published, xóa cache]
+  L --> M[Nạp lại map_pois từ osm.places của bản mới]
+  L --> N[Thông báo người dùng có địa điểm đã lưu]
+  L --> O[Job dọn: phiên bản lớp ngoài bản hiện hành, bản trước, bản nháp quá 30 ngày thì retired, DELETE đối tượng]

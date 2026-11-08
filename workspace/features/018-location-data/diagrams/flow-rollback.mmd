@@ -1,9 +1,8 @@
-%% Thu hồi bản lỗi bằng cách tiến tới (roll-forward), không sửa lịch sử.
+%% Thu hồi bằng cách tiến tới, không sửa lịch sử.
 flowchart TD
-  A[Phát hiện bản N lỗi] --> B[Admin chọn bản tốt K < N]
-  B --> C[Tạo bản N+1 kind = rollback, base_version = K, chép bảng kê lớp và tiêu chí của K]
-  C --> D{Phiên bản lớp của K còn dữ liệu?}
-  D -->|còn| E[staged → bỏ qua điểm mẫu nếu bảng kê trùng hệt K]
-  D -->|đã purged| F[Dựng lại lớp từ data/curated theo source_snapshots của K] --> E
-  E --> G[Transaction: N+1 published; N = withdrawn + lý do]
-  G --> H[Kết quả đánh giá ghim N được gắn nhãn: dữ liệu đã thu hồi, nên đánh giá lại]
+  A[Phát hiện bản N lỗi] --> B[Admin chọn bản tốt K nhỏ hơn N]
+  B --> C{Mọi phiên bản lớp trong bảng kê của K còn ready?}
+  C -->|còn| D[Transaction: bản N+1 kind rollback, chép layer_manifest + criteria_snapshot của K, published; N thành withdrawn + lý do]
+  C -->|có lớp đã retired| E[Dựng lại lớp đó bằng tools/data từ catalog_paths của nó] --> D
+  D --> F[Nạp lại map_pois, xóa cache]
+  F --> G[Kết quả ghim bản N được gắn nhãn: dữ liệu đã thu hồi, nên đánh giá lại]

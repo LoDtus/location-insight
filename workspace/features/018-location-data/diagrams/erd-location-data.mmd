@@ -1,29 +1,16 @@
-%% Sinh từ ../postgresql.dbml (rút gọn: chỉ khóa và quan hệ). Sửa DBML trước, rồi sửa file này.
+%% Sinh từ ../postgresql.dbml (GĐ1–2, rút gọn: chỉ khóa và quan hệ). Sửa DBML trước, rồi sửa file này.
+%% Đường nét đứt = tham chiếu logic không có khóa ngoại (geo ↔ public, xem research.md Bản ghi 8).
 erDiagram
-  geo_sources ||--o{ geo_source_snapshots : "có"
   geo_layers ||--o{ geo_layer_versions : "có"
-  geo_layer_versions ||--o{ geo_layer_version_inputs : "dựng từ"
-  geo_source_snapshots ||--o{ geo_layer_version_inputs : "dùng trong"
-  geo_layer_versions ||--o{ geo_quality_checks : "kiểm"
-  geo_layer_versions ||--o{ geo_point_features : "phân vùng"
-  geo_layer_versions ||--o{ geo_line_features : "phân vùng"
-  geo_layer_versions ||--o{ geo_area_features : "phân vùng"
-  geo_layer_versions ||--o{ geo_grid_values : "phân vùng"
+  geo_layer_versions ||--o{ geo_point_features : "đối tượng"
+  geo_layer_versions ||--o{ geo_line_features : "đối tượng"
+  geo_layer_versions ||--o{ geo_area_features : "đối tượng"
+  geo_layer_versions ||--o{ geo_grid_values : "giá trị ô"
   geo_grids ||--o{ geo_grid_values : "ô"
-  geo_layers ||--o{ geo_feature_patches : "sửa tay theo feature_key"
 
-  map_criteria ||--o{ map_criterion_versions : "có"
-  map_dataset_versions ||--o{ map_dataset_layers : "bảng kê lớp"
-  map_dataset_versions ||--o{ map_dataset_criteria : "bảng kê tiêu chí"
-  geo_layer_versions ||--o{ map_dataset_layers : "được ghim"
-  map_criterion_versions ||--o{ map_dataset_criteria : "được ghim"
-  map_dataset_versions ||--o{ map_benchmarks : "mốc so sánh"
-  map_dataset_versions ||--o{ map_release_impacts : "tác động"
-  map_golden_points ||--o{ map_release_impacts : "điểm mẫu"
+  map_dataset_versions |o..o{ geo_layer_versions : "layer_manifest (jsonb, không FK)"
   map_dataset_versions |o--o{ map_dataset_versions : "base_version"
-
   map_places ||--o{ map_place_analyses : "đánh giá"
   map_dataset_versions ||--o{ map_place_analyses : "ghim bản"
   map_place_analyses ||--o{ map_place_measurements : "mỗi tiêu chí"
-  map_criterion_versions ||--o{ map_place_measurements : "định nghĩa đã dùng"
-  map_place_analyses ||--o{ map_ai_jobs : "việc AI"
+  map_place_measurements }o..o{ geo_layer_versions : "lineage (jsonb, không FK)"

@@ -1,26 +1,22 @@
 "use client";
 
-import { Button, Checkbox, ConfigProvider, DatePicker, Dropdown, Input, Table, Tag, type TableColumnsType } from "antd";
+import { Button, Checkbox, ConfigProvider, Dropdown, Input, Table, Tag, type TableColumnsType } from "antd";
 import viVN from "antd/locale/vi_VN";
-import dayjs from "dayjs";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { AuthApiError } from "@/features/auth/auth.api";
+import ArticleFrequencyPanel from "@/features/articles/components/article-frequency-panel";
 import {
     ARTICLE_STATUS_LABEL,
     deleteAdminArticle,
     hideAdminArticle,
     listAdminArticles,
-    listPublishedFrequency,
     locateAdminArticle,
     type AdminArticle,
     type AdminArticleList,
-    type FrequencyGrain,
-    type PublishedFrequency,
 } from "@/features/articles/articles.api";
-import EChart, { chartToken, type EChartOption } from "@/shared/components/charts/echart";
 import { getConfirmModal } from "@/shared/utils/confirm.utils";
 import { restorePaneScroll } from "@/shared/utils/scroll.utils";
 
@@ -139,10 +135,6 @@ export default function ArticleAdminList() {
     const [message, setMessage] = useState("");
     const [selected, setSelected] = useState<string[]>([]);
     const [reloadKey, setReloadKey] = useState(0);
-    const [grain, setGrain] = useState<FrequencyGrain>("month");
-    const [range, setRange] = useState(() => defaultFrequencyRange("month"));
-    const [frequency, setFrequency] = useState<PublishedFrequency | null>(null);
-    const [frequencyMessage, setFrequencyMessage] = useState("");
     const [highlightId, setHighlightId] = useState<string | null>(() => (focusFromUrl && ARTICLE_ID.test(focusFromUrl) ? focusFromUrl : null));
     const [anchorReady, setAnchorReady] = useState(() => Boolean(restored) || !(focusFromUrl && ARTICLE_ID.test(focusFromUrl)));
     const [placed, setPlaced] = useState(() => Boolean(restored) || !(focusFromUrl && ARTICLE_ID.test(focusFromUrl)));
@@ -248,24 +240,6 @@ export default function ArticleAdminList() {
         if (window.location.search === `?${next}`) return;
         router.replace(`/admin/blogs?${next}`, { scroll: false });
     }, [placed, page, pageSize, query, statuses, sort, router]);
-
-    useEffect(() => {
-        let active = true;
-        void listPublishedFrequency({ grain, from: range.from, to: range.to })
-            .then((next) => {
-                if (!active) return;
-                setFrequency(next);
-                setFrequencyMessage("");
-            })
-            .catch((error: unknown) => {
-                if (!active) return;
-                setFrequency(null);
-                setFrequencyMessage(error instanceof AuthApiError ? error.message : "Chưa tải được tần suất đăng.");
-            });
-        return () => {
-            active = false;
-        };
-    }, [grain, range, reloadKey]);
 
     const items = list?.items ?? [];
 
@@ -457,52 +431,7 @@ export default function ArticleAdminList() {
                     );
                 })}
             </section>
-            <section aria-label="Tần suất bài đã đăng" className="flex flex-col gap-3">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <h2 className="m-0 text-lg font-semibold">Số bài đã đăng</h2>
-                    <div className="flex flex-wrap items-center gap-2">
-                        {FREQUENCY_GRAINS.map((option) => (
-                            <Button
-                                key={option.id}
-                                type={grain === option.id ? "primary" : "default"}
-                                className="min-h-11"
-                                onClick={() => {
-                                    setGrain(option.id);
-                                    setRange(defaultFrequencyRange(option.id));
-                                }}
-                            >
-                                {option.label}
-                            </Button>
-                        ))}
-                        <DatePicker.RangePicker
-                            key={grain}
-                            size="large"
-                            allowClear={false}
-                            picker={grain === "day" ? "date" : grain}
-                            value={[dayjs(range.from), dayjs(range.to)]}
-                            onChange={(values) => {
-                                const next = values?.[0];
-                                const end = values?.[1];
-                                if (!next || !end) return;
-                                const format = grain === "day" ? "YYYY-MM-DD" : grain === "month" ? "YYYY-MM" : "YYYY";
-                                setRange({ from: next.format(format), to: end.format(format) });
-                            }}
-                        />
-                    </div>
-                </div>
-                <p className="m-0 text-sm">
-                    {frequency
-                        ? `${frequency.total} bài từ ${formatBucket(frequency.grain, frequency.from)} đến ${formatBucket(frequency.grain, frequency.to)}`
-                        : "Đang tải tần suất đăng."}
-                </p>
-                {frequencyMessage ? (
-                    <p role="alert" className="m-0 text-sm">
-                        {frequencyMessage}
-                    </p>
-                ) : (
-                    <FrequencyChart grain={frequency?.grain ?? grain} points={frequency?.points ?? []} />
-                )}
-            </section>
+            <ArticleFrequencyPanel reloadKey={reloadKey} />
             <div className="flex flex-wrap items-center gap-2">
                 <Input
                     allowClear
@@ -637,119 +566,6 @@ export default function ArticleAdminList() {
                 </div>
         </main>
         </ConfigProvider>
-    );
-}
-
-const FREQUENCY_GRAINS: { id: FrequencyGrain; label: string }[] = [
-    { id: "day", label: "Theo ngày" },
-    { id: "month", label: "Theo tháng" },
-    { id: "year", label: "Theo năm" },
-];
-
-function defaultFrequencyRange(grain: FrequencyGrain): { from: string; to: string } {
-    const parts = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Asia/Ho_Chi_Minh",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-    }).format(new Date());
-    const [year, month, day] = parts.split("-").map(Number);
-    if (grain === "year") return { from: String(year - 4), to: String(year) };
-    if (grain === "month") {
-        const start = new Date(Date.UTC(year, month - 1 - 11, 1));
-        return {
-            from: `${start.getUTCFullYear()}-${String(start.getUTCMonth() + 1).padStart(2, "0")}`,
-            to: `${year}-${String(month).padStart(2, "0")}`,
-        };
-    }
-    const end = new Date(Date.UTC(year, month - 1, day));
-    const start = new Date(end);
-    start.setUTCDate(start.getUTCDate() - 29);
-    return { from: start.toISOString().slice(0, 10), to: end.toISOString().slice(0, 10) };
-}
-
-function axisLabel(grain: FrequencyGrain, bucket: string): string {
-    if (grain === "year") return bucket;
-    if (grain === "month") return formatBucket(grain, bucket);
-    const [, month, day] = bucket.split("-");
-    return `${day}/${month}`;
-}
-
-function formatBucket(grain: FrequencyGrain, bucket: string): string {
-    if (grain === "year") return bucket;
-    if (grain === "month") {
-        const [year, month] = bucket.split("-");
-        return `${month}/${year}`;
-    }
-    const [year, month, day] = bucket.split("-");
-    return `${day}/${month}/${year}`;
-}
-
-function FrequencyChart({ grain, points }: { grain: FrequencyGrain; points: { bucket: string; count: number }[] }) {
-    const option = useMemo<EChartOption>(() => {
-        const green = chartToken("--color-green", "#026a4e");
-        const ink = chartToken("--color-charcoal", "#101111");
-        const many = points.length > 40;
-        return {
-            textStyle: { fontFamily: "system-ui, -apple-system, sans-serif", color: ink },
-            grid: { left: 8, right: 12, top: 16, bottom: many ? 56 : 8, containLabel: true },
-            tooltip: {
-                trigger: "axis",
-                axisPointer: { type: "shadow" },
-                confine: true,
-                formatter: (params: { dataIndex: number }[]) => {
-                    const point = points[params[0]?.dataIndex ?? -1];
-                    return point ? `${formatBucket(grain, point.bucket)}<br/><b>${point.count}</b> bài` : "";
-                },
-            },
-            xAxis: {
-                type: "category",
-                data: points.map((point) => axisLabel(grain, point.bucket)),
-                axisTick: { alignWithLabel: true },
-                axisLine: { lineStyle: { color: "#d9d9d9" } },
-                axisLabel: { color: ink, hideOverlap: true },
-            },
-            yAxis: { type: "value", minInterval: 1, splitLine: { lineStyle: { color: "#ececec" } }, axisLabel: { color: ink } },
-            dataZoom: many ? [{ type: "inside" }, { type: "slider", height: 18, bottom: 8 }] : [],
-            series: [
-                {
-                    type: "bar",
-                    name: "Số bài",
-                    data: points.map((point) => point.count),
-                    barMaxWidth: 36,
-                    itemStyle: { color: green, borderRadius: [4, 4, 0, 0] },
-                    emphasis: { itemStyle: { color: "#014d39" } },
-                    animationDuration: 600,
-                    animationEasing: "cubicOut",
-                },
-            ],
-        };
-    }, [grain, points]);
-
-    if (!points.length) {
-        return <p className="m-0 text-sm">Không có bài đã đăng trong khoảng này.</p>;
-    }
-    return (
-        <div className="relative">
-            <EChart option={option} className="h-[280px] w-full" />
-            <table className="sr-only">
-                <caption>Số bài đã đăng theo {grain === "day" ? "ngày" : grain === "month" ? "tháng" : "năm"}</caption>
-                <thead>
-                    <tr>
-                        <th>Mốc</th>
-                        <th>Số bài</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {points.map((point) => (
-                        <tr key={point.bucket}>
-                            <td>{formatBucket(grain, point.bucket)}</td>
-                            <td>{point.count}</td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
     );
 }
 

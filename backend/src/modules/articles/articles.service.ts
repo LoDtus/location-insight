@@ -15,6 +15,18 @@ import {
   type ArticleStatus,
 } from './article-rules.js';
 import {
+  bucketOfDay,
+  bucketRange,
+  FREQUENCY_LIMIT,
+  FREQUENCY_PATTERN,
+  type FrequencyGrain,
+  isBucketKey,
+  nextBucket,
+  VN_TIME_ZONE,
+  vnDayKey,
+  zonedStart,
+} from './article-frequency.js';
+import {
   ArticleFrequencyQueryDto,
   ArticleListQueryDto,
   ArticlePositionQueryDto,
@@ -32,8 +44,6 @@ const PUBLIC_PAGE_SIZE = 6;
 const ADMIN_PAGE_SIZES = [10, 20, 50] as const;
 const ADMIN_PAGE_SIZE = 10;
 const ADMIN_STATUSES = ['draft', 'scheduled', 'published', 'hidden', 'deleted'] as const;
-const FREQUENCY_PATTERN = { day: 'YYYY-MM-DD', month: 'YYYY-MM', year: 'YYYY' } as const;
-const FREQUENCY_LIMIT = { day: 366, month: 60, year: 30 } as const;
 
 function adminPageSize(value: number | undefined): number {
   return value !== undefined && (ADMIN_PAGE_SIZES as readonly number[]).includes(value) ? value : ADMIN_PAGE_SIZE;
@@ -488,58 +498,68 @@ export class ArticlesService {
     return counts;
   }
 
+  /**
+   * Biểu đồ "Số bài đã đăng": mỗi mốc có số bài đã đăng (gồm bài đặt lịch đã tới giờ, như trang công khai) và số bài
+   * đặt lịch chưa tới giờ. Không cho xem tương lai: mốc cuối bị cắt ở `latest` = hôm nay, hoặc ngày đăng của bài đặt
+   * lịch xa nhất nếu có (giờ Việt Nam).
+   */
   async publishedFrequency(query: ArticleFrequencyQueryDto): Promise<{
-    grain: ArticleFrequencyQueryDto['grain'];
+    grain: FrequencyGrain;
     from: string;
     to: string;
+    latest: string;
     total: number;
-    points: { bucket: string; count: number }[];
+    scheduledTotal: number;
+    points: { bucket: string; count: number; scheduled: number }[];
   }> {
-    this.assertFrequencyRange(query);
-    const pattern = FREQUENCY_PATTERN[query.grain];
-    const rows = await this.articles.query<{ bucket: string; count: string }[]>(
-      `SELECT to_char(date_trunc($1, published_at AT TIME ZONE 'Asia/Ho_Chi_Minh'), $2) AS bucket,
-              COUNT(*)::int AS count
+    const grain = query.grain;
+    if (!isBucketKey(grain, query.from) || !isBucketKey(grain, query.to) || query.from > query.to) {
+      throw new BusinessException(ErrorCode.VALIDATION_ERROR, 'Khoảng thời gian không hợp lệ.');
+    }
+    const now = new Date();
+    const [furthest] = await this.articles.query<{ at: Date | null }[]>(
+      `SELECT MAX(published_at) AS at FROM articles
+       WHERE deleted_at IS NULL AND status = 'scheduled' AND published_at > $1`,
+      [now],
+    );
+    const latest = vnDayKey(furthest?.at && furthest.at > now ? furthest.at : now);
+    const latestBucket = bucketOfDay(grain, latest);
+    if (query.from > latestBucket) {
+      throw new BusinessException(ErrorCode.VALIDATION_ERROR, 'Chưa có dữ liệu cho khoảng thời gian này.');
+    }
+    const to = query.to > latestBucket ? latestBucket : query.to;
+    const keys = bucketRange(grain, query.from, to, FREQUENCY_LIMIT[grain]);
+    if (!keys) throw new BusinessException(ErrorCode.VALIDATION_ERROR, 'Khoảng thời gian quá dài.');
+
+    const rows = await this.articles.query<{ bucket: string; published: string; scheduled: string }[]>(
+      `SELECT to_char(date_trunc($1, published_at AT TIME ZONE '${VN_TIME_ZONE}'), $2) AS bucket,
+              COUNT(*) FILTER (WHERE status = 'published' OR published_at <= $5)::int AS published,
+              COUNT(*) FILTER (WHERE status = 'scheduled' AND published_at > $5)::int AS scheduled
        FROM articles
        WHERE deleted_at IS NULL
-         AND status = 'published'
+         AND status IN ('published', 'scheduled')
          AND published_at IS NOT NULL
          AND published_at >= $3
          AND published_at < $4
        GROUP BY 1
        ORDER BY 1`,
-      [query.grain, pattern, zonedStart(query.grain, query.from), zonedStart(query.grain, nextBucket(query.grain, query.to))],
+      [grain, FREQUENCY_PATTERN[grain], zonedStart(grain, query.from), zonedStart(grain, nextBucket(grain, to)), now],
     );
-    const found = new Map(rows.map((row) => [row.bucket, Number(row.count)]));
-    const points: { bucket: string; count: number }[] = [];
-    let cursor = query.from;
-    while (cursor <= query.to && points.length < 400) {
-      points.push({ bucket: cursor, count: found.get(cursor) ?? 0 });
-      cursor = nextBucket(query.grain, cursor);
-    }
+    const found = new Map(rows.map((row) => [row.bucket, row]));
+    const points = keys.map((bucket) => ({
+      bucket,
+      count: Number(found.get(bucket)?.published ?? 0),
+      scheduled: Number(found.get(bucket)?.scheduled ?? 0),
+    }));
     return {
-      grain: query.grain,
+      grain,
       from: query.from,
-      to: query.to,
+      to,
+      latest,
       total: points.reduce((sum, point) => sum + point.count, 0),
+      scheduledTotal: points.reduce((sum, point) => sum + point.scheduled, 0),
       points,
     };
-  }
-
-  private assertFrequencyRange(query: ArticleFrequencyQueryDto): void {
-    const pattern = query.grain === 'day' ? /^\d{4}-\d{2}-\d{2}$/ : query.grain === 'month' ? /^\d{4}-\d{2}$/ : /^\d{4}$/;
-    if (!pattern.test(query.from) || !pattern.test(query.to) || query.from > query.to) {
-      throw new BusinessException(ErrorCode.VALIDATION_ERROR, 'Khoảng thời gian không hợp lệ.');
-    }
-    let steps = 1;
-    let cursor = query.from;
-    while (cursor < query.to) {
-      cursor = nextBucket(query.grain, cursor);
-      steps += 1;
-      if (steps > FREQUENCY_LIMIT[query.grain]) {
-        throw new BusinessException(ErrorCode.VALIDATION_ERROR, 'Khoảng thời gian quá dài.');
-      }
-    }
   }
 
   private draftFrom(dto: ArticleWriteDto): ArticleDraft {
@@ -624,24 +644,6 @@ export class ArticlesService {
       deletedAt: row.deletedAt,
     };
   }
-}
-
-function zonedStart(grain: ArticleFrequencyQueryDto['grain'], key: string): Date {
-  if (grain === 'year') return new Date(`${key}-01-01T00:00:00+07:00`);
-  if (grain === 'month') return new Date(`${key}-01T00:00:00+07:00`);
-  return new Date(`${key}T00:00:00+07:00`);
-}
-
-function nextBucket(grain: ArticleFrequencyQueryDto['grain'], key: string): string {
-  if (grain === 'year') return String(Number(key) + 1);
-  if (grain === 'month') {
-    const [year, month] = key.split('-').map(Number);
-    if (month === 12) return `${year + 1}-01`;
-    return `${year}-${String(month + 1).padStart(2, '0')}`;
-  }
-  const date = new Date(`${key}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + 1);
-  return date.toISOString().slice(0, 10);
 }
 
 function isUniqueViolation(error: unknown): boolean {

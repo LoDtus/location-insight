@@ -35,9 +35,14 @@ export type FrequencyGrain = "day" | "month" | "year";
 export type PublishedFrequency = {
     grain: FrequencyGrain;
     from: string;
+    /** Mốc cuối thực tế (máy chủ cắt ở `latest`, không trả tương lai). */
     to: string;
+    /** Ngày xa nhất được xem (YYYY-MM-DD): hôm nay, hoặc ngày đăng của bài đặt lịch xa nhất. */
+    latest: string;
     total: number;
-    points: { bucket: string; count: number }[];
+    scheduledTotal: number;
+    /** `count`: đã đăng (gồm bài đặt lịch đã tới giờ); `scheduled`: đặt lịch chưa tới giờ. */
+    points: { bucket: string; count: number; scheduled: number }[];
 };
 
 export type ArticleAuthor = { name: string; username: string | null; avatarUrl: string | null };

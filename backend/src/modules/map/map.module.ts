@@ -13,7 +13,13 @@ import { MapDatasetService } from './map-dataset.service.js';
 import { MapEvaluationService } from './map-evaluation.service.js';
 import { MapLayersService } from './map-layers.service.js';
 import { MapLimitsService } from './map-limits.service.js';
-import { MapDatasetAdminController, MapPlacesController } from './map-places.controller.js';
+import { MapPlacesController } from './map-places.controller.js';
+import { AdminAuditLogEntity } from '../rbac/entities/admin-audit-log.entity.js';
+import { DatasetAuditService } from './datasets/dataset-audit.service.js';
+import { DatasetImportService } from './datasets/dataset-import.service.js';
+import { MapDatasetAdminController, MapImportsAdminController, MapLayersAdminController } from './datasets/datasets-admin.controller.js';
+import { GeoLayersService } from './datasets/geo-layers.service.js';
+import { GeoSchemaService } from './datasets/geo-schema.service.js';
 import { MapPlacesService } from './map-places.service.js';
 import { MapWeightsService } from './map-weights.service.js';
 import { MapAdminController, MapController } from './map.controller.js';
@@ -32,10 +38,26 @@ import { VietmapClient } from './vietmap.client.js';
       MapPlaceEvaluationRunEntity,
       MapPoiEntity,
       MapCriterionWeightEntity,
+      AdminAuditLogEntity,
     ]),
   ],
-  controllers: [MapController, MapPlacesController, MapAdminController, MapDatasetAdminController],
-  providers: [MapConfig, VietmapClient, MapLimitsService, MapService, MapPlaceResolver, MapDatasetService, MapEvaluationService, MapPlacesService, MapLayersService, MapWeightsService],
+  controllers: [MapController, MapPlacesController, MapAdminController, MapDatasetAdminController, MapLayersAdminController, MapImportsAdminController],
+  providers: [
+    MapConfig,
+    VietmapClient,
+    MapLimitsService,
+    MapService,
+    MapPlaceResolver,
+    GeoSchemaService,
+    GeoLayersService,
+    MapDatasetService,
+    DatasetAuditService,
+    DatasetImportService,
+    MapEvaluationService,
+    MapPlacesService,
+    MapLayersService,
+    MapWeightsService,
+  ],
   exports: [MapService],
 })
 export class MapModule {}

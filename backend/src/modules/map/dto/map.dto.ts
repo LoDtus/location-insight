@@ -253,13 +253,6 @@ export class EvaluationRunDto extends PlacePointDto {
   fresh?: boolean;
 }
 
-export class ReleaseDatasetDto {
-  @IsString()
-  @MinLength(3)
-  @MaxLength(500)
-  note: string;
-}
-
 /** Thứ tự cột bảng so sánh: toàn bộ id mục đang so sánh, theo thứ tự mới (kiểm tra khớp danh sách ở service). */
 export class CompareOrderDto {
   @IsArray()

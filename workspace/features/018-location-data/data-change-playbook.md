@@ -16,7 +16,7 @@ Bảy quy tắc luôn đúng:
 
 | # | GĐ | Tình huống | Ví dụ | Làm gì | Chỗ đổi | Kết quả cũ |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | 1 | **Làm mới nguồn, cùng khuôn** | OSM tháng 11 | Biên bản catalog mới → `tools/data pack` ra gói `osm.places` và `osm.roads` → tải lên → Lưu → bản nháp `kind = data` thay hai lớp | Kho gói, `geo.import_jobs`, `geo.layer_versions`, `*_features`, `layer_manifest` | Giữ nguyên |
+| 1 | 1 | **Làm mới nguồn, cùng khuôn** | OSM tháng 11 | Biên bản catalog mới → `package_tool.py pack` ra gói `osm.places` và `osm.roads` → tải lên → Lưu → bản nháp `kind = data` thay hai lớp | Kho gói, `geo.import_jobs`, `geo.layer_versions`, `*_features`, `layer_manifest` | Giữ nguyên |
 | 2 | 2 | **Thêm nguồn bổ sung cho lớp đã có** | Chợ CSDL quy hoạch bù chợ OSM | Tạo lớp `qhtd.places` trên UI (`usage = internal`) và tải gói. Tiêu chí chợ khai `inputs: [osm.places, qhtd.places]`, gộp trùng dưới 40 m lúc đo. Không trộn hai nguồn vào một gói | `geo.layers`, `CRITERIA` | Giữ nguyên |
 | 3 | 1 | **Thêm lớp mới cùng dạng hình học** | Trạm PCCC | Tạo lớp trên UI → tải gói → Lưu → đưa vào bảng kê. Không cần code | `geo.layers`, `layer_manifest` | Giữ nguyên |
 | 4 | 1 | **Thêm tiêu chí mới, method đã có** | Khoảng cách tới PCCC (`nearest`) | Thêm vào `CRITERIA` trong code, deploy, phát hành bản `kind = criteria` (hoặc gộp với bản `data` nếu cần lớp mới). Thêm điểm mẫu có `expectations` cho tiêu chí mới | Code, `criteria_snapshot` | Hiện "chưa đánh giá tiêu chí này" |
@@ -28,7 +28,7 @@ Bảy quy tắc luôn đúng:
 | 10 | 1 | **Đổi id tiêu chí** | `pharmacy_500m` → `pharmacy` | Tránh. Nếu buộc phải đổi: thêm bảng ánh xạ id cũ → mới trong code. Service chuyển trọng số và chỉnh tay của người dùng trong cùng bản phát hành | Code, `map_criterion_weights`, `map_criterion_overrides` | Hiện theo id cũ |
 | 11 | 2 | **Thay nguồn bằng nguồn tốt hơn** | Đúng ô JRC `N30_E100`; thêm ô WorldCover phía nam | Gói mới có `coverage.geojson` rộng hơn | Như #1 | Chỗ trước là `no_data` sẽ có số khi đánh giá lại |
 | 12 | 1 | **Nguồn đổi schema hoặc tên trường** | CSDL quy hoạch đổi `maLoaiDat` | Sửa bước chuẩn hóa ở máy. Gói vẫn theo khuôn cũ nên server không đổi gì | `tools/data` | Không ảnh hưởng |
-| 13 | 1 | **Cần thêm cột vào khuôn** | Muốn lọc theo `attrs.opening_hours` trong SQL | Thêm khóa trong `attrs` thì không cần làm gì. Đưa lên cột thì tạo khuôn `point@2`: migration `geo`, bộ đọc mới, sửa `contracts/`, đổi `geo.layers.contract`; khuôn `@1` vẫn đọc được | Code, migration | Không ảnh hưởng |
+| 13 | 1 | **Cần thêm cột vào khuôn** | Muốn lọc theo `attrs.opening_hours` trong SQL | Thêm khóa trong `attrs` thì không cần làm gì. Đưa lên cột thì tạo khuôn `point@2`: migration `geo`, bộ đọc mới, sửa `package-contracts.json`, đổi `geo.layers.contract`; khuôn `@1` vẫn đọc được | Code, migration | Không ảnh hưởng |
 | 14 | 1 | **Gói bị từ chối** | `row_count_delta` lệch 30%, sai hệ tọa độ | Job `rejected`, xem `checks`. Lỗi do gói: sửa ở máy, `pack` với label mới. Nguồn thật sự đổi: sửa ngưỡng trong code kèm lý do trong commit | `geo.import_jobs` | Không ảnh hưởng |
 | 15 | 1 | **Tải trùng gói** | Bấm tải hai lần | `PACKAGE_DUPLICATE`, không tạo job mới | — | — |
 | 16 | 1 | **Chặn nguồn vì giấy phép** | Bên thứ ba yêu cầu gỡ | `PATCH` lớp `usage = blocked` kèm lý do → bản `hotfix` bỏ lớp (kiểm tra `source_blocked` chặn mọi bản còn dùng) → `retired` ngay, không chờ 30 ngày → xóa gói khỏi kho và bản sao lưu → xóa `evidence` mang tên đối tượng của lớp đó trong kết quả cũ, giữ số | `geo.layers`, kho gói, `map_place_measurements.evidence` | Giữ điểm, bỏ chi tiết |
@@ -42,7 +42,7 @@ Bảy quy tắc luôn đúng:
 | 24 | 1 | **Đổi độ phân giải hoặc bán kính lưới** | 100 m → 50 m, hoặc dân số trong 800 m | Độ phân giải: thêm `geo.grids` mới (migration). Bán kính: lớp mới `worldpop.pop_800m`, tiêu chí đổi `inputs`, rồi phát hành `kind = criteria` | `geo.grids`, `geo.layers`, `CRITERIA` | Giữ nguyên |
 | 25 | 2 | **Vietmap hết ngân sách hoặc lỗi** | Quá `MAP_DAILY_BUDGET` | `travel_time` → `nearest`, `status = fallback`, `confidence` giảm một bậc | `map_place_measurements` | — |
 | 26 | 2 | **Số đo Vietmap hết hạn** | Thời gian đi đo cách đây 40 ngày | Hiện "số đo cũ", cho đo lại riêng tiêu chí đó | `expires_at` | — |
-| 27 | 1 | **`/reset` trên máy dev** | Dựng lại database dev | `public` bị xóa và dựng lại; `geo` còn nguyên. Seed gọi service nhập với gói mẫu trong `backend/test/fixtures/packages/` nếu `geo` trống, rồi tạo bản phát hành 1 từ phiên bản `ready` mới nhất mỗi lớp. Không gỡ lớp bảo vệ nào của `/reset` | `map_dataset_versions` | Mất cùng toàn bộ dữ liệu dev, như hiện nay |
+| 27 | 1 | **`/reset` trên máy dev** | Dựng lại database dev | `public` bị xóa và dựng lại; `geo` còn nguyên. Seed (`MapDatasetService`) tạo lại trigger bảo vệ và bản phát hành 1 từ phiên bản `ready` mới nhất mỗi lớp còn trong `geo`; `geo` trống thì bản 1 rỗng (chế độ mẫu). Không nạp gói mẫu: dữ liệu dev cũng đi qua UI. Không gỡ lớp bảo vệ nào của `/reset` | `map_dataset_versions` | Mất cùng toàn bộ dữ liệu dev, như hiện nay |
 | 28 | 1 | **Hai việc cùng lúc** | Hai lần tải gói, hoặc sửa bản nháp khi đang phát hành | Mỗi lúc một job ở `validating` hoặc `saving` (khóa advisory; job khác nhận `IMPORT_BUSY`). Chỉ một bản `draft`. Phát hành khóa dòng bản nháp (`SELECT … FOR UPDATE`) nên không sửa được bảng kê trong lúc đó | `geo.import_jobs`, `map_dataset_versions` | — |
 | 29 | 1 | **Dung lượng tăng** | Nhiều phiên bản lưới | Job dọn: ngoài bản hiện hành, bản liền trước, bản nháp quá 30 ngày → `retired` → xóa đối tượng → `VACUUM`. Gói vẫn ở kho. Lưới quá khoảng 20 triệu dòng thì cân nhắc phân vùng (`future-schema.md`) | `geo.*_features`, `geo.grid_values` | Không ảnh hưởng (kết quả tự chứa số đo) |
 | 30 | 2 | **Mở rộng tỉnh khác** | Bắc Ninh | Gói mới có `coverage.geojson` rộng hơn; mở rộng hộp `inside_bbox` trong code | `coverage` | Giữ nguyên |
@@ -50,14 +50,14 @@ Bảy quy tắc luôn đúng:
 
 ## Kiểm tra mặc định
 
-- **Kiểm tra mức gói và mức lớp:** chạy trên server khi nhận gói, ghi vào `geo.import_jobs.checks`, rồi chép sang `geo.layer_versions.checks` khi Lưu. `tools/data validate` chạy cùng quy tắc ở máy để bắt lỗi sớm.
+- **Kiểm tra mức gói và mức lớp:** chạy trên server khi nhận gói, ghi vào `geo.import_jobs.checks`, rồi chép sang `geo.layer_versions.checks` khi Lưu. `package_tool.py validate` chạy cùng quy tắc ở máy để bắt lỗi sớm.
 - **Kiểm tra mức bản:** chạy lúc bấm phát hành.
 
 | Mã | Mức | Kiểm gì |
 | --- | --- | --- |
 | `package_shape` | chặn (gói) | Zip đúng các mục cho phép, không thư mục con hay symlink, trong giới hạn dung lượng và tỷ lệ nén |
 | `package_duplicate` | chặn (gói) | `package_sha256` chưa được nhập |
-| `manifest_schema` | chặn (gói) | Manifest đúng `contracts/manifest.schema.json`; có `sources` với giấy phép; `manual_steps` nếu có bước làm tay |
+| `manifest_schema` | chặn (gói) | Manifest đúng khuôn (`parseManifest`); có `sources` với giấy phép; `manualSteps` nếu có bước làm tay |
 | `layer_known`, `contract_supported`, `label_unique` | chặn (gói) | Lớp có trong `geo.layers` và chưa bị chặn, khuôn khớp lớp và server hỗ trợ, `(layer, label)` chưa có |
 | `pipeline_dirty` | cảnh báo (gói) | `pipeline.dirty = true`: gói dựng từ code chưa commit |
 | `data_checksum`, `row_count_match` | chặn (lớp) | `data_sha256`, `row_count` và `categories` khớp manifest |

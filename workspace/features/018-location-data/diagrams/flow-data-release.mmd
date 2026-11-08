@@ -2,14 +2,14 @@
 flowchart TD
   subgraph May["Máy vận hành, không có quyền ghi database"]
     A[Tải nguồn vào data/raw + biên bản catalog có sha256] --> B[interim, processed: cắt Hà Nội, chuẩn hóa; làm tay nếu cần]
-    B --> C[tools/data pack: package.zip = manifest.json + data theo khuôn]
-    C --> C2[tools/data validate: cùng contracts/*.schema.json với server]
+    B --> C[package_tool.py pack: package.zip = manifest.json + data theo khuôn]
+    C --> C2[package_tool.py validate: cùng package-contracts.json với server]
     C2 -->|lỗi| B
   end
-  C2 -->|đạt| D["Trang admin/datasets: tải gói lên"]
+  C2 -->|đạt| D["Trang admin/datasets: xin phiếu, PUT gói lên kho S3, nộp"]
   D --> E{Gói hợp lệ? kích thước, zip, manifest, lớp, khuôn, sha256 chưa nhập}
   E -->|không| X1[422/409: từ chối, không tạo staging]
-  E -->|có| F[Lưu gói vào kho theo sha256, chỉ đọc; import_job = validating]
+  E -->|có| F[Chép gói sang datasets/packages theo sha256; import_job = uploaded, rồi validating]
   F --> G[Nạp vào geo_staging, kiểm tra dữ liệu, khác biệt so với bản hiện hành]
   G -->|kiểm tra chặn fail| X2[rejected: admin xem lỗi, sửa ở máy, label mới]
   G -->|đạt| H{Admin xem kiểm tra, khác biệt, mẫu dòng}

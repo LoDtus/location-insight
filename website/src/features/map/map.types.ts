@@ -64,14 +64,6 @@ export interface EvaluationSummary {
     evaluatedAt: string;
 }
 
-export interface DatasetVersion {
-    version: number;
-    note: string;
-    releasedBy: string | null;
-    releasedAt: string;
-    current: boolean;
-}
-
 export type CriterionGroup = "walk" | "move" | "health" | "env";
 
 export interface EvaluatedCriterion {

@@ -439,7 +439,7 @@ Chọn phương án 3. Mọi phiên bản lớp sinh ra từ đúng một gói t
 - Gói là file zip gồm `manifest.json` và một file dữ liệu theo khuôn `point@1`, `line@1`, `area@1` hoặc `grid@1`.
 - Manifest ghi nguồn gốc: biên bản catalog, sha256 file raw, giấy phép, commit của script và các bước làm tay.
 - Raster (WorldPop, WorldCover, JRC, FABDEM) được tính ra lưới ở máy rồi tải lên bằng khuôn `grid@1`.
-- `tools/data pack` sinh gói. `tools/data validate` kiểm tra gói ở máy bằng cùng bộ quy tắc mà server dùng, viết một lần dưới dạng JSON Schema trong `contracts/`.
+- `tools/data/package_tool.py pack` sinh gói, `validate` kiểm gói ở máy. Giá trị khuôn viết một lần trong `backend/src/modules/map/datasets/package-contracts.json`, Python và TypeScript cùng đọc.
 
 **Kiểm tra xong mới lưu (hai bước):**
 1. Tải lên → nạp vào schema `geo_staging` (bảng `UNLOGGED`) → chạy kiểm tra và tính khác biệt so với phiên bản đang phát hành.
@@ -449,9 +449,8 @@ Chọn phương án 3. Mọi phiên bản lớp sinh ra từ đúng một gói t
 
 **Chỉ một đường ghi, chặn ở database chứ không chỉ quy ước:**
 - **Role:**
-  - `app_reader`: backend thường, chỉ `SELECT` trên `geo`, không thấy `geo_staging`.
-  - `geo_ingest`: chỉ module `ingest` dùng, qua kết nối riêng. Có `INSERT` trên bảng đối tượng, không có `UPDATE`; `DELETE` chỉ qua hàm dọn `SECURITY DEFINER`.
-  - Không role nào khác ghi được `geo`.
+  - GĐ1 (đã làm): trigger cùng cờ phiên giao dịch `geo.write_mode`. Mọi `INSERT` vào bảng đối tượng cần `SET LOCAL geo.write_mode = 'ingest'` và phiên bản đang `building`; `DELETE` cần cờ `purge`; `UPDATE` và `TRUNCATE` luôn bị chặn. Cách này chặn được cả khi backend kết nối bằng role chủ database như hiện nay.
+  - Khi triển khai production: tách thêm role `app_reader` (chỉ `SELECT` trên `geo`, không thấy `geo_staging`) và `geo_ingest` (chỉ module datasets dùng), xem `future-schema.md`.
 - **Trigger:**
   - Chặn `INSERT` vào phiên bản không ở `building`.
   - Chặn `UPDATE` phiên bản `ready`, trừ khi chuyển sang `retired`.
@@ -463,10 +462,10 @@ Chọn phương án 3. Mọi phiên bản lớp sinh ra từ đúng một gói t
 - **Mã nguồn:**
   - Một test kiến trúc làm fail nếu có câu `INSERT`, `UPDATE` hay `DELETE` vào `geo.` nằm ngoài `backend/src/modules/map/ingest`.
   - `tools/data` không còn chuỗi kết nối database. Bỏ role `geo_loader`.
-- **Áp dụng cả trên máy dev:** seed sau `/reset` gọi đúng service nhập với các gói mẫu nhỏ trong `backend/test/fixtures/packages/`, không dùng SQL tay. Không gỡ lớp bảo vệ nào của `/reset`.
+- **Áp dụng cả trên máy dev:** trigger chặn như production; dữ liệu dev cũng tải qua UI. Seed sau `/reset` chỉ dựng lại bản phát hành 1 từ các phiên bản `ready` còn trong `geo`, không chèn dữ liệu bằng SQL tay. Không gỡ lớp bảo vệ nào của `/reset`.
 
 **Kho gói là bản gốc, database là bản sao để truy vấn:**
-- Server lưu gói vào volume `data-packages` theo `{layer_code}/{label}/package.zip`, đặt chỉ đọc, không ghi đè.
+- Server lưu gói vào kho S3 sẵn có theo `datasets/packages/{layer_code}/{sha256}.zip`, không ghi đè.
 - Máy vận hành giữ bản làm việc ở `data/packages`.
 - Manifest được commit vào `data/catalog/packages/`.
 - Gói từng thuộc một bản đã phát hành thì giữ mãi. Gói bị bỏ hoặc fail thì xóa sau 30 ngày.
@@ -482,7 +481,7 @@ Chọn phương án 3. Mọi phiên bản lớp sinh ra từ đúng một gói t
 
 | Giai đoạn | Nội dung |
 | --- | --- |
-| GĐ1 | PostGIS; khuôn `point@1`, `line@1`, `grid@1`; trang tải gói, staging, lưu; kho gói; role và trigger; OSM điểm và đường, WorldPop; tiêu chí tiện ích, đường lớn, nội đô, dân số; bản phát hành; số đo theo tiêu chí; điểm mẫu tự chạy lúc phát hành (Decision Record 14) |
+| GĐ1 | PostGIS; khuôn `point@1`, `line@1`, `grid@1` (đã làm thêm `area@1`); trang tải gói, staging, lưu; kho gói; trigger chặn ghi; OSM điểm và đường, WorldPop; tiêu chí tiện ích, đường lớn, nội đô, dân số; bản phát hành; số đo theo tiêu chí; điểm mẫu tự chạy lúc phát hành (Decision Record 14) |
 | GĐ2 | Khuôn `area@1` (loại đất, yếu tố bất lợi từ CSDL quy hoạch); DuongBo; ô WorldCover và JRC còn thiếu; khôi phục phiên bản từ gói; job kiểm `content_hash`; Vietmap Reverse và Matrix |
 | GĐ3 | Theo `future-schema.md` |
 
@@ -530,7 +529,7 @@ Chọn phương án 3. Mọi phiên bản lớp sinh ra từ đúng một gói t
 
 ### Hệ quả <!-- key: consequences -->
 
-- Thư mục `data/curated/places/2026-10-18` hiện có sẽ được chuyển thành gói `osm.places` khi viết `tools/data pack`.
+- Thư mục `data/curated/places/2026-10-18` hiện có sẽ được chuyển thành gói `osm.places` khi chạy `tools/data/package_tool.py pack` cho bản đó.
 - Bốn miền (`places`, `transport`, `environment`, `admin`) vẫn dùng cho `raw`, `interim` và `processed` để dễ tìm file.
 
 ### Khả năng đảo ngược <!-- key: reversibility -->

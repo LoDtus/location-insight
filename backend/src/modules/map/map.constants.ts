@@ -99,4 +99,6 @@ export const MAP_REDIS_KEYS = {
   /** Kết quả phân tích dùng chung theo (phiên bản dữ liệu, tọa độ); chỉ đọc nội bộ, không trả thẳng cho client. */
   analysis: (analysisId: string) => `cache:map:analysis:${analysisId}`,
   datasetCurrent: 'map:dataset:current',
+  /** Phiếu tải gói dữ liệu nền lên kho (URL ký sẵn), sống ngắn. */
+  datasetUpload: (uploadId: string) => `cache:map:datasetupload:${uploadId}`,
 };

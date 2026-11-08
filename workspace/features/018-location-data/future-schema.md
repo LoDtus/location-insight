@@ -16,5 +16,8 @@ Các thành phần này đã có trong bản đặc tả đầu, nhưng được
 | Nguồn và snapshot dạng bảng | `geo.sources`, `geo.source_snapshots` | Cần truy vấn danh mục nguồn trong app | GĐ1–2 dùng `manifest.sources` trong `layer_versions` và `import_jobs` |
 | Tự tải nguồn định kỳ | Cột `source_url`, `schedule` trong `geo.layers` + job tải | Làm tay OSM hằng tháng trở thành gánh nặng | Job chỉ tải và `pack` theo cùng code `tools/data`, rồi tạo import job như tải lên tay; vẫn phải admin Lưu. Không bao giờ đọc định dạng thô ngoài adapter có sẵn |
 | Kho gói trên object storage | Volume → S3/R2 tương thích | Volume không đủ hoặc cần nhiều server | Đổi `package_path` thành URI; giữ tên theo sha256 |
+| Tách role database | Role `app_reader` (SELECT `geo`), `geo_ingest` (module datasets), kết nối riêng | Trước khi lên production | GĐ1 dựa vào trigger + cờ `geo.write_mode`; role làm phòng thủ thêm một lớp, cần thêm biến kết nối trong `.env*` gốc |
+| Khôi phục phiên bản từ gói | `POST /admin/map/layer-versions/{id}/restore`, import job `purpose = restore` | Lần đầu cần thu hồi về bản đã bị dọn (GĐ2) | Bảng, trạng thái và trigger đã sẵn; còn thiếu code nạp lại giữ nguyên id |
+| Job kiểm toàn vẹn hằng tuần | Tính lại `content_hash`, đặt `integrity_ok` | GĐ2 | `content_hash` đã tính lúc Lưu |
 | Người duyệt thứ hai cho Lưu và phát hành | Cột `approved_by` | Có người vận hành thứ hai | Người tải gói không được tự duyệt |
 | Phân vùng | `PARTITION BY LIST (layer_version_id)` | `grid_values` vượt ~20 triệu dòng hoặc `DELETE` khi dọn gây chậm | Khóa chính phải chứa khóa phân vùng |

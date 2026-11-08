@@ -1,0 +1,68 @@
+{
+  "$comment": "Quy ước gói chuẩn dùng chung cho backend (package-contracts.ts) và tools/data/package_tool.py. Mô tả: workspace/features/018-location-data/package-contracts.md. Sửa ở đây thì sửa cả hai nơi đọc.",
+  "limits": {
+    "packageMaxBytes": 209715200,
+    "uncompressedMaxBytes": 1073741824,
+    "compressionRatioMax": 100,
+    "entriesMax": 3,
+    "manifestMaxBytes": 262144,
+    "coverageMaxBytes": 10485760,
+    "csvLineMaxBytes": 65536,
+    "attrsMaxBytes": 4096
+  },
+  "patterns": {
+    "layerCode": "^[a-z0-9-]{2,40}\\.[a-z0-9_]{2,19}$",
+    "sourceCode": "^[a-z0-9-]{2,40}$",
+    "label": "^[0-9A-Za-z][0-9A-Za-z._-]{0,39}$",
+    "category": "^[a-z][a-z_]{1,29}$",
+    "featureKey": "^[\\x21-\\x7e]{1,120}$",
+    "sha256": "^[0-9a-f]{64}$",
+    "gitCommit": "^[0-9a-f]{7,40}$",
+    "date": "^\\d{4}-\\d{2}-\\d{2}$"
+  },
+  "bbox": {
+    "$comment": "Hộp Hà Nội (tools/data/osm_places.py HANOI_BBOX) mở rộng khoảng 5 km.",
+    "minLng": 105.23,
+    "minLat": 20.51,
+    "maxLng": 106.07,
+    "maxLat": 21.44,
+    "insideRatioMin": 0.999
+  },
+  "roadClasses": ["motorway", "trunk", "primary", "secondary", "tertiary", "residential", "alley"],
+  "contracts": {
+    "point@1": {
+      "geometryKind": "point",
+      "dataFile": "data.csv",
+      "crs": ["EPSG:4326"],
+      "columns": ["feature_key", "category", "kind", "name", "lat", "lng", "is_planned", "attrs"],
+      "requiredColumns": ["feature_key", "category", "lat", "lng"]
+    },
+    "line@1": {
+      "geometryKind": "line",
+      "dataFile": "data.geojsonl.gz",
+      "crs": ["EPSG:4326", "EPSG:3405"],
+      "geometryTypes": ["LineString", "MultiLineString"],
+      "properties": ["feature_key", "category", "road_class", "width_m", "name", "is_planned", "attrs"],
+      "requiredProperties": ["feature_key", "category"]
+    },
+    "area@1": {
+      "geometryKind": "area",
+      "dataFile": "data.geojsonl.gz",
+      "crs": ["EPSG:4326", "EPSG:3405"],
+      "geometryTypes": ["Polygon", "MultiPolygon"],
+      "properties": ["feature_key", "category", "code", "name", "valid_from", "valid_to", "attrs"],
+      "requiredProperties": ["feature_key", "category"]
+    },
+    "grid@1": {
+      "geometryKind": "grid",
+      "dataFile": "data.csv",
+      "crs": ["EPSG:3405"],
+      "columns": ["cell_id", "value"],
+      "requiredColumns": ["cell_id", "value"]
+    }
+  },
+  "checks": {
+    "rowCountDeltaBlock": 0.2,
+    "rowCountDeltaWarn": 0.05
+  }
+}

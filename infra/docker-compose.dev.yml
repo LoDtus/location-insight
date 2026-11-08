@@ -28,7 +28,8 @@ services:
 
   postgres:
     container_name: location-insight-postgres
-    image: postgres:17-alpine
+    # PostGIS cho dữ liệu nền (018-location-data). Cùng Postgres 17 Alpine nên dùng lại được volume cũ.
+    image: postgis/postgis:17-3.5-alpine
     restart: unless-stopped
     environment:
       TZ: UTC

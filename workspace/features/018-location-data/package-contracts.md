@@ -2,11 +2,14 @@
 
 Mọi phiên bản lớp sinh ra từ một gói tải lên qua `/admin/datasets` ([research.md](research.md) Bản ghi 12). Tài liệu này là quy ước chung cho ba nơi:
 
-- `tools/data pack` sinh gói;
-- `tools/data validate` kiểm gói ở máy;
+- `python3 tools/data/package_tool.py pack` sinh gói;
+- `python3 tools/data/package_tool.py validate` kiểm gói ở máy;
 - module `ingest` của backend kiểm lại khi nhận.
 
-Quy tắc máy đọc được nằm ở `contracts/*.schema.json` (JSON Schema). Python và TypeScript cùng dùng các file này, không viết quy tắc hai lần. Server là nơi quyết định cuối: kết quả `validate` ở máy chỉ giúp bắt lỗi sớm, server không tin nó.
+Giá trị máy đọc được (giới hạn, regex, cột của từng khuôn, hộp Hà Nội, ngưỡng lệch) nằm ở một file:
+`backend/src/modules/map/datasets/package-contracts.json`. Backend (`package-contracts.ts`) và `tools/data/package_tool.py` cùng đọc file này. Server là nơi quyết định cuối: kết quả `validate` ở máy chỉ giúp bắt lỗi sớm, server không tin nó.
+
+Trường của manifest viết camelCase, giống JSON của API.
 
 ## 1. Gói
 
@@ -24,7 +27,8 @@ Quy tắc máy đọc được nằm ở `contracts/*.schema.json` (JSON Schema)
   - Tỷ lệ nén tối đa 1:100.
   - Tối đa 3 mục trong zip.
   - Không chấp nhận symlink hay đường dẫn chứa `..` hoặc `/`.
-- **Tên trên máy:** `data/packages/{layer_code}/{label}/package.zip`. Trên server, gói đặt lại tên theo `package_sha256`; tên file người gửi bị bỏ qua.
+- **Tên trên máy:** `data/packages/{layer_code}/{label}/package.zip`. Trên server, gói nằm ở kho S3 `datasets/packages/{layer_code}/{package_sha256}.zip`; tên file người gửi bị bỏ qua.
+- **Đường tải:** trình duyệt xin phiếu (`POST /admin/map/imports/upload-tickets`), PUT thẳng gói lên `datasets/incoming/{uploadId}.zip` bằng URL ký sẵn, rồi nộp (`POST /admin/map/imports`). Backend tải gói về thư mục tạm, kiểm, chép sang chỗ cố định theo sha256 và xóa bản tạm.
 - **Không ghi đè:**
   - Sửa bất cứ gì thì tạo `label` mới: `2026-11-01` sửa lại thành `2026-11-01-r2`.
   - `(layer_code, label)` là duy nhất.
@@ -37,7 +41,7 @@ Quy tắc máy đọc được nằm ở `contracts/*.schema.json` (JSON Schema)
   "contract": "point@1",
   "layer": "osm.places",
   "label": "2026-11-01",
-  "source_date": "2026-11-01",
+  "sourceDate": "2026-11-01",
   "crs": "EPSG:4326",
   "sources": [
     {
@@ -48,11 +52,11 @@ Quy tắc máy đọc được nằm ở `contracts/*.schema.json` (JSON Schema)
     }
   ],
   "pipeline": { "tool": "tools/data/osm_places.py", "commit": "a1b2c3d", "dirty": false },
-  "manual_steps": [],
-  "row_count": 12723,
+  "manualSteps": [],
+  "rowCount": 12723,
   "categories": { "market": 412, "pharmacy": 2210 },
-  "data_sha256": "…",
-  "grid_code": null,
+  "dataSha256": "…",
+  "gridCode": null,
   "params": {},
   "notes": ""
 }
@@ -66,9 +70,9 @@ Quy tắc máy đọc được nằm ở `contracts/*.schema.json` (JSON Schema)
 | `crs` | `EPSG:4326`. Khuôn `line` và `area` chấp nhận thêm `EPSG:3405`, server đổi sang 4326. Không đoán hệ tọa độ |
 | `sources` | Ít nhất 1. `catalog` trỏ tới biên bản đã commit trong `data/catalog/snapshots`; `license` bắt buộc |
 | `pipeline.commit` | Commit của `tools/data`. `dirty: true` (có thay đổi chưa commit) là cảnh báo |
-| `manual_steps` | Bắt buộc khi có bước làm tay, ví dụ "gán tọa độ 37 chợ theo địa chỉ, file làm việc `data/interim/places/so-cong-thuong/2026-11-01/geocode.xlsx`" |
-| `row_count`, `categories`, `data_sha256` | Server tính lại và so; lệch là lỗi chặn |
-| `grid_code`, `params` | Chỉ khuôn `grid`: lưới đích và tham số đã dùng để tính (ví dụ `{"radius_m": 500}`). Tiêu chí không tự khai bán kính (Bản ghi 14) |
+| `manualSteps` | Bắt buộc khi có bước làm tay, ví dụ "gán tọa độ 37 chợ theo địa chỉ, file làm việc `data/interim/places/so-cong-thuong/2026-11-01/geocode.xlsx`" |
+| `rowCount`, `categories`, `dataSha256` | Server tính lại và so; lệch là lỗi chặn |
+| `gridCode`, `params` | Chỉ khuôn `grid`: lưới đích và tham số đã dùng để tính (ví dụ `{"radius_m": 500}`). Tiêu chí không tự khai bán kính (Bản ghi 14) |
 
 ## 3. Bốn khuôn
 
@@ -119,7 +123,7 @@ cell_id,value
 1834523,
 ```
 
-- `cell_id` phải nằm trong phạm vi của `grid_code`.
+- `cell_id` phải nằm trong phạm vi của `gridCode`.
 - `value` rỗng nghĩa là ô ngoài vùng phủ, không phải 0.
 - Raster gốc (WorldPop, WorldCover, JRC, FABDEM) được tính ra lưới ở máy. Server không nhận GeoTIFF.
 
@@ -143,9 +147,9 @@ Server chạy các kiểm tra theo thứ tự dưới đây. Mã kiểm tra kh�
 
 | Nơi | Vai trò | Giữ bao lâu |
 | --- | --- | --- |
-| Volume `data-packages` trên server | **Bản gốc**: đúng file đã nạp | Gói từng thuộc bản `published`: giữ mãi. Gói bị bỏ hoặc fail: 30 ngày |
+| Kho S3 (bucket của 016-media-storage, tiền tố `datasets/packages/`, không có URL công khai) | **Bản gốc**: đúng file đã nạp | Gói từng thuộc bản `published`: giữ mãi. Gói bị bỏ hoặc fail: 30 ngày |
 | `data/packages/` trên máy vận hành | Bản làm việc | Tùy người vận hành |
 | `data/catalog/packages/{layer}/{label}.json` (git) | Bản sao manifest | Mãi mãi |
 | Bản sao lưu ngoài server | Phòng mất volume | Như bản gốc |
 
-Mất volume thì nạp lại từ bản sao lưu. Manifest trong git cho biết sha256 để đối chiếu.
+Mất kho thì nạp lại từ bản sao lưu. Manifest trong git cho biết sha256 để đối chiếu.

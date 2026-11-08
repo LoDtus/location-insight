@@ -12,6 +12,9 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { createReadStream, createWriteStream } from 'node:fs';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { ConfigService } from '@nestjs/config';
 import {
   MAX_BATCH_DELETE,
@@ -109,6 +112,40 @@ export class StorageService implements OnModuleInit {
       }),
     );
     return { bucket: this.settings.bucket, key };
+  }
+
+  /** Đẩy một tệp trên đĩa lên kho theo stream (không nạp cả tệp vào bộ nhớ). */
+  async putObjectFromFile(
+    key: string,
+    filePath: string,
+    sizeBytes: number,
+    contentType: string,
+  ): Promise<void> {
+    assertSafeKey(key);
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.settings.bucket,
+        Key: key,
+        Body: createReadStream(filePath),
+        ContentLength: sizeBytes,
+        ContentType: contentType,
+      }),
+    );
+  }
+
+  /** Tải một đối tượng về tệp trên đĩa theo stream. Tệp đích phải chưa tồn tại. */
+  async downloadObjectToFile(key: string, filePath: string): Promise<void> {
+    assertSafeKey(key);
+    const response = await this.client.send(
+      new GetObjectCommand({ Bucket: this.settings.bucket, Key: key }),
+    );
+    if (!(response.Body instanceof Readable)) {
+      throw new Error('Kho đối tượng không trả về stream');
+    }
+    await pipeline(
+      response.Body,
+      createWriteStream(filePath, { flags: 'wx', mode: 0o600 }),
+    );
   }
 
   async getObject(key: string): Promise<Buffer> {

@@ -65,7 +65,7 @@
 
 - Postgres: bật PostGIS và thêm schema dữ liệu nền.
 - `backend/src/modules/map`: đánh giá, phiên bản dữ liệu, lớp bản đồ.
-- `tools/data` (chuẩn hóa, `pack`, `validate`), `contracts/`, `data/` (thêm `packages`, bỏ `curated`).
+- `tools/data` (chuẩn hóa, `package_tool.py pack`/`validate`), `data/` (thêm `packages`, bỏ `curated`).
 - Hạ tầng Docker (image Postgres, volume kho gói, role database), admin `/admin/datasets`.
 
 ## Phụ thuộc <!-- key: dependencies -->

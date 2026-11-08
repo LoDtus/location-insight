@@ -2,7 +2,6 @@ import { AuthApiError, apiRequest } from "@/features/auth/auth.api";
 import type { SearchFilters } from "@/features/map/map-url";
 import type {
     CompareItem,
-    DatasetVersion,
     MapConfig,
     MapPlace,
     MapPoint,
@@ -168,15 +167,6 @@ export function getMyEvaluation(point: MapPoint, signal?: AbortSignal): Promise<
  */
 export function runEvaluation(point: MapPoint, fresh: boolean): Promise<{ evaluation: PlaceEvaluation; source: "fresh" | "shared" }> {
     return apiRequest("/map/places/evaluation", { method: "POST", body: JSON.stringify({ lat: point.lat, lng: point.lng, fresh }) });
-}
-
-export function listDatasetVersions(signal?: AbortSignal): Promise<DatasetVersion[]> {
-    return apiRequest("/admin/map/dataset-versions", withSignal(signal));
-}
-
-/** Admin phát hành phiên bản dữ liệu mới (hiện hành + 1). */
-export function releaseDatasetVersion(note: string): Promise<DatasetVersion> {
-    return apiRequest("/admin/map/dataset-versions", { method: "POST", body: JSON.stringify({ note }) });
 }
 
 /** Bỏ qua tiêu chí hoặc đặt điểm tay (score: null = về điểm tự động). Trả về đánh giá đã tính lại. */

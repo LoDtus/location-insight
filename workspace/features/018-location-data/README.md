@@ -27,7 +27,7 @@ Làm theo ba giai đoạn ([research.md](research.md) Bản ghi 12). Đặc tả
 
 - **Gói chuẩn và kho gói:** 4 khuôn `point@1`, `line@1`, `area@1` (GĐ2), `grid@1`. Manifest ghi nguồn gốc. Xem [package-contracts.md](package-contracts.md).
 - **Nhập qua UI:** tải gói, nạp vào `geo_staging`, kiểm tra, xem khác biệt, rồi Lưu hoặc Bỏ. Tạo lớp mới trên UI.
-- **Chặn ghi ngoài đường nhập:** role, trigger, `content_hash`, test kiến trúc.
+- **Chặn ghi ngoài đường nhập:** trigger với cờ `geo.write_mode`, `content_hash`, test kiến trúc (tách role khi lên production).
 - **Schema `geo` (PostGIS):** điểm, đường, vùng, lưới. Mỗi dòng gắn `layer_version_id`.
 - **Bản phát hành:** `map_dataset_versions` thêm bảng kê lớp, bản chụp tiêu chí, kết quả kiểm tra và điểm mẫu. Có luồng nháp, phát hành, thu hồi; khôi phục phiên bản đã dọn từ gói.
 - **Kết quả đo:** mỗi tiêu chí một dòng, có nguồn gốc. Có phiên bản method, quy tắc độ tin, điều kiện chặn, mục tiêu hiệu năng.
@@ -42,7 +42,7 @@ Làm theo ba giai đoạn ([research.md](research.md) Bản ghi 12). Đặc tả
 
 ## Đối tượng liên quan <!-- key: actors -->
 
-- **Người vận hành dữ liệu (ở máy):** tải nguồn, chuẩn hóa (có thể làm tay), chạy `tools/data pack` và `validate`. Không có quyền ghi database.
+- **Người vận hành dữ liệu (ở máy):** tải nguồn, chuẩn hóa (có thể làm tay), chạy `tools/data/package_tool.py pack` và `validate`. Không có quyền ghi database.
 - **Admin (trên `/admin/datasets`):** tải gói, xem kiểm tra, Lưu hoặc Bỏ; tạo lớp; tạo bản nháp; phát hành, thu hồi, khôi phục.
 - **Người dùng:** đánh giá tọa độ, so sánh, đánh giá lại khi có bản mới.
 - **Job nền:** dọn phiên bản cũ, kiểm `content_hash`, xóa staging và gói bị bỏ.
@@ -50,7 +50,7 @@ Làm theo ba giai đoạn ([research.md](research.md) Bản ghi 12). Đặc tả
 
 ## Yêu cầu chức năng <!-- key: functional_requirements -->
 
-- **FR-01 (Đóng gói ở máy):** `tools/data pack` sinh `package.zip` (manifest + dữ liệu theo khuôn). `tools/data validate` kiểm tra bằng `contracts/*.schema.json`, cùng bộ quy tắc với server. Manifest được chép vào `data/catalog/packages/` để commit.
+- **FR-01 (Đóng gói ở máy):** `tools/data/package_tool.py pack` sinh `package.zip` (manifest + dữ liệu theo khuôn); `validate` kiểm gói theo cùng `package-contracts.json` với server. Manifest được chép vào `data/catalog/packages/` để commit.
 - **FR-02 (Tải gói):** admin tải gói lên. Server:
   - kiểm hình dạng zip và manifest;
   - từ chối gói trùng `package_sha256` hoặc trùng `(layer, label)`;
@@ -89,7 +89,7 @@ Làm theo ba giai đoạn ([research.md](research.md) Bản ghi 12). Đặc tả
 
   Gói của job bị bỏ hoặc fail thì xóa sau 30 ngày.
 - **FR-15 (Toàn vẹn, GĐ2):** job hằng tuần tính lại `content_hash` của các phiên bản `ready`. Lệch thì đặt `integrity_ok = false`, báo admin, chặn phát hành.
-- **FR-16 (Sau `/reset`):** seed gọi service nhập với gói mẫu trong `backend/test/fixtures/packages/` khi `geo` trống, rồi tạo bản phát hành 1 từ phiên bản `ready` mới nhất mỗi lớp.
+- **FR-16 (Sau `/reset`):** bước seed `map-dataset` tạo lại trigger bảo vệ và bản phát hành 1 từ phiên bản `ready` mới nhất mỗi lớp còn trong `geo`. Không nạp gói mẫu; dữ liệu dev cũng tải qua UI.
 - **FR-17 (Báo dữ liệu mới):** khi phát hành, người dùng có địa điểm đã lưu nhận thông báo.
 - **FR-18 (Vietmap, GĐ2):** Reverse lấy phường và tên đường. Matrix lấy thời gian đi cho tiêu chí `travel_time`; hết ngân sách thì đo bằng `nearest` với `status = fallback`.
 
@@ -134,13 +134,13 @@ Làm theo ba giai đoạn ([research.md](research.md) Bản ghi 12). Đặc tả
 - **Một đường ghi:** Bản ghi 12.
   - Module `backend/src/modules/map/ingest` nhận multipart, đọc dần (stream) dữ liệu, `COPY` vào `geo_staging` (UNLOGGED). PostGIS lo hình học (`ST_GeomFromGeoJSON`, `ST_MakeValid`, `ST_Transform`, `ST_Subdivide`).
   - Không có worker Python trên server.
-  - Quy tắc khuôn viết một lần ở `contracts/*.schema.json`, Python và TypeScript cùng dùng.
-- **Quyền database:**
-  - `app_reader` chỉ `SELECT` trên `geo`.
-  - `geo_ingest` chỉ module `ingest` dùng: `INSERT`, không `UPDATE`; `DELETE` qua hàm dọn.
-  - Bỏ `geo_loader`. Chuỗi kết nối và mật khẩu role chỉ nằm trong `.env*` gốc.
+  - Giá trị khuôn nằm ở một file `backend/src/modules/map/datasets/package-contracts.json`, Python và TypeScript cùng đọc.
+- **Chặn ghi:**
+  - Trigger trên bảng đối tượng: `INSERT` cần `SET LOCAL geo.write_mode = 'ingest'` và phiên bản `building`; `DELETE` cần cờ `purge`; `UPDATE`, `TRUNCATE` luôn bị chặn. Chỉ module `datasets` đặt cờ (test `geo-write-boundary.spec.ts`).
+  - Bỏ `geo_loader`; `tools/data` không có chuỗi kết nối database.
+  - Production: tách thêm role `app_reader` / `geo_ingest` (`future-schema.md`).
 - **Trigger:** chặn ghi vào phiên bản không ở `building`, chặn sửa phiên bản `ready`, chặn sửa bản phát hành không còn `draft`. Trigger trên bảng `map_*` tạo bằng SQL idempotent trong service, giống `messaging-schema.service.ts`.
-- **Kho gói:** volume `data-packages` (không vào git), tên theo sha256, chỉ đọc. Sao lưu ra ngoài server. Bản làm việc ở `data/packages/{layer_code}/{label}/`. Bản ghi 13.
+- **Kho gói:** kho S3 sẵn có (016-media-storage), tiền tố `datasets/packages/{layer_code}/{sha256}.zip`, không có URL công khai. Gói tải lên bằng URL ký sẵn (`datasets/incoming/`) vì proxy website giới hạn body. Sao lưu bucket ra ngoài server. Bản làm việc ở `data/packages/{layer_code}/{label}/`. Bản ghi 12–13.
 - **Hai cách quản lý schema:**
   - `geo` và `geo_staging` dùng migration SQL chạy lặp được.
   - `map_*` dùng entity TypeORM.
@@ -203,12 +203,12 @@ Làm theo ba giai đoạn ([research.md](research.md) Bản ghi 12). Đặc tả
 - [ ] **AC-03:** Given bản 6 bị lỗi, When admin thu hồi về bản 5, Then bản 7 (`kind = rollback`) có `layer_manifest` và `criteria_snapshot` trùng bản 5, bản 6 chuyển `withdrawn`, mất dưới 1 phút và không phải nhập lại dữ liệu.
 - [ ] **AC-04:** Given sửa ngưỡng hiệu thuốc trong code và deploy, When chưa phát hành bản mới, Then đánh giá vẫn dùng ngưỡng cũ trong `criteria_snapshot`.
 - [ ] **AC-05:** Given ghim nằm ngoài `coverage` của lớp mảng xanh, When đánh giá, Then tiêu chí ra `no_data`, `verdict = unknown` và không vào điểm tổng.
-- [ ] **AC-06:** Given `geo` có phiên bản lớp `ready`, When chạy `/reset` trên máy dev, Then `geo` còn nguyên và có bản phát hành 1 dựng từ các phiên bản đó. Given `geo` trống, Then gói mẫu được nạp qua service nhập.
+- [ ] **AC-06:** Given `geo` có phiên bản lớp `ready`, When chạy `/reset` trên máy dev, Then `geo` còn nguyên và có bản phát hành 1 dựng từ các phiên bản đó. Given `geo` trống, Then bản 1 có bảng kê rỗng (chế độ mẫu).
 - [ ] **AC-07:** Given mỗi dòng `map_place_measurements` mới, Then `lineage` liệt kê đủ `layer_versions` đã dùng (đều nằm trong bảng kê của bản đã ghim) và `backend_commit`.
 - [ ] **AC-08:** Given đánh giá một tọa độ ở nội thành với dữ liệu GĐ1, Then p95 dưới 300 ms khi không gọi Vietmap.
 - [ ] **AC-09 (GĐ2):** Given Vietmap hết ngân sách, When đánh giá tiêu chí `travel_time`, Then kết quả dùng `nearest` với `status = fallback` và `confidence` giảm một bậc.
 - [ ] **AC-10:** Given lớp có `usage = internal`, When gọi API lớp bản đồ hoặc đọc `evidence`, Then không thấy tên hay hình học đối tượng của lớp đó.
-- [ ] **AC-11:** Given kết nối database bằng role `app_reader` hoặc `geo_ingest`, When chạy `UPDATE geo.point_features …`, Then bị từ chối. Given phiên bản `ready`, When `INSERT` thêm đối tượng vào phiên bản đó, Then trigger từ chối.
+- [ ] **AC-11:** Given kết nối database bất kỳ không đặt `geo.write_mode`, When `INSERT`/`UPDATE`/`DELETE` vào `geo.point_features`, Then trigger từ chối. Given phiên bản `ready`, When `INSERT` thêm đối tượng vào phiên bản đó kể cả có cờ, Then trigger từ chối.
 - [ ] **AC-12:** Given có câu `INSERT INTO geo.` ngoài module `ingest`, When chạy test, Then test kiến trúc fail.
 - [ ] **AC-13:** Given gói đã nhập, When tải lại đúng gói đó, Then trả `PACKAGE_DUPLICATE`. Given zip có mục `../x` hoặc tỷ lệ nén trên 1:100, Then trả `PACKAGE_SHAPE_INVALID` và không giải nén ra ngoài thư mục tạm.
 - [ ] **AC-14:** Given điểm mẫu có `expectations` "chợ gần nhất dưới 300 m = strong", When bản nháp làm điểm đó thành `weak`, Then phát hành bị chặn với `GOLDEN_FAILED` kèm `golden_report`.
@@ -235,8 +235,14 @@ Làm theo ba giai đoạn ([research.md](research.md) Bản ghi 12). Đặc tả
   - Thêm mô hình chấm điểm và mục tiêu hiệu năng.
 - **Một đường ghi qua gói chuẩn, và các bổ sung sau khi rà hạn chế (Bản ghi 12–14):**
   - Mọi dữ liệu nền vào qua gói tải lên `/admin/datasets`, có staging, rồi admin Lưu.
-  - Chặn ghi ngoài đường nhập bằng role, trigger, `content_hash` và test kiến trúc.
+  - Chặn ghi ngoài đường nhập bằng trigger, `content_hash` và test kiến trúc.
   - Kho gói là bản gốc, khôi phục phiên bản đã dọn từ gói.
   - `data/` tổ chức theo lớp, `packages` thay `curated`.
   - Thêm phiên bản method, quy tắc độ tin, điều kiện chặn, điểm mẫu tự chạy, cảnh báo so sánh khác bản; lớp bản đồ theo bảng kê.
   - Thêm bảng `geo.import_jobs` và schema `geo_staging`; API có thêm 8 route; sổ tay có 31 tình huống; threat model có T13–T18.
+- **Triển khai GĐ1 phần quản lý dữ liệu (chưa có dữ liệu, chưa có logic tính điểm từ `geo`):**
+  - Backend `backend/src/modules/map/datasets/`: migration `geo`/`geo_staging` kèm trigger, bộ đọc zip an toàn, 4 khuôn, kiểm tra trong staging, Lưu/Bỏ, dọn hằng ngày, nhật ký kiểm toán. `map-dataset.service.ts`: nháp → phát hành → thu hồi.
+  - Website `/admin/datasets`: ba tab Bản phát hành, Lớp dữ liệu, Nhập gói.
+  - `tools/data/package_tool.py`: `pack` và `validate`.
+  - Khác thiết kế: kho gói dùng bucket S3 sẵn có thay volume riêng; tải gói bằng URL ký sẵn thay multipart; chặn ghi bằng trigger + cờ `geo.write_mode`, chưa tách role.
+  - Chưa làm: khôi phục phiên bản từ gói, job kiểm toàn vẹn hằng tuần, điểm mẫu khi phát hành (cần logic đánh giá), lớp bản đồ đọc `geo` thay `map_pois`, kiểm tra `criteria_inputs_present`/`method_supported` (CRITERIA chưa khai `inputs`).

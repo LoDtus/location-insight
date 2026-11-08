@@ -7,12 +7,10 @@ import {
   CriterionWeightDto,
   EvaluationQueryDto,
   EvaluationRunDto,
-  ReleaseDatasetDto,
   SavePlaceDto,
   UpdateSavedPlaceDto,
   CompareOrderDto,
 } from './dto/map.dto.js';
-import { MapDatasetService } from './map-dataset.service.js';
 import { MapEvaluationService } from './map-evaluation.service.js';
 import { MapPlacesService } from './map-places.service.js';
 import { MapWeightsService } from './map-weights.service.js';
@@ -146,25 +144,5 @@ export class MapPlacesController {
     @Req() request: RequestWithPrincipal,
   ) {
     return this.evaluations.resetCriterion(userId(request), criterionId, query.lat, query.lng);
-  }
-}
-
-/** Phiên bản bộ dữ liệu đánh giá: chỉ admin xem và nâng phiên bản. */
-@Controller('admin/map/dataset-versions')
-export class MapDatasetAdminController {
-  constructor(private readonly dataset: MapDatasetService) {}
-
-  @RequirePermission('admin:access')
-  @Header('Cache-Control', 'private, no-store')
-  @Get()
-  list() {
-    return this.dataset.list();
-  }
-
-  @RequirePermission('admin:access')
-  @Header('Cache-Control', 'private, no-store')
-  @Post()
-  release(@Body() body: ReleaseDatasetDto, @Req() request: RequestWithPrincipal) {
-    return this.dataset.release(userId(request), body.note);
   }
 }

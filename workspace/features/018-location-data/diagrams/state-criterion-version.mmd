@@ -1,0 +1,6 @@
+stateDiagram-v2
+  [*] --> draft
+  draft --> frozen: bản phát hành chứa nó được staged
+  draft --> [*]: xóa nháp
+  frozen --> retired: không còn bản published nào ghim
+  retired --> frozen: rollback về bản cũ

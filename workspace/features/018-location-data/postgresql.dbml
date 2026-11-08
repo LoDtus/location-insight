@@ -1,0 +1,549 @@
+// Dữ liệu nền và phiên bản dữ liệu (018-location-data).
+// Hai vùng:
+//   - schema geo: dữ liệu nền. Migration SQL viết tay, không dùng TypeORM synchronize (cần PostGIS và phân vùng).
+//   - schema public (map_*): tiêu chí, bản phát hành, kết quả đánh giá. Mở rộng các bảng sẵn có của 013-map.
+// Quy ước: bảng snake_case số nhiều, cột snake_case. Khóa chính UUID v7, trừ bảng đối tượng nhiều dòng
+// (bigint identity, để chỉ mục nhỏ và COPY nhanh).
+// Hình học lưu EPSG:4326. Bảng đối tượng dùng geography để ST_DWithin tính bằng mét.
+
+// ───────────────────────────── Nguồn và phiên bản lớp ─────────────────────────────
+
+Enum geo.source_usage {
+  public     // được hiển thị và ghi nguồn (OSM ODbL, WorldPop CC BY…)
+  internal   // chỉ dùng để tính, không trả nguyên văn đối tượng ra API (CSDL quy hoạch, datsach)
+  blocked    // bị gỡ vì giấy phép: không được nhập vào bản mới
+}
+
+Table geo.sources {
+  id uuid [pk]
+  code varchar(40) [not null, unique, note: 'osm, worldpop, qhtd-hanoi… khớp tên thư mục data/raw/{mien}/{nguon}']
+  domain varchar(20) [not null, note: 'places | transport | environment | admin']
+  name varchar(120) [not null]
+  license varchar(200) [not null]
+  attribution varchar(300) [not null, default: '', note: 'câu ghi nguồn bắt buộc hiển thị']
+  usage geo.source_usage [not null, default: 'public']
+  refresh_policy varchar(40) [not null, note: 'monthly | yearly | static | hourly']
+  created_at timestamptz [not null, default: `now()`]
+}
+
+Enum geo.snapshot_status {
+  registered   // đã có biên bản catalog, chưa nhập
+  imported
+  rejected     // checksum sai hoặc không đọc được
+}
+
+Table geo.source_snapshots {
+  id uuid [pk]
+  source_id uuid [not null, ref: > geo.sources.id]
+  version varchar(30) [not null, note: 'ngày tải hoặc mã phát hành: 2026-10-18, R2025A, v200-2021']
+  upstream_version varchar(60)
+  retrieved_at timestamptz [not null]
+  catalog_path varchar(300) [not null, note: 'data/catalog/snapshots/{mien}/{nguon}/{phien-ban}.json']
+  sha256 varchar(64) [not null, note: 'checksum file chính; nhiều file thì băm của danh sách checksum']
+  record_count integer
+  status geo.snapshot_status [not null, default: 'registered']
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (source_id, version) [unique, name: 'uq_geo_source_snapshots_source_version']
+  }
+}
+
+Enum geo.geometry_kind {
+  point
+  line
+  area
+  grid
+}
+
+Table geo.layers {
+  id uuid [pk]
+  code varchar(60) [not null, unique, note: 'places.pharmacy, transport.road, admin.ward, env.population, plan.landuse_2030…']
+  geometry_kind geo.geometry_kind [not null]
+  description varchar(300) [not null, default: '']
+  created_at timestamptz [not null, default: `now()`]
+  Note: 'Lớp logic, ổn định qua các lần nhập. Tiêu chí khai báo đầu vào bằng code lớp, không bằng nguồn.'
+}
+
+Enum geo.layer_version_status {
+  building     // đang nhập
+  validating   // đang chạy kiểm tra chất lượng
+  ready        // qua kiểm tra chặn, đưa vào bản nháp được
+  failed       // có kiểm tra chặn không đạt
+  retired      // không bản phát hành nào còn trỏ tới; chờ DROP phân vùng
+  purged       // đã xóa dữ liệu, giữ dòng này để truy vết
+}
+
+Table geo.layer_versions {
+  id uuid [pk]
+  layer_id uuid [not null, ref: > geo.layers.id]
+  label varchar(40) [not null, note: 'thường là ngày nguồn mới nhất: 2026-10-18']
+  status geo.layer_version_status [not null, default: 'building']
+  pipeline_version varchar(40) [not null, note: 'commit hoặc phiên bản script tools/data đã dựng lớp này']
+  row_count integer
+  coverage geometry(MultiPolygon,4326) [note: 'vùng có dữ liệu; ngoài vùng = no_data, không phải 0']
+  diff_summary jsonb [note: '{"added":12,"removed":3,"changed":40,"base_version_id":"…"} so với bản trước']
+  built_by varchar(80) [not null]
+  created_at timestamptz [not null, default: `now()`]
+  ready_at timestamptz
+  retired_at timestamptz
+
+  indexes {
+    (layer_id, label) [unique, name: 'uq_geo_layer_versions_layer_label']
+    (status) [name: 'idx_geo_layer_versions_status']
+  }
+}
+
+Enum geo.input_role {
+  primary
+  supplement   // bổ sung khi nguồn chính thiếu (chợ trong CSDL quy hoạch bù cho OSM)
+}
+
+Table geo.layer_version_inputs {
+  layer_version_id uuid [ref: > geo.layer_versions.id]
+  source_snapshot_id uuid [ref: > geo.source_snapshots.id]
+  role geo.input_role [not null]
+  priority smallint [not null, default: 1, note: 'nhỏ hơn thắng khi gộp trùng']
+
+  indexes {
+    (layer_version_id, source_snapshot_id) [pk]
+  }
+}
+
+Enum geo.check_severity {
+  blocking
+  warning
+}
+
+Enum geo.check_status {
+  pass
+  fail
+  skip
+}
+
+Table geo.quality_checks {
+  id uuid [pk]
+  layer_version_id uuid [ref: > geo.layer_versions.id, note: 'null khi là kiểm tra mức bản phát hành']
+  dataset_version integer [ref: > map_dataset_versions.version]
+  code varchar(60) [not null, note: 'row_count_delta, geometry_valid, inside_bbox, required_categories, orphan_patches, criteria_inputs_present…']
+  severity geo.check_severity [not null]
+  status geo.check_status [not null]
+  expected jsonb [not null, default: '{}']
+  observed jsonb [not null, default: '{}']
+  checked_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (layer_version_id) [name: 'idx_geo_quality_checks_layer_version']
+    (dataset_version) [name: 'idx_geo_quality_checks_dataset_version']
+  }
+  Note: 'check (layer_version_id is not null) <> (dataset_version is not null)'
+}
+
+// ───────────────────────────── Đối tượng (phân vùng theo phiên bản lớp) ─────────────────────────────
+
+Enum geo.feature_status {
+  existing
+  planned     // quy hoạch, chưa có thật (tuyến metro, đường trục định hướng)
+}
+
+Table geo.point_features {
+  id bigint [pk, increment]
+  layer_version_id uuid [not null, ref: > geo.layer_versions.id]
+  feature_key varchar(120) [not null, note: 'nguồn:id, hoặc băm(loại, tên chuẩn hóa, tọa độ làm tròn 10 m)']
+  category varchar(30) [not null]
+  kind varchar(30) [not null, default: '']
+  name varchar(200) [not null, default: '']
+  status geo.feature_status [not null, default: 'existing']
+  source_snapshot_id uuid [not null, ref: > geo.source_snapshots.id]
+  attrs jsonb [not null, default: '{}', note: 'thuộc tính nguồn đã chuẩn hóa; merged_from khi gộp nhiều nguồn']
+  geom geography(Point,4326) [not null]
+
+  indexes {
+    (layer_version_id, feature_key) [unique, name: 'uq_geo_point_features_version_key']
+    (layer_version_id, category) [name: 'idx_geo_point_features_version_category']
+    geom [type: gist, name: 'gix_geo_point_features_geom']
+  }
+  Note: 'PARTITION BY LIST (layer_version_id). Khóa chính thật là (layer_version_id, id) vì Postgres yêu cầu khóa phân vùng nằm trong PK.'
+}
+
+Table geo.line_features {
+  id bigint [pk, increment]
+  layer_version_id uuid [not null, ref: > geo.layer_versions.id]
+  feature_key varchar(120) [not null]
+  category varchar(30) [not null, note: 'road, dike, power_line, rail, metro_line, river']
+  road_class varchar(20) [note: 'motorway | trunk | primary | secondary | tertiary | residential | alley']
+  width_m real [note: 'OSM width hoặc DuongBo.chieuRong; null = không rõ']
+  name varchar(200) [not null, default: '']
+  status geo.feature_status [not null, default: 'existing']
+  source_snapshot_id uuid [not null, ref: > geo.source_snapshots.id]
+  attrs jsonb [not null, default: '{}']
+  geom geography(MultiLineString,4326) [not null]
+
+  indexes {
+    (layer_version_id, feature_key) [unique, name: 'uq_geo_line_features_version_key']
+    (layer_version_id, category, road_class) [name: 'idx_geo_line_features_version_class']
+    geom [type: gist, name: 'gix_geo_line_features_geom']
+  }
+  Note: 'PARTITION BY LIST (layer_version_id).'
+}
+
+Table geo.area_features {
+  id bigint [pk, increment]
+  layer_version_id uuid [not null, ref: > geo.layer_versions.id]
+  feature_key varchar(120) [not null]
+  category varchar(30) [not null, note: 'ward, landuse_current, landuse_plan, hazard_zone, industrial_zone, protected_zone']
+  code varchar(30) [note: 'mã loại đất ODT/ONT…, mã đơn vị hành chính']
+  name varchar(200) [not null, default: '']
+  valid_from date [note: 'quy hoạch: năm bắt đầu; ranh hành chính: ngày hiệu lực']
+  valid_to date
+  source_snapshot_id uuid [not null, ref: > geo.source_snapshots.id]
+  attrs jsonb [not null, default: '{}']
+  geom geometry(MultiPolygon,4326) [not null, note: 'geometry (không geography) để ST_Intersects/ST_Covers nhanh; đã ST_Subdivide khi nhập']
+
+  indexes {
+    (layer_version_id, feature_key) [name: 'idx_geo_area_features_version_key', note: 'không unique: một vùng lớn bị chia nhỏ thành nhiều dòng']
+    (layer_version_id, category) [name: 'idx_geo_area_features_version_category']
+    geom [type: gist, name: 'gix_geo_area_features_geom']
+  }
+  Note: 'PARTITION BY LIST (layer_version_id).'
+}
+
+// ───────────────────────────── Lưới ─────────────────────────────
+
+Table geo.grids {
+  id uuid [pk]
+  code varchar(30) [not null, unique, note: 'vn2000-100m']
+  srid integer [not null, note: '3405']
+  cell_size_m integer [not null]
+  origin_x double [not null]
+  origin_y double [not null]
+  columns integer [not null]
+  rows integer [not null]
+  Note: 'cell_id = hàng * columns + cột. Định nghĩa không sửa; đổi kích thước ô = lưới mới.'
+}
+
+Table geo.grid_values {
+  layer_version_id uuid [not null, ref: > geo.layer_versions.id]
+  grid_id uuid [not null, ref: > geo.grids.id]
+  cell_id bigint [not null]
+  value real [note: 'null = ô ngoài vùng phủ của nguồn']
+
+  indexes {
+    (layer_version_id, cell_id) [pk]
+  }
+  Note: 'PARTITION BY LIST (layer_version_id). Mỗi chỉ số (pop_500m, green_300m, flood_rp10, flood_rp100, elev, elev_rel_500m) là một lớp riêng.'
+}
+
+// ───────────────────────────── Sửa tay, ranh hành chính, chuỗi thời gian ─────────────────────────────
+
+Enum geo.patch_action {
+  add
+  update
+  hide
+}
+
+Table geo.feature_patches {
+  id uuid [pk]
+  layer_id uuid [not null, ref: > geo.layers.id]
+  feature_key varchar(120) [not null]
+  action geo.patch_action [not null]
+  payload jsonb [not null, default: '{}', note: 'trường cần đè; add thì có đủ name, category, lat, lng']
+  reason varchar(500) [not null]
+  created_by uuid [not null, note: 'admin']
+  created_at timestamptz [not null, default: `now()`]
+  revoked_at timestamptz
+
+  indexes {
+    (layer_id, feature_key) [name: 'idx_geo_feature_patches_layer_key']
+  }
+  Note: 'Áp lên mỗi phiên bản lớp mới lúc dựng (bước apply_patches). Không bao giờ sửa trực tiếp *_features.'
+}
+
+Table geo.admin_unit_mappings {
+  id uuid [pk]
+  old_code varchar(30) [not null]
+  new_code varchar(30) [not null]
+  share real [not null, default: 1, note: 'tỷ lệ diện tích phần cũ thuộc đơn vị mới']
+  effective_on date [not null, note: '2025-07-01 cho đợt sắp xếp phường']
+  source_snapshot_id uuid [ref: > geo.source_snapshots.id]
+
+  indexes {
+    (old_code, new_code, effective_on) [unique, name: 'uq_geo_admin_unit_mappings']
+  }
+}
+
+Table geo.env_observations {
+  provider varchar(20) [not null, note: 'openaq']
+  station_key varchar(60) [not null]
+  parameter varchar(10) [not null, note: 'pm25, pm10, no2']
+  value real [not null]
+  unit varchar(10) [not null]
+  observed_at timestamptz [not null]
+  geom geography(Point,4326) [not null]
+  fetched_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (provider, station_key, parameter, observed_at) [pk]
+    geom [type: gist, name: 'gix_geo_env_observations_geom']
+  }
+  Note: 'PARTITION BY RANGE (observed_at) theo tháng; giữ 90 ngày. Không thuộc bản phát hành.'
+}
+
+// ───────────────────────────── Tiêu chí có phiên bản ─────────────────────────────
+
+Table map_criteria {
+  id varchar(40) [pk, note: 'slug ổn định: hieu-thuoc, ngap-song…; trùng criterion_id ở map_criterion_weights/overrides']
+  group_code varchar(20) [not null, note: 'walk | move | health | env | plan']
+  label varchar(80) [not null]
+  created_at timestamptz [not null, default: `now()`]
+  deprecated_at timestamptz [note: 'bỏ tiêu chí: không xóa dòng, kết quả cũ vẫn hiện']
+}
+
+Enum criterion_method {
+  nearest       // khoảng cách tới đối tượng gần nhất (điểm/đường)
+  count         // số đối tượng trong bán kính
+  within_area   // ghim nằm trong vùng nào → mã
+  grid          // tra ô lưới
+  travel_time   // Vietmap Matrix, fallback nearest
+  timeseries    // trạm gần nhất, giá trị trong khung thời gian
+  ai            // giao cho map_ai_jobs
+}
+
+Enum criterion_stability {
+  stable     // theo bản phát hành
+  volatile   // có hạn dùng (expires_after)
+}
+
+Enum criterion_version_status {
+  draft      // sửa được
+  frozen     // đã thuộc ít nhất một bản phát hành: không sửa được nữa
+  retired
+}
+
+Table map_criterion_versions {
+  id uuid [pk]
+  criterion_id varchar(40) [not null, ref: > map_criteria.id]
+  version integer [not null]
+  method criterion_method [not null]
+  inputs "varchar(60)[]" [not null, note: 'code lớp đầu vào: {places.pharmacy}; kiểm khi đưa vào bản phát hành']
+  params jsonb [not null, note: 'kiểm bằng schema của method: radius_m, categories, metric, destinations, max_station_km…']
+  scoring jsonb [not null, note: '{"direction":"lower_better","good":150,"bad":800} hoặc {"codes":{"ODT":8,"LUA":3}}']
+  stability criterion_stability [not null]
+  expires_after interval [note: 'chỉ volatile: 1 hour, 30 days…']
+  fallback_method criterion_method [note: 'travel_time → nearest khi hết ngân sách Vietmap']
+  ai_allowed boolean [not null, default: false, note: 'cho AI bổ sung khi đo nội bộ ra no_data']
+  default_weight smallint [not null, note: '0–5']
+  source_label varchar(120) [not null, note: 'chuỗi nguồn hiển thị cho người dùng']
+  status criterion_version_status [not null, default: 'draft']
+  change_note varchar(500) [not null]
+  created_by uuid [not null]
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (criterion_id, version) [unique, name: 'uq_map_criterion_versions_criterion_version']
+  }
+  Note: 'check default_weight between 0 and 5; check (stability = volatile) = (expires_after is not null)'
+}
+
+// ───────────────────────────── Bản phát hành (mở rộng map_dataset_versions) ─────────────────────────────
+
+Enum dataset_release_status {
+  draft        // đang gom bảng kê, sửa được
+  staged       // đã khóa bảng kê, đã chạy kiểm tra + báo cáo tác động
+  published    // đang hoặc từng là bản hiện hành
+  withdrawn    // thu hồi do lỗi; kết quả trên bản này được gắn nhãn
+  abandoned    // nháp bị bỏ, chưa từng phát hành
+}
+
+Enum dataset_release_kind {
+  data         // làm mới hoặc thêm lớp
+  criteria     // chỉ đổi tiêu chí
+  mixed
+  rollback     // chép bảng kê của một bản tốt trước đó
+  hotfix
+}
+
+Table map_dataset_versions {
+  version integer [pk, note: 'sẵn có; tăng dần, không tái sử dụng']
+  kind dataset_release_kind [not null, default: 'data']
+  status dataset_release_status [not null, default: 'draft']
+  base_version integer [ref: > map_dataset_versions.version, note: 'bản làm gốc để chép bảng kê và so tác động']
+  note varchar(500) [not null, default: '', note: 'sẵn có']
+  impact_summary jsonb [note: '{"golden_points":50,"verdict_flips":7,"criteria_changed":["cho"]}']
+  created_by uuid [not null]
+  released_by uuid [note: 'sẵn có: người bấm phát hành']
+  released_at timestamptz [note: 'sẵn có; null khi chưa phát hành']
+  withdrawn_at timestamptz
+  withdraw_reason varchar(500)
+
+  indexes {
+    (status, version) [name: 'idx_map_dataset_versions_status_version']
+  }
+  Note: 'Bản hiện hành = max(version) có status = published. Chỉ một bản draft/staged tại một thời điểm (unique partial index).'
+}
+
+Table map_dataset_layers {
+  version integer [ref: > map_dataset_versions.version]
+  layer_id uuid [ref: > geo.layers.id]
+  layer_version_id uuid [not null, ref: > geo.layer_versions.id]
+
+  indexes {
+    (version, layer_id) [pk]
+    (layer_version_id) [name: 'idx_map_dataset_layers_layer_version', note: 'tìm bản phát hành còn trỏ tới để quyết định retire']
+  }
+  Note: 'Bảng kê lớp: không sửa khi bản đã staged trở đi.'
+}
+
+Table map_dataset_criteria {
+  version integer [ref: > map_dataset_versions.version]
+  criterion_id varchar(40) [ref: > map_criteria.id]
+  criterion_version_id uuid [not null, ref: > map_criterion_versions.id]
+
+  indexes {
+    (version, criterion_id) [pk]
+  }
+  Note: 'Bảng kê tiêu chí: tiêu chí không có ở đây thì không được tính trong bản đó.'
+}
+
+Table map_benchmarks {
+  version integer [ref: > map_dataset_versions.version]
+  criterion_id varchar(40) [ref: > map_criteria.id]
+  scope varchar(10) [note: 'ward | district | city']
+  scope_code varchar(30)
+  p25 real
+  p50 real
+  p75 real
+  sample_size integer [not null]
+
+  indexes {
+    (version, criterion_id, scope, scope_code) [pk]
+  }
+  Note: 'Tính lúc staged, trên mẫu tâm ô lưới có dân cư; dùng ra percentile "so với phường".'
+}
+
+Table map_golden_points {
+  id uuid [pk]
+  label varchar(120) [not null]
+  lat double [not null]
+  lng double [not null]
+  expectations jsonb [not null, default: '{}', note: 'tùy chọn: {"hieu-thuoc":{"max_m":300}} để bắt lỗi rõ ràng']
+  active boolean [not null, default: true]
+  created_at timestamptz [not null, default: `now()`]
+}
+
+Table map_release_impacts {
+  version integer [ref: > map_dataset_versions.version]
+  golden_point_id uuid [ref: > map_golden_points.id]
+  criterion_id varchar(40) [ref: > map_criteria.id]
+  base_score real
+  new_score real
+  base_verdict varchar(10)
+  new_verdict varchar(10)
+  expectation_failed boolean [not null, default: false]
+
+  indexes {
+    (version, golden_point_id, criterion_id) [pk]
+  }
+}
+
+// ───────────────────────────── Kết quả đánh giá ─────────────────────────────
+
+Table map_places {
+  id uuid [pk, note: 'sẵn có']
+  lat double [not null]
+  lng double [not null]
+  geom geography(Point,4326) [note: 'mới: sinh từ lat/lng']
+  ward_code varchar(30) [note: 'mới: từ Vietmap Reverse (ranh mới) hoặc admin.ward']
+  street_name varchar(200) [note: 'mới: từ Vietmap Reverse']
+  Note: 'Chỉ liệt kê cột mới; các cột cũ giữ nguyên theo 013-map.'
+}
+
+Enum analysis_status {
+  computing
+  partial    // còn tiêu chí pending_ai
+  done
+}
+
+Table map_place_analyses {
+  id uuid [pk, note: 'sẵn có']
+  place_id uuid [not null, ref: > map_places.id]
+  dataset_version integer [not null, ref: > map_dataset_versions.version, note: 'sẵn có: bản phát hành đã ghim']
+  status analysis_status [not null, default: 'computing']
+  coverage real [note: 'tỷ lệ tiêu chí ra số đo ok/fallback']
+  sample boolean [not null, default: true, note: 'sẵn có; false khi tính từ dữ liệu thật']
+  Note: 'Cột measurements jsonb giữ để đọc kết quả cũ; kết quả mới ghi map_place_measurements.'
+}
+
+Enum measurement_status {
+  ok
+  no_data       // ngoài vùng phủ hoặc không có đối tượng trong phạm vi đo
+  fallback      // đã đo bằng fallback_method
+  pending_ai
+  failed
+}
+
+Enum verdict {
+  strong
+  neutral
+  weak
+  unknown
+}
+
+Enum confidence {
+  high
+  medium
+  low
+}
+
+Table map_place_measurements {
+  analysis_id uuid [ref: > map_place_analyses.id]
+  criterion_id varchar(40) [ref: > map_criteria.id]
+  criterion_version_id uuid [not null, ref: > map_criterion_versions.id]
+  method_used criterion_method [not null]
+  status measurement_status [not null]
+  value real [note: 'số đo gốc']
+  unit varchar(10) [note: 'm | min | people | pct | ugm3']
+  value_code varchar(60) [note: 'giá trị dạng mã: ODT, ngoai_de']
+  auto_score real [note: '0–10 theo scoring của phiên bản tiêu chí']
+  verdict verdict [not null]
+  confidence confidence [not null]
+  percentile real [note: 'so với map_benchmarks cùng phường']
+  evidence jsonb [not null, default: '{}', note: 'đối tượng gần nhất (tên, khoảng cách), số đếm, trích dẫn AI; lớp internal chỉ ghi số, không ghi tên']
+  lineage jsonb [not null, default: '{}', note: '{"layer_versions":["…"],"provider":"vietmap","observed_at":"…","ai_job_id":"…"}']
+  measured_at timestamptz [not null, default: `now()`]
+  expires_at timestamptz [note: 'tiêu chí volatile']
+
+  indexes {
+    (analysis_id, criterion_id) [pk]
+    (criterion_id, verdict) [name: 'idx_map_place_measurements_criterion_verdict']
+  }
+}
+
+Enum ai_job_status {
+  queued
+  running
+  done
+  failed
+  canceled
+}
+
+Table map_ai_jobs {
+  id uuid [pk]
+  analysis_id uuid [not null, ref: > map_place_analyses.id]
+  criterion_id varchar(40) [not null, ref: > map_criteria.id]
+  input jsonb [not null, note: 'chỉ dữ kiện đã đo + tọa độ, phường, tên đường; không có dữ liệu người dùng']
+  prompt_version varchar(20) [not null]
+  model varchar(60) [not null]
+  status ai_job_status [not null, default: 'queued']
+  attempts smallint [not null, default: 0]
+  output jsonb [note: '{verdict, score, rationale, citations:[{url,title,published_at}]}']
+  cost_tokens integer
+  error varchar(300)
+  created_at timestamptz [not null, default: `now()`]
+  finished_at timestamptz
+
+  indexes {
+    (analysis_id, criterion_id, prompt_version) [unique, name: 'uq_map_ai_jobs_analysis_criterion_prompt']
+    (status, created_at) [name: 'idx_map_ai_jobs_status_created']
+  }
+}

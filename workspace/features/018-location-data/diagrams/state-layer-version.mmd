@@ -1,0 +1,11 @@
+stateDiagram-v2
+  [*] --> building
+  building --> validating: nhập xong
+  building --> failed: lỗi nhập
+  validating --> ready: không có kiểm tra chặn fail
+  validating --> failed
+  failed --> [*]: xóa phân vùng sau khi xem lỗi
+  ready --> retired: không bản phát hành nào trỏ tới quá 30 ngày
+  retired --> ready: được chọn lại trong bản nháp (rollback)
+  retired --> purged: DROP phân vùng
+  purged --> [*]

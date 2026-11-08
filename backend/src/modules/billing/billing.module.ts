@@ -7,6 +7,7 @@ import { SubscriptionEntity } from '../rbac/entities/subscription.entity.js';
 import { RbacModule } from '../rbac/rbac.module.js';
 import { BillingAdminController } from './billing-admin.controller.js';
 import { BillingAdminService } from './billing-admin.service.js';
+import { BillingRefundService } from './billing-refund.service.js';
 import { BillingConfig } from './billing.config.js';
 import { BillingController } from './billing.controller.js';
 import { BillingMaintenanceService } from './billing-maintenance.service.js';
@@ -14,6 +15,7 @@ import { BillingService } from './billing.service.js';
 import { BillingNoticeEntity } from './entities/billing-notice.entity.js';
 import { PaymentOrderEntity } from './entities/payment-order.entity.js';
 import { PaymentTransactionEntity } from './entities/payment-transaction.entity.js';
+import { RefundRequestEntity } from './entities/refund-request.entity.js';
 import { SepayWebhookController } from './sepay-webhook.controller.js';
 import { UserDirectoryService } from './user-directory.service.js';
 import { SeedBillingService } from './seed-billing.service.js';
@@ -24,6 +26,7 @@ import { SepayWebhookService } from './sepay-webhook.service.js';
     TypeOrmModule.forFeature([
       PaymentOrderEntity,
       PaymentTransactionEntity,
+      RefundRequestEntity,
       BillingNoticeEntity,
       SubscriptionEntity,
       CreditLedgerEntryEntity,
@@ -42,9 +45,11 @@ import { SepayWebhookService } from './sepay-webhook.service.js';
     BillingService,
     SepayWebhookService,
     BillingAdminService,
+    BillingRefundService,
     UserDirectoryService,
     BillingMaintenanceService,
     SeedBillingService,
   ],
+  exports: [BillingRefundService],
 })
 export class BillingModule {}

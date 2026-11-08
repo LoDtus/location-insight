@@ -1,15 +1,23 @@
 import { Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import {
   IsIn,
   IsInt,
   IsOptional,
   IsString,
+  Matches,
   Max,
   MaxLength,
   Min,
   MinLength,
   ValidateIf,
 } from 'class-validator';
+import { REFUND_REASONS, type RefundReason } from '../refund-policy.js';
+
+const trim = ({ value }: { value: unknown }): unknown =>
+  typeof value === 'string' ? value.trim() : value;
+const squash = ({ value }: { value: unknown }): unknown =>
+  typeof value === 'string' ? value.replace(/\s+/g, '') : value;
 
 export class CreateOrderDto {
   @IsIn(['subscription', 'valuation_credit'])
@@ -88,4 +96,64 @@ export class AdminListQueryDto {
   @Min(1)
   @Max(50)
   pageSize?: number;
+}
+
+export class CreateRefundDto {
+  @IsIn(REFUND_REASONS)
+  reason: RefundReason;
+
+  @IsOptional()
+  @Transform(trim)
+  @IsString()
+  @MaxLength(500)
+  userNote?: string;
+
+  @Transform(trim)
+  @IsString()
+  @MinLength(2)
+  @MaxLength(120)
+  @Matches(/^[\p{L}\p{M} .'-]+$/u, { message: 'Tên chủ tài khoản không hợp lệ.' })
+  payoutAccountName: string;
+
+  @Transform(squash)
+  @IsString()
+  @Matches(/^[0-9A-Za-z]{4,32}$/, { message: 'Số tài khoản không hợp lệ.' })
+  payoutAccountNumber: string;
+
+  @Transform(trim)
+  @IsString()
+  @MinLength(2)
+  @MaxLength(64)
+  payoutBank: string;
+}
+
+export class DecideRefundDto {
+  @IsIn(['approve', 'reject'])
+  decision: 'approve' | 'reject';
+
+  @Transform(trim)
+  @IsString()
+  @MinLength(3)
+  @MaxLength(500)
+  note: string;
+}
+
+export class RefundPaidOutDto {
+  @Transform(trim)
+  @IsString()
+  @MinLength(3)
+  @MaxLength(64)
+  referenceCode: string;
+}
+
+export class RefundListQueryDto {
+  @IsOptional()
+  @IsIn(['requested', 'approved', 'rejected', 'paid_out'])
+  status?: 'requested' | 'approved' | 'rejected' | 'paid_out';
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
 }

@@ -114,12 +114,14 @@ Table refund_requests {
   decision_note varchar(500)
   decided_by uuid [ref: > users.id]
   decided_at timestamptz
+  payout_reference varchar(64) [note: 'mã tham chiếu chuyển khoản do người vận hành nhập khi paid_out']
   paid_out_at timestamptz
   created_at timestamptz [not null, default: `now()`]
 
   indexes {
     (status, created_at) [name: 'idx_refund_requests_status_created']
     (order_id) [name: 'idx_refund_requests_order']
+    (order_id, reason) [unique, name: 'uk_refund_requests_order_reason_open', note: 'where status <> rejected: một yêu cầu đang mở cho mỗi lý do']
   }
 }
 

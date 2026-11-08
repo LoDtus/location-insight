@@ -227,6 +227,25 @@ paths:
       responses:
         "200":
           description: ended_at = now, xóa cache quyền, ghi admin audit và thông báo
+  /me/billing/refunds:
+    get:
+      tags: [billing]
+      summary: Yêu cầu hoàn của tôi (số tài khoản chỉ còn 4 số cuối)
+      x-permission: authenticated-only
+      responses:
+        "200":
+          description: Tối đa 50 yêu cầu mới nhất
+  /admin/billing/refunds:
+    get:
+      tags: [admin]
+      summary: Hàng đợi hoàn tiền, đủ số tài khoản để chuyển khoản
+      x-permission: admin:access
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [requested, approved, rejected, paid_out] } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        "200":
+          description: 20 dòng một trang, mới nhất trước
   /admin/billing/refunds/{id}:
     post:
       tags: [admin]
@@ -240,10 +259,10 @@ paths:
           application/json:
             schema:
               type: object
-              required: [decision]
+              required: [decision, note]
               properties:
                 decision: { type: string, enum: [approve, reject] }
-                note: { type: string, maxLength: 500 }
+                note: { type: string, minLength: 3, maxLength: 500, description: "Bắt buộc, ghi vào admin_audit_logs (threat R1)" }
       responses:
         "200":
           description: approved thì thu hồi phần tương ứng. Chưa phải đã chuyển khoản.

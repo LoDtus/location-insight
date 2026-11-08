@@ -44,7 +44,7 @@ Người dùng trả đúng một gói cho chính mình, hoặc một lượt đ
 - **FR-06 (gia hạn và đổi hạng):** Cùng hạng và chưa hết hạn thì nối `period_end` trên đúng dòng đang mở. Hạng cao hơn thì đóng dòng cũ tại `paid_at` và mở dòng mới từ lúc đó. Hạng thấp hơn khi dòng cao còn hạn thì `409`.
 - **FR-07 (hủy):** Chủ gói chuyển `canceled`, `ended_at` để trống. Dùng đến `period_end`.
 - **FR-08 (thu hồi):** Admin đặt `ended_at = now` trên gói đang mở của một người, bắt buộc lý do, ghi audit, báo cho người dùng, xóa cache.
-- **FR-09 (hoàn):** Người dùng gửi yêu cầu và tài khoản nhận. Ca 24 giờ bị chặn nếu đã dùng quyền. Admin duyệt thì thu hồi phần tương ứng. `paid_out` chỉ sau khi người vận hành đã chuyển khoản và nhập mã tham chiếu.
+- **FR-09 (hoàn):** Người dùng gửi yêu cầu và tài khoản nhận (`BillingRefundService`; `benefit_used_at` được đặt bởi `markBenefitUsed(userId)`, analysis phải gọi hàm này khi chạy lượt phân tích). Admin duyệt hoặc từ chối đều phải ghi chú. Ca 24 giờ bị chặn nếu đã dùng quyền. Admin duyệt thì thu hồi phần tương ứng. `paid_out` chỉ sau khi người vận hành đã chuyển khoản và nhập mã tham chiếu.
 - **FR-10 (nhắc):** Mỗi gói một thông báo cho `renewal_7d`, `renewal_1d`, `renewal_due`. Không tạo lệnh thu.
 - **FR-11 (hủy đơn chờ):** Chủ đơn xóa đơn `pending`. Tiền đến sau đó thành `needs_review`.
 - **FR-12 (đối soát):** Admin `fulfill` hoặc `reject` đơn `needs_review`. `fulfill` chỉ chạy một lần.
@@ -113,7 +113,7 @@ SePay, quy tắc đủ tiền và một gói đang mở nằm trong `research.md
 - [ ] **AC-03:** Given số tiền webhook nhỏ hơn đơn, When xử lý, Then đơn vẫn pending, `received_vnd` đúng số đã nhận, không có subscription.
 - [ ] **AC-04:** Given webhook không có Apikey đúng, When gửi, Then 401 và không có dòng giao dịch.
 - [ ] **AC-05:** Given chủ gói bấm hủy, When tới trước `period_end`, Then quyền còn. Given admin thu hồi, When xong, Then `ended_at` là hiện tại và quyền hết.
-- [ ] **AC-06:** Given đã phân tích một lần sau khi trả, When xin hoàn trong 24 giờ, Then bị từ chối. Given chưa dùng và chưa quá 24 giờ, Then tạo được yêu cầu.
+- [x] **AC-06:** Given đã phân tích một lần sau khi trả, When xin hoàn trong 24 giờ, Then bị từ chối. Given chưa dùng và chưa quá 24 giờ, Then tạo được yêu cầu.
 - [ ] **AC-07:** Given gói còn 7 ngày, When job sáng chạy, Then đúng một thông báo `renewal_7d`, không có đơn tự tạo.
 - [ ] **AC-08:** Given đơn đã hết hạn, When tiền tới, Then `needs_review` và admin `fulfill` mới mở quyền.
 - [ ] **AC-09:** Given đang có gói `unlimited` chưa hết hạn, When trả gói `valued`, Then dòng unlimited có `ended_at` và chỉ còn một dòng valued đang mở. When trả thêm `unlimited` trong lúc valued còn hạn, Then `409` và không có dòng thứ hai.

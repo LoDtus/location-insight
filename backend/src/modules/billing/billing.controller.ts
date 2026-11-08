@@ -15,12 +15,16 @@ import {
   Public,
 } from '../../common/decorators/access.decorator.js';
 import type { RequestWithPrincipal } from '../auth/auth.guard.js';
+import { BillingRefundService } from './billing-refund.service.js';
 import { BillingService } from './billing.service.js';
-import { CreateOrderDto } from './dto/billing.dto.js';
+import { CreateOrderDto, CreateRefundDto } from './dto/billing.dto.js';
 
 @Controller()
 export class BillingController {
-  constructor(private readonly billing: BillingService) {}
+  constructor(
+    private readonly billing: BillingService,
+    private readonly refunds: BillingRefundService,
+  ) {}
 
   @Public()
   @Get('billing/catalog')
@@ -53,6 +57,22 @@ export class BillingController {
     @Req() request: RequestWithPrincipal,
   ) {
     return this.billing.cancelOwnOrder(this.userId(request), id);
+  }
+
+  @AuthenticatedOnly()
+  @Post('billing/orders/:id/refunds')
+  requestRefund(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: CreateRefundDto,
+    @Req() request: RequestWithPrincipal,
+  ) {
+    return this.refunds.create(this.userId(request), id, body);
+  }
+
+  @AuthenticatedOnly()
+  @Get('me/billing/refunds')
+  myRefunds(@Req() request: RequestWithPrincipal) {
+    return this.refunds.listOwn(this.userId(request));
   }
 
   @AuthenticatedOnly()

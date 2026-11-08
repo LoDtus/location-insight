@@ -21,6 +21,7 @@ import {
     PanelLeftOpen,
     Send,
     ShieldAlert,
+    Undo2,
     Users,
     Wallet,
     type LucideIcon,
@@ -260,6 +261,12 @@ export default function AppSidebar({
                       href: "/admin/users",
                       icon: Users,
                       label: vi ? "Người dùng" : "Users",
+                  },
+                  {
+                      kind: "item",
+                      href: "/admin/refunds",
+                      icon: Undo2,
+                      label: vi ? "Hoàn tiền" : "Refunds",
                   },
                   {
                       kind: "item",

@@ -14,6 +14,7 @@ import {
     getOrder,
     type OrderView,
 } from "@/features/billing/billing.api";
+import { OrderRefund } from "@/features/billing/components/order-refund";
 
 export function OrderScreen({ root }: { root: ShellRoot }) {
     const params = useParams<{ id: string }>();
@@ -130,6 +131,7 @@ export function OrderScreen({ root }: { root: ShellRoot }) {
                     <Link href={`${root}/plans`}>Gói của tôi</Link>
                 </p>
             </section>
+            {order?.status === "paid" ? <OrderRefund orderId={order.id} /> : null}
         </main>
     );
 }

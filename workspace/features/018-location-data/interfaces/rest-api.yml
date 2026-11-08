@@ -1,12 +1,15 @@
 openapi: 3.0.3
 info:
   title: Địa Thế — Dữ liệu nền và bản phát hành (018-location-data, GĐ1–2)
-  version: 0.2.0
+  version: 0.3.0
   description: |
     Tiền tố `/api/v1`. Envelope chung `{success,status,data,error}`; lỗi nghiệp vụ có `error.details.code`.
     Thay `POST /admin/map/dataset-versions` một bước của 013-map bằng luồng nháp → phát hành.
     `GET /admin/map/dataset-versions` giữ nguyên đường dẫn, thêm trường.
-    Dựng phiên bản lớp, kiểm tra chất lượng và chạy điểm mẫu chạy bằng `tools/data` từ máy vận hành, không có endpoint.
+    Một đường ghi duy nhất (research.md Bản ghi 12): mọi phiên bản lớp sinh từ một gói chuẩn (package-contracts.md)
+    tải lên qua `/admin/imports` → kiểm tra trong staging → admin Lưu. `tools/data` chỉ sinh và kiểm gói ở máy, không ghi database.
+    Điểm mẫu chạy tự động lúc phát hành (Bản ghi 14).
+    Trang UI: `/admin/datasets`.
     Định nghĩa tiêu chí nằm trong code (research.md Bản ghi 9), không có API sửa tiêu chí.
     Mọi route cần `admin:access` + CIDR admin sẵn có. Thao tác ghi vào nhật ký kiểm toán.
 paths:
@@ -83,7 +86,7 @@ paths:
                 acceptWarnings: { type: string, maxLength: 500, description: Lý do chấp nhận cảnh báo; bắt buộc nếu có cảnh báo }
       responses:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/DatasetRelease" } } } }
-        "409": { description: RELEASE_NOT_DRAFT / RELEASE_BLOCKED (kèm danh sách kiểm tra fail, ví dụ CRITERIA_INPUT_MISSING, METHOD_UNSUPPORTED, SOURCE_BLOCKED) / WARNINGS_NOT_ACCEPTED }
+        "409": { description: "RELEASE_NOT_DRAFT / RELEASE_BLOCKED (kèm danh sách kiểm tra fail: CRITERIA_INPUT_MISSING, METHOD_UNSUPPORTED, METHOD_VERSION_MISSING, SOURCE_BLOCKED, INTEGRITY_FAILED, GOLDEN_FAILED kèm golden_report) / WARNINGS_NOT_ACCEPTED" }
   /admin/map/dataset-versions/{version}/withdraw:
     post:
       summary: Thu hồi bản đang hiện hành — tạo và phát hành ngay bản rollback từ baseVersion
@@ -101,19 +104,132 @@ paths:
                 baseVersion: { type: integer, minimum: 1 }
       responses:
         "200": { description: OK — trả về bản rollback mới, content: { application/json: { schema: { $ref: "#/components/schemas/DatasetRelease" } } } }
-        "409": { description: NOT_CURRENT (chỉ thu hồi bản hiện hành) / BASE_LAYER_RETIRED (kèm danh sách lớp phải dựng lại bằng tools/data) / RELEASE_DRAFT_EXISTS }
+        "409": { description: "NOT_CURRENT (chỉ thu hồi bản hiện hành) / BASE_LAYER_RETIRED (kèm danh sách phiên bản lớp cần khôi phục bằng POST /admin/map/layer-versions/{id}/restore) / RELEASE_DRAFT_EXISTS" }
   /admin/map/layers:
     get:
-      summary: Danh sách lớp và phiên bản (status, số dòng, khác biệt, kiểm tra)
+      summary: Danh sách lớp và phiên bản (status, số dòng, khác biệt, kiểm tra, toàn vẹn)
       x-permission: admin:access
       parameters:
-        - { name: status, in: query, schema: { type: string, enum: [building, ready, failed, retired] } }
+        - { name: status, in: query, schema: { type: string, enum: [building, ready, retired] } }
       responses:
         "200": { description: OK, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/LayerSummary" } } } } }
+    post:
+      summary: Tạo lớp mới (không cần code nếu cùng dạng hình học đã có khuôn)
+      x-permission: admin:access
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, geometryKind, contract, sourceCode, usage, attribution]
+              additionalProperties: false
+              properties:
+                code: { type: string, pattern: '^[a-z0-9-]+\.[a-z0-9_]+$', maxLength: 60 }
+                geometryKind: { type: string, enum: [point, line, area, grid] }
+                contract: { type: string, enum: ["point@1", "line@1", "area@1", "grid@1"] }
+                sourceCode: { type: string, pattern: '^[a-z0-9-]{2,40}$' }
+                usage: { type: string, enum: [public, internal] }
+                attribution: { type: string, maxLength: 300 }
+                description: { type: string, maxLength: 300 }
+      responses:
+        "201": { description: OK }
+        "409": { description: "LAYER_EXISTS / CONTRACT_KIND_MISMATCH / CONTRACT_UNSUPPORTED" }
+  /admin/map/layers/{layerCode}:
+    patch:
+      summary: Sửa usage, attribution, description. Đổi sang blocked thì mọi bản nháp và bản hiện hành dùng lớp phải xử lý theo tình huống 16 (playbook)
+      x-permission: admin:access
+      parameters: [{ $ref: "#/components/parameters/LayerCode" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                usage: { type: string, enum: [public, internal, blocked] }
+                attribution: { type: string, maxLength: 300 }
+                description: { type: string, maxLength: 300 }
+                reason: { type: string, minLength: 3, maxLength: 500, description: Bắt buộc khi đổi usage }
+      responses:
+        "200": { description: OK }
+        "404": { description: Không có lớp này }
+  /admin/map/layer-versions/{layerVersionId}/restore:
+    post:
+      summary: Khôi phục phiên bản retired từ gói trong kho (tạo import job purpose = restore; giữ nguyên id phiên bản)
+      x-permission: admin:access
+      parameters: [{ $ref: "#/components/parameters/LayerVersionId" }]
+      responses:
+        "202": { description: Đã xếp hàng, content: { application/json: { schema: { $ref: "#/components/schemas/ImportJob" } } } }
+        "409": { description: "NOT_RETIRED / PACKAGE_MISSING (gói không còn trong kho: nạp lại từ bản sao lưu) / PACKAGE_CHECKSUM_MISMATCH / IMPORT_BUSY" }
+  /admin/map/imports:
+    get:
+      summary: Danh sách job nhập (mới nhất trước)
+      x-permission: admin:access
+      parameters:
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/ImportStatus" } }
+        - { name: layerCode, in: query, schema: { type: string, pattern: '^[a-z0-9-]+\.[a-z0-9_]+$', maxLength: 60 } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/ImportJob" } } } } }
+    post:
+      summary: Tải gói chuẩn lên. Lưu gói vào kho theo sha256, nạp vào geo_staging và chạy kiểm tra ở nền
+      description: |
+        multipart/form-data, tối đa 200 MB; lớp lấy từ manifest. Kiểm tra theo package-contracts.md mục 5.
+        Chỉ một job ở validating/saving cùng lúc. Có giới hạn số lần tải theo admin.
+      x-permission: admin:access
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [package]
+              properties:
+                package: { type: string, format: binary }
+      responses:
+        "202": { description: Đã nhận, content: { application/json: { schema: { $ref: "#/components/schemas/ImportJob" } } } }
+        "409": { description: "PACKAGE_DUPLICATE (đã nhập gói cùng sha256) / LABEL_EXISTS / IMPORT_BUSY" }
+        "413": { description: PACKAGE_TOO_LARGE }
+        "422": { description: "PACKAGE_SHAPE_INVALID / MANIFEST_INVALID / LAYER_UNKNOWN / CONTRACT_UNSUPPORTED (từ chối ngay, không tạo staging)" }
+  /admin/map/imports/{jobId}:
+    get:
+      summary: Chi tiết job — trạng thái, kiểm tra, khác biệt so với bản hiện hành, mẫu 20 dòng đầu, số đối tượng theo category
+      x-permission: admin:access
+      parameters: [{ $ref: "#/components/parameters/JobId" }]
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/ImportJob" } } } }
+        "404": { description: Không có job này }
+  /admin/map/imports/{jobId}/save:
+    post:
+      summary: Lưu — chép staging sang geo trong một transaction, tính content_hash, phiên bản lớp ready
+      x-permission: admin:access
+      parameters: [{ $ref: "#/components/parameters/JobId" }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                acceptWarnings: { type: string, maxLength: 500, description: Lý do chấp nhận cảnh báo; bắt buộc nếu có cảnh báo }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/ImportJob" } } } }
+        "409": { description: "IMPORT_NOT_VALIDATED / IMPORT_BLOCKED (có kiểm tra chặn fail) / WARNINGS_NOT_ACCEPTED" }
+  /admin/map/imports/{jobId}/discard:
+    post:
+      summary: Bỏ — xóa staging; gói trong kho xóa sau 30 ngày
+      x-permission: admin:access
+      parameters: [{ $ref: "#/components/parameters/JobId" }]
+      responses:
+        "200": { description: OK }
+        "409": { description: IMPORT_ALREADY_SAVED }
 components:
   parameters:
     Version: { name: version, in: path, required: true, schema: { type: integer, minimum: 1 } }
     LayerCode: { name: layerCode, in: path, required: true, schema: { type: string, pattern: '^[a-z0-9-]+\.[a-z0-9_]+$', maxLength: 60 } }
+    LayerVersionId: { name: layerVersionId, in: path, required: true, schema: { type: string, format: uuid } }
+    JobId: { name: jobId, in: path, required: true, schema: { type: string, format: uuid } }
   schemas:
     DatasetRelease:
       type: object
@@ -124,6 +240,7 @@ components:
         baseVersion: { type: integer, nullable: true }
         note: { type: string }
         criteriaHash: { type: string, nullable: true }
+        backendCommit: { type: string, nullable: true }
         releasedBy: { type: string, format: uuid, nullable: true }
         releasedAt: { type: string, format: date-time, nullable: true }
         withdrawnAt: { type: string, format: date-time, nullable: true }
@@ -144,15 +261,26 @@ components:
                   changedFromCurrent: { type: boolean }
                   diffSummary: { type: object }
                   warnings: { type: array, items: { type: string } }
+            checks: { type: array, items: { $ref: "#/components/schemas/Check" } }
+            goldenReport:
+              type: object
+              nullable: true
+              description: Điểm mẫu tự chạy lúc phát hành
+              properties:
+                points: { type: integer }
+                verdictFlips: { type: integer }
+                violations: { type: array, items: { type: object, properties: { pointId: { type: string }, criterionId: { type: string }, expected: { type: string }, observed: { type: string } } } }
+                scoreDeltaByCriterion: { type: object, additionalProperties: { type: number } }
             criteriaChanged:
               type: array
               description: Tiêu chí trong code khác snapshot của bản hiện hành (thêm, bỏ, đổi tham số)
-              items: { type: object, properties: { criterionId: { type: string }, change: { type: string, enum: [added, removed, changed] } } }
+              items: { type: object, properties: { criterionId: { type: string }, change: { type: string, enum: [added, removed, changed, method_version] } } }
     LayerSummary:
       type: object
       properties:
         code: { type: string }
         geometryKind: { type: string, enum: [point, line, area, grid] }
+        contract: { type: string }
         usage: { type: string, enum: [public, internal, blocked] }
         versions:
           type: array
@@ -161,8 +289,44 @@ components:
             properties:
               id: { type: string, format: uuid }
               label: { type: string }
-              status: { type: string, enum: [building, ready, failed, retired] }
+              status: { type: string, enum: [building, ready, retired] }
               rowCount: { type: integer }
+              packageSha256: { type: string }
+              packageAvailable: { type: boolean, description: Gói còn trong kho (khôi phục được) }
+              integrityOk: { type: boolean, nullable: true }
+              integrityCheckedAt: { type: string, format: date-time, nullable: true }
               diffSummary: { type: object }
-              checks: { type: array, items: { type: object, properties: { code: { type: string }, severity: { type: string, enum: [blocking, warning] }, status: { type: string, enum: [pass, fail] } } } }
+              checks: { type: array, items: { $ref: "#/components/schemas/Check" } }
               inReleases: { type: array, items: { type: integer } }
+    Check:
+      type: object
+      properties:
+        code: { type: string }
+        severity: { type: string, enum: [blocking, warning] }
+        status: { type: string, enum: [pass, fail] }
+        expected: { type: string }
+        observed: { type: string }
+    ImportStatus:
+      type: string
+      enum: [uploaded, validating, validated, rejected, saving, saved, discarded, failed]
+    ImportJob:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        layerCode: { type: string }
+        label: { type: string }
+        contract: { type: string }
+        purpose: { type: string, enum: [new, restore] }
+        status: { $ref: "#/components/schemas/ImportStatus" }
+        packageSha256: { type: string }
+        sizeBytes: { type: integer }
+        manifest: { type: object, nullable: true }
+        checks: { type: array, items: { $ref: "#/components/schemas/Check" } }
+        diffSummary: { type: object, nullable: true }
+        preview: { type: array, items: { type: object }, description: 20 dòng đầu sau chuẩn hóa (không có cho lớp internal ngoài admin) }
+        error: { type: string, nullable: true }
+        uploadedBy: { type: string, format: uuid }
+        decidedBy: { type: string, format: uuid, nullable: true }
+        layerVersionId: { type: string, format: uuid, nullable: true }
+        createdAt: { type: string, format: date-time }
+        finishedAt: { type: string, format: date-time, nullable: true }

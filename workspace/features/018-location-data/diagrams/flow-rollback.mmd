@@ -3,6 +3,12 @@ flowchart TD
   A[Phát hiện bản N lỗi] --> B[Admin chọn bản tốt K nhỏ hơn N]
   B --> C{Mọi phiên bản lớp trong bảng kê của K còn ready?}
   C -->|còn| D[Transaction: bản N+1 kind rollback, chép layer_manifest + criteria_snapshot của K, published; N thành withdrawn + lý do]
-  C -->|có lớp đã retired| E[Dựng lại lớp đó bằng tools/data từ catalog_paths của nó] --> D
-  D --> F[Nạp lại map_pois, xóa cache]
+  C -->|có phiên bản retired| E[Khôi phục từ gói trong kho: import job purpose restore, giữ nguyên id phiên bản]
+  E --> E2{Gói còn và sha256 khớp?}
+  E2 -->|còn| D
+  E2 -->|mất| E3[Đặt lại gói từ bản sao lưu vào kho rồi khôi phục]
+  E3 --> E
+  D --> D2{method_version trong snapshot của K còn được hỗ trợ?}
+  D2 -->|không| X[Chặn: phải deploy lại code method cũ]
+  D2 -->|có| F[Xóa cache, lớp bản đồ theo bảng kê mới]
   F --> G[Kết quả ghim bản N được gắn nhãn: dữ liệu đã thu hồi, nên đánh giá lại]

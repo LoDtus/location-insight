@@ -22,7 +22,7 @@ sequenceDiagram
       API->>VM: Matrix 1 điểm tới n đích
       VM-->>API: số phút (lỗi thì fallback nearest)
     end
-    API->>API: chấm điểm theo scoring trong snapshot, no_data ngoài coverage
-    API->>DB: ghi map_place_measurements (lineage) + coverage
+    API->>API: chấm điểm theo scoring + method_version trong snapshot, no_data ngoài coverage, confidence theo base_confidence/min_support/fallback, đánh dấu blocking_hit
+    API->>DB: ghi map_place_measurements (lineage + backend_commit) + coverage
   end
-  API-->>U: điểm mạnh/yếu; điểm tổng ghép trọng số và chỉnh tay lúc đọc
+  API-->>U: điểm mạnh/yếu; điều kiện chặn đứng đầu; điểm tổng ghép trọng số và chỉnh tay lúc đọc, giới hạn ở cap nếu blocking_hit

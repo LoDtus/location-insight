@@ -2,6 +2,8 @@
 %% Đường nét đứt = tham chiếu logic không có khóa ngoại (geo ↔ public, xem research.md Bản ghi 8).
 erDiagram
   geo_layers ||--o{ geo_layer_versions : "có"
+  geo_layers ||--o{ geo_import_jobs : "gói tải lên"
+  geo_import_jobs |o--o| geo_layer_versions : "saved → sinh phiên bản"
   geo_layer_versions ||--o{ geo_point_features : "đối tượng"
   geo_layer_versions ||--o{ geo_line_features : "đối tượng"
   geo_layer_versions ||--o{ geo_area_features : "đối tượng"

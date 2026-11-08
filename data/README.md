@@ -1,8 +1,9 @@
 # Kho dữ liệu
 
-Chỗ chứa dữ liệu tải về của Location Insight. API không đọc các file này. API đọc PostGIS sau khi bản curated đã được nhập.
+Chỗ làm việc với dữ liệu nền của Location Insight trên máy vận hành.
 
-Byte dữ liệu không vào git. Git chỉ giữ khung thư mục, file hướng dẫn này, và biên bản nhập ở `catalog/`. Quy tắc nằm trong `.gitignore`.
+- **API không đọc thư mục này.** Dữ liệu chỉ vào database bằng một đường: đóng thành **gói chuẩn**, tải lên `/admin/datasets`, kiểm tra xong thì admin bấm "Lưu". Không có script nào ghi thẳng vào database. Xem [018-location-data](../workspace/features/018-location-data/README.md) và [khuôn gói](../workspace/features/018-location-data/package-contracts.md).
+- **Git không chứa byte dữ liệu.** Git chỉ giữ khung thư mục, file hướng dẫn này, biên bản nguồn và manifest gói trong `catalog/`. Quy tắc nằm trong `.gitignore`.
 
 ## Bốn giai đoạn
 
@@ -11,81 +12,95 @@ Dữ liệu đi một chiều. Không sửa file ở giai đoạn trước để
 | Giai đoạn | Ý nghĩa | Được sửa nội dung | Dùng để |
 | --- | --- | --- | --- |
 | `raw` | Đúng byte vừa tải | Không | Tải lại và đối soát nguồn |
-| `interim` | Cắt Hà Nội, đổi định dạng, vẫn schema của nguồn | Có, vì làm lại được từ raw | Giảm dung lượng trước khi chuẩn hóa |
-| `processed` | Một schema chung, mỗi nguồn một tệp, chưa gộp trùng | Có, vì làm lại được từ interim | So chất lượng từng nguồn |
-| `curated` | Đã gộp trùng, có độ tin, đúng thứ báo cáo cần | Có, vì làm lại được từ processed | Nhập PostGIS |
+| `interim` | Cắt Hà Nội, đổi định dạng, vẫn schema của nguồn. File làm tay (gán tọa độ, tách bảng từ PDF) cũng để ở đây | Có | Giảm dung lượng, làm tay |
+| `processed` | Schema chung của dạng dữ liệu, mỗi nguồn một tệp | Có, vì làm lại được từ interim | So chất lượng từng nguồn |
+| `packages` | Gói chuẩn tải lên UI: `manifest.json` + dữ liệu theo khuôn | **Không.** Sửa thì tạo label mới | Tải lên `/admin/datasets`, lưu trữ theo phiên bản |
 
-Gộp trùng chỉ xảy ra ở `curated`. Hai điểm cùng loại, cách nhau dưới 40 m, là một chỗ. Quy tắc đầy đủ nằm trong [nguon-du-lieu.md](../workspace/features/000-ideas/nguon-du-lieu.md).
-
-`interim` và `processed` xóa được. `raw` giữ hai bản mới nhất với nguồn tải hàng ngày, và một bản với nguồn tĩnh (cao độ, ngập sông, dân số). `curated` chỉ giữ bản đang nhập vào database.
+- **Mỗi gói là một phiên bản của một lớp, không phải một tiêu chí.**
+  - Lớp là (nguồn, chủ đề, dạng hình học), ví dụ `osm.places` hay `worldpop.pop_500m`.
+  - Một gói `osm.places` phục vụ khoảng 12 tiêu chí, phân biệt bằng cột `category`.
+  - Tiêu chí chợ đọc hai gói `osm.places` và `qhtd.places`.
+- **Gộp trùng trong cùng một nguồn** (nút và vùng OSM của cùng một chợ) làm ở bước `processed → packages`.
+- **Không gộp nhiều nguồn vào một gói**, vì mỗi nguồn có giấy phép riêng. Gộp giữa các nguồn (cùng loại, cách nhau dưới 40 m) do backend làm lúc đo.
 
 ## Bốn miền
 
-Tiêu chí mới thêm thư mục nguồn bên trong miền có sẵn. Chỉ thêm miền khi dữ liệu không thuộc bốn nhóm này.
+`raw`, `interim` và `processed` chia theo miền để dễ tìm file. Miền không gắn với tiêu chí nào. Chỉ thêm miền khi dữ liệu không thuộc bốn nhóm này.
 
-| Miền | Việc chứa | Tiêu chí |
-| --- | --- | --- |
-| `places` | Điểm tiện ích | Chợ, nhà thuốc, siêu thị, quán ăn, trường, bệnh viện, công viên, văn phòng, vật tư |
-| `transport` | Đường và giao thông công cộng | Đường lớn, cấp đường, vỉa hè, xe buýt, metro, khoảng cách sân bay |
-| `environment` | Lưới và trạm đo | Dân số, không khí, cao độ, ngập, mảng xanh |
-| `admin` | Đơn vị và văn bản | UBND, ranh phường, bảng giá đất nhà nước |
+| Miền | Việc chứa |
+| --- | --- |
+| `places` | Điểm tiện ích |
+| `transport` | Đường và giao thông công cộng |
+| `environment` | Lưới và trạm đo |
+| `admin` | Đơn vị hành chính, quy hoạch và văn bản |
 
-Mốc cố định (Hồ Gươm, sân bay Nội Bài) không cần file. Ghi tọa độ trong cấu hình backend.
+`packages` không chia theo miền mà theo mã lớp, để khớp với database.
 
 ## Tên thư mục và phiên bản
 
 ```text
-data/{giai-doan}/{mien}/{nguon}/{phien-ban}/
+data/{raw|interim|processed}/{mien}/{nguon}/{phien-ban}/
+data/packages/{layer_code}/{label}/package.zip
 ```
 
-`phien-ban` là ngày tải `YYYY-MM-DD`. Nếu nguồn có mã phát hành ổn định hơn ngày tải, dùng mã đó: `fabdem/v1-0`, `worldpop/R2025A`.
+- **`phien-ban`** là ngày tải `YYYY-MM-DD`. Nếu nguồn có mã phát hành ổn định hơn ngày tải thì dùng mã đó: `fabdem/v1-0`, `worldpop/R2025A`.
+- **`label`** của gói thường trùng ngày nguồn. Sửa lại gói thì thêm hậu tố: `2026-11-01-r2`.
 
 Ví dụ:
 
 ```text
-data/raw/places/osm/2026-10-18/vietnam-latest.osm.pbf
-data/interim/places/osm/2026-10-18/hanoi.osm.pbf
-data/processed/places/osm/2026-10-18/places.parquet
-data/curated/places/2026-10-18/places.parquet
+data/raw/places/osm/2026-11-01/vietnam-latest.osm.pbf
+data/interim/places/osm/2026-11-01/hanoi.osm.pbf
+data/processed/places/osm/2026-11-01/places.parquet
+data/packages/osm.places/2026-11-01/package.zip
+data/packages/osm.roads/2026-11-01/package.zip
+data/packages/worldpop.pop_500m/R2025A/package.zip
 ```
 
-`curated` không chia theo nguồn vì các nguồn đã gộp. Vẫn chia theo miền, rồi một phiên bản.
+## Catalog (được commit)
 
-Mỗi phiên bản có một biên bản ở `catalog/snapshots/{mien}/{nguon}/{phien-ban}.json`. File mẫu là [snapshot.example.json](catalog/snapshot.example.json). Biên bản ghi URL, checksum, số bản ghi, giấy phép, và lỗi đã biết. Đó là phần theo dõi được commit.
+| File | Nội dung |
+| --- | --- |
+| `catalog/snapshots/{mien}/{nguon}/{phien-ban}.json` | Biên bản nguồn: URL, sha256, số bản ghi, giấy phép, lỗi đã biết. Mẫu: [snapshot.example.json](catalog/snapshot.example.json) |
+| `catalog/packages/{layer_code}/{label}.json` | Bản sao `manifest.json` của gói, do `tools/data pack` chép ra |
+| `catalog/criteria-map.md` | Bảng tiêu chí → lớp → nguồn, do script sinh từ `CRITERIA` trong backend. Không sửa tay |
 
-`catalog/current.json` trỏ tới phiên bản đang dùng của từng nguồn. Tạo file này khi lần nhập đầu tiên xong. Mẫu là [current.example.json](catalog/current.example.json).
+Bản phát hành nào đang dùng phiên bản lớp nào nằm trong database (`/admin/datasets`, tab Phiên bản). Vì vậy không còn `catalog/current.json`.
+
+## Giữ lại và sao lưu
+
+| Giai đoạn | Giữ |
+| --- | --- |
+| `raw` | Hai bản mới nhất với nguồn cập nhật thường xuyên; một bản với nguồn tĩnh (cao độ, ngập sông, dân số) |
+| `interim`, `processed` | Xóa được bất cứ lúc nào. Riêng file làm tay ở `interim` thì giữ cùng thời hạn với gói đã dùng nó |
+| `packages` | Bản làm việc trên máy, xóa được sau khi đã tải lên. **Bản gốc là kho gói trên server**: giữ mãi gói từng được phát hành, có sao lưu ra ngoài server |
+
+Mất `raw` cũ không làm mất khả năng thu hồi, vì phiên bản cũ được khôi phục từ gói.
 
 ## Git
 
-Commit được: `README.md`, `.gitkeep`, file trong `catalog/` có đuôi `.json`, `.yaml`, `.yml`, `.md`.
+- **Commit được:** `README.md`, `.gitkeep`, và file trong `catalog/` có đuôi `.json`, `.yaml`, `.yml`, `.md`.
+- **Không commit:** `.pbf`, GeoTIFF, GeoParquet, Excel, GTFS, JSON thu từ trang web, gói `.zip`, và mọi file nằm trong `raw`, `interim`, `processed`, `packages`.
+- Volume Postgres đã bị bỏ qua riêng. Không copy database vào đây.
 
-Không commit: `.pbf`, GeoTIFF, GeoParquet, Excel, GTFS, JSON thu từ trang web, và mọi file nằm trong `raw`, `interim`, `processed`, `curated`.
+## Thêm hoặc cập nhật một nguồn
 
-Volume Postgres đã bị bỏ qua riêng. Không copy database vào đây.
+1. **Chọn miền và mã nguồn:** viết thường, gạch ngang, ví dụ `osm`, `so-cong-thuong`, `qhtd-hanoi`.
+2. **Tải về:** vào `raw/{mien}/{nguon}/{phien-ban}/`, không đổi tên field của file gốc. Viết biên bản snapshot, điền `quality` là `raw`.
+3. **Chuẩn hóa:** cắt Hà Nội sang `interim`, rồi sang `processed`.
+   - Phần không tự động được thì làm tay ở `interim`, ghi lại các bước.
+   - Raster được tính ra lưới 100 m ở bước này.
+4. **Chọn lớp:** nếu lớp chưa có trong database thì tạo trên `/admin/datasets` (mã, dạng hình học, khuôn, `usage`, câu ghi nguồn). Nguồn chưa rõ quyền thì để `usage = internal`.
+5. **Đóng gói:** chạy `tools/data pack` để ra `packages/{layer_code}/{label}/package.zip` và `catalog/packages/{layer_code}/{label}.json`. Có bước làm tay thì phải điền `manual_steps`.
+6. **Kiểm gói:** chạy `tools/data validate`, sửa tới khi không còn lỗi. Commit biên bản và manifest.
+7. **Tải lên và lưu:** tải gói lên `/admin/datasets`, xem kiểm tra và khác biệt, rồi bấm Lưu. Sau đó tạo bản nháp và phát hành.
+8. **Cập nhật tài liệu:** ghi nguồn mới vào [nguon-du-lieu.md](../workspace/features/000-ideas/nguon-du-lieu.md) nếu nó phục vụ một tiêu chí.
 
-## Thêm một nguồn
+## Chuyển đổi từ cấu trúc cũ
 
-1. Chọn miền. Nguồn chợ là `places`, nguồn ga metro là `transport`.
-2. Đặt mã nguồn ngắn, viết thường, gạch ngang: `osm`, `overture-places`, `long-chau`, `foody`, `timbus`.
-3. Tải vào `raw/{mien}/{nguon}/{phien-ban}/`. Không đổi tên field của file gốc.
-4. Viết biên bản snapshot. Điền `quality` thành `raw`.
-5. Cắt Hà Nội sang `interim`, chuẩn hóa sang `processed`, rồi mới gộp vào `curated` của miền đó.
-6. Cập nhật `catalog/current.json` khi bản curated đã được nhập PostGIS.
-7. Ghi nguồn mới vào [nguon-du-lieu.md](../workspace/features/000-ideas/nguon-du-lieu.md) nếu nó phục vụ một tiêu chí.
+`curated/` là giai đoạn cũ: gộp nhiều nguồn, nhập thẳng PostGIS. Không thêm file mới vào đó. `curated/places/2026-10-18/places.ndjson` sẽ được chuyển thành gói `osm.places/2026-10-18` khi có `tools/data pack`, rồi xóa thư mục `curated/`.
 
-Schema chung của `processed` và `curated` cho dữ liệu điểm:
+Hai đường ghi cũ còn trong code và sẽ bỏ khi làm GĐ1 của 018:
 
-| Cột | Ý nghĩa |
-| --- | --- |
-| `source` | Mã nguồn |
-| `source_id` | Id gốc, nếu có |
-| `name` | Tên hiển thị |
-| `category` | Mã tiêu chí: `market`, `pharmacy`, `supermarket`, `convenience`, `restaurant`, `school`, `hospital`, `clinic`, `park`, `hardware`, `office`, `bus_stop`, `metro_station`, `townhall` |
-| `lon`, `lat` | WGS84 |
-| `address` | Địa chỉ chữ, có thể trống |
-| `retrieved_at` | Ngày của phiên bản |
-| `coord_confidence` | `measured` nếu nguồn có tọa độ, `geocoded` nếu suy từ địa chỉ |
-
-Dữ liệu lưới (cao độ, dân số, mảng xanh, ngập sông) không ép vào schema điểm. Giữ GeoTIFF ở `processed`, và ở `curated` chỉ để lại raster đã cắt, cùng hệ tọa độ, cùng khung Hà Nội.
-
-Không khí và điểm ngập theo giờ ghi thẳng vào bảng PostGIS. Không nhân bản thành file trong `curated`. Vẫn lưu bản tải thô trong `raw/environment/` nếu cần đối soát.
+- `tools/data/osm_places.py` ghi ra `curated/`. Sẽ đổi để ghi ra `processed/`, rồi `pack`.
+- `backend/scripts/import-places.ts` nạp thẳng vào `map_pois`. Sẽ bỏ hẳn: lớp bản đồ đọc `geo` theo bảng kê của bản hiện hành.

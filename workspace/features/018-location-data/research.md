@@ -46,7 +46,7 @@ Dùng PostGIS, image `postgis/postgis` bản 17. Đây là cách các dự án t
 
 ### Khả năng đảo ngược <!-- key: reversibility -->
 
-Dữ liệu nền dựng lại được từ `data/curated`. Bỏ PostGIS nghĩa là viết lại tầng truy vấn, nhưng kết quả đánh giá cũ không mất vì đã tự chứa số đo.
+Dữ liệu nền dựng lại được từ kho gói chuẩn (Bản ghi 12). Bỏ PostGIS nghĩa là viết lại tầng truy vấn, nhưng kết quả đánh giá cũ không mất vì đã tự chứa số đo.
 
 ---
 
@@ -81,7 +81,7 @@ Chọn phương án 3. Một bản phát hành là một bảng kê ghi mỗi l�
 
 ### Khả năng đảo ngược <!-- key: reversibility -->
 
-Đổi sang cách đổi schema chỉ cần nhập lại từ `curated`. Bảng kê và kết quả đánh giá giữ nguyên.
+Đổi sang cách đổi schema chỉ cần nhập lại từ kho gói. Bảng kê và kết quả đánh giá giữ nguyên.
 
 ---
 
@@ -252,7 +252,7 @@ Kết quả có tiêu chí hết hạn hiển thị "số đo cũ" và cho đo l
 
 ## Bản ghi quyết định 8 — Thu gọn lưu trữ cho giai đoạn đầu và sống chung với TypeORM <!-- key: decision_record -->
 
-**Status:** Accepted — Supersedes Decision Record 2 và phần giữ lại/dọn của Decision Record 6
+**Status:** Accepted — Supersedes Decision Record 2 và phần giữ lại/dọn của Decision Record 6. Phần nhập (`catalog_paths`, `source_sha256`), seed sau `/reset` và role `geo_loader` được sửa bởi Decision Record 12
 **Category:** Data Migration
 **Door Type:** Two-way (cheap to reverse)
 
@@ -375,7 +375,7 @@ Ngưỡng 4 và 6 cùng hệ số trọng số nằm trong `criteria_snapshot`, 
 
 ## Bản ghi quyết định 11 — Chia giai đoạn <!-- key: decision_record -->
 
-**Status:** Accepted
+**Status:** Accepted — bảng giai đoạn cập nhật trong Decision Record 12
 **Category:** New Architecture Pattern
 **Door Type:** Two-way (cheap to reverse)
 
@@ -405,3 +405,197 @@ Bản đầu có 26 bảng và 15 endpoint, trong khi chưa có tiêu chí nào 
 ### Khả năng đảo ngược <!-- key: reversibility -->
 
 Mỗi giai đoạn chỉ thêm, không viết lại giai đoạn trước.
+
+---
+
+## Bản ghi quyết định 12 — Một đường ghi duy nhất: gói chuẩn tải lên qua UI <!-- key: decision_record -->
+
+**Status:** Accepted — sửa phần nhập, seed và quyền của Decision Record 8; thay bảng giai đoạn của Decision Record 11
+**Category:** New Architecture Pattern
+**Door Type:** One-way (expensive to reverse)
+
+### Bối cảnh <!-- key: context -->
+
+- Dữ liệu thô rất đa dạng và bất quy tắc: GDB hơn 300 lớp ở hệ VN-2000, DGN, PDF, raster nhiều ô, danh sách không có tọa độ. Một người vận hành chấp nhận làm tay phần này.
+- Đặc tả trước cho `tools/data` ghi thẳng vào `geo` bằng role `geo_loader`. Cách đó để lại ba vấn đề:
+  - Phải mở cổng Postgres production ra ngoài, hoặc dựng dữ liệu ở máy dev rồi tìm cách chuyển lên.
+  - Có hai đường ghi: script và backend.
+  - Không có chỗ nào giữ đúng thứ đã được nạp.
+- Người dùng muốn **cấm hẳn việc ghi trực tiếp** vào database hay backend. Mọi dữ liệu nền phải qua `/admin/datasets`, được kiểm tra rồi mới lưu.
+
+### Các phương án đã xem xét <!-- key: options_considered -->
+
+| Option | Fit with existing stack | Maintainability (solo-dev) | Reversibility | Notes |
+| --- | --- | --- | --- | --- |
+| `tools/data` ghi thẳng `geo` (đặc tả trước) | Trung bình | Trung bình | Cao | Hai đường ghi, phải mở cổng database, không có kho gói |
+| UI nhận file thô, worker Python trên server tự xử lý từng nguồn | Thấp: thêm container và GDAL trên server | Thấp: mỗi nguồn một bộ chuyển trên server | Trung bình | Không xử lý được GDB, DGN, PDF; đọc file độc hại bằng GDAL trên server là rủi ro |
+| **UI nhận gói đã chuẩn hóa theo 4 khuôn; NestJS kiểm tra và nạp bằng PostGIS** | Cao: chỉ NestJS + PostGIS | Cao: một bộ nạp cho mỗi dạng hình học | Cao | Phần bất quy tắc làm ở máy; server chỉ hiểu khuôn |
+
+### Quyết định <!-- key: decision -->
+
+Chọn phương án 3. Mọi phiên bản lớp sinh ra từ đúng một gói tải lên qua UI. Các ràng buộc:
+
+**Gói và khuôn** (chi tiết ở [package-contracts.md](package-contracts.md)):
+- Gói là file zip gồm `manifest.json` và một file dữ liệu theo khuôn `point@1`, `line@1`, `area@1` hoặc `grid@1`.
+- Manifest ghi nguồn gốc: biên bản catalog, sha256 file raw, giấy phép, commit của script và các bước làm tay.
+- Raster (WorldPop, WorldCover, JRC, FABDEM) được tính ra lưới ở máy rồi tải lên bằng khuôn `grid@1`.
+- `tools/data pack` sinh gói. `tools/data validate` kiểm tra gói ở máy bằng cùng bộ quy tắc mà server dùng, viết một lần dưới dạng JSON Schema trong `contracts/`.
+
+**Kiểm tra xong mới lưu (hai bước):**
+1. Tải lên → nạp vào schema `geo_staging` (bảng `UNLOGGED`) → chạy kiểm tra và tính khác biệt so với phiên bản đang phát hành.
+2. Admin xem kết quả rồi bấm "Lưu" thì chép sang `geo` trong một transaction, phiên bản thành `ready`. Bấm "Bỏ" thì xóa staging.
+- Kiểm tra chặn fail thì không có nút "Lưu". Có cảnh báo thì phải ghi lý do.
+- Gói có `package_sha256` đã nhập rồi thì bị từ chối.
+
+**Chỉ một đường ghi, chặn ở database chứ không chỉ quy ước:**
+- **Role:**
+  - `app_reader`: backend thường, chỉ `SELECT` trên `geo`, không thấy `geo_staging`.
+  - `geo_ingest`: chỉ module `ingest` dùng, qua kết nối riêng. Có `INSERT` trên bảng đối tượng, không có `UPDATE`; `DELETE` chỉ qua hàm dọn `SECURITY DEFINER`.
+  - Không role nào khác ghi được `geo`.
+- **Trigger:**
+  - Chặn `INSERT` vào phiên bản không ở `building`.
+  - Chặn `UPDATE` phiên bản `ready`, trừ khi chuyển sang `retired`.
+  - Chặn đổi `layer_manifest` và `criteria_snapshot` của bản phát hành không còn `draft`.
+- **Phát hiện ghi lén:**
+  - `content_hash` (sha256 các dòng sắp theo `feature_key`) được tính lúc `ready`.
+  - Một job hằng tuần tính lại; lệch thì báo admin và chặn phát hành mọi bản dùng phiên bản đó.
+  - Superuser vẫn vượt được mọi chặn. Điều đảm bảo được là việc đó **bị phát hiện**.
+- **Mã nguồn:**
+  - Một test kiến trúc làm fail nếu có câu `INSERT`, `UPDATE` hay `DELETE` vào `geo.` nằm ngoài `backend/src/modules/map/ingest`.
+  - `tools/data` không còn chuỗi kết nối database. Bỏ role `geo_loader`.
+- **Áp dụng cả trên máy dev:** seed sau `/reset` gọi đúng service nhập với các gói mẫu nhỏ trong `backend/test/fixtures/packages/`, không dùng SQL tay. Không gỡ lớp bảo vệ nào của `/reset`.
+
+**Kho gói là bản gốc, database là bản sao để truy vấn:**
+- Server lưu gói vào volume `data-packages` theo `{layer_code}/{label}/package.zip`, đặt chỉ đọc, không ghi đè.
+- Máy vận hành giữ bản làm việc ở `data/packages`.
+- Manifest được commit vào `data/catalog/packages/`.
+- Gói từng thuộc một bản đã phát hành thì giữ mãi. Gói bị bỏ hoặc fail thì xóa sau 30 ngày.
+- Sao lưu kho gói ra ngoài server.
+- Phiên bản lớp đã `retired` được khôi phục từ gói, giữ nguyên id, nên bảng kê cũ vẫn đúng.
+
+**Ba ngoại lệ không đi qua gói**, vì chúng không phải dữ liệu nền:
+1. Số đo gọi API lúc đánh giá (Vietmap).
+2. Chuỗi thời gian theo giờ (OpenAQ, GĐ3), do job nền ghi.
+3. Dữ liệu người dùng (địa điểm đã lưu, trọng số, chỉnh tay) và kết quả đánh giá.
+
+**Bảng giai đoạn cập nhật (thay Decision Record 11):**
+
+| Giai đoạn | Nội dung |
+| --- | --- |
+| GĐ1 | PostGIS; khuôn `point@1`, `line@1`, `grid@1`; trang tải gói, staging, lưu; kho gói; role và trigger; OSM điểm và đường, WorldPop; tiêu chí tiện ích, đường lớn, nội đô, dân số; bản phát hành; số đo theo tiêu chí; điểm mẫu tự chạy lúc phát hành (Decision Record 14) |
+| GĐ2 | Khuôn `area@1` (loại đất, yếu tố bất lợi từ CSDL quy hoạch); DuongBo; ô WorldCover và JRC còn thiếu; khôi phục phiên bản từ gói; job kiểm `content_hash`; Vietmap Reverse và Matrix |
+| GĐ3 | Theo `future-schema.md` |
+
+### Hệ quả <!-- key: consequences -->
+
+- **Không cần:** worker Python, bộ tự tải nguồn hay cron trên server. Cập nhật OSM hằng tháng là chạy `pack` ở máy rồi tải lên.
+- **Server không bao giờ đọc định dạng thô** (GDB, DGN, PDF, PBF).
+- **Tải file lên mở ra rủi ro mới** (zip bomb, path traversal, gói giả manifest). Xem threat model T13–T18.
+- **Nguồn gốc trong manifest là lời khai.** Server không kiểm được file raw, chỉ kiểm được gói khớp sha256 đã commit trong git.
+- **Thêm lớp mới cùng dạng hình học** thì tạo dòng `geo.layers` trên UI, không cần code. **Cần code** khi có tiêu chí mới, method mới, khuôn mới, hoặc đưa một thuộc tính trong `attrs` lên thành cột (khuôn `@2`).
+
+### Khả năng đảo ngược <!-- key: reversibility -->
+
+- Gói là đơn vị độc lập. Đổi cách nạp (ví dụ thêm worker) không đổi gói.
+- Bỏ đường UI thì phải cấp lại quyền ghi cho một role script. Đây là một chiều về mặt bảo mật, nên ghi là One-way.
+
+---
+
+## Bản ghi quyết định 13 — Tổ chức thư mục `data` theo lớp, không theo tiêu chí <!-- key: decision_record -->
+
+**Status:** Accepted
+**Category:** Data Migration
+**Door Type:** Two-way (cheap to reverse)
+
+### Bối cảnh <!-- key: context -->
+
+- Người dùng muốn sắp lại `data/` và cân nhắc gom thư mục theo tiêu chí chấm.
+- `data/README.md` hiện có giai đoạn `curated`: gộp trùng giữa các nguồn, "để nhập PostGIS". Điều này trái với quy tắc hai nguồn là hai lớp (Decision Record 8).
+
+### Các phương án đã xem xét <!-- key: options_considered -->
+
+| Option | Fit with existing stack | Maintainability (solo-dev) | Reversibility | Notes |
+| --- | --- | --- | --- | --- |
+| Thư mục theo tiêu chí | Thấp | Thấp | Cao | Nguồn và tiêu chí quan hệ nhiều–nhiều (OSM phục vụ khoảng 12 tiêu chí; chợ dùng 2 nguồn), nên phải nhân bản file; tiêu chí đổi nhanh hơn nguồn |
+| Giữ `curated` gộp nhiều nguồn | Trung bình | Trung bình | Cao | Trái quy tắc giấy phép; không khớp đơn vị nhập là lớp |
+| **`raw`, `interim`, `processed` theo nguồn; `packages` theo mã lớp; bản đồ tiêu chí sinh tự động** | Cao | Cao | Cao | Thư mục khớp với thứ database quản lý |
+
+### Quyết định <!-- key: decision -->
+
+- `data/packages/{layer_code}/{label}/package.zip` thay cho `curated`. **Mỗi gói là một phiên bản của một lớp, không phải một tiêu chí.**
+- `data/catalog/packages/{layer_code}/{label}.json` là bản sao manifest, được commit.
+- `data/catalog/criteria-map.md` do script sinh từ `CRITERIA.inputs` (tiêu chí → lớp → nguồn). Không sửa tay.
+- Gộp trùng trong cùng một nguồn (nút và vùng OSM của cùng một chợ) làm ở bước `processed → package`. Gộp giữa các nguồn để lúc đo.
+- Bỏ `catalog/current.json`. Bản đang dùng là bản phát hành trong database.
+
+### Hệ quả <!-- key: consequences -->
+
+- Thư mục `data/curated/places/2026-10-18` hiện có sẽ được chuyển thành gói `osm.places` khi viết `tools/data pack`.
+- Bốn miền (`places`, `transport`, `environment`, `admin`) vẫn dùng cho `raw`, `interim` và `processed` để dễ tìm file.
+
+### Khả năng đảo ngược <!-- key: reversibility -->
+
+Chỉ là cách sắp thư mục trên máy. Dời lại bằng script.
+
+---
+
+## Bản ghi quyết định 14 — Bổ sung cho tiêu chí và chấm điểm sau khi rà hạn chế <!-- key: decision_record -->
+
+**Status:** Accepted — bổ sung Decision Record 9 và 10
+**Category:** New Architecture Pattern
+**Door Type:** Two-way (cheap to reverse)
+
+### Bối cảnh <!-- key: context -->
+
+Khi rà thiết kế, thấy năm chỗ có thể làm sai kết quả mà không ai biết:
+
+1. `criteria_snapshot` chụp tham số nhưng không chụp **cách tính**. Sửa câu SQL của `nearest` thì cả bản rollback cũng tính theo code mới.
+2. Tham số của tiêu chí lưới (bán kính 500 m) bị buộc ngầm vào dữ liệu đã tính sẵn. Sửa `radius_m` không đổi dữ liệu và không báo lỗi.
+3. Chưa có quy tắc gán `confidence`, trong khi điểm tổng và danh sách mạnh/yếu đều lọc theo nó.
+4. Điểm tổng là trung bình, nên một lô ngập sâu vẫn đạt điểm cao nhờ gần chợ.
+5. Màn so sánh có thể đặt cạnh nhau các lượt đánh giá ghim bản khác nhau. Bước điểm mẫu là thủ công nên dễ bị bỏ qua.
+
+### Các phương án đã xem xét <!-- key: options_considered -->
+
+| Option | Fit with existing stack | Maintainability (solo-dev) | Reversibility | Notes |
+| --- | --- | --- | --- | --- |
+| Ghi thành giới hạn đã biết | Cao | Cao | Cao | Sai lặng lẽ vẫn xảy ra |
+| **Thêm vài trường vào `CRITERIA`, snapshot và kiểm tra lúc phát hành; không thêm bảng** | Cao | Cao | Cao | |
+
+### Quyết định <!-- key: decision -->
+
+- **Phiên bản method:**
+  - Mỗi method có số phiên bản trong code (`nearest@1`). Snapshot ghi `method` cùng `method_version`.
+  - Đổi kết quả của method thì tăng số. Code của phiên bản cũ giữ lại chừng nào còn bản `published` dùng nó; kiểm tra `method_supported` so khớp cả số phiên bản.
+  - `lineage` ghi thêm commit của backend.
+- **Tiêu chí lưới chỉ trỏ mã lớp** (`worldpop.pop_500m`), không có tham số bán kính. Bán kính là thuộc tính của lớp, ghi trong manifest.
+- **Độ tin:** mỗi tiêu chí khai `base_confidence`. Hạ một bậc khi:
+  - đo bằng phương án dự phòng (`fallback`);
+  - số đối tượng tìm thấy dưới `min_support` của tiêu chí;
+  - lớp có cảnh báo đã được chấp nhận lúc lưu.
+- **Điều kiện chặn:**
+  - Tiêu chí có thể khai `blocking: {when, cap}`, ví dụ ngập chu kỳ 100 năm sâu hơn 1 m thì điểm tổng tối đa là 4.
+  - Lúc đọc, điểm tổng bị giới hạn ở mức `cap`, và điều kiện chặn đứng đầu báo cáo.
+  - Số đo lưu cờ `blocking_hit`.
+- **Một bảng kê cho mọi tiêu chí và lớp bản đồ:**
+  - Tiêu chí chỉ khai mã lớp, không ghim phiên bản riêng.
+  - Một lượt đánh giá chỉ đọc một bản phát hành.
+  - Lớp bản đồ cũng đọc theo bảng kê của bản hiện hành, thay cho việc nạp `map_pois` riêng.
+- **Điểm mẫu tự chạy lúc phát hành:**
+  - Backend đánh giá các điểm trong `backend/src/modules/map/golden-points.json` (commit git) theo bản nháp và theo bản hiện hành.
+  - Vi phạm `expectations` thì chặn phát hành. Bảng chênh lệch lưu vào `map_dataset_versions.golden_report`.
+- **So sánh khác bản:** màn so sánh cảnh báo khi các cột có `dataset_version` khác nhau, và có nút "Đánh giá lại tất cả theo bản hiện hành".
+
+### Hệ quả <!-- key: consequences -->
+
+- **Không thêm bảng.** Thêm cột `golden_report` và `checks`, cùng các cột `method_version` và `blocking_hit` trong số đo.
+- **Phát hành chậm hơn khoảng 15 giây** (khoảng 50 điểm × 300 ms).
+- **Giới hạn đã biết (chấp nhận ở GĐ1–2, phải hiện trong báo cáo):**
+  - Khoảng cách tính theo đường chim bay cho tới khi có thời gian đi thật.
+  - Một bộ ngưỡng cho cả thành phố.
+  - Gộp trùng giữa nguồn lúc đo nên bản đồ và báo cáo có thể lệch số đếm.
+  - Rủi ro ODbL với dữ liệu phái sinh khi phân phối công khai.
+
+### Khả năng đảo ngược <!-- key: reversibility -->
+
+Mọi thứ nằm trong code và cột `jsonb`. Bỏ một quy tắc là sửa code và phát hành bản `kind = criteria`.

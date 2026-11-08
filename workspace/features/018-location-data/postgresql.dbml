@@ -9,6 +9,16 @@
 // Không có khóa ngoại giữa geo và public (reset xóa public bằng CASCADE). Toàn vẹn do service kiểm.
 // Không dùng enum Postgres: varchar + CHECK (geo) hoặc union type TypeScript (public).
 // Khóa chính UUID v7; bảng đối tượng nhiều dòng dùng bigint identity.
+//
+// Một đường ghi duy nhất (research.md Bản ghi 12):
+//   - Mọi phiên bản lớp sinh từ một gói tải lên qua /admin/datasets → geo_staging → admin "Lưu" → geo.
+//   - Role: app_reader (SELECT geo, không thấy geo_staging); geo_ingest (chỉ module ingest; INSERT bảng đối tượng,
+//     không UPDATE; DELETE chỉ qua hàm geo.purge_layer_version SECURITY DEFINER). Không còn geo_loader.
+//   - Trigger: trg_features_only_building (chặn INSERT vào phiên bản không ở building),
+//     trg_layer_versions_frozen (chặn UPDATE phiên bản ready trừ ready → retired, retired → building khi khôi phục),
+//     trg_dataset_release_frozen (chặn đổi layer_manifest/criteria_snapshot/criteria_hash khi status <> draft).
+//     Trigger trên bảng map_* tạo bằng SQL idempotent trong service nên /reset dựng lại được.
+//   - content_hash phát hiện ghi lén bằng superuser (job kiểm hằng tuần).
 
 // ───────────────────────────── geo: lớp và phiên bản lớp ─────────────────────────────
 
@@ -17,23 +27,29 @@ Table geo.layers {
   geometry_kind varchar(10) [not null, note: 'check in (point, line, area, grid)']
   source_code varchar(40) [not null, note: 'khớp data/raw/{mien}/{nguon}: osm, worldpop, qhtd-hanoi']
   usage varchar(10) [not null, default: 'public', note: 'check in (public, internal, blocked). internal = chỉ tính, không trả đối tượng ra API']
+  contract varchar(12) [not null, note: 'khuôn gói: point@1 | line@1 | area@1 | grid@1 (package-contracts.md). Phải cùng geometry_kind']
   attribution varchar(300) [not null, default: '', note: 'câu ghi nguồn bắt buộc hiển thị']
   description varchar(300) [not null, default: '']
+  created_by uuid [note: 'admin tạo lớp trên UI']
   created_at timestamptz [not null, default: `now()`]
-  Note: 'Loại tiện ích (pharmacy, market…) là cột category bên trong lớp, không phải lớp riêng: một lần nhập OSM = một phiên bản osm.places.'
+  Note: 'Loại tiện ích (pharmacy, market…) là cột category bên trong lớp, không phải lớp riêng: một gói OSM = một phiên bản osm.places. Tạo lớp trên UI; chỉ usage, attribution, description sửa được sau khi tạo.'
 }
 
 Table geo.layer_versions {
   id uuid [pk]
   layer_code varchar(60) [not null, ref: > geo.layers.code]
   label varchar(40) [not null, note: 'ngày nguồn: 2026-10-18']
-  status varchar(12) [not null, default: 'building', note: 'check in (building, ready, failed, retired). Xem diagrams/state-layer-version.mmd']
-  pipeline_version varchar(40) [not null, note: 'commit của tools/data đã dựng']
-  catalog_paths "text[]" [not null, note: 'biên bản data/catalog/snapshots/... đã dùng — thay cho bảng sources/source_snapshots']
-  source_sha256 "text[]" [not null, note: 'cùng thứ tự catalog_paths; đối chiếu khi nhập']
+  status varchar(12) [not null, default: 'building', note: 'check in (building, ready, retired). Gói lỗi dừng ở import_jobs, không tạo phiên bản. Xem diagrams/state-layer-version.mmd']
+  import_job_id uuid [not null, ref: - geo.import_jobs.id, note: 'gói đã sinh ra phiên bản này']
+  package_sha256 varchar(64) [not null, unique, note: 'khóa tới kho gói; khôi phục phiên bản retired từ đây']
+  manifest jsonb [not null, note: 'manifest.json của gói: nguồn, giấy phép, commit pipeline, bước làm tay, params — thay catalog_paths/source_sha256']
+  content_hash varchar(64) [note: 'sha256 các dòng sắp theo feature_key, tính lúc ready; job hằng tuần so lại']
+  integrity_checked_at timestamptz
+  integrity_ok boolean [note: 'false = dữ liệu bị đổi ngoài đường nhập → chặn phát hành mọi bản dùng phiên bản này']
   row_count integer
   coverage geometry(MultiPolygon,4326) [note: 'vùng có dữ liệu; ngoài vùng = no_data, không phải 0']
-  checks jsonb [not null, default: '[]', note: '[{code, severity: blocking|warning, status: pass|fail, expected, observed}] do script ghi']
+  checks jsonb [not null, default: '[]', note: '[{code, severity: blocking|warning, status: pass|fail, expected, observed}] chép từ import_jobs lúc lưu']
+  accepted_warnings varchar(500) [note: 'lý do admin chấp nhận cảnh báo khi bấm Lưu; có giá trị thì confidence của tiêu chí dùng lớp này hạ một bậc']
   diff_summary jsonb [note: '{"base":"<id>","added":12,"removed":3,"changed":40,"by_category":{…}}']
   created_at timestamptz [not null, default: `now()`]
   ready_at timestamptz
@@ -43,8 +59,38 @@ Table geo.layer_versions {
     (layer_code, label) [unique, name: 'uq_geo_layer_versions_layer_label']
     (status) [name: 'idx_geo_layer_versions_status']
   }
-  Note: 'ready chỉ khi không có check blocking fail. retired → DELETE đối tượng, giữ dòng này để truy vết.'
+  Note: 'Chỉ module ingest tạo dòng, trong transaction "Lưu" (building → ready). retired → DELETE đối tượng qua hàm dọn, giữ dòng này. Khôi phục: retired → building → ready từ gói, giữ nguyên id nên bảng kê cũ vẫn đúng.'
 }
+
+Table geo.import_jobs {
+  id uuid [pk]
+  layer_code varchar(60) [not null, ref: > geo.layers.code]
+  label varchar(40) [not null]
+  contract varchar(12) [not null]
+  purpose varchar(10) [not null, default: 'new', note: 'check in (new, restore). restore = nạp lại gói của phiên bản retired']
+  status varchar(12) [not null, default: 'uploaded', note: 'check in (uploaded, validating, validated, rejected, saving, saved, discarded, failed). Xem diagrams/state-import-job.mmd']
+  package_path varchar(300) [not null, note: 'đường dẫn trong volume data-packages, đặt theo sha256; không dùng tên file người gửi']
+  package_sha256 varchar(64) [not null]
+  size_bytes bigint [not null]
+  manifest jsonb [note: 'đã kiểm theo contracts/manifest.schema.json']
+  checks jsonb [not null, default: '[]']
+  diff_summary jsonb [note: 'so với phiên bản trong bản hiện hành: added, removed, changed, by_category']
+  error varchar(1000)
+  uploaded_by uuid [not null]
+  decided_by uuid [note: 'admin bấm Lưu hoặc Bỏ']
+  layer_version_id uuid [note: 'có khi saved']
+  created_at timestamptz [not null, default: `now()`]
+  finished_at timestamptz
+
+  indexes {
+    (package_sha256) [unique, name: 'uq_geo_import_jobs_sha_new', note: 'partial: WHERE purpose = new AND status NOT IN (rejected, discarded, failed) — chặn nạp trùng']
+    (status, created_at) [name: 'idx_geo_import_jobs_status']
+  }
+  Note: 'Mỗi lúc chỉ một job ở validating hoặc saving (khóa advisory). Dữ liệu tạm nằm ở geo_staging.* theo job_id, xóa khi saved, discarded hoặc sau 7 ngày.'
+}
+
+// geo_staging: bảng UNLOGGED cùng cột với geo.*_features / geo.grid_values + job_id; app_reader không có quyền.
+// Không vẽ chi tiết: point_rows, line_rows, area_rows, grid_rows.
 
 // ───────────────────────────── geo: đối tượng (bảng thường, không phân vùng — Bản ghi 8) ─────────────────────────────
 
@@ -127,7 +173,7 @@ Table geo.grid_values {
   indexes {
     (layer_version_id, cell_id) [pk]
   }
-  Note: 'Mỗi chỉ số (pop_500m, green_300m, flood_rp10…) là một lớp. Khi bảng vượt ~20 triệu dòng mới cân nhắc phân vùng.'
+  Note: 'Mỗi chỉ số (pop_500m, green_300m, flood_rp10…) là một lớp; bán kính và tham số nằm trong manifest.params của phiên bản, tiêu chí chỉ trỏ mã lớp. Khi bảng vượt ~20 triệu dòng mới cân nhắc phân vùng.'
 }
 
 // ───────────────────────────── public: bản phát hành (entity TypeORM) ─────────────────────────────
@@ -141,11 +187,14 @@ Table map_dataset_versions {
   status varchar(10) [not null, default: 'published', note: 'mới. draft | published | withdrawn | abandoned. Default published để các dòng cũ hợp lệ']
   base_version integer [note: 'mới. bản làm gốc để chép bảng kê và so tác động']
   layer_manifest jsonb [not null, default: '{}', note: 'mới. {"osm.places":"<layer_version_id>", …}. Không sửa sau khi published']
-  criteria_snapshot jsonb [not null, default: '[]', note: 'mới. bản chụp định nghĩa tiêu chí trong code lúc phát hành (id, method, inputs, params, scoring, default_weight, source_label)']
+  criteria_snapshot jsonb [not null, default: '[]', note: 'mới. bản chụp định nghĩa tiêu chí trong code lúc phát hành (id, method, method_version, inputs, params, scoring, base_confidence, min_support, blocking, default_weight, source_label)']
   criteria_hash varchar(64) [note: 'mới. sha256 của criteria_snapshot đã chuẩn hóa; khác hash = định nghĩa đã đổi']
   created_by uuid [note: 'mới']
   withdrawn_at timestamptz [note: 'mới']
   withdraw_reason varchar(500) [note: 'mới']
+  checks jsonb [not null, default: '[]', note: 'mới. kết quả kiểm tra mức bản lúc phát hành']
+  golden_report jsonb [note: 'mới. điểm mẫu tự chạy lúc phát hành: số kết luận lật, lệch điểm theo tiêu chí, vi phạm expectations']
+  backend_commit varchar(40) [note: 'mới. commit backend lúc phát hành']
 
   indexes {
     (status, version) [name: 'idx_map_dataset_versions_status_version']
@@ -154,6 +203,7 @@ Table map_dataset_versions {
   Bản hiện hành = max(version) có status = published.
   Tối đa một draft (unique partial index status = draft — tạo bằng SQL idempotent trong service, như messaging-schema.service).
   Bản cũ (trước 018) có layer_manifest = {} → đánh giá theo chế độ mẫu (sample = true) như hiện nay.
+  Một bảng kê cho mọi tiêu chí và cho lớp bản đồ: không tiêu chí nào ghim phiên bản lớp riêng.
   '''
 }
 
@@ -171,22 +221,24 @@ Table map_place_analyses {
   dataset_version integer [not null, ref: > map_dataset_versions.version, note: 'sẵn có: bản đã ghim']
   sample boolean [not null, default: true, note: 'sẵn có; false khi tính từ dữ liệu thật']
   coverage real [note: 'mới. tỷ lệ tiêu chí có số đo dùng được (ok | fallback)']
-  Note: 'Cột measurements jsonb sẵn có giữ để đọc kết quả cũ; kết quả mới ghi map_place_measurements.'
+  Note: 'Cột measurements jsonb sẵn có giữ để đọc kết quả cũ; kết quả mới ghi map_place_measurements. Màn so sánh cảnh báo khi các lượt có dataset_version khác nhau.'
 }
 
 Table map_place_measurements {
   analysis_id uuid [ref: > map_place_analyses.id]
   criterion_id varchar(40) [note: 'khớp id trong criteria_snapshot của bản đã ghim']
   method_used varchar(12) [not null, note: 'nearest | count | within_area | grid | travel_time (GĐ2)']
+  method_version smallint [not null, note: 'phiên bản cách tính, khớp snapshot (Bản ghi 14)']
   status varchar(10) [not null, note: 'ok | no_data | fallback | failed']
   value real [note: 'số đo gốc']
   unit varchar(10) [note: 'm | min | people | pct']
   value_code varchar(60) [note: 'giá trị dạng mã (ODT…)']
   auto_score real [note: '0–10 theo scoring']
   verdict varchar(8) [not null, note: 'strong | neutral | weak | unknown']
-  confidence varchar(6) [not null, note: 'high | medium | low']
+  confidence varchar(6) [not null, note: 'high | medium | low. = base_confidence, hạ một bậc khi fallback, dưới min_support, hoặc lớp có cảnh báo đã chấp nhận']
+  blocking_hit boolean [not null, default: false, note: 'điều kiện chặn của tiêu chí xảy ra → điểm tổng bị giới hạn ở cap lúc đọc']
   evidence jsonb [not null, default: '{}', note: 'đối tượng gần nhất (tên, khoảng cách), số đếm; lớp internal chỉ ghi loại + khoảng cách']
-  lineage jsonb [not null, default: '{}', note: '{"layer_versions":["…"],"provider":"vietmap","called_at":"…"}']
+  lineage jsonb [not null, default: '{}', note: '{"layer_versions":["…"],"backend_commit":"…","provider":"vietmap","called_at":"…"}; layer_versions chỉ chứa id có trong bảng kê của bản đã ghim']
   measured_at timestamptz [not null, default: `now()`]
   expires_at timestamptz [note: '[GĐ2] travel_time']
 

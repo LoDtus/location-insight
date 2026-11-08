@@ -1,21 +1,26 @@
-%% Từ nguồn mới tới bản phát hành hiện hành (GĐ1–2).
+%% Từ nguồn mới tới bản phát hành hiện hành (GĐ1–2). Một đường ghi duy nhất: research.md Bản ghi 12.
 flowchart TD
-  A[Tải nguồn vào data/raw + biên bản catalog có sha256] --> B[tools/data: cắt Hà Nội, chuẩn hóa, curated]
-  B --> C[Đối chiếu sha256 với biên bản]
-  C -->|sai| X1[Dừng, không tạo phiên bản]
-  C -->|khớp| D[geo.layer_versions = building]
-  D --> E[COPY đối tượng + feature_key + coverage]
-  E --> F[Kiểm tra chất lượng, ghi checks + diff_summary so với bản hiện hành]
-  F -->|có kiểm tra chặn fail| X2[failed]
-  F -->|đạt| G[ready]
-  G --> H[Admin: tạo bản nháp, chép bảng kê bản hiện hành, thay phiên bản lớp]
-  H --> I[Script điểm mẫu: bản nháp so với bản hiện hành, in bảng chênh lệch]
-  I --> J{Admin xem}
-  J -->|chưa ổn| H
-  J -->|bỏ| Z[abandoned]
-  J -->|phát hành| K[Kiểm tra mức bản: inputs đủ lớp, lớp ready, không nguồn blocked, method được hỗ trợ]
-  K -->|fail| H
-  K -->|đạt| L[Transaction: chụp CRITERIA vào criteria_snapshot + hash, status published, xóa cache]
-  L --> M[Nạp lại map_pois từ osm.places của bản mới]
-  L --> N[Thông báo người dùng có địa điểm đã lưu]
-  L --> O[Job dọn: phiên bản lớp ngoài bản hiện hành, bản trước, bản nháp quá 30 ngày thì retired, DELETE đối tượng]
+  subgraph May["Máy vận hành, không có quyền ghi database"]
+    A[Tải nguồn vào data/raw + biên bản catalog có sha256] --> B[interim, processed: cắt Hà Nội, chuẩn hóa; làm tay nếu cần]
+    B --> C[tools/data pack: package.zip = manifest.json + data theo khuôn]
+    C --> C2[tools/data validate: cùng contracts/*.schema.json với server]
+    C2 -->|lỗi| B
+  end
+  C2 -->|đạt| D["Trang admin/datasets: tải gói lên"]
+  D --> E{Gói hợp lệ? kích thước, zip, manifest, lớp, khuôn, sha256 chưa nhập}
+  E -->|không| X1[422/409: từ chối, không tạo staging]
+  E -->|có| F[Lưu gói vào kho theo sha256, chỉ đọc; import_job = validating]
+  F --> G[Nạp vào geo_staging, kiểm tra dữ liệu, khác biệt so với bản hiện hành]
+  G -->|kiểm tra chặn fail| X2[rejected: admin xem lỗi, sửa ở máy, label mới]
+  G -->|đạt| H{Admin xem kiểm tra, khác biệt, mẫu dòng}
+  H -->|Bỏ| Z1[discarded: xóa staging]
+  H -->|Lưu, ghi lý do nếu có cảnh báo| I[Transaction: chép sang geo, content_hash, layer_version ready]
+  I --> J[Admin: tạo bản nháp, chép bảng kê bản hiện hành, thay phiên bản lớp]
+  J --> K{Phát hành}
+  K --> L[Kiểm tra mức bản: inputs đủ lớp, lớp ready và toàn vẹn, không nguồn blocked, method và method_version được hỗ trợ]
+  L --> M[Điểm mẫu tự chạy: bản nháp so với bản hiện hành, golden_report]
+  M -->|có fail chặn| J
+  M -->|đạt| N[Transaction: chụp CRITERIA vào criteria_snapshot + hash, backend_commit, published, xóa cache]
+  N --> O[Lớp bản đồ đọc theo bảng kê mới]
+  N --> P[Thông báo người dùng có địa điểm đã lưu]
+  N --> Q[Job dọn: phiên bản ngoài bản hiện hành, bản trước, bản nháp quá 30 ngày → retired, xóa đối tượng; gói vẫn ở kho]

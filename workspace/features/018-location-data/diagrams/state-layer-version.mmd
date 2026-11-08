@@ -1,7 +1,7 @@
+%% Phiên bản lớp chỉ được tạo khi admin bấm Lưu một import job đã validated. Gói lỗi dừng ở import job (state-import-job.mmd).
 stateDiagram-v2
-  [*] --> building
-  building --> ready: nhập xong, không có kiểm tra chặn fail
-  building --> failed: lỗi nhập hoặc kiểm tra chặn fail
-  failed --> [*]: DELETE đối tượng sau khi xem lỗi
-  ready --> retired: ngoài bản hiện hành, bản liền trước, bản nháp quá 30 ngày; DELETE đối tượng
-  retired --> building: dựng lại từ catalog_paths khi cần rollback
+  [*] --> building: admin Lưu (trong transaction)
+  building --> ready: chép xong từ geo_staging, tính content_hash
+  ready --> retired: ngoài bản hiện hành, bản liền trước, bản nháp quá 30 ngày; xóa đối tượng qua hàm dọn
+  retired --> building: khôi phục từ gói trong kho (giữ nguyên id)
+  note right of ready: Không sửa được. integrity_ok = false nếu job kiểm phát hiện dữ liệu bị đổi → chặn phát hành

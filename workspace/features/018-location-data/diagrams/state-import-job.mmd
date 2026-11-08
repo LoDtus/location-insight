@@ -1,0 +1,15 @@
+%% Một gói tải lên qua /admin/datasets (research.md Bản ghi 12, package-contracts.md).
+stateDiagram-v2
+  [*] --> uploaded: gói qua kiểm tra hình dạng và manifest, đã lưu vào kho
+  uploaded --> validating: lấy khóa (mỗi lúc một job)
+  validating --> validated: không có kiểm tra chặn fail
+  validating --> rejected: kiểm tra chặn fail
+  validating --> failed: lỗi hệ thống (hết thời gian, lỗi đọc)
+  validated --> saving: admin Lưu (ghi lý do nếu có cảnh báo)
+  validated --> discarded: admin Bỏ, hoặc quá 7 ngày không quyết
+  saving --> saved: transaction xong, layer_version ready
+  saving --> failed: transaction lỗi, không có gì được ghi vào geo
+  saved --> [*]
+  rejected --> [*]: xóa staging; gói xóa khỏi kho sau 30 ngày
+  discarded --> [*]: xóa staging; gói xóa khỏi kho sau 30 ngày
+  failed --> [*]: tải lại cùng gói được

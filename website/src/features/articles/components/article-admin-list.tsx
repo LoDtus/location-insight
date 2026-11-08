@@ -20,6 +20,7 @@ import {
     type FrequencyGrain,
     type PublishedFrequency,
 } from "@/features/articles/articles.api";
+import EChart, { chartToken, type EChartOption } from "@/shared/components/charts/echart";
 import { getConfirmModal } from "@/shared/utils/confirm.utils";
 import { restorePaneScroll } from "@/shared/utils/scroll.utils";
 
@@ -685,52 +686,52 @@ function formatBucket(grain: FrequencyGrain, bucket: string): string {
 }
 
 function FrequencyChart({ grain, points }: { grain: FrequencyGrain; points: { bucket: string; count: number }[] }) {
+    const option = useMemo<EChartOption>(() => {
+        const green = chartToken("--color-green", "#026a4e");
+        const ink = chartToken("--color-charcoal", "#101111");
+        const many = points.length > 40;
+        return {
+            textStyle: { fontFamily: "system-ui, -apple-system, sans-serif", color: ink },
+            grid: { left: 8, right: 12, top: 16, bottom: many ? 56 : 8, containLabel: true },
+            tooltip: {
+                trigger: "axis",
+                axisPointer: { type: "shadow" },
+                confine: true,
+                formatter: (params: { dataIndex: number }[]) => {
+                    const point = points[params[0]?.dataIndex ?? -1];
+                    return point ? `${formatBucket(grain, point.bucket)}<br/><b>${point.count}</b> bài` : "";
+                },
+            },
+            xAxis: {
+                type: "category",
+                data: points.map((point) => axisLabel(grain, point.bucket)),
+                axisTick: { alignWithLabel: true },
+                axisLine: { lineStyle: { color: "#d9d9d9" } },
+                axisLabel: { color: ink, hideOverlap: true },
+            },
+            yAxis: { type: "value", minInterval: 1, splitLine: { lineStyle: { color: "#ececec" } }, axisLabel: { color: ink } },
+            dataZoom: many ? [{ type: "inside" }, { type: "slider", height: 18, bottom: 8 }] : [],
+            series: [
+                {
+                    type: "bar",
+                    name: "Số bài",
+                    data: points.map((point) => point.count),
+                    barMaxWidth: 36,
+                    itemStyle: { color: green, borderRadius: [4, 4, 0, 0] },
+                    emphasis: { itemStyle: { color: "#014d39" } },
+                    animationDuration: 600,
+                    animationEasing: "cubicOut",
+                },
+            ],
+        };
+    }, [grain, points]);
+
     if (!points.length) {
         return <p className="m-0 text-sm">Không có bài đã đăng trong khoảng này.</p>;
     }
-    const max = Math.max(1, ...points.map((point) => point.count));
-    const width = 720;
-    const height = 280;
-    const pad = { left: 36, right: 8, top: 12, bottom: 40 };
-    const innerW = width - pad.left - pad.right;
-    const innerH = height - pad.top - pad.bottom;
-    const slot = innerW / points.length;
-    const barW = Math.max(2, slot * 0.62);
-    const ticks = [...new Set([0, Math.ceil(max / 2), max])];
-    const labelStep = points.length > 16 ? Math.ceil(points.length / 8) : 1;
     return (
-        <div className="overflow-x-auto">
-            <svg role="img" aria-label="Biểu đồ số bài đã đăng" viewBox={`0 0 ${width} ${height}`} className="h-[280px] w-full min-w-[480px]">
-                {ticks.map((tick) => {
-                    const y = pad.top + innerH - (tick / max) * innerH;
-                    return (
-                        <g key={tick}>
-                            <line x1={pad.left} x2={width - pad.right} y1={y} y2={y} stroke="#d9d9d9" />
-                            <text x={pad.left - 8} y={y + 4} textAnchor="end" fontSize="12" fill="#101111">
-                                {tick}
-                            </text>
-                        </g>
-                    );
-                })}
-                {points.map((point, index) => {
-                    const barH = (point.count / max) * innerH;
-                    const x = pad.left + index * slot + (slot - barW) / 2;
-                    const y = pad.top + innerH - barH;
-                    const showLabel = index % labelStep === 0 || index === points.length - 1;
-                    return (
-                        <g key={point.bucket}>
-                            <rect x={x} y={point.count === 0 ? pad.top + innerH - 1 : y} width={barW} height={Math.max(point.count === 0 ? 1 : barH, 1)} fill="#026a4e">
-                                <title>{`${formatBucket(grain, point.bucket)}: ${point.count} bài`}</title>
-                            </rect>
-                            {showLabel ? (
-                                <text x={x + barW / 2} y={height - 12} textAnchor="middle" fontSize="12" fill="#101111">
-                                    {axisLabel(grain, point.bucket)}
-                                </text>
-                            ) : null}
-                        </g>
-                    );
-                })}
-            </svg>
+        <div className="relative">
+            <EChart option={option} className="h-[280px] w-full" />
             <table className="sr-only">
                 <caption>Số bài đã đăng theo {grain === "day" ? "ngày" : grain === "month" ? "tháng" : "năm"}</caption>
                 <thead>

@@ -83,6 +83,21 @@ Mất `raw` cũ không làm mất khả năng thu hồi, vì phiên bản cũ đ
 - **Không commit:** `.pbf`, GeoTIFF, GeoParquet, Excel, GTFS, JSON thu từ trang web, gói `.zip`, và mọi file nằm trong `raw`, `interim`, `processed`, `packages`.
 - Volume Postgres đã bị bỏ qua riêng. Không copy database vào đây.
 
+## Bộ dữ liệu nền beta v0
+
+`.venv/bin/python tools/data/seed_v0.py` (cần `numpy rasterio pyproj osmium` trong `.venv`) dựng 6 gói nhãn `v0-beta` từ dữ liệu đã có trong `raw`/`curated`, rồi tải lên `/admin/datasets` như mọi gói khác:
+
+| Lớp | Nguồn | Ghi chú |
+| --- | --- | --- |
+| `osm.places` | OSM 2026-10-18 đã gộp trùng | Thật |
+| `osm.roads` | OSM `.pbf`, motorway → tertiary | Thật |
+| `worldpop.pop_100m` | WorldPop R2025A | Thật, lấy mẫu theo ô 100 m |
+| `esa.green_100m` | ESA WorldCover 2021, ô N18E105 + N21E105 | Thật, 25 điểm mẫu mỗi ô |
+| `demo.flood_rp100` | Tự sinh | **Số liệu demo**: ô JRC đã tải không phủ Hà Nội |
+| `demo.elev_100m` | Tự sinh | **Số liệu demo**: chưa tải FABDEM |
+
+Lớp `demo.*` để `internal`, ghi công "Số liệu demo v0, không phải đo thật"; tiêu chí đọc lớp này hiện đúng nguồn đó. Khi có JRC (ô 20–30°B) và FABDEM thì tạo lớp `jrc.flood_rp100`, `fabdem.elev_100m`, phát hành bản mới không còn lớp `demo.*`.
+
 ## Gói giả để thử giao diện
 
 `python3 tools/data/mock_packages.py` sinh vào `mock/packages/` (git bỏ qua) bốn lớp nguồn `mock` (điểm, đường, vùng, lưới), một bản cập nhật, và các gói lỗi cố ý. `mock/packages/README.md` ghi lớp cần tạo và kết quả mong đợi của từng gói. Dữ liệu ngẫu nhiên, chỉ dùng trên máy dev.

@@ -329,4 +329,56 @@ CREATE TRIGGER trg_layer_versions_guard BEFORE INSERT OR UPDATE OR DELETE ON geo
   FOR EACH ROW EXECUTE FUNCTION geo.guard_layer_version();
 `,
   },
+  {
+    // Nạp lớp lưới ~900 nghìn ô mất ~37 s, chủ yếu do kiểm từng dòng: trigger chặn (~12 s) và khóa ngoại tới
+    // layer_versions/grids (~22 s), trong khi ghi dữ liệu chỉ ~2 s. Thay bằng MỘT trigger cấp câu lệnh dùng bảng
+    // chuyển tiếp, kiểm cùng các điều kiện cho cả lô: cờ ingest, phiên bản tồn tại và đang building, lưới tồn tại.
+    // Khóa ngoại của bảng đối tượng chỉ có tác dụng lúc INSERT (phiên bản lớp không bao giờ bị xóa, trigger
+    // guard_layer_version chặn), nên bỏ không làm yếu bảo vệ.
+    id: '002_statement_level_feature_guard',
+    sql: `
+CREATE OR REPLACE FUNCTION geo.guard_feature_insert_batch() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE
+  bad_version uuid;
+  bad_grid text;
+BEGIN
+  IF geo.write_mode() <> 'ingest' THEN
+    RAISE EXCEPTION 'geo: chỉ được ghi đối tượng qua đường nhập gói (geo.write_mode = ingest)'
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  SELECT n.layer_version_id INTO bad_version
+  FROM (SELECT DISTINCT layer_version_id FROM new_rows) n
+  LEFT JOIN geo.layer_versions v ON v.id = n.layer_version_id
+  WHERE v.status IS DISTINCT FROM 'building'
+  LIMIT 1;
+  IF FOUND THEN
+    RAISE EXCEPTION 'geo: phiên bản lớp % không ở trạng thái building', bad_version
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  IF TG_TABLE_NAME = 'grid_values' THEN
+    EXECUTE 'SELECT n.grid_code FROM (SELECT DISTINCT grid_code FROM new_rows) n
+             LEFT JOIN geo.grids g ON g.code = n.grid_code WHERE g.code IS NULL LIMIT 1' INTO bad_grid;
+    IF bad_grid IS NOT NULL THEN
+      RAISE EXCEPTION 'geo: lưới % không có trong geo.grids', bad_grid USING ERRCODE = 'foreign_key_violation';
+    END IF;
+  END IF;
+  RETURN NULL;
+END $$;
+${['point_features', 'line_features', 'area_features', 'grid_values']
+  .map(
+    (table) => `
+DROP TRIGGER IF EXISTS trg_${table}_guard_insert ON geo.${table};
+CREATE TRIGGER trg_${table}_guard_insert AFTER INSERT ON geo.${table}
+  REFERENCING NEW TABLE AS new_rows
+  FOR EACH STATEMENT EXECUTE FUNCTION geo.guard_feature_insert_batch();`,
+  )
+  .join('\n')}
+ALTER TABLE geo.point_features DROP CONSTRAINT IF EXISTS fk_point_features_layer_versions;
+ALTER TABLE geo.line_features DROP CONSTRAINT IF EXISTS fk_line_features_layer_versions;
+ALTER TABLE geo.area_features DROP CONSTRAINT IF EXISTS fk_area_features_layer_versions;
+ALTER TABLE geo.grid_values DROP CONSTRAINT IF EXISTS fk_grid_values_layer_versions;
+ALTER TABLE geo.grid_values DROP CONSTRAINT IF EXISTS fk_grid_values_grids;
+`,
+  },
 ];

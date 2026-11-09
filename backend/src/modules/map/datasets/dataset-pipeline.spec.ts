@@ -84,6 +84,20 @@ describe.skipIf(!DATABASE_URL)('đường nhập gói và bản phát hành trê
     ).rejects.toThrow(/đường nhập/);
     await expect(dataSource.query(`UPDATE geo.point_features SET name = 'sửa lén'`)).rejects.toThrow(/không sửa/);
     await expect(dataSource.query(`UPDATE geo.layer_versions SET row_count = 99 WHERE id = $1`, [id])).rejects.toThrow(/không sửa được/);
+    // Có cờ ingest vẫn không ghi được vào phiên bản đã ready, phiên bản không tồn tại, hay lưới không tồn tại
+    // (trigger cấp câu lệnh thay khóa ngoại, migration 002).
+    const asIngest = (sql: string, params: unknown[]): Promise<unknown> =>
+      dataSource.transaction(async (manager) => {
+        await manager.query(`SET LOCAL geo.write_mode = 'ingest'`);
+        return manager.query(sql, params);
+      });
+    await expect(
+      asIngest(`INSERT INTO geo.point_features (layer_version_id, feature_key, category, geom) VALUES ($1, 'x', 'market', ST_GeogFromText('POINT(105.8 21)'))`, [id]),
+    ).rejects.toThrow(/không ở trạng thái building/);
+    await expect(
+      asIngest(`INSERT INTO geo.grid_values (layer_version_id, grid_code, cell_id, value) VALUES ($1, 'vn2000-100m', 1, 1)`, ['00000000-0000-7000-8000-0000000000ff']),
+    ).rejects.toThrow(/không ở trạng thái building/);
+    await expect(dataSource.query(`SELECT count(*)::int AS n FROM geo.point_features WHERE feature_key = 'x'`)).resolves.toEqual([{ n: 0 }]);
   });
 
   it('từ chối gói lệch số dòng, cho tải lại sau khi bị từ chối, chặn gói trùng (AC-02, AC-13)', async () => {

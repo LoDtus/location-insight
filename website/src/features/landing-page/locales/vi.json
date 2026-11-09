@@ -456,5 +456,12 @@
             "rank": "Hạng {count}",
             "noCover": "Bài không có ảnh"
         }
+    },
+    "footerContact": {
+        "title": "Liên hệ và thông tin vận hành",
+        "operator": "Người vận hành",
+        "email": "Email",
+        "facebook": "Facebook",
+        "zalo": "Zalo"
     }
 }

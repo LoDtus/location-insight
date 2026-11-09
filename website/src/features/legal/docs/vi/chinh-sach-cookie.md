@@ -1,4 +1,4 @@
-*Phiên bản 1.0 · Cập nhật ngày 26/10/2026*
+*Phiên bản 1.1 · Cập nhật ngày 09/11/2026*
 
 Chính sách này giải thích Địa Thế dùng cookie và công nghệ lưu trữ tương tự trên trình duyệt như thế nào, và bạn kiểm soát chúng ra sao. Nó bổ sung cho Chính sách quyền riêng tư.
 
@@ -14,10 +14,13 @@ Bảo đảm website hoạt động và an toàn: duy trì phiên đăng nhập,
 **Tùy chọn giao diện** (cần đồng ý)
 Ghi nhớ lựa chọn của bạn để tiện hơn, ví dụ ngôn ngữ, kiểu xem danh sách, bộ lọc gần nhất. Không bật thì Địa Thế vẫn dùng được, chỉ phải chọn lại mỗi lần.
 
-**Thống kê ẩn danh** (cần đồng ý)
-Đo số lượt truy cập và trang được dùng nhiều để cải thiện sản phẩm, dưới dạng số liệu tổng hợp. Nhóm này chỉ chạy sau khi bạn đồng ý.
+**Thống kê** (cần đồng ý)
+Dùng Google Analytics (Google) để đo số lượt truy cập và trang được dùng nhiều nhằm cải thiện sản phẩm. Google Analytics đặt cookie và gửi dữ liệu truy cập (như địa chỉ IP rút gọn, thiết bị, trang đã xem) về máy chủ của Google, có thể ở ngoài Việt Nam. Nhóm này chỉ chạy sau khi bạn đồng ý.
 
-Địa Thế **không** dùng cookie quảng cáo, không theo dõi bạn qua các website khác và không chia sẻ cookie với bên làm quảng cáo. Nếu điều này thay đổi, Địa Thế sẽ xin đồng ý của bạn trước khi dùng.
+**Quảng cáo** (cần đồng ý)
+Dùng Google Ads để đo hiệu quả quảng cáo của Địa Thế và hiển thị lại quảng cáo cho người đã truy cập. Nhóm này có thể theo dõi bạn qua các website khác theo chính sách của Google. Nhóm này chỉ chạy sau khi bạn đồng ý, và bạn có thể tắt bất cứ lúc nào.
+
+Các công cụ thống kê và quảng cáo trên chỉ được nạp sau khi website có bảng lựa chọn cookie và bạn đã đồng ý; trước đó Địa Thế không nạp chúng. Địa Thế không bán dữ liệu cookie cho bên thứ ba và không chia sẻ thông tin định danh của bạn (tên, thư điện tử, số điện thoại) cho Google để làm quảng cáo.
 
 ## 3. Cookie của bên thứ ba
 

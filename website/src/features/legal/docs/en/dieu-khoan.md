@@ -1,16 +1,16 @@
-*Version 1.0 · Updated 26 October 2026*
+*Version 1.1 · Updated 9 November 2026*
 
 These Terms are an agreement between you and the operator of Địa Thế. By creating an account, posting a listing or continuing to use Địa Thế, you confirm that you have read, understood and agreed to these Terms and the documents they refer to. If you do not agree, please do not use Địa Thế.
 
 ## 1. Definitions
 
 - **Địa Thế**: the website and web application (PWA) for location lookup, location analysis and real estate listings.
-- **Operator**: the individual who operates Địa Thế. The Operator is a natural person, not a company, and works alone.
+- **Operator**: Mr Nguyễn Trung Long, the individual who operates Địa Thế. The Operator is a natural person, not a company, and works alone.
 - **User**: anyone who visits or uses Địa Thế, with or without an account.
 - **Poster**: a User who posts a listing to sell or rent real estate.
 - **Listing**: content created by a Poster, including text, images, price and contact details.
 - **Analysis Result**: information Địa Thế calculates from open data and third-party data for a location.
-- **Contact Channel**: the contact form, in-app report function, or email address published in the website footer. The Contact Channel is where all notices, requests and complaints described in Địa Thế's legal documents are received.
+- **Contact Channel**: email nguyentrunglong.150903@gmail.com, Facebook facebook.com/nguyentrunglong.LoDtus/, Zalo 0375467302 (also published in the website footer), and the in-app report function. The Contact Channel is where all notices, requests and complaints described in Địa Thế's legal documents are received. Email is the primary channel for keeping a record; Facebook and Zalo are for quick contact and we may ask you to confirm by email.
 
 ## 2. Nature of the service
 
@@ -20,7 +20,8 @@ Specifically, Địa Thế does not represent any buyer, seller, tenant or landl
 
 ## 3. Eligibility and accounts
 
-- You must be at least 18 years old and have full legal capacity to create an account.
+- You must be at least 16 years old to create an account. People aged 16 to under 18 may use lookup, analysis and saving features, but may not buy a paid plan or post a listing to sell or rent real estate, unless their legal representative consents and carries out the action in person and takes responsibility for it. People under 16 may not create an account; a parent or guardian may use Địa Thế on the child's behalf.
+- When you buy a plan or post a listing, you confirm that you are at least 18 with full legal capacity, or are acting with the consent of your legal representative. If this is untrue, the Operator may cancel the transaction, remove the listing and refund under the Pricing, Payment and Refunds document.
 - Registration details must be accurate and kept up to date.
 - You may sign in with email or a Google account. You are responsible for keeping your credentials secure and for all activity under your account. Tell us through the Contact Channel immediately if you suspect unauthorised access.
 - One person should hold one account. Do not sell, rent or transfer accounts.
@@ -48,7 +49,10 @@ You must not:
 - scrape, copy, resell or redistribute data from Địa Thế with automated tools without written permission;
 - interfere with or overload the service, probe for vulnerabilities, or bypass access limits or plan limits;
 - use Địa Thế to send unrelated advertising, spam, or to intrude on others' privacy;
-- present Analysis Results to others as a legal conclusion, official valuation or commitment by Địa Thế.
+- present Analysis Results to others as a legal conclusion, official valuation or commitment by Địa Thế;
+- create or use multiple accounts to evade plan limits, obtain benefits more than once, or circumvent an enforcement decision made against you;
+- give false payment or refund information, use a plan's benefits and then ask for a refund, or make false complaints to a bank or payment gateway to recover money paid for a service that was delivered;
+- use Địa Thế or its data to build a competing service, train a model or create another database without written permission.
 
 ## 7. Intellectual property and your content
 
@@ -61,6 +65,7 @@ Prices, payment, cancellation and refunds are set out in the Pricing, Payment an
 ## 9. Suspension, removal and termination
 
 - The Operator may remove Listings, hide content, restrict features, suspend or terminate accounts where there is a reasonable basis to believe these Terms or the law have been breached, where a competent authority makes a valid request, or where necessary to protect the system and other Users.
+- Where abuse is found, the Operator may decline or reverse benefits and refunds obtained improperly, restrict features or suspend the account. The Operator acts in proportion to the breach and avoids affecting other Users.
 - For serious or urgent breaches, action may be taken before notice. In other cases the Operator will give reasons by email or in-app notice where practicable.
 - You may appeal a decision through the Contact Channel. The Operator will review it reasonably and tell you the outcome where practicable.
 - If a paid account is terminated and the cause is not your breach, the paid but unused period is refunded as described in the Pricing, Payment and Refunds document.
@@ -77,9 +82,9 @@ To the extent permitted by law:
 
 - The Operator is not liable for indirect loss, loss of opportunity, loss of profit, loss of data, or loss arising from decisions to buy, sell, rent, invest, pay a deposit or transact based on a Listing or an Analysis Result.
 - The Operator is not liable for the conduct, content, promises or transactions between Users, or between Users and third parties.
-- The Operator's total liability to a User for all claims relating to the service is limited to the total amount that User paid to Địa Thế in the 12 months before the event giving rise to the claim. For free use of the service, that amount is VND 0.
+- The Operator's total liability to a User for all claims relating to the service is limited to the total amount that User paid to Địa Thế in the 12 months before the event giving rise to the claim. If that amount is less than VND 500,000, or you use the service for free, the cap is VND 500,000.
 
-These limits do not apply to liability that the law does not allow to be excluded or limited, including loss caused by the Operator's wilful misconduct, and they do not remove consumer rights under consumer protection law.
+These limits do not apply to liability that the law does not allow to be excluded or limited, including loss caused by the Operator's wilful misconduct, or serious breach of the Operator's obligations, and they do not remove consumer rights under consumer protection law.
 
 ## 12. Indemnity
 

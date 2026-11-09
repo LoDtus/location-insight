@@ -24,6 +24,17 @@ const FILTERS: Array<{ value: RefundStatus | ""; label: string }> = [
 ];
 
 const PAGE_SIZE = 20;
+const DAY_MS = 24 * 60 * 60 * 1000;
+/** Lý do hoàn theo tỷ lệ thời gian: admin được nhập số nhỏ hơn mức trần khi duyệt. */
+const ADJUSTABLE_REASONS = new Set<RefundView["reason"]>(["service_outage", "operator_stop", "legal"]);
+/** Chính sách hứa trả lời trong 7 ngày làm việc và chuyển tiền trong 15 ngày làm việc; đếm theo ngày lịch để cảnh báo sớm. */
+const REPLY_DUE_DAYS = 7;
+const PAYOUT_DUE_DAYS = 15;
+
+function waitingDays(row: RefundView, now: number): number {
+    const since = row.status === "approved" && row.decidedAt ? row.decidedAt : row.createdAt;
+    return Math.max(0, Math.floor((now - new Date(since).getTime()) / DAY_MS));
+}
 
 /** Hàng đợi hoàn tiền: duyệt hoặc từ chối, rồi ghi mã tham chiếu sau khi chuyển khoản tay. */
 export function AdminRefunds() {
@@ -31,6 +42,8 @@ export function AdminRefunds() {
     const [page, setPage] = useState(1);
     const [rows, setRows] = useState<RefundView[]>([]);
     const [notes, setNotes] = useState<Record<string, string>>({});
+    const [amounts, setAmounts] = useState<Record<string, string>>({});
+    const [now, setNow] = useState(0);
     const [message, setMessage] = useState("");
     const [tick, setTick] = useState(0);
 
@@ -40,6 +53,7 @@ export function AdminRefunds() {
             .then((data) => {
                 if (!active) return;
                 setRows(data);
+                setNow(Date.now());
                 setMessage("");
             })
             .catch((error: unknown) => {
@@ -99,6 +113,14 @@ export function AdminRefunds() {
                             {REFUND_STATUS[row.status]}
                         </p>
                         <p className="m-0">Lý do: {REFUND_REASON[row.reason]}</p>
+                        {row.status === "requested" || row.status === "approved" ? (
+                            <p className="m-0">
+                                Đã chờ {waitingDays(row, now)} ngày
+                                {waitingDays(row, now) >= (row.status === "requested" ? REPLY_DUE_DAYS : PAYOUT_DUE_DAYS)
+                                    ? " · sắp hoặc đã quá hạn cam kết trong chính sách thanh toán"
+                                    : ""}
+                            </p>
+                        ) : null}
                         {row.userNote ? <p className="m-0">Người dùng ghi: {row.userNote}</p> : null}
                         <p className="m-0 tabular-nums">
                             Chuyển tới: {row.payoutAccountName} · {row.payoutBank} · {row.payoutAccountNumber}
@@ -128,13 +150,34 @@ export function AdminRefunds() {
                                 <div className="flex flex-wrap gap-2">
                                     {row.status === "requested" ? (
                                         <>
+                                            {ADJUSTABLE_REASONS.has(row.reason) ? (
+                                                <input
+                                                    className={AUTH_FIELD_CLASS}
+                                                    aria-label="Số tiền duyệt hoàn (đồng)"
+                                                    placeholder={`Số tiền duyệt hoàn, tối đa ${row.amountVnd} (bỏ trống = đủ)`}
+                                                    inputMode="numeric"
+                                                    value={amounts[row.id] ?? ""}
+                                                    onChange={(event) =>
+                                                        setAmounts((current) => ({
+                                                            ...current,
+                                                            [row.id]: event.target.value.replace(/\D/g, ""),
+                                                        }))
+                                                    }
+                                                />
+                                            ) : null}
                                             <button
                                                 type="button"
                                                 className={`${AUTH_BUTTON_CLASS} !w-auto`}
                                                 onClick={() =>
                                                     void act(
                                                         row,
-                                                        (value) => decideRefund(row.id, "approve", value),
+                                                        (value) =>
+                                                            decideRefund(
+                                                                row.id,
+                                                                "approve",
+                                                                value,
+                                                                amounts[row.id] ? Number(amounts[row.id]) : undefined,
+                                                            ),
                                                         "Hãy nhập ghi chú xử lý (ít nhất 3 ký tự).",
                                                     )
                                                 }

@@ -1,16 +1,16 @@
-*Phiên bản 1.0 · Cập nhật ngày 26/10/2026*
+*Phiên bản 1.1 · Cập nhật ngày 09/11/2026*
 
 Điều khoản này là thỏa thuận giữa bạn và người vận hành Địa Thế. Khi tạo tài khoản, đăng tin hoặc tiếp tục sử dụng Địa Thế, bạn xác nhận đã đọc, hiểu và đồng ý với điều khoản này cùng các tài liệu được dẫn chiếu trong đó. Nếu không đồng ý, vui lòng không sử dụng Địa Thế.
 
 ## 1. Giải thích từ ngữ
 
 - **Địa Thế**: website và ứng dụng web (PWA) tra cứu, phân tích địa điểm và đăng tin bất động sản.
-- **Người vận hành**: cá nhân vận hành Địa Thế. Người vận hành là cá nhân, không phải doanh nghiệp, và hoạt động một mình.
+- **Người vận hành**: ông Nguyễn Trung Long, cá nhân vận hành Địa Thế. Người vận hành là cá nhân, không phải doanh nghiệp, và hoạt động một mình.
 - **Người dùng**: bất kỳ ai truy cập hoặc sử dụng Địa Thế, có hoặc không có tài khoản.
 - **Người đăng**: người dùng đăng tin bán hoặc cho thuê bất động sản.
 - **Tin đăng**: nội dung do người đăng tạo, gồm văn bản, hình ảnh, giá, thông tin liên hệ.
 - **Kết quả phân tích**: thông tin do Địa Thế tính từ dữ liệu mở và dữ liệu bên thứ ba cho một địa điểm.
-- **Kênh liên hệ**: biểu mẫu liên hệ, báo cáo trong ứng dụng, hoặc địa chỉ thư điện tử được công bố ở chân trang website. Kênh liên hệ là nơi nhận mọi thông báo, yêu cầu và khiếu nại nêu trong các tài liệu pháp lý của Địa Thế.
+- **Kênh liên hệ**: thư điện tử nguyentrunglong.150903@gmail.com, Facebook facebook.com/nguyentrunglong.LoDtus/, Zalo 0375467302 (cũng được công bố ở chân trang website), và chức năng báo cáo trong ứng dụng. Kênh liên hệ là nơi nhận mọi thông báo, yêu cầu và khiếu nại nêu trong các tài liệu pháp lý của Địa Thế. Thư điện tử là kênh chính để lưu bằng chứng; Facebook và Zalo dùng để trao đổi nhanh và có thể được đề nghị xác nhận lại bằng thư điện tử.
 
 ## 2. Bản chất của dịch vụ
 
@@ -20,7 +20,8 @@ Cụ thể, Địa Thế không đại diện cho bên mua, bên bán, bên thu�
 
 ## 3. Điều kiện sử dụng và tài khoản
 
-- Bạn phải đủ 18 tuổi và có năng lực hành vi dân sự đầy đủ để tạo tài khoản.
+- Bạn phải từ đủ 16 tuổi để tạo tài khoản. Người từ đủ 16 đến dưới 18 tuổi được dùng các tính năng tra cứu, phân tích và lưu, nhưng không được mua gói trả phí và không được đăng tin bán hoặc cho thuê bất động sản, trừ khi người đại diện hợp pháp đồng ý và trực tiếp thực hiện, và người đại diện chịu trách nhiệm về việc đó. Người dưới 16 tuổi không được tạo tài khoản; cha mẹ hoặc người giám hộ có thể dùng Địa Thế thay cho trẻ.
+- Khi mua gói hoặc đăng tin, bạn xác nhận mình đủ 18 tuổi và có năng lực hành vi dân sự đầy đủ, hoặc đang hành động với sự đồng ý của người đại diện hợp pháp. Nếu thông tin này sai, Người vận hành có thể hủy giao dịch, gỡ tin và hoàn tiền theo tài liệu Giá, thanh toán và hoàn tiền.
 - Thông tin đăng ký phải chính xác và được cập nhật khi thay đổi.
 - Bạn có thể đăng nhập bằng thư điện tử hoặc tài khoản Google. Bạn chịu trách nhiệm bảo mật thông tin đăng nhập và mọi hoạt động diễn ra dưới tài khoản của mình. Hãy báo ngay qua kênh liên hệ nếu nghi ngờ bị truy cập trái phép.
 - Mỗi người chỉ nên có một tài khoản. Không bán, cho thuê hoặc chuyển nhượng tài khoản.
@@ -48,7 +49,10 @@ Bạn không được:
 - thu thập dữ liệu hàng loạt, sao chép, bán lại hoặc phân phối lại dữ liệu từ Địa Thế bằng công cụ tự động mà không có phép bằng văn bản;
 - can thiệp, làm quá tải, dò quét lỗ hổng, vượt qua giới hạn truy cập hoặc giới hạn gói dịch vụ;
 - dùng Địa Thế để gửi quảng cáo không liên quan, thư rác hoặc xâm phạm đời tư người khác;
-- dùng kết quả phân tích để trình bày với người khác như một kết luận pháp lý, định giá chính thức hoặc cam kết của Địa Thế.
+- dùng kết quả phân tích để trình bày với người khác như một kết luận pháp lý, định giá chính thức hoặc cam kết của Địa Thế;
+- tạo hoặc dùng nhiều tài khoản để né giới hạn gói, nhận quyền lợi nhiều lần hoặc lách quyết định xử lý đã áp dụng cho bạn;
+- khai sai thông tin thanh toán hoặc hoàn tiền, dùng quyền lợi của gói rồi xin hoàn tiền, hoặc khiếu nại sai sự thật tới ngân hàng hay cổng thanh toán để đòi lại tiền đã trả cho dịch vụ đã được cung cấp;
+- dùng Địa Thế hoặc dữ liệu từ Địa Thế để xây dựng dịch vụ cạnh tranh, huấn luyện mô hình hay tạo cơ sở dữ liệu khác khi chưa có phép bằng văn bản.
 
 ## 7. Sở hữu trí tuệ và nội dung của bạn
 
@@ -61,6 +65,7 @@ Giá, thanh toán, hủy và hoàn tiền được nêu trong tài liệu Giá, 
 ## 9. Tạm ngừng, gỡ nội dung và chấm dứt
 
 - Người vận hành có quyền gỡ tin đăng, ẩn nội dung, giới hạn tính năng, tạm khóa hoặc chấm dứt tài khoản khi có căn cứ hợp lý cho rằng có vi phạm điều khoản hoặc pháp luật, khi có yêu cầu hợp lệ của cơ quan có thẩm quyền, hoặc khi cần để bảo vệ hệ thống và người dùng khác.
+- Khi phát hiện lạm dụng, Người vận hành có thể từ chối hoặc thu hồi quyền lợi và khoản hoàn đã nhận không đúng, giới hạn tính năng hoặc tạm khóa tài khoản. Người vận hành xử lý tương xứng với mức độ vi phạm và tránh ảnh hưởng đến người dùng khác.
 - Với vi phạm nghiêm trọng hoặc khẩn cấp, việc xử lý có thể diễn ra trước khi thông báo. Trong các trường hợp còn lại, Người vận hành sẽ nêu lý do qua thư điện tử hoặc thông báo trong ứng dụng khi có thể.
 - Bạn có thể khiếu nại quyết định xử lý qua kênh liên hệ. Người vận hành xem xét một cách hợp lý và thông báo kết quả khi có thể.
 - Khi tài khoản trả phí bị chấm dứt không phải do lỗi vi phạm của bạn, phần thời hạn đã thanh toán nhưng chưa sử dụng được hoàn lại theo tài liệu Giá, thanh toán và hoàn tiền.
@@ -77,9 +82,9 @@ Trong phạm vi pháp luật cho phép:
 
 - Người vận hành không chịu trách nhiệm về thiệt hại gián tiếp, mất cơ hội, mất lợi nhuận, mất dữ liệu hoặc thiệt hại phát sinh từ quyết định mua, bán, thuê, đầu tư, đặt cọc hay giao dịch dựa trên tin đăng hoặc kết quả phân tích.
 - Người vận hành không chịu trách nhiệm về hành vi, nội dung, cam kết hoặc giao dịch giữa người dùng với nhau, hoặc với bên thứ ba.
-- Tổng mức trách nhiệm bồi thường của Người vận hành đối với một người dùng về mọi khiếu nại liên quan đến dịch vụ không vượt quá tổng số tiền người dùng đó đã thanh toán cho Địa Thế trong 12 tháng liền trước thời điểm phát sinh sự việc. Với dịch vụ miễn phí, mức này là 0 đồng.
+- Tổng mức trách nhiệm bồi thường của Người vận hành đối với một người dùng về mọi khiếu nại liên quan đến dịch vụ không vượt quá tổng số tiền người dùng đó đã thanh toán cho Địa Thế trong 12 tháng liền trước thời điểm phát sinh sự việc. Nếu số tiền đó nhỏ hơn 500.000 đồng, hoặc bạn dùng dịch vụ miễn phí, mức trần là 500.000 đồng.
 
-Các giới hạn trên không áp dụng đối với trách nhiệm mà pháp luật không cho phép loại trừ hoặc giới hạn, bao gồm thiệt hại do lỗi cố ý của Người vận hành, và không làm mất các quyền của người tiêu dùng theo pháp luật về bảo vệ quyền lợi người tiêu dùng.
+Các giới hạn trên không áp dụng đối với trách nhiệm mà pháp luật không cho phép loại trừ hoặc giới hạn, bao gồm thiệt hại do lỗi cố ý của Người vận hành, hoặc vi phạm nghiêm trọng nghĩa vụ của Người vận hành, và không làm mất các quyền của người tiêu dùng theo pháp luật về bảo vệ quyền lợi người tiêu dùng.
 
 ## 12. Bồi hoàn
 

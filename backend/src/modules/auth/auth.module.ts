@@ -1,4 +1,5 @@
 import { Module, forwardRef } from '@nestjs/common';
+import { AccountPurgeService } from './account-purge.service.js';
 import { APP_GUARD } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EmailModule } from '../email/email.module.js';
@@ -53,6 +54,7 @@ import { TokenService } from './token.service.js';
     GoogleOAuthService,
     SessionVerifierService,
     SessionMaintenanceService,
+    AccountPurgeService,
     RealtimeRegistry,
     RealtimeGateway,
     { provide: APP_GUARD, useClass: AuthRateLimitGuard },

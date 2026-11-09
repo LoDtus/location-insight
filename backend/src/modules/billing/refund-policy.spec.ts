@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   REFUND_WINDOW_MS,
   evaluateRefund,
+  canAdjustRefundAmount,
   isWholeOrderReason,
   maskAccountNumber,
   type RefundOrderSnapshot,
@@ -110,10 +111,22 @@ describe('evaluateRefund', () => {
 });
 
 describe('isWholeOrderReason', () => {
-  it('chỉ overpay không thu hồi quyền lợi', () => {
+  it('overpay và service_outage không thu hồi quyền lợi', () => {
     expect(isWholeOrderReason('overpay')).toBe(false);
+    expect(isWholeOrderReason('service_outage')).toBe(false);
+    expect(isWholeOrderReason('operator_stop')).toBe(true);
     expect(isWholeOrderReason('within_24h')).toBe(true);
     expect(isWholeOrderReason('legal')).toBe(true);
+  });
+});
+
+describe('canAdjustRefundAmount', () => {
+  it('chỉ lý do tính theo tỷ lệ mới cho nhập số nhỏ hơn mức trần', () => {
+    expect(canAdjustRefundAmount('service_outage')).toBe(true);
+    expect(canAdjustRefundAmount('operator_stop')).toBe(true);
+    expect(canAdjustRefundAmount('legal')).toBe(true);
+    expect(canAdjustRefundAmount('within_24h')).toBe(false);
+    expect(canAdjustRefundAmount('overpay')).toBe(false);
   });
 });
 

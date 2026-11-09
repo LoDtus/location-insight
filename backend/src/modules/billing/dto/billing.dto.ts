@@ -136,6 +136,13 @@ export class DecideRefundDto {
   @MinLength(3)
   @MaxLength(500)
   note: string;
+
+  /** Chỉ khi duyệt lý do tính theo tỷ lệ (gián đoạn, ngừng dịch vụ); nhỏ hơn hoặc bằng mức xin hoàn. */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100_000_000)
+  amountVnd?: number;
 }
 
 export class RefundPaidOutDto {

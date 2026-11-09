@@ -263,9 +263,10 @@ paths:
               properties:
                 decision: { type: string, enum: [approve, reject] }
                 note: { type: string, minLength: 3, maxLength: 500, description: "Bắt buộc, ghi vào admin_audit_logs (threat R1)" }
+                amountVnd: { type: integer, minimum: 1, description: "Chỉ khi approve lý do service_outage, operator_stop, legal; nhỏ hơn hoặc bằng mức xin hoàn. Ghi đè amount_vnd của yêu cầu." }
       responses:
         "200":
-          description: approved thì thu hồi phần tương ứng. Chưa phải đã chuyển khoản.
+          description: approved thì thu hồi gói hoặc trừ tín dụng với mọi lý do trừ overpay và service_outage (hoàn một phần, gói vẫn chạy). Chưa phải đã chuyển khoản.
   /admin/billing/refunds/{id}/paid-out:
     post:
       tags: [admin]

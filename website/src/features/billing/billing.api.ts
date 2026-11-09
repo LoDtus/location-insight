@@ -173,10 +173,15 @@ export function adminRefunds(status?: RefundStatus, page = 1): Promise<RefundVie
     return apiRequest<RefundView[]>(`/admin/billing/refunds?${params.toString()}`);
 }
 
-export function decideRefund(id: string, decision: "approve" | "reject", note: string) {
+export function decideRefund(
+    id: string,
+    decision: "approve" | "reject",
+    note: string,
+    amountVnd?: number,
+) {
     return apiRequest<RefundView>(`/admin/billing/refunds/${id}`, {
         method: "POST",
-        body: JSON.stringify({ decision, note }),
+        body: JSON.stringify(amountVnd === undefined ? { decision, note } : { decision, note, amountVnd }),
     });
 }
 

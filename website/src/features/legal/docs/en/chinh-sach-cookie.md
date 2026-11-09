@@ -1,4 +1,4 @@
-*Version 1.0 · Updated 26 October 2026*
+*Version 1.1 · Updated 9 November 2026*
 
 This policy explains how Địa Thế uses cookies and similar browser storage, and how you can control them. It supplements the Privacy Policy.
 
@@ -14,10 +14,13 @@ Keep the site working and secure: maintaining your sign-in session, protecting a
 **Preference** (consent required)
 Remember your choices for convenience, such as language, list view style, and your latest filters. Without them Địa Thế still works; you simply choose again each time.
 
-**Anonymous statistics** (consent required)
-Measure visit counts and the most-used pages to improve the product, as aggregated figures. This category runs only after you consent.
+**Statistics** (consent required)
+We use Google Analytics (Google) to measure visit counts and the most-used pages in order to improve the product. Google Analytics sets cookies and sends visit data (such as a truncated IP address, device and pages viewed) to Google's servers, which may be outside Vietnam. This category runs only after you consent.
 
-Địa Thế does **not** use advertising cookies, does not track you across other websites, and does not share cookies with advertisers. If this changes, we will ask for your consent before using them.
+**Advertising** (consent required)
+We use Google Ads to measure the effectiveness of Địa Thế's advertising and to show ads again to people who have visited. This category may track you across other websites under Google's policies. It runs only after you consent, and you can turn it off at any time.
+
+The statistics and advertising tools above are loaded only once the website has a cookie-choice banner and you have consented; until then Địa Thế does not load them. Địa Thế does not sell cookie data to third parties and does not share your identifying details (name, email, phone number) with Google for advertising.
 
 ## 3. Third-party cookies
 

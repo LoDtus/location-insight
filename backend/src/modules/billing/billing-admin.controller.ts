@@ -141,6 +141,7 @@ export class BillingAdminController {
       body.decision,
       body.note,
       clientIp(request.ip),
+      body.amountVnd,
     );
   }
 

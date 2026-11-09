@@ -13,9 +13,21 @@ export type RefundStatus = 'requested' | 'approved' | 'rejected' | 'paid_out';
 
 export const REFUND_WINDOW_MS = 24 * 60 * 60 * 1000;
 
-/** Lý do hoàn cả đơn: duyệt thì thu hồi gói hoặc trừ tín dụng. `overpay` chỉ hoàn phần thừa. */
+/**
+ * Lý do hoàn cả đơn: duyệt thì thu hồi gói hoặc trừ tín dụng.
+ * `overpay` chỉ hoàn phần thừa; `service_outage` hoàn một phần theo thời gian gián đoạn và gói vẫn chạy.
+ */
 export function isWholeOrderReason(reason: RefundReason): boolean {
-  return reason !== 'overpay';
+  return reason !== 'overpay' && reason !== 'service_outage';
+}
+
+/** Lý do mà số tiền hoàn tính theo tỷ lệ thời gian hoặc theo yêu cầu pháp luật, nên admin được nhập số nhỏ hơn mức trần khi duyệt. */
+export function canAdjustRefundAmount(reason: RefundReason): boolean {
+  return (
+    reason === 'service_outage' ||
+    reason === 'operator_stop' ||
+    reason === 'legal'
+  );
 }
 
 export interface RefundOrderSnapshot {

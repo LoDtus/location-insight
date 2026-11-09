@@ -1,12 +1,19 @@
-*Version 1.0 · Updated 26 October 2026*
+*Version 1.1 · Updated 9 November 2026*
 
 This document discloses who operates Địa Thế and how Địa Thế meets its duties under e-commerce law.
 
 ## 1. Operator
 
-Địa Thế is operated by an individual, not a company. The Operator's identifying and contact details are published in the operator information section or footer of the website as the law requires, and are provided to competent state authorities on valid request.
+Địa Thế is operated by an individual, not a company.
 
-Send all notices, complaints and requests through the Contact Channel published in the website footer.
+- **Operator:** Mr Nguyễn Trung Long.
+- **Email:** nguyentrunglong.150903@gmail.com
+- **Facebook:** facebook.com/nguyentrunglong.LoDtus/
+- **Zalo:** 0375467302
+
+These details are also published in the website footer. The Operator's personal ID number, tax code and residential address are not published, to prevent misuse; the Operator provides them to competent state authorities on valid request, and to customers where the law requires (for example to issue a receipt).
+
+Send all notices, complaints and requests through the channels above.
 
 ## 2. Type of activity
 

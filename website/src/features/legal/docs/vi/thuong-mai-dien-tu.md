@@ -1,12 +1,19 @@
-*Phiên bản 1.0 · Cập nhật ngày 26/10/2026*
+*Phiên bản 1.1 · Cập nhật ngày 09/11/2026*
 
 Tài liệu này công bố thông tin về chủ thể vận hành Địa Thế và cách Địa Thế thực hiện nghĩa vụ theo pháp luật về thương mại điện tử.
 
 ## 1. Chủ thể vận hành
 
-Địa Thế do một cá nhân vận hành, không phải doanh nghiệp. Thông tin định danh và liên hệ của Người vận hành được công bố ở mục thông tin vận hành hoặc chân trang của website theo quy định của pháp luật, và được cung cấp cho cơ quan nhà nước có thẩm quyền khi có yêu cầu hợp lệ.
+Địa Thế do một cá nhân vận hành, không phải doanh nghiệp.
 
-Mọi thông báo, khiếu nại và yêu cầu gửi qua kênh liên hệ được công bố ở chân trang website.
+- **Người vận hành:** ông Nguyễn Trung Long.
+- **Thư điện tử:** nguyentrunglong.150903@gmail.com
+- **Facebook:** facebook.com/nguyentrunglong.LoDtus/
+- **Zalo:** 0375467302
+
+Các thông tin này cũng được công bố ở chân trang website. Số định danh cá nhân, mã số thuế và địa chỉ cư trú của Người vận hành không đăng công khai để tránh bị lạm dụng; Người vận hành cung cấp chúng cho cơ quan nhà nước có thẩm quyền khi có yêu cầu hợp lệ, và cho khách hàng khi pháp luật yêu cầu (ví dụ để xuất chứng từ).
+
+Mọi thông báo, khiếu nại và yêu cầu gửi qua các kênh liên hệ nêu trên.
 
 ## 2. Loại hình hoạt động
 

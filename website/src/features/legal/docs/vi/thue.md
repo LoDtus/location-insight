@@ -1,4 +1,4 @@
-*Phiên bản 1.0 · Cập nhật ngày 26/10/2026*
+*Phiên bản 1.1 · Cập nhật ngày 09/11/2026*
 
 Tài liệu này giải thích cách Địa Thế xử lý thuế và chứng từ liên quan đến các khoản thanh toán của bạn. Nó chỉ nêu nguyên tắc; cách tính thuế cụ thể của Người vận hành tuân theo pháp luật thuế tại thời điểm phát sinh doanh thu.
 
@@ -6,7 +6,7 @@ Tài liệu này giải thích cách Địa Thế xử lý thuế và chứng t�
 
 Địa Thế do một cá nhân vận hành. Người vận hành tự chịu trách nhiệm đăng ký, kê khai và nộp các loại thuế phát sinh từ doanh thu của Địa Thế, theo hình thức và phương pháp mà pháp luật thuế áp dụng cho cá nhân kinh doanh tại từng thời điểm.
 
-Địa Thế chỉ mở các tính năng thu tiền sau khi hoàn tất các thủ tục thuế cần thiết cho việc thu tiền đó.
+Địa Thế chỉ mở các tính năng thu tiền sau khi hoàn tất các thủ tục thuế cần thiết cho việc thu tiền đó. Mã số thuế của Người vận hành là số định danh cá nhân nên không đăng công khai; Người vận hành cung cấp cho cơ quan thuế và, khi cần xuất chứng từ, cho bạn.
 
 ## 2. Giá và thuế
 

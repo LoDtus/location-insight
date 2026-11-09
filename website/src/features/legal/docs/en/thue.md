@@ -1,4 +1,4 @@
-*Version 1.0 · Updated 26 October 2026*
+*Version 1.1 · Updated 9 November 2026*
 
 This document explains how Địa Thế deals with tax and records relating to your payments. It states principles only; the Operator's specific tax calculation follows the tax law at the time revenue arises.
 
@@ -6,7 +6,7 @@ This document explains how Địa Thế deals with tax and records relating to y
 
 Địa Thế is operated by an individual. The Operator is responsible for registering, declaring and paying the taxes arising from Địa Thế's revenue, in the form and by the method that tax law applies to individual businesses at the relevant time.
 
-Địa Thế opens revenue-collecting features only after completing the tax procedures needed to collect that revenue.
+Địa Thế opens revenue-collecting features only after completing the tax procedures needed to collect that revenue. The Operator's tax code is his personal ID number and is therefore not published; the Operator provides it to the tax authority and, when a receipt is issued, to you.
 
 ## 2. Prices and tax
 

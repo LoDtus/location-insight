@@ -97,7 +97,7 @@ export default function Page() {
             <label className="flex items-start gap-2 text-sm">
                 <input name="acceptTerms" type="checkbox" required />
                 <span>
-                    Tôi đủ 18 tuổi và đồng ý với{" "}
+                    Tôi từ đủ 16 tuổi và đồng ý với{" "}
                     <Link href="/phap-ly">điều khoản</Link>.
                 </span>
             </label>

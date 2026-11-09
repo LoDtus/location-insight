@@ -456,5 +456,12 @@
             "rank": "Rank {count}",
             "noCover": "Article without a photo"
         }
+    },
+    "footerContact": {
+        "title": "Contact and operator information",
+        "operator": "Operator",
+        "email": "Email",
+        "facebook": "Facebook",
+        "zalo": "Zalo"
     }
 }

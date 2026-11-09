@@ -21,6 +21,7 @@ import {
   REFUND_DENIAL_MESSAGE,
   REFUND_WINDOW_MS,
   evaluateRefund,
+  canAdjustRefundAmount,
   isWholeOrderReason,
   maskAccountNumber,
   type RefundStatus,
@@ -188,6 +189,7 @@ export class BillingRefundService {
     decision: 'approve' | 'reject',
     note: string,
     ip: string | null,
+    amountVnd?: number,
   ) {
     let userId = '';
     const result = await this.dataSource.transaction(async (manager) => {
@@ -226,6 +228,21 @@ export class BillingRefundService {
         );
       }
 
+      if (amountVnd !== undefined) {
+        const adjustable =
+          decision === 'approve' &&
+          canAdjustRefundAmount(refund.reason) &&
+          amountVnd <= refund.amountVnd;
+        if (!adjustable) {
+          throw new BusinessException(
+            ErrorCode.VALIDATION_ERROR,
+            'Chỉ được nhập số tiền nhỏ hơn hoặc bằng mức xin hoàn khi duyệt lý do gián đoạn hoặc ngừng dịch vụ.',
+            null,
+            HttpStatus.UNPROCESSABLE_ENTITY,
+          );
+        }
+      }
+
       const now = new Date();
       refund.decisionNote = note;
       refund.decidedBy = actor.userId;
@@ -241,6 +258,7 @@ export class BillingRefundService {
         );
       } else {
         refund.status = 'approved';
+        if (amountVnd !== undefined) refund.amountVnd = amountVnd;
         if (isWholeOrderReason(refund.reason)) {
           await this.reclaimBenefit(manager, order, refund.id);
         }

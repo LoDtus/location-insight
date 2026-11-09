@@ -5,6 +5,7 @@ import {
     LEGAL_PATH_PREFIX,
     legalDocumentPath,
 } from "@/features/legal/legal-documents";
+import { OPERATOR_INFO } from "@/features/legal/operator-info";
 import { getLegalMessages } from "@/features/legal/server/get-legal-messages";
 import { getLandingMessages } from "@/features/landing-page/server/get-landing-messages";
 import { getLocaleValue } from "@/shared/utils/locale.utils";
@@ -55,6 +56,43 @@ export default async function Footer() {
                     ),
                 )}
             </nav>
+            <section
+                aria-label={getLocaleValue(landing, ["footerContact", "title"])}
+                className="text-sm text-cream/85 lg:col-span-2"
+            >
+                <h2 className="m-0 text-sm font-semibold text-cream">
+                    {getLocaleValue(landing, ["footerContact", "title"])}
+                </h2>
+                <ul className="m-0 mt-2 flex list-none flex-wrap gap-x-6 gap-y-1 p-0">
+                    <li>
+                        {getLocaleValue(landing, ["footerContact", "operator"])}:{" "}
+                        {OPERATOR_INFO.name}
+                    </li>
+                    <li>
+                        {getLocaleValue(landing, ["footerContact", "email"])}:{" "}
+                        <a className="underline" href={`mailto:${OPERATOR_INFO.email}`}>
+                            {OPERATOR_INFO.email}
+                        </a>
+                    </li>
+                    <li>
+                        {getLocaleValue(landing, ["footerContact", "facebook"])}:{" "}
+                        <a
+                            className="underline"
+                            href={OPERATOR_INFO.facebookUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            {OPERATOR_INFO.facebookLabel}
+                        </a>
+                    </li>
+                    <li>
+                        {getLocaleValue(landing, ["footerContact", "zalo"])}:{" "}
+                        <a className="underline" href={`tel:${OPERATOR_INFO.zaloPhone}`}>
+                            {OPERATOR_INFO.zaloPhone}
+                        </a>
+                    </li>
+                </ul>
+            </section>
         </div>
     );
 }

@@ -1,0 +1,18 @@
+{
+  "domain": "environment",
+  "source": "demo",
+  "version": "v0-beta",
+  "stage": "processed",
+  "url": null,
+  "license": "CC0-1.0 (số liệu demo tự sinh, không phải đo thật)",
+  "path": "processed/environment/demo/v0-beta",
+  "sha256": "766c9cf825014efb616e563be652396c49f9ecdd3c2a81f1607452b34da1d57b",
+  "files": [
+    {
+      "path": "processed/environment/demo/v0-beta/elev_100m.csv",
+      "sha256": "766c9cf825014efb616e563be652396c49f9ecdd3c2a81f1607452b34da1d57b",
+      "bytes": 10307786
+    }
+  ],
+  "notes": "Cao độ GIẢ. Thay bằng FABDEM khi tải được."
+}

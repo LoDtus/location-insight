@@ -10,6 +10,11 @@
   "path": "raw/environment/esa-worldcover/v200-2021",
   "files": [
     {
+      "path": "raw/environment/esa-worldcover/v200-2021/ESA_WorldCover_10m_2021_v200_N18E105_Map.tif",
+      "sha256": "8232d5b8d3dd26e27c95d33219dab592fb99bf217a536325d1b7e46f8be61325",
+      "bytes": 45738052
+    },
+    {
       "path": "raw/environment/esa-worldcover/v200-2021/ESA_WorldCover_10m_2021_v200_N21E105_Map.tif",
       "sha256": "321baa319d64788b726b3bb808da9d987ff5e0c927dbf9bba0a5d4be15b36f92",
       "bytes": 102974131
@@ -22,5 +27,6 @@
   ],
   "record_count": null,
   "bbox": null,
-  "notes": "Hai ô 3x3 độ. Ô N21E105 phủ Hà Nội. Ô N24E105 chưa kiểm tra phạm vi, nhiều khả năng không phủ Hà Nội."
+  "notes": "Ô N21E105 (21–24°B) và N18E105 (18–21°B) cùng phủ Hà Nội. sha256 chính là ô N21E105, từng ô có sha trong files.",
+  "sha256": "321baa319d64788b726b3bb808da9d987ff5e0c927dbf9bba0a5d4be15b36f92"
 }

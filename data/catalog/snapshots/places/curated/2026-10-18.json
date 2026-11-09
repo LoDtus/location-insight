@@ -43,5 +43,6 @@
     "supermarket": 268,
     "townhall": 179
   },
-  "notes": "Trích từ raw/places/osm/2026-10-18/vietnam-261017.osm.pbf: điểm tiện ích Hà Nội cho lớp bản đồ. Gộp trùng cùng nhóm cách nhau < 40 m. Điểm dạng vùng lấy trung bình các đỉnh. Chợ cóc, cửa hàng vật tư rất thưa trên OSM."
+  "notes": "Trích từ raw/places/osm/2026-10-18/vietnam-261017.osm.pbf: điểm tiện ích Hà Nội cho lớp bản đồ. Gộp trùng cùng nhóm cách nhau < 40 m. Điểm dạng vùng lấy trung bình các đỉnh. Chợ cóc, cửa hàng vật tư rất thưa trên OSM.",
+  "sha256": "f17e6e8046a9dfd9128968149fead90b97e300c7b132642d729dad5a66414ca5"
 }

@@ -1,0 +1,18 @@
+{
+  "domain": "environment",
+  "source": "demo",
+  "version": "v0-beta",
+  "stage": "processed",
+  "url": null,
+  "license": "CC0-1.0 (số liệu demo tự sinh, không phải đo thật)",
+  "path": "processed/environment/demo/v0-beta",
+  "sha256": "82a89f341884868d166e4c0afab452e7f515a7e6b66b7af7e482eb54f2c6257d",
+  "files": [
+    {
+      "path": "processed/environment/demo/v0-beta/flood_rp100.csv",
+      "sha256": "82a89f341884868d166e4c0afab452e7f515a7e6b66b7af7e482eb54f2c6257d",
+      "bytes": 9797210
+    }
+  ],
+  "notes": "Độ sâu ngập GIẢ dọc sông Hồng. Thay bằng JRC ô 20–30°B khi tải được."
+}

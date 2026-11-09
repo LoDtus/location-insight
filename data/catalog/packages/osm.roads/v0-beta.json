@@ -1,0 +1,29 @@
+{
+  "contract": "line@1",
+  "layer": "osm.roads",
+  "label": "v0-beta",
+  "sourceDate": null,
+  "crs": "EPSG:4326",
+  "sources": [
+    {
+      "catalog": "data/catalog/snapshots/places/osm/2026-10-18.json",
+      "url": "https://download.geofabrik.de/asia/vietnam.html",
+      "sha256": "eabf5f75363d94d1b27c6a0410fc91f6aef74afb565602e55cc00e3fc2227637",
+      "license": "ODbL"
+    }
+  ],
+  "pipeline": {
+    "tool": "tools/data/seed_v0.py",
+    "commit": "45aed6d991b5071320ac86931ebe5260c7d45481",
+    "dirty": false
+  },
+  "manualSteps": [],
+  "rowCount": 18834,
+  "categories": {
+    "road": 18834
+  },
+  "dataSha256": "463bbf98f217a3a8aea74a970575b7f92c5ac107c66c38fad4822e7ed6fdd951",
+  "gridCode": null,
+  "params": {},
+  "notes": "Bản beta v0: đường motorway–tertiary trong hộp Hà Nội."
+}

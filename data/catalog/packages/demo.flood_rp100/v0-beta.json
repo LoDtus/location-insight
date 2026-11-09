@@ -1,0 +1,31 @@
+{
+  "contract": "grid@1",
+  "layer": "demo.flood_rp100",
+  "label": "v0-beta",
+  "sourceDate": null,
+  "crs": "EPSG:3405",
+  "sources": [
+    {
+      "catalog": "data/catalog/snapshots/environment/demo/flood-v0-beta.json",
+      "url": "",
+      "sha256": "82a89f341884868d166e4c0afab452e7f515a7e6b66b7af7e482eb54f2c6257d",
+      "license": "CC0-1.0 (số liệu demo tự sinh, không phải đo thật)"
+    }
+  ],
+  "pipeline": {
+    "tool": "tools/data/seed_v0.py",
+    "commit": "45aed6d991b5071320ac86931ebe5260c7d45481",
+    "dirty": false
+  },
+  "manualSteps": [
+    "Sinh số liệu demo bằng tools/data/seed_v0.py (không phải đo thật)."
+  ],
+  "rowCount": 898715,
+  "categories": {},
+  "dataSha256": "82a89f341884868d166e4c0afab452e7f515a7e6b66b7af7e482eb54f2c6257d",
+  "gridCode": "vn2000-100m",
+  "params": {
+    "cell_m": 100
+  },
+  "notes": "SỐ LIỆU DEMO: độ sâu ngập giả dọc sông Hồng, chỉ để thử."
+}

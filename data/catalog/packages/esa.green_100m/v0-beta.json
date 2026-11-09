@@ -1,0 +1,29 @@
+{
+  "contract": "grid@1",
+  "layer": "esa.green_100m",
+  "label": "v0-beta",
+  "sourceDate": null,
+  "crs": "EPSG:3405",
+  "sources": [
+    {
+      "catalog": "data/catalog/snapshots/environment/esa-worldcover/v200-2021.json",
+      "url": "https://esa-worldcover.org/",
+      "sha256": "321baa319d64788b726b3bb808da9d987ff5e0c927dbf9bba0a5d4be15b36f92",
+      "license": "CC BY 4.0"
+    }
+  ],
+  "pipeline": {
+    "tool": "tools/data/seed_v0.py",
+    "commit": "45aed6d991b5071320ac86931ebe5260c7d45481",
+    "dirty": false
+  },
+  "manualSteps": [],
+  "rowCount": 898715,
+  "categories": {},
+  "dataSha256": "a85bdd4145068f69d8c52ac77f5631c2330ba9593535abb09c0bec171891894f",
+  "gridCode": "vn2000-100m",
+  "params": {
+    "cell_m": 100
+  },
+  "notes": "Bản beta v0: % diện tích cây, cây bụi, cỏ, đất ngập nước mỗi ô 100 m (25 điểm mẫu/ô)."
+}

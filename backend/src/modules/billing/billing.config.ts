@@ -1,9 +1,27 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { parseTestPrice } from './billing.constants.js';
 
 @Injectable()
-export class BillingConfig {
+export class BillingConfig implements OnModuleInit {
+  private readonly logger = new Logger(BillingConfig.name);
+
   constructor(private readonly config: ConfigService) {}
+
+  /** Kiểm tra BILLING_TEST_PRICE_VND ngay khi khởi động: sai thì dừng, đang bật thì cảnh báo để không quên tắt. */
+  onModuleInit(): void {
+    const price = this.testPriceVnd;
+    if (price !== null) {
+      this.logger.warn(
+        `Đang dùng GIÁ THỬ: mọi gói và lượt định giá thu ${price} VND (BILLING_TEST_PRICE_VND). Để trống biến này để dùng giá thật.`,
+      );
+    }
+  }
+
+  /** null: dùng bảng giá thật trong BILLING_CATALOG. */
+  get testPriceVnd(): number | null {
+    return parseTestPrice(this.config.get<string>('BILLING_TEST_PRICE_VND'));
+  }
 
   get webhookApiKey(): string {
     return this.config.get<string>('SEPAY_WEBHOOK_API_KEY') || '';

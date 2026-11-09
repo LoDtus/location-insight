@@ -78,11 +78,14 @@ export class BillingService {
   ) {}
 
   catalog() {
+    const testPrice = this.config.testPriceVnd;
     return {
       currency: BILLING_CATALOG.currency,
-      valuationCreditVnd: BILLING_CATALOG.valuationCreditVnd,
+      valuationCreditVnd: testPrice ?? BILLING_CATALOG.valuationCreditVnd,
       plans: BILLING_CATALOG.plans.map((plan) => ({
         ...plan,
+        monthVnd: testPrice ?? plan.monthVnd,
+        yearVnd: testPrice ?? plan.yearVnd,
         periodDays: BILLING_CATALOG.periodDays,
       })),
       paymentReady: this.config.ready,
@@ -98,7 +101,12 @@ export class BillingService {
         HttpStatus.SERVICE_UNAVAILABLE,
       );
     }
-    const amount = billingPrice(input.kind, input.plan, input.cycle);
+    const amount = billingPrice(
+      input.kind,
+      input.plan,
+      input.cycle,
+      this.config.testPriceVnd,
+    );
     if (!amount) {
       throw new BusinessException(
         ErrorCode.VALIDATION_ERROR,

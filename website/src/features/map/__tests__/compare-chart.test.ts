@@ -9,7 +9,7 @@ function place(id: string, createdAt: string, overall: number | null, name = id)
 }
 
 function cell(score: number, weight: number, skipped = false): EvaluatedCriterion {
-    return { score, weight, skipped } as unknown as EvaluatedCriterion;
+    return { score, weight, skipped, counted: !skipped } as unknown as EvaluatedCriterion;
 }
 
 const table = {

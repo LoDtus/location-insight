@@ -6,6 +6,8 @@ import { MapEvaluationService } from './map-evaluation.service.js';
 import type { MapLimitsService } from './map-limits.service.js';
 import type { MapWeightsService } from './map-weights.service.js';
 import type { MapPlaceResolver, ResolvedPlace } from './map-place-resolver.service.js';
+import type { PlaceMeasureService } from './measure/place-measure.service.js';
+import { CRITERIA, mockPendingMeasurement, type CriterionMeasurement } from './place-evaluation.js';
 import { pickPlace } from './place-identity.js';
 
 /**
@@ -84,12 +86,31 @@ function fakeResolver() {
   };
 }
 
+/** Bộ đo giả: tiêu chí đo thật trả điểm cố định theo thứ tự, tiêu chí AI trả số minh họa như bản thật. */
+function fakeMeasurer() {
+  let calls = 0;
+  return {
+    get calls() {
+      return calls;
+    },
+    async measure(lat: number, lng: number): Promise<CriterionMeasurement[]> {
+      calls += 1;
+      return CRITERIA.map((definition, index) =>
+        definition.status === 'not_implemented'
+          ? mockPendingMeasurement(definition, lat, lng)
+          : { id: definition.id, autoScore: (index * 3) % 11, verdict: 'Đo', detail: 'Số đo', status: 'ok', confidence: 'medium' },
+      );
+    },
+  };
+}
+
 function setup() {
   const analyses = fakeRepo();
   const runs = fakeRepo();
   const overrides = fakeRepo();
   let version = 1;
   const weights = new Map<string, number>();
+  const measurer = fakeMeasurer();
   const service = new MapEvaluationService(
     analyses as never,
     runs as never,
@@ -99,8 +120,9 @@ function setup() {
     { consumeUser: async () => undefined } as unknown as MapLimitsService,
     { get: async () => undefined, set: async () => undefined } as unknown as RedisService,
     { mapFor: async () => weights } as unknown as MapWeightsService,
+    measurer as unknown as PlaceMeasureService,
   );
-  return { service, analyses, runs, weights, release: () => (version += 1) };
+  return { service, analyses, runs, weights, measurer, release: () => (version += 1) };
 }
 
 const A = 'user-a';

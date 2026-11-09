@@ -111,6 +111,8 @@ function hasBlockingFailure(checks: readonly ReleaseCheck[]): boolean {
 export class MapDatasetService implements OnModuleInit {
   private readonly logger = new Logger(MapDatasetService.name);
 
+  private readonly manifestCache = new Map<number, Record<string, string>>();
+
   constructor(
     @InjectRepository(MapDatasetVersionEntity) private readonly versions: Repository<MapDatasetVersionEntity>,
     private readonly redis: RedisService,
@@ -163,6 +165,19 @@ export class MapDatasetService implements OnModuleInit {
       // Redis lỗi thì lần sau đọc DB tiếp, không chặn đánh giá.
     }
     return value;
+  }
+
+  /**
+   * Bảng kê lớp (mã lớp → phiên bản lớp) của một bản phát hành, dùng khi đo. Bản đã phát hành không đổi bảng kê
+   * (trigger chặn), nên giữ trong bộ nhớ theo số bản; bản nháp thì luôn đọc lại.
+   */
+  async manifestOf(version: number): Promise<Record<string, string>> {
+    const cached = this.manifestCache.get(version);
+    if (cached) return cached;
+    const row = await this.versions.findOne({ where: { version } });
+    const manifest = row?.layerManifest ?? {};
+    if (row && row.status !== 'draft') this.manifestCache.set(version, manifest);
+    return manifest;
   }
 
   async list(): Promise<DatasetVersionView[]> {

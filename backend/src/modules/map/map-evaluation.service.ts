@@ -12,10 +12,10 @@ import { MapLimitsService } from './map-limits.service.js';
 import { MapWeightsService } from './map-weights.service.js';
 import { MapPlaceResolver, type ResolvedPlace } from './map-place-resolver.service.js';
 import { MAP_ANALYSIS_TTL, MAP_REDIS_KEYS } from './map.constants.js';
+import { PlaceMeasureService } from './measure/place-measure.service.js';
 import {
   CRITERION_IDS,
   buildEvaluation,
-  generateCriteria,
   normalizeManualScore,
   type CriterionMeasurement,
   type PlaceEvaluation,
@@ -32,7 +32,7 @@ export interface EvaluationView extends PlaceEvaluation {
   currentDatasetVersion: number;
   /** Bản phân tích theo phiên bản dữ liệu cũ hơn hiện hành. */
   outdated: boolean;
-  /** fresh: lượt này gọi AI; shared: nhận bản phân tích mới nhất đã có của địa điểm. */
+  /** fresh: lượt này đo mới; shared: nhận bản phân tích mới nhất đã có của địa điểm. */
   source: EvaluationSource;
   /** Thời điểm người dùng bấm (lượt của họ). */
   evaluatedAt: string;
@@ -82,6 +82,7 @@ export class MapEvaluationService {
     private readonly limits: MapLimitsService,
     private readonly redis: RedisService,
     private readonly weights: MapWeightsService,
+    private readonly measurer: PlaceMeasureService,
   ) {}
 
   /** Lượt gần nhất của chính người dùng tại địa điểm chứa điểm bấm; null nếu chưa từng bấm. Không gọi AI. */
@@ -262,7 +263,8 @@ export class MapEvaluationService {
         const latest = await repo.findOne({ where: { placeId: place.id }, order: { createdAt: 'DESC' } });
         if (latest) return { analysis: toCached(latest), source: 'shared' as const };
       }
-      // Chỗ gọi AI/PostGIS thật sau này. Đo tại tọa độ chuẩn của địa điểm để mọi cú bấm trong địa điểm nhất quán.
+      // Đo tại tọa độ chuẩn của địa điểm để mọi cú bấm trong địa điểm nhất quán. Đo theo bản phát hành đang ghim.
+      const measurements = await this.measurer.measure(place.lat, place.lng, version);
       const created = await repo.save(
         repo.create({
           placeId: place.id,
@@ -270,8 +272,8 @@ export class MapEvaluationService {
           datasetVersion: version,
           lat: place.lat,
           lng: place.lng,
-          measurements: generateCriteria(place.lat, place.lng),
-          sample: true,
+          measurements,
+          sample: false,
         }),
       );
       const value = toCached(created);

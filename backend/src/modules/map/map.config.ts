@@ -42,6 +42,13 @@ export class MapConfig {
   get timeoutMs(): number {
     return Math.min(Math.max(this.num('VIETMAP_TIMEOUT_MS', 4000), 500), 15000);
   }
+  /** Khóa OpenAQ v3 (tiêu chí không khí). Trống thì tiêu chí không khí báo "chưa cấu hình". */
+  get openaqApiKey(): string {
+    return this.str('OPENAQ_API_KEY');
+  }
+  get openaqBaseUrl(): string {
+    return this.str('OPENAQ_BASE_URL', 'https://api.openaq.org').replace(/\/+$/, '');
+  }
   /** 0 = không giới hạn. */
   get dailyBudget(): number {
     return Math.max(0, Math.floor(this.num('MAP_DAILY_BUDGET', 1200)));

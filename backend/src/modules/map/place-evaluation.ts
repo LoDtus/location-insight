@@ -1,116 +1,82 @@
 import { createHash } from 'node:crypto';
-import { haversineM } from './map.mapper.js';
+import {
+  CRITERIA,
+  CRITERION_GROUPS,
+  DEFAULT_WEIGHTS,
+  type Confidence,
+  type CriterionDefinition,
+  type CriterionGroup,
+} from './criteria.js';
+import { clampScore, round1 } from './scoring.js';
+
+export {
+  CRITERIA,
+  CRITERION_GROUPS,
+  CRITERION_IDS,
+  DEFAULT_WEIGHTS,
+  INNER_CITY_ANCHOR,
+  WEIGHT_MAX,
+  WEIGHT_MIN,
+  isValidWeight,
+  type CriterionDefinition,
+  type CriterionGroup,
+} from './criteria.js';
+export { clampScore, SCORE_MAX, SCORE_MIN } from './scoring.js';
 
 /**
- * Đánh giá địa điểm (giai đoạn mock). Bộ tiêu chí lấy đúng theo workspace/features/000-ideas/tieu-chi.md
- * ("Hệ thống tự tính từ ghim"). Số liệu sinh ổn định theo tọa độ (cùng điểm → cùng kết quả) và luôn gắn
- * cờ `sample: true`; riêng "Nội đô" là số thật (khoảng cách tới Hồ Gươm). Khi có PostGIS/AI, chỉ cần thay
- * `generateCriteria` bằng truy vấn thật, phần gộp điểm và chỉnh tay giữ nguyên.
+ * Gộp số đo của từng tiêu chí thành kết quả đánh giá (research.md Bản ghi 10 và 14): điểm tổng có trọng số, điểm
+ * mạnh/yếu, tiêu chí chưa tính, điều kiện chặn. Số đo do PlaceMeasureService tạo (đo thật trên PostGIS, Vietmap,
+ * OpenAQ); tiêu chí cần AI chưa làm thì có số minh họa ổn định theo tọa độ (`mockPendingMeasurement`).
  */
-
-export const CRITERION_GROUPS = {
-  walk: 'Tiện ích đi bộ 500 m',
-  move: 'Đi lại và đường',
-  health: 'Y tế',
-  env: 'Dân cư, môi trường, địa hình',
-} as const;
-export type CriterionGroup = keyof typeof CRITERION_GROUPS;
-
-/** Mốc nội đô theo tiêu chí: Hồ Gươm. */
-export const INNER_CITY_ANCHOR = { lat: 21.0285, lng: 105.852 } as const;
 
 /** Điểm trung tính: trên mốc này là điểm mạnh, từ mốc trở xuống là điểm yếu. */
 export const NEUTRAL_SCORE = 5;
-export const SCORE_MIN = 0;
-export const SCORE_MAX = 10;
 
-type Measure =
-  /** Khoảng cách tới điểm gần nhất: càng gần càng tốt. */
-  | { kind: 'near'; good: number; bad: number; range: [number, number]; noun: string; source: string }
-  /** Khoảng cách tới nguồn ồn: càng xa càng tốt. */
-  | { kind: 'far'; good: number; bad: number; range: [number, number]; noun: string; source: string }
-  | { kind: 'count'; perPoint: number; range: [number, number]; noun: string; source: string }
-  | { kind: 'population'; range: [number, number]; source: string }
-  | { kind: 'air'; range: [number, number]; source: string }
-  | { kind: 'elevation'; range: [number, number]; source: string }
-  | { kind: 'flood'; source: string }
-  | { kind: 'green'; range: [number, number]; source: string }
-  | { kind: 'inner'; good: number; bad: number; source: string };
-
-export interface CriterionDefinition {
-  id: string;
-  label: string;
-  group: CriterionGroup;
-  measure: Measure;
-}
-
-const OSM = 'OpenStreetMap';
-
-export const CRITERIA: readonly CriterionDefinition[] = [
-  { id: 'cho', label: 'Chợ', group: 'walk', measure: { kind: 'near', good: 250, bad: 1200, range: [80, 1600], noun: 'chợ', source: OSM } },
-  { id: 'hieu-thuoc', label: 'Hiệu thuốc', group: 'walk', measure: { kind: 'near', good: 150, bad: 800, range: [40, 1100], noun: 'hiệu thuốc', source: OSM } },
-  { id: 'sieu-thi', label: 'Siêu thị', group: 'walk', measure: { kind: 'near', good: 300, bad: 1500, range: [120, 2200], noun: 'siêu thị', source: OSM } },
-  { id: 'ubnd', label: 'UBND', group: 'walk', measure: { kind: 'near', good: 400, bad: 2000, range: [150, 2600], noun: 'UBND', source: OSM } },
-  { id: 'vat-tu', label: 'Cửa hàng vật tư', group: 'walk', measure: { kind: 'near', good: 400, bad: 2000, range: [150, 3000], noun: 'cửa hàng vật tư', source: OSM } },
-  { id: 'quan-an', label: 'Quán ăn, cà phê', group: 'walk', measure: { kind: 'count', perPoint: 3, range: [2, 45], noun: 'quán', source: OSM } },
-  { id: 'cong-vien', label: 'Công viên', group: 'walk', measure: { kind: 'near', good: 300, bad: 1500, range: [100, 2400], noun: 'công viên', source: OSM } },
-  { id: 'truong-hoc', label: 'Trường học', group: 'walk', measure: { kind: 'near', good: 300, bad: 1200, range: [80, 1800], noun: 'trường', source: OSM } },
-  { id: 'duong-lon', label: 'Đường lớn', group: 'move', measure: { kind: 'near', good: 150, bad: 900, range: [20, 1300], noun: 'đường lớn', source: OSM } },
-  { id: 'noi-do', label: 'Nội đô', group: 'move', measure: { kind: 'inner', good: 3000, bad: 20000, source: 'Mốc Hồ Gươm (cấu hình)' } },
-  { id: 'metro', label: 'Ga metro', group: 'move', measure: { kind: 'near', good: 600, bad: 2000, range: [250, 4500], noun: 'ga metro', source: 'OSM, GTFS Hà Nội' } },
-  { id: 'xe-buyt', label: 'Điểm xe buýt', group: 'move', measure: { kind: 'near', good: 150, bad: 500, range: [40, 900], noun: 'điểm dừng', source: 'GTFS Hà Nội, OSM' } },
-  { id: 'on-giao-thong', label: 'Ồn giao thông', group: 'move', measure: { kind: 'far', good: 600, bad: 80, range: [30, 1500], noun: 'đường trục', source: OSM } },
-  { id: 'benh-vien', label: 'Bệnh viện', group: 'health', measure: { kind: 'near', good: 800, bad: 2000, range: [300, 4500], noun: 'bệnh viện', source: OSM } },
-  { id: 'mat-do-dan-cu', label: 'Mật độ dân cư', group: 'env', measure: { kind: 'population', range: [3000, 32000], source: 'WorldPop 100 m' } },
-  { id: 'khong-khi', label: 'Không khí', group: 'env', measure: { kind: 'air', range: [18, 75], source: 'OpenAQ' } },
-  { id: 'do-cao', label: 'Độ cao tương đối', group: 'env', measure: { kind: 'elevation', range: [-2.5, 2.5], source: 'FABDEM' } },
-  { id: 'ngap-song', label: 'Ngập sông (mô hình)', group: 'env', measure: { kind: 'flood', source: 'JRC Global River Flood Hazard' } },
-  { id: 'mang-xanh', label: 'Mảng xanh', group: 'env', measure: { kind: 'green', range: [3, 38], source: 'ESA WorldCover' } },
-];
-
-export const CRITERION_IDS: ReadonlySet<string> = new Set(CRITERIA.map((item) => item.id));
-
-/** Thang trọng số (mức quan trọng) của một tiêu chí: 0 = không tính vào điểm tổng, 5 = quan trọng nhất. */
-export const WEIGHT_MIN = 0;
-export const WEIGHT_MAX = 5;
+/** Điểm tổng tính trên dưới tỷ lệ này (theo trọng số) của tiêu chí đo được thì báo "dữ liệu mỏng". */
+export const COVERAGE_MIN = 0.6;
 
 /**
- * Trọng số mặc định của ứng dụng. Cao cho thứ khó thay đổi và ảnh hưởng sức khỏe/an toàn hằng ngày (bệnh viện,
- * không khí, ngập, ồn, trường học); thấp cho thứ dễ thay thế hoặc dữ liệu còn mỏng (UBND, vật tư, quán ăn).
+ * - `ok`: đo thật.
+ * - `fallback`: đo bằng phương án dự phòng (ví dụ khoảng cách thay thời gian đi khi Vietmap lỗi); độ tin hạ một bậc.
+ * - `no_data`: bản phát hành chưa có lớp dữ liệu, hoặc không tìm thấy đối tượng trong bán kính tìm.
+ * - `unavailable`: nguồn ngoài chưa cấu hình hoặc đang lỗi (OpenAQ, PostGIS).
+ * - `not_implemented`: tiêu chí cần AI, chưa làm; điểm là số minh họa.
  */
-export const DEFAULT_WEIGHTS: Readonly<Record<string, number>> = {
-  cho: 2,
-  'hieu-thuoc': 2,
-  'sieu-thi': 2,
-  ubnd: 1,
-  'vat-tu': 1,
-  'quan-an': 1,
-  'cong-vien': 2,
-  'truong-hoc': 3,
-  'duong-lon': 2,
-  'noi-do': 2,
-  metro: 2,
-  'xe-buyt': 2,
-  'on-giao-thong': 3,
-  'benh-vien': 3,
-  'mat-do-dan-cu': 1,
-  'khong-khi': 3,
-  'do-cao': 2,
-  'ngap-song': 3,
-  'mang-xanh': 2,
-};
+export type MeasurementStatus = 'ok' | 'fallback' | 'no_data' | 'unavailable' | 'not_implemented';
 
-/** Trọng số hợp lệ: số nguyên trong [0, 5]. */
-export function isValidWeight(value: unknown): value is number {
-  return typeof value === 'number' && Number.isInteger(value) && value >= WEIGHT_MIN && value <= WEIGHT_MAX;
+/** Đối tượng làm dẫn chứng (để vẽ trên bản đồ): điểm gần nhất, đường gần nhất… */
+export interface MeasurementEvidence {
+  name: string;
+  lat: number;
+  lng: number;
+  distanceM: number;
+  minutes?: number;
 }
 
-/** Kết quả đo tự động của một tiêu chí (chưa gộp chỉnh tay). */
+/** Kết quả đo tự động của một tiêu chí (chưa gộp chỉnh tay). Lưu nguyên trong `map_place_analyses.measurements`. */
 export interface CriterionMeasurement {
   id: string;
+  /** Điểm tự động 0–10. Không đo được (`no_data`, `unavailable`) thì bằng mốc trung tính và không tính vào điểm tổng. */
   autoScore: number;
   verdict: string;
   detail: string;
+  /** Bản ghi cũ (trước Bản ghi 15) không có các trường dưới đây: coi như `ok`, độ tin `medium`. */
+  status?: MeasurementStatus;
+  confidence?: Confidence;
+  /** Số đo gốc và đơn vị (m, phút, người, %, µg/m³). */
+  value?: number | null;
+  unit?: string;
+  /** `nearest@1`… để biết kết quả tính theo cách nào. */
+  method?: string;
+  /** Phiên bản lớp đã đọc (nguồn gốc kết quả, AC-07). */
+  layerVersions?: string[];
+  evidence?: MeasurementEvidence[];
+  blockingHit?: boolean;
+  /** Thời điểm quan sát của nguồn biến động (OpenAQ, Vietmap) và hạn dùng của số đo đó. */
+  observedAt?: string;
+  expiresAt?: string;
+  /** Vì sao không đo được, hoặc giới hạn đã biết. */
+  note?: string;
 }
 
 export interface CriterionOverride {
@@ -135,24 +101,43 @@ export interface EvaluatedCriterion {
   /** Trọng số đang dùng (của người dùng nếu đã đặt, không thì mặc định). */
   weight: number;
   defaultWeight: number;
+  status: MeasurementStatus;
+  confidence: Confidence;
+  /** Có góp vào điểm tổng không (đo được, đủ tin, không bỏ qua, trọng số > 0; hoặc người dùng đã chấm tay). */
+  counted: boolean;
+  note: string | null;
+  blockingHit: boolean;
+  evidence: MeasurementEvidence[];
+}
+
+export interface EvaluationBlocking {
+  criterionId: string;
+  label: string;
+  message: string;
+  cap: number;
 }
 
 export interface PlaceEvaluation {
   placeKey: string;
   lat: number;
   lng: number;
-  /** true: số liệu minh họa, chưa phải kết quả đo thật. */
+  /** true: bản phân tích cũ toàn số minh họa (trước khi đo thật). */
   sample: boolean;
-  /** Điểm tổng 0–10: trung bình có trọng số các tiêu chí không bỏ qua; null nếu không còn tiêu chí nào có trọng số. */
+  /** Điểm tổng 0–10: trung bình có trọng số các tiêu chí được tính; null nếu không còn tiêu chí nào. */
   overall: number | null;
   rating: string;
   summary: string;
-  /** Gồm cả tiêu chí đã bỏ qua (cờ `skipped`); `points` chỉ cộng tiêu chí còn tính. */
   strengths: { points: number; items: EvaluatedCriterion[] };
   weaknesses: { points: number; items: EvaluatedCriterion[] };
+  /** Tiêu chí có mặt nhưng không vào điểm: chưa có dữ liệu, nguồn lỗi, dữ liệu mỏng, hoặc cần AI chưa làm. */
+  pending: EvaluatedCriterion[];
   /** Danh sách tiện tra cứu các tiêu chí đã bỏ qua (cũng có trong strengths/weaknesses). */
   skipped: EvaluatedCriterion[];
   criteriaCount: number;
+  /** Tỷ lệ (theo trọng số) tiêu chí đo được trên các tiêu chí đo tự động được; < 0,6 thì điểm tổng chỉ để tham khảo. */
+  coverage: number;
+  /** Điều kiện chặn đang áp: điểm tổng bị giới hạn ở `cap`. */
+  blocking: EvaluationBlocking[];
 }
 
 /** Khóa địa điểm: tọa độ làm tròn 5 chữ số (~1 m). Dùng cho cache, chỉnh tay và địa điểm đã lưu. */
@@ -160,23 +145,9 @@ export function placeKeyOf(lat: number, lng: number): string {
   return `${lat.toFixed(5)},${lng.toFixed(5)}`;
 }
 
-function round1(value: number): number {
-  return Math.round(value * 10) / 10;
-}
-
-export function clampScore(value: number): number {
-  return Math.min(SCORE_MAX, Math.max(SCORE_MIN, value));
-}
-
 /** Điểm chỉnh tay hợp lệ: 0–10, bước 0,5. */
 export function normalizeManualScore(value: number): number {
   return clampScore(Math.round(value * 2) / 2);
-}
-
-/** Nội suy tuyến tính: `good` → 10, `bad` → 0 (hai chiều đều được). */
-function linear(value: number, good: number, bad: number): number {
-  if (good === bad) return NEUTRAL_SCORE;
-  return round1(clampScore(((value - bad) / (good - bad)) * SCORE_MAX));
 }
 
 export function formatDistance(meters: number): string {
@@ -184,15 +155,11 @@ export function formatDistance(meters: number): string {
   return `${(meters / 1000).toFixed(1).replace('.', ',')} km`;
 }
 
-function formatInt(value: number): string {
-  return Math.round(value).toLocaleString('vi-VN');
+export function formatNumber(value: number, digits = 0): string {
+  return value.toLocaleString('vi-VN', { maximumFractionDigits: digits, minimumFractionDigits: 0 });
 }
 
-function nearVerdict(score: number): string {
-  return score >= 7 ? 'Gần' : score >= 4 ? 'Vừa' : 'Xa';
-}
-
-/** PRNG mulberry32 có hạt giống: cùng tọa độ cho cùng chuỗi số. */
+/** PRNG mulberry32 có hạt giống: cùng chuỗi hạt giống cho cùng dãy số. */
 function seeded(seed: string): () => number {
   let state = createHash('sha256').update(seed).digest().readUInt32LE(0);
   return () => {
@@ -204,118 +171,57 @@ function seeded(seed: string): () => number {
   };
 }
 
+const PENDING_MOCKS: Readonly<Record<string, (random: () => number) => { score: number; verdict: string; detail: string }>> = {
+  'ngap-ung': (random) => {
+    const reports = Math.floor(random() * 5);
+    return {
+      score: round1(clampScore(9 - reports * 2)),
+      verdict: reports === 0 ? 'Chưa thấy tin ngập' : reports < 3 ? 'Có tin ngập' : 'Hay ngập',
+      detail: `${reports} tin ngập trong 1 km, 3 năm gần đây (số minh họa)`,
+    };
+  },
+  'quy-hoach': (random) => {
+    const projects = Math.floor(random() * 4);
+    return {
+      score: round1(clampScore(5 + projects * 1.2)),
+      verdict: projects === 0 ? 'Chưa thấy dự án' : 'Có dự án lân cận',
+      detail: `${projects} dự án hạ tầng đã phê duyệt trong 2 km (số minh họa)`,
+    };
+  },
+  'an-ninh': (random) => {
+    const incidents = Math.floor(random() * 6);
+    return {
+      score: round1(clampScore(8.5 - incidents)),
+      verdict: incidents <= 1 ? 'Ít tin vụ việc' : 'Có tin vụ việc',
+      detail: `${incidents} tin vụ việc trong 1 km, 12 tháng gần đây (số minh họa)`,
+    };
+  },
+};
+
 /**
- * Mức đô thị 0–1 theo khoảng cách tới Hồ Gươm (0 m → 1, từ 18 km → 0). Số minh họa dùng nó để nội đô
- * có tiện ích dày, ngoại thành thưa, giống thực tế hơn là ngẫu nhiên đều.
+ * Tiêu chí cần AI chưa làm: số minh họa cụ thể, ổn định theo tọa độ, gắn `not_implemented` để giao diện ghi
+ * "Chưa thực hiện" và không tính vào điểm tổng.
  */
-export function urbanFactor(point: { lat: number; lng: number }): number {
-  return Math.max(0, 1 - haversineM(point, INNER_CITY_ANCHOR) / 18000);
+export function mockPendingMeasurement(definition: CriterionDefinition, lat: number, lng: number): CriterionMeasurement {
+  const random = seeded(`${definition.id}:${placeKeyOf(lat, lng)}`);
+  const mock = PENDING_MOCKS[definition.id]?.(random) ?? { score: NEUTRAL_SCORE, verdict: 'Chưa thực hiện', detail: 'Số minh họa' };
+  return {
+    id: definition.id,
+    autoScore: mock.score,
+    verdict: mock.verdict,
+    detail: mock.detail,
+    status: 'not_implemented',
+    confidence: 'low',
+    value: null,
+    method: 'ai_pending@0',
+    note: `Tính năng chưa được thực hiện. ${definition.caveat ?? ''}`.trim(),
+  };
 }
 
-function measure(definition: CriterionDefinition, random: () => number, point: { lat: number; lng: number }): CriterionMeasurement {
-  const m = definition.measure;
-  const urban = urbanFactor(point);
-  /** Khoảng cách: nội đô kéo về đầu thấp của khoảng. */
-  const pickNear = (range: [number, number]): number => range[0] + (range[1] - range[0]) * random() * (0.25 + 0.75 * (1 - urban));
-  /** Số lượng/mật độ: nội đô kéo về đầu cao của khoảng. */
-  const pickDense = (range: [number, number]): number => range[0] + (range[1] - range[0]) * Math.min(1, random() * 0.6 + urban * 0.5);
-  const pick = (range: [number, number]): number => range[0] + (range[1] - range[0]) * random();
-  switch (m.kind) {
-    case 'near': {
-      const distance = pickNear(m.range);
-      const score = linear(distance, m.good, m.bad);
-      return { id: definition.id, autoScore: score, verdict: nearVerdict(score), detail: `Cách ${m.noun} gần nhất ${formatDistance(distance)}` };
-    }
-    case 'far': {
-      const distance = pick(m.range);
-      const score = linear(distance, m.good, m.bad);
-      return {
-        id: definition.id,
-        autoScore: score,
-        verdict: score >= 7 ? 'Yên tĩnh' : score >= 4 ? 'Hơi ồn' : 'Ồn',
-        detail: `Cách ${m.noun} ${formatDistance(distance)}`,
-      };
-    }
-    case 'count': {
-      const count = Math.round(pickDense(m.range));
-      const score = round1(clampScore(count / m.perPoint));
-      return {
-        id: definition.id,
-        autoScore: score,
-        verdict: score >= 7 ? 'Nhiều' : score >= 4 ? 'Vừa' : 'Ít',
-        detail: `${count} ${m.noun} trong 500 m`,
-      };
-    }
-    case 'population': {
-      const people = pickDense(m.range);
-      // Đông vừa phải là tốt nhất: quá thưa thì thiếu dịch vụ, quá đông thì chật.
-      const score = round1(clampScore(SCORE_MAX - Math.abs(people - 15000) / 1800));
-      return {
-        id: definition.id,
-        autoScore: score,
-        verdict: people > 22000 ? 'Rất đông' : people > 9000 ? 'Đông vừa' : 'Thưa',
-        detail: `Khoảng ${formatInt(Math.round(people / 100) * 100)} người trong 500 m`,
-      };
-    }
-    case 'air': {
-      const pm = pick(m.range);
-      const station = 0.6 + random() * 2.3;
-      const score = linear(pm, 15, 75);
-      return {
-        id: definition.id,
-        autoScore: score,
-        verdict: pm <= 30 ? 'Tốt' : pm <= 50 ? 'Trung bình' : 'Kém',
-        detail: `PM2.5 ${Math.round(pm)} µg/m³, trạm cách ${station.toFixed(1).replace('.', ',')} km`,
-      };
-    }
-    case 'elevation': {
-      const delta = pick(m.range);
-      const score = linear(delta, 2, -2);
-      const abs = Math.abs(delta).toFixed(1).replace('.', ',');
-      return {
-        id: definition.id,
-        autoScore: score,
-        verdict: delta >= 0.5 ? 'Cao hơn xung quanh' : delta <= -0.5 ? 'Thấp hơn xung quanh' : 'Ngang xung quanh',
-        detail: delta >= 0 ? `Cao hơn trung vị 500 m khoảng ${abs} m` : `Thấp hơn trung vị 500 m khoảng ${abs} m`,
-      };
-    }
-    case 'flood': {
-      const inZone = random() < 0.3;
-      const depth = inZone ? 0.1 + random() * 1.2 : 0;
-      const score = inZone ? linear(depth, 0, 1.5) : 9;
-      return {
-        id: definition.id,
-        autoScore: score,
-        verdict: inZone ? 'Trong vệt ngập mô hình' : 'Ngoài vệt ngập mô hình',
-        detail: inZone ? `Độ sâu mô hình ${depth.toFixed(1).replace('.', ',')} m ở chu kỳ 100 năm` : 'Không nằm trong vệt ngập sông chu kỳ 100 năm',
-      };
-    }
-    case 'green': {
-      const ratio = pick(m.range);
-      const score = linear(ratio, 30, 5);
-      return {
-        id: definition.id,
-        autoScore: score,
-        verdict: ratio >= 22 ? 'Nhiều cây' : ratio >= 12 ? 'Vừa' : 'Ít cây',
-        detail: `${Math.round(ratio)}% diện tích có thực vật trong 300 m`,
-      };
-    }
-    case 'inner': {
-      const distance = haversineM(point, INNER_CITY_ANCHOR);
-      const score = linear(distance, m.good, m.bad);
-      return { id: definition.id, autoScore: score, verdict: nearVerdict(score), detail: `Cách Hồ Gươm ${formatDistance(distance)}` };
-    }
-  }
-}
-
-/** Đo tự động mọi tiêu chí tại một điểm (hiện là số minh họa ổn định theo tọa độ). */
-export function generateCriteria(lat: number, lng: number): CriterionMeasurement[] {
-  const random = seeded(placeKeyOf(lat, lng));
-  return CRITERIA.map((definition) => measure(definition, random, { lat, lng }));
-}
-
-function ratingOf(overall: number | null): string {
+function ratingOf(overall: number | null, coverage: number): string {
   if (overall === null) return 'Chưa đủ tiêu chí';
+  // Đo được quá ít tiêu chí: không gắn nhãn "Rất tốt"/"Kém" cho một con số dựa trên vài tiêu chí.
+  if (coverage < COVERAGE_MIN) return 'Chỉ tham khảo';
   if (overall >= 8) return 'Rất tốt';
   if (overall >= 6.5) return 'Tốt';
   if (overall >= 5) return 'Trung bình';
@@ -328,14 +234,36 @@ function joinLabels(items: EvaluatedCriterion[]): string {
   return `${labels.slice(0, -1).join(', ')} và ${labels[labels.length - 1]}`;
 }
 
-function summarize(overall: number | null, rating: string, strengths: EvaluatedCriterion[], weaknesses: EvaluatedCriterion[], used: number): string {
-  if (overall === null) return 'Không còn tiêu chí nào được tính (đã bỏ qua hoặc trọng số 0) nên chưa có nhận xét. Khôi phục ít nhất một tiêu chí để xem điểm.';
+function summarize(
+  overall: number | null,
+  rating: string,
+  strengths: EvaluatedCriterion[],
+  weaknesses: EvaluatedCriterion[],
+  used: number,
+  coverage: number,
+  blocking: EvaluationBlocking[],
+): string {
+  if (overall === null) {
+    return 'Chưa có tiêu chí nào đo được và được tính (thiếu dữ liệu, đã bỏ qua hoặc trọng số 0) nên chưa có nhận xét.';
+  }
   const top = strengths.slice(0, 3);
   const low = [...weaknesses].sort((a, b) => a.score - b.score).slice(0, 3);
-  const parts = [`Điểm ${overall.toFixed(1).replace('.', ',')}/10, mức ${rating.toLowerCase()} trên ${used} tiêu chí.`];
+  const parts: string[] = [];
+  if (blocking.length > 0) parts.push(`${blocking[0].message} Điểm tổng bị giới hạn ở ${formatNumber(blocking[0].cap, 1)}.`);
+  parts.push(
+    coverage < COVERAGE_MIN
+      ? `Điểm ${overall.toFixed(1).replace('.', ',')}/10 tính trên ${used} tiêu chí đo được.`
+      : `Điểm ${overall.toFixed(1).replace('.', ',')}/10, mức ${rating.toLowerCase()} trên ${used} tiêu chí.`,
+  );
   if (top.length > 0) parts.push(`Nổi bật ở ${joinLabels(top)}.`);
   if (low.length > 0) parts.push(`Cần cân nhắc ${joinLabels(low)}.`);
+  if (coverage < COVERAGE_MIN) parts.push('Dữ liệu còn mỏng, điểm tổng chỉ để tham khảo.');
   return parts.join(' ');
+}
+
+/** Có tính vào điểm tổng được không khi người dùng chưa chấm tay: đo thật và đủ tin (từ `medium`). */
+function measuredAndTrusted(status: MeasurementStatus, confidence: Confidence): boolean {
+  return (status === 'ok' || status === 'fallback') && confidence !== 'low';
 }
 
 /** Gộp số đo tự động với chỉnh tay của người dùng, chia điểm mạnh/yếu và tính điểm tổng. */
@@ -344,7 +272,7 @@ export function buildEvaluation(
   lng: number,
   measurements: CriterionMeasurement[],
   overrides: CriterionOverride[],
-  sample = true,
+  sample = false,
   /** Trọng số riêng của người dùng theo mã tiêu chí; thiếu thì dùng DEFAULT_WEIGHTS. */
   weights: ReadonlyMap<string, number> = new Map(),
 ): PlaceEvaluation {
@@ -355,6 +283,12 @@ export function buildEvaluation(
     if (!measured) continue;
     const override = byId.get(definition.id);
     const manual = override?.score !== null && override?.score !== undefined;
+    const status = measured.status ?? 'ok';
+    const confidence = measured.confidence ?? 'medium';
+    const skipped = override?.skipped === true;
+    const weight = weights.get(definition.id) ?? DEFAULT_WEIGHTS[definition.id] ?? 1;
+    // Điểm chấm tay luôn được tính (người dùng tự lấp chỗ hệ thống chưa đo được), số minh họa thì không.
+    const counted = !skipped && weight > 0 && (manual || measuredAndTrusted(status, confidence));
     evaluated.push({
       id: definition.id,
       label: definition.label,
@@ -362,28 +296,52 @@ export function buildEvaluation(
       groupLabel: CRITERION_GROUPS[definition.group],
       verdict: measured.verdict,
       detail: measured.detail,
-      source: definition.measure.source,
+      source: definition.source,
       score: manual ? normalizeManualScore(override.score as number) : measured.autoScore,
       autoScore: measured.autoScore,
       manual,
-      skipped: override?.skipped === true,
-      weight: weights.get(definition.id) ?? DEFAULT_WEIGHTS[definition.id] ?? 1,
+      skipped,
+      weight,
       defaultWeight: DEFAULT_WEIGHTS[definition.id] ?? 1,
+      status,
+      confidence,
+      counted,
+      note: measured.note ?? (confidence === 'low' && status === 'ok' ? (definition.caveat ?? 'Dữ liệu mỏng.') : null),
+      blockingHit: measured.blockingHit === true,
+      evidence: measured.evidence ?? [],
     });
   }
-  // Tiêu chí trọng số 0 vẫn hiện nhưng không góp vào điểm, giống tiêu chí bỏ qua.
-  const active = evaluated.filter((item) => !item.skipped && item.weight > 0);
+
+  const active = evaluated.filter((item) => item.counted);
+  // Trọng số dùng cho điểm mạnh/yếu: mọi trọng số bằng nhau thì bằng tổng chênh lệch so với mốc 5.
   const totalWeight = active.reduce((sum, item) => sum + item.weight, 0);
-  // Điểm nhóm theo trọng số, chuẩn hóa để khi mọi trọng số bằng nhau thì bằng tổng chênh lệch so với mốc 5.
   const meanWeight = active.length > 0 ? totalWeight / active.length : 1;
-  // Tiêu chí bị bỏ qua vẫn nằm trong nhóm của nó (UI gạch ngang), nhưng không tính vào điểm nhóm và điểm tổng.
-  const strengths = evaluated.filter((item) => item.score > NEUTRAL_SCORE).sort((a, b) => b.score - a.score);
-  const weaknesses = evaluated.filter((item) => item.score <= NEUTRAL_SCORE).sort((a, b) => a.score - b.score);
-  const counted = (items: EvaluatedCriterion[]): EvaluatedCriterion[] => items.filter((item) => !item.skipped && item.weight > 0);
-  const overall = totalWeight > 0 ? round1(active.reduce((sum, item) => sum + item.score * item.weight, 0) / totalWeight) : null;
+  let overall = totalWeight > 0 ? round1(active.reduce((sum, item) => sum + item.score * item.weight, 0) / totalWeight) : null;
+
+  const blocking: EvaluationBlocking[] = [];
+  for (const item of active) {
+    const rule = CRITERIA.find((definition) => definition.id === item.id)?.blocking;
+    if (!rule || !item.blockingHit || item.manual) continue;
+    blocking.push({ criterionId: item.id, label: item.label, message: rule.message, cap: rule.cap });
+  }
+  if (overall !== null && blocking.length > 0) overall = Math.min(overall, ...blocking.map((item) => item.cap));
+
+  // Độ phủ: chỉ xét tiêu chí đo tự động được (bỏ tiêu chí AI chưa làm và tiêu chí người dùng đã bỏ/đặt trọng số 0).
+  const automatic = evaluated.filter((item) => item.status !== 'not_implemented' && !item.skipped && item.weight > 0);
+  const automaticWeight = automatic.reduce((sum, item) => sum + item.weight, 0);
+  const measuredWeight = automatic.filter((item) => item.counted).reduce((sum, item) => sum + item.weight, 0);
+  const coverage = automaticWeight > 0 ? Math.round((measuredWeight / automaticWeight) * 100) / 100 : 0;
+
+  // Tiêu chí bỏ qua vẫn nằm trong nhóm điểm của nó (giao diện gạch ngang). Tiêu chí không đo được hoặc chưa làm
+  // thì vào `pending` để không lẫn số minh họa với kết luận thật.
+  const placed = evaluated.filter((item) => item.counted || item.skipped);
+  const pending = evaluated.filter((item) => !item.counted && !item.skipped);
+  const strengths = placed.filter((item) => item.score > NEUTRAL_SCORE).sort((a, b) => b.score - a.score);
+  const weaknesses = placed.filter((item) => item.score <= NEUTRAL_SCORE).sort((a, b) => a.score - b.score);
+  const counted = (items: EvaluatedCriterion[]): EvaluatedCriterion[] => items.filter((item) => item.counted);
   const pointsOf = (items: EvaluatedCriterion[]): number =>
     round1(counted(items).reduce((sum, item) => sum + Math.abs(item.score - NEUTRAL_SCORE) * item.weight, 0) / meanWeight);
-  const rating = ratingOf(overall);
+  const rating = ratingOf(overall, coverage);
   return {
     placeKey: placeKeyOf(lat, lng),
     lat,
@@ -391,10 +349,13 @@ export function buildEvaluation(
     sample,
     overall,
     rating,
-    summary: summarize(overall, rating, counted(strengths), counted(weaknesses), active.length),
+    summary: summarize(overall, rating, counted(strengths), counted(weaknesses), active.length, coverage, blocking),
     strengths: { points: pointsOf(strengths), items: strengths },
     weaknesses: { points: pointsOf(weaknesses), items: weaknesses },
+    pending,
     skipped: evaluated.filter((item) => item.skipped),
     criteriaCount: evaluated.length,
+    coverage,
+    blocking,
   };
 }

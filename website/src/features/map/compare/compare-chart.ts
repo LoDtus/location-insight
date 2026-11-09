@@ -4,7 +4,8 @@ import type { CompareItem, CriterionGroup, EvaluatedCriterion } from "@/features
 /**
  * Dữ liệu cho biểu đồ so sánh (ECharts). Tách khỏi component để kiểm thử được.
  * - Màu theo địa điểm, không theo vị trí cột: kéo/xếp lại cột không đổi màu (gán theo thứ tự thêm vào).
- * - Điểm nhóm = trung bình có trọng số của các tiêu chí không bị bỏ qua (cùng cách tính điểm tổng).
+ * - Điểm nhóm = trung bình có trọng số của các tiêu chí được tính vào điểm tổng (bỏ tiêu chí đã bỏ qua, chưa có dữ
+ *   liệu và tiêu chí AI chưa làm), cùng cách tính điểm tổng.
  */
 
 /** Bảng màu phân loại cố định (thứ tự đã kiểm tra phân biệt được với người mù màu); tối đa 6 địa điểm. */
@@ -28,10 +29,10 @@ export function colorSlots(items: readonly CompareItem[]): Map<string, number> {
     return new Map(stable.map((item, index) => [item.id, index % SERIES_COLORS.length]));
 }
 
-/** Trung bình có trọng số các tiêu chí không bỏ qua của nhóm; trọng số 0 hết thì lấy trung bình thường. */
+/** Trung bình có trọng số các tiêu chí được tính của nhóm; trọng số 0 hết thì lấy trung bình thường. */
 export function groupScore(table: CompareTable, column: number, group: CriterionGroup): number | null {
     const rows = table.groups.find((entry) => entry.group === group)?.rows ?? [];
-    const cells = rows.map((row) => row.cells[column]).filter((cell): cell is EvaluatedCriterion => cell !== null && cell !== undefined && !cell.skipped);
+    const cells = rows.map((row) => row.cells[column]).filter((cell): cell is EvaluatedCriterion => cell !== null && cell !== undefined && cell.counted);
     if (cells.length === 0) return null;
     const weight = cells.reduce((sum, cell) => sum + cell.weight, 0);
     const value = weight > 0 ? cells.reduce((sum, cell) => sum + cell.score * cell.weight, 0) / weight : cells.reduce((sum, cell) => sum + cell.score, 0) / cells.length;
@@ -64,6 +65,8 @@ export function chartPlaces(items: readonly CompareItem[], table: CompareTable, 
                     move: groupScore(table, column, "move"),
                     health: groupScore(table, column, "health"),
                     env: groupScore(table, column, "env"),
+                    // Tiêu chí AI chưa thực hiện: chỉ có số minh họa, không đưa lên biểu đồ.
+                    ai: null,
                 },
             },
         ];

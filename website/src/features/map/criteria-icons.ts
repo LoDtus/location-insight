@@ -1,6 +1,8 @@
 import {
     Building2,
     Bus,
+    CloudRain,
+    Construction,
     Hammer,
     Hospital,
     Landmark,
@@ -9,6 +11,7 @@ import {
     Mountain,
     Pill,
     School,
+    ShieldCheck,
     ShoppingCart,
     Store,
     TrainFront,
@@ -22,8 +25,8 @@ import {
 } from "lucide-react";
 
 /**
- * 19 tiêu chí cố định của đánh giá địa điểm (khớp `CRITERIA` trong backend place-evaluation.ts và
- * workspace/features/000-ideas/tieu-chi.md). Bộ tiêu chí không thêm, không bớt.
+ * Tiêu chí của đánh giá địa điểm, khớp `CRITERIA` trong backend criteria.ts: 19 tiêu chí đo tự động
+ * (workspace/features/000-ideas/tieu-chi.md) và 3 tiêu chí cần AI chưa thực hiện (trả số minh họa, không tính điểm).
  */
 export const CRITERION_IDS = [
     "cho",
@@ -45,11 +48,14 @@ export const CRITERION_IDS = [
     "do-cao",
     "ngap-song",
     "mang-xanh",
+    "ngap-ung",
+    "quy-hoach",
+    "an-ninh",
 ] as const;
 
 export type CriterionId = (typeof CRITERION_IDS)[number];
 
-/** Icon của từng tiêu chí. `Record` theo đủ 19 mã nên thiếu hay thừa một mã là lỗi biên dịch. */
+/** Icon của từng tiêu chí. `Record` theo đủ mã nên thiếu hay thừa một mã là lỗi biên dịch. */
 export const CRITERION_ICON: Record<CriterionId, LucideIcon> = {
     cho: Store,
     "hieu-thuoc": Pill,
@@ -70,4 +76,7 @@ export const CRITERION_ICON: Record<CriterionId, LucideIcon> = {
     "do-cao": Mountain,
     "ngap-song": Waves,
     "mang-xanh": Leaf,
+    "ngap-ung": CloudRain,
+    "quy-hoach": Construction,
+    "an-ninh": ShieldCheck,
 };

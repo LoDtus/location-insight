@@ -8,7 +8,7 @@ export interface CompareCriterionRow {
     groupLabel: string;
     /** Ô của từng cột (theo thứ tự `items`); null khi địa điểm chưa đánh giá. */
     cells: Array<EvaluatedCriterion | null>;
-    /** Chỉ số các cột có điểm cao nhất của hàng (bỏ qua ô đã bỏ qua; cần ít nhất 2 cột có điểm). */
+    /** Chỉ số các cột có điểm cao nhất của hàng (chỉ ô được tính vào điểm tổng; cần ít nhất 2 cột có điểm). */
     best: number[];
 }
 
@@ -18,11 +18,11 @@ export interface CompareTable {
     bestOverall: number[];
 }
 
-const GROUP_ORDER: CriterionGroup[] = ["walk", "move", "health", "env"];
+const GROUP_ORDER: CriterionGroup[] = ["walk", "move", "health", "env", "ai"];
 
 function criteriaOf(item: CompareItem): EvaluatedCriterion[] {
     const evaluation = item.evaluation;
-    return evaluation ? [...evaluation.strengths.items, ...evaluation.weaknesses.items, ...evaluation.skipped] : [];
+    return evaluation ? [...evaluation.strengths.items, ...evaluation.weaknesses.items, ...evaluation.skipped, ...(evaluation.pending ?? [])] : [];
 }
 
 /** Chỉ số các giá trị lớn nhất; rỗng nếu chưa đủ 2 giá trị để so. */
@@ -34,7 +34,7 @@ export function bestIndexes(values: Array<number | null>): number[] {
     return values.flatMap((value, index) => (value === top ? [index] : []));
 }
 
-/** Dựng bảng so sánh: hàng theo 19 tiêu chí cố định (thứ tự của CRITERION_IDS), cột theo địa điểm. */
+/** Dựng bảng so sánh: hàng theo các tiêu chí cố định (thứ tự của CRITERION_IDS), cột theo địa điểm. */
 export function buildCompareTable(items: readonly CompareItem[]): CompareTable {
     const byItem = items.map((item) => new Map(criteriaOf(item).map((criterion) => [criterion.id, criterion])));
     const rows: CompareCriterionRow[] = [];
@@ -48,7 +48,7 @@ export function buildCompareTable(items: readonly CompareItem[]): CompareTable {
             group: sample.group,
             groupLabel: sample.groupLabel,
             cells,
-            best: bestIndexes(cells.map((cell) => (cell && !cell.skipped ? cell.score : null))),
+            best: bestIndexes(cells.map((cell) => (cell && cell.counted ? cell.score : null))),
         });
     }
     const groups = GROUP_ORDER.flatMap((group) => {

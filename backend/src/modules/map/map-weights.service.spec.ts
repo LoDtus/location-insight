@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { MapLimitsService } from './map-limits.service.js';
 import { MapWeightsService } from './map-weights.service.js';
-import { DEFAULT_WEIGHTS } from './place-evaluation.js';
+import { CRITERIA, DEFAULT_WEIGHTS } from './place-evaluation.js';
 
 /** Đặc tả: workspace/features/013-map/README.md §4h (trọng số tiêu chí). Repository giả trong bộ nhớ. */
 type Row = { userId: string; criterionId: string; weight: number };
@@ -30,10 +30,10 @@ function setup() {
 }
 
 describe('MapWeightsService', () => {
-  it('mặc định: đủ 19 tiêu chí, không có thay đổi', async () => {
+  it('mặc định: đủ mọi tiêu chí (cả tiêu chí AI chưa làm), không có thay đổi', async () => {
     const { service } = setup();
     const view = await service.list('a');
-    expect(view.criteria).toHaveLength(19);
+    expect(view.criteria).toHaveLength(CRITERIA.length);
     expect(view.changed).toBe(0);
     expect(view.criteria.every((item) => item.weight === DEFAULT_WEIGHTS[item.id])).toBe(true);
   });

@@ -162,8 +162,8 @@ export function getMyEvaluation(point: MapPoint, signal?: AbortSignal): Promise<
 }
 
 /**
- * Bấm "Đánh giá" (`fresh=false`: nhận bản phân tích mới nhất của địa điểm, chưa có thì AI chạy) hoặc
- * "Đánh giá lại" (`fresh=true`: AI luôn chạy). Mỗi lần bấm là một lượt của người dùng.
+ * Bấm "Đánh giá" (`fresh=false`: nhận bản phân tích mới nhất của địa điểm, chưa có thì đo mới) hoặc
+ * "Đánh giá lại" (`fresh=true`: luôn đo lại). Mỗi lần bấm là một lượt của người dùng.
  */
 export function runEvaluation(point: MapPoint, fresh: boolean): Promise<{ evaluation: PlaceEvaluation; source: "fresh" | "shared" }> {
     return apiRequest("/map/places/evaluation", { method: "POST", body: JSON.stringify({ lat: point.lat, lng: point.lng, fresh }) });

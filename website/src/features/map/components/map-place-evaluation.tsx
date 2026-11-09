@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Eye, EyeOff, Loader2, MapPinned, Pencil, RotateCcw, Scale, Sparkles, X } from "lucide-react";
+import { Check, Eye, EyeOff, Loader2, MapPinned, Pencil, RotateCcw, Scale, Sparkles, TriangleAlert, X } from "lucide-react";
 import { Fragment, useEffect, useId, useRef, useState, type FormEvent, type JSX } from "react";
 
 import WeightPicker, { weightLabel } from "@/features/map/components/weight-picker";
@@ -10,6 +10,9 @@ import { showToast } from "@/shared/components/toast/toast-store";
 import ScoreRing, { formatScore as score, scoreTone } from "@/features/map/components/score-ring";
 import { CRITERION_ICON } from "@/features/map/criteria-icons";
 import type { EvaluatedCriterion, MapPoint, PlaceEvaluation } from "@/features/map/map.types";
+
+/** Dưới tỷ lệ này (theo trọng số) tiêu chí đo được thì điểm tổng chỉ để tham khảo (khớp COVERAGE_MIN của backend). */
+const COVERAGE_MIN = 0.6;
 
 type State =
     /** Đang đọc lượt đánh giá cũ của chính người dùng (không tính phí). */
@@ -45,8 +48,9 @@ const ICON_BUTTON =
     "inline-flex size-8 items-center justify-center rounded-md bg-transparent text-charcoal/60 hover:bg-charcoal/5 hover:text-charcoal focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-green disabled:opacity-40";
 
 /**
- * Đánh giá địa điểm theo bộ tiêu chí (tieu-chi.md). Hiện backend trả số liệu minh họa; sau này AI thay phần đo,
- * giao diện giữ nguyên. Thứ tự: điểm tổng → tóm tắt → điểm mạnh → điểm yếu → tiêu chí đã bỏ qua.
+ * Đánh giá địa điểm theo bộ tiêu chí (tieu-chi.md, backend criteria.ts). Backend đo thật trên dữ liệu nền (PostGIS),
+ * thời gian đi (Vietmap) và không khí (OpenAQ); tiêu chí cần AI chưa làm thì có số minh họa, gắn "Chưa thực hiện" và
+ * không tính điểm. Thứ tự: điều kiện chặn → điểm tổng → tóm tắt → điểm mạnh → điểm yếu → chưa tính vào điểm.
  */
 export default function MapPlaceEvaluation({
     point,
@@ -83,7 +87,7 @@ export default function MapPlaceEvaluation({
             });
         return () => controller.abort();
     }, [point]);
-    // Đổi trọng số (ở đây hoặc trong modal quản lý): đọc lại lượt của mình để điểm tính theo trọng số mới. Không gọi AI.
+    // Đổi trọng số (ở đây hoặc trong modal quản lý): đọc lại lượt của mình để điểm tính theo trọng số mới. Không đo lại.
     const weightsVersion = useWeightsVersion();
     const seenVersion = useRef(weightsVersion);
     const hasEvaluation = state.status === "ready";
@@ -135,7 +139,7 @@ export default function MapPlaceEvaluation({
         const previous = state.status === "ready" || state.status === "refreshing" ? state.evaluation : null;
         setState(previous ? { status: "refreshing", evaluation: previous } : { status: "loading" });
         setError(null);
-        // Có kết quả rồi thì nút là "Đánh giá lại": luôn để AI chạy lại.
+        // Có kết quả rồi thì nút là "Đánh giá lại": luôn đo lại.
         runEvaluation(point, previous !== null)
             .then(({ evaluation, source }) => {
                 setState({ status: "ready", evaluation });
@@ -143,12 +147,12 @@ export default function MapPlaceEvaluation({
                 if (source === "shared") {
                     showToast({
                         title: "Đã có kết quả đánh giá địa điểm",
-                        description: `${placeName}: kết quả gần nhất lúc ${formatEvaluatedAt(evaluation.analyzedAt)}. Bấm “Đánh giá lại” nếu muốn AI chạy lại.`,
+                        description: `${placeName}: kết quả gần nhất lúc ${formatEvaluatedAt(evaluation.analyzedAt)}. Bấm “Đánh giá lại” nếu muốn đo lại.`,
                     });
                     return;
                 }
                 showToast({
-                    title: previous ? "AI đã đánh giá lại địa điểm" : "AI đã đánh giá xong địa điểm",
+                    title: previous ? "Đã đánh giá lại địa điểm" : "Đã đánh giá xong địa điểm",
                     description:
                         evaluation.overall === null
                             ? `${placeName} · dữ liệu v${evaluation.datasetVersion}`
@@ -202,7 +206,7 @@ export default function MapPlaceEvaluation({
                     <Sparkles size={16} aria-hidden /> Đánh giá địa điểm
                 </button>
                 <p className="m-0 mt-1.5 text-xs text-charcoal/60">
-                    Chấm theo 19 tiêu chí: tiện ích đi bộ, đi lại, y tế, dân cư và môi trường
+                    Chấm theo tiện ích đi bộ, đi lại, y tế, dân cư và môi trường
                     {state.status === "idle" && state.currentDatasetVersion ? ` · dữ liệu v${state.currentDatasetVersion}` : ""}. Kết quả được lưu
                     riêng cho bạn.
                 </p>
@@ -230,7 +234,9 @@ export default function MapPlaceEvaluation({
 
     const { evaluation } = state;
     const refreshing = state.status === "refreshing";
-    const used = evaluation.criteriaCount - evaluation.skipped.length;
+    const used = [...evaluation.strengths.items, ...evaluation.weaknesses.items].filter((item) => item.counted ?? !item.skipped).length;
+    const pending = evaluation.pending ?? [];
+    const thin = typeof evaluation.coverage === "number" && evaluation.coverage < COVERAGE_MIN;
     const overallTone = scoreTone(evaluation.overall);
 
     return (
@@ -243,7 +249,7 @@ export default function MapPlaceEvaluation({
                     type="button"
                     onClick={run}
                     disabled={refreshing}
-                    title="AI đánh giá lại địa điểm này (tính một lượt)"
+                    title="Đo lại địa điểm này (tính một lượt)"
                     className={`${ICON_BUTTON} w-auto gap-1 px-2 text-xs font-semibold`}
                     aria-label="Đánh giá lại"
                 >
@@ -253,29 +259,39 @@ export default function MapPlaceEvaluation({
             </div>
             <div className={`transition-opacity duration-200 motion-reduce:transition-none ${refreshing ? "pointer-events-none opacity-50" : ""}`}>
                 <p className="m-0 mt-1 text-xs text-charcoal/60">
-                    Kết quả AI lúc {formatEvaluatedAt(evaluation.analyzedAt)} · dữ liệu v{evaluation.datasetVersion}
+                    Đo lúc {formatEvaluatedAt(evaluation.analyzedAt)} · dữ liệu v{evaluation.datasetVersion}
                     {evaluation.outdated ? "" : " (mới nhất)"}
                 </p>
                 {evaluation.outdated ? (
                     <p className="m-0 mt-2 rounded-md bg-gold/15 px-2.5 py-1.5 text-xs text-charcoal/85">
                         Đã có dữ liệu v{evaluation.currentDatasetVersion}. Kết quả bên dưới vẫn theo v{evaluation.datasetVersion}; bấm “Đánh giá lại” để
-                        AI chạy với dữ liệu mới.
+                        đo với dữ liệu mới.
                     </p>
                 ) : null}
                 {evaluation.sample ? (
-                    <p className="m-0 mt-1 text-xs text-charcoal/60">Số liệu minh họa, chưa phải kết quả đo thật. Riêng khoảng cách tới Hồ Gươm là số thật.</p>
+                    <p className="m-0 mt-1 text-xs text-charcoal/60">Bản phân tích cũ dùng số liệu minh họa. Bấm “Đánh giá lại” để đo thật.</p>
                 ) : null}
+                {(evaluation.blocking ?? []).map((item) => (
+                    <p key={item.criterionId} role="alert" className="m-0 mt-2 flex gap-2 rounded-md bg-red-50 px-2.5 py-2 text-xs text-red-800">
+                        <TriangleAlert size={14} className="mt-px shrink-0" aria-hidden />
+                        <span>
+                            <span className="font-semibold">{item.label}:</span> {item.message} Điểm tổng tối đa {score(item.cap)}.
+                        </span>
+                    </p>
+                ))}
 
                 <div className="mt-3 flex items-center gap-4 rounded-lg bg-charcoal/[0.03] px-3 py-3">
                     <ScoreRing
                         value={evaluation.overall}
+                        muted={thin}
                         size={84}
                         label={evaluation.overall === null ? "Chưa có điểm tổng" : `Điểm tổng ${score(evaluation.overall)} trên 10`}
                     />
                     <div className="min-w-0">
-                        <p className={`m-0 inline-flex rounded-md px-2 py-0.5 text-sm font-semibold ${TONE_BADGE[overallTone]}`}>{evaluation.rating}</p>
+                        <p className={`m-0 inline-flex rounded-md px-2 py-0.5 text-sm font-semibold ${TONE_BADGE[thin ? "none" : overallTone]}`}>{evaluation.rating}</p>
                         <p className="m-0 mt-1 text-xs text-charcoal/60">
                             Điểm tổng trên thang 10, trung bình có trọng số {used}/{evaluation.criteriaCount} tiêu chí
+                            {thin ? " · dữ liệu còn mỏng, chỉ để tham khảo" : ""}
                         </p>
                         <p className="m-0 mt-0.5 flex gap-3 text-xs font-semibold tabular-nums">
                             <span className="text-green">+{score(evaluation.strengths.points)} mạnh</span>
@@ -340,6 +356,31 @@ export default function MapPlaceEvaluation({
                     onScore={(item, value) => void apply(item.id, () => overrideCriterion(point, item.id, { score: value }))}
                     onReset={(item) => void apply(item.id, () => resetCriterion(point, item.id))}
                 />
+                {pending.length > 0 ? (
+                    <CriterionGroup
+                        title="Chưa tính vào điểm"
+                        hint="Chưa có dữ liệu, nguồn chưa đo được, dữ liệu mỏng, hoặc tính năng chưa thực hiện. Bạn có thể tự chấm để đưa vào điểm tổng."
+                        empty=""
+                        items={pending}
+                        busy={busy}
+                        editing={editing}
+                        selected={selected}
+                        onSelect={select}
+                        onEdit={(id) => {
+                            setWeighting(null);
+                            setEditing(id);
+                        }}
+                        weighting={weighting}
+                        onWeighting={(id) => {
+                            setEditing(null);
+                            setWeighting(id);
+                        }}
+                        onWeight={(item, weight) => void changeWeight(item, weight)}
+                        onSkip={(item) => void apply(item.id, () => overrideCriterion(point, item.id, { skipped: !item.skipped }))}
+                        onScore={(item, value) => void apply(item.id, () => overrideCriterion(point, item.id, { score: value }))}
+                        onReset={(item) => void apply(item.id, () => resetCriterion(point, item.id))}
+                    />
+                ) : null}
             </div>
         </section>
     );
@@ -347,8 +388,10 @@ export default function MapPlaceEvaluation({
 
 interface GroupProps {
     title: string;
-    points: string;
-    pointsClass: string;
+    /** Tổng điểm của nhóm; nhóm "chưa tính" không có. */
+    points?: string;
+    pointsClass?: string;
+    hint?: string;
     empty: string;
     items: EvaluatedCriterion[];
     busy: string | null;
@@ -365,7 +408,7 @@ interface GroupProps {
     onWeight: (item: EvaluatedCriterion, weight: number | null) => void;
 }
 
-function CriterionGroup({ title, points, pointsClass, empty, items, ...rest }: GroupProps): JSX.Element {
+function CriterionGroup({ title, points, pointsClass, hint, empty, items, ...rest }: GroupProps): JSX.Element {
     const id = useId();
     return (
         <section aria-labelledby={id} className="mt-4">
@@ -373,8 +416,9 @@ function CriterionGroup({ title, points, pointsClass, empty, items, ...rest }: G
                 <span>
                     {title} <span className="font-normal text-charcoal/55">({items.filter((item) => !item.skipped).length})</span>
                 </span>
-                <span className={`tabular-nums ${pointsClass}`}>{points} điểm</span>
+                {points ? <span className={`tabular-nums ${pointsClass ?? ""}`}>{points} điểm</span> : null}
             </h4>
+            {hint ? <p className="m-0 mt-1.5 text-xs text-charcoal/55">{hint}</p> : null}
             {items.length === 0 ? (
                 <p className="m-0 py-2 text-sm text-charcoal/60">{empty}</p>
             ) : (
@@ -409,7 +453,7 @@ function CriterionRow({
     weighting,
     onWeighting,
     onWeight,
-}: { item: EvaluatedCriterion } & Omit<GroupProps, "title" | "points" | "pointsClass" | "empty" | "items">): JSX.Element {
+}: { item: EvaluatedCriterion } & Omit<GroupProps, "title" | "points" | "pointsClass" | "hint" | "empty" | "items">): JSX.Element {
     const [draft, setDraft] = useState(String(item.score));
     const inputId = useId();
     const isEditing = editing === item.id;
@@ -418,6 +462,9 @@ function CriterionRow({
     const isBusy = busy === item.id;
     const isSelected = selected === item.id;
     const skipped = item.skipped;
+    // Không đo được (chưa có dữ liệu, nguồn lỗi): không hiện số; số minh họa và dữ liệu mỏng: hiện nhưng nhạt.
+    const unmeasured = !item.manual && (item.status === "no_data" || item.status === "unavailable");
+    const muted = skipped || item.counted === false;
     const Icon = CRITERION_ICON[item.id];
 
     function submit(event: FormEvent<HTMLFormElement>): void {
@@ -458,6 +505,7 @@ function CriterionRow({
                             {!skipped && item.weight === 0 ? (
                                 <span className="rounded bg-charcoal/5 px-1.5 py-px text-[11px] font-semibold text-charcoal/55">Không tính</span>
                             ) : null}
+                            {skipped ? null : <StatusBadge item={item} />}
                             <MapPinned
                                 size={13}
                                 aria-hidden
@@ -465,7 +513,7 @@ function CriterionRow({
                             />
                         </span>
                         <span className={`mt-0.5 block text-sm ${skipped ? "text-charcoal/40 line-through decoration-charcoal/30" : "text-charcoal/80"}`}>
-                            <span className={`font-semibold ${skipped ? "" : TONE_TEXT[scoreTone(item.score)]}`}>{item.verdict}</span>
+                            <span className={`font-semibold ${muted ? "text-charcoal/60" : TONE_TEXT[scoreTone(item.score)]}`}>{item.verdict}</span>
                             <span className="text-charcoal/40"> · </span>
                             {item.detail}
                         </span>
@@ -474,9 +522,19 @@ function CriterionRow({
                             {customWeight ? ` (mặc định ${item.defaultWeight})` : ""} · Nguồn: {item.source}
                             {item.manual ? ` · Tự động: ${score(item.autoScore)}` : ""}
                         </span>
+                        {item.note && !skipped && item.note !== item.detail ? <span className="mt-0.5 block text-xs text-charcoal/55 italic">{item.note}</span> : null}
                     </span>
                 </button>
-                <ScoreRing value={item.score} size={42} muted={skipped} label={`${item.label}: ${score(item.score)} trên 10${skipped ? ", đã bỏ qua" : ""}`} />
+                <ScoreRing
+                    value={unmeasured ? null : item.score}
+                    size={42}
+                    muted={muted}
+                    label={
+                        unmeasured
+                            ? `${item.label}: chưa có điểm`
+                            : `${item.label}: ${score(item.score)} trên 10${skipped ? ", đã bỏ qua" : item.status === "not_implemented" && !item.manual ? ", số minh họa" : ""}`
+                    }
+                />
                 <div className="flex shrink-0 items-center">
                     <button
                         type="button"
@@ -579,4 +637,16 @@ function CriterionRow({
             ) : null}
         </li>
     );
+}
+
+const BADGE = "rounded px-1.5 py-px text-[11px] font-semibold";
+
+/** Trạng thái đo của tiêu chí: chữ đi kèm màu, không phân biệt chỉ bằng màu. */
+function StatusBadge({ item }: { item: EvaluatedCriterion }): JSX.Element | null {
+    if (item.status === "not_implemented") return <span className={`${BADGE} bg-gold/25 text-charcoal`}>Chưa thực hiện · số minh họa</span>;
+    if (item.status === "no_data") return <span className={`${BADGE} bg-charcoal/5 text-charcoal/65`}>Chưa có dữ liệu</span>;
+    if (item.status === "unavailable") return <span className={`${BADGE} bg-charcoal/5 text-charcoal/65`}>Chưa đo được</span>;
+    if (item.status === "fallback") return <span className={`${BADGE} bg-charcoal/5 text-charcoal/65`}>Ước tính</span>;
+    if (item.confidence === "low" && !item.manual) return <span className={`${BADGE} bg-charcoal/5 text-charcoal/65`}>Dữ liệu mỏng</span>;
+    return null;
 }

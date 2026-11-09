@@ -64,10 +64,27 @@ export interface EvaluationSummary {
     evaluatedAt: string;
 }
 
-export type CriterionGroup = "walk" | "move" | "health" | "env";
+export type CriterionGroup = "walk" | "move" | "health" | "env" | "ai";
+
+/**
+ * ok: đo thật · fallback: đo dự phòng (ví dụ khoảng cách thay thời gian đi) · no_data: chưa có dữ liệu ·
+ * unavailable: nguồn chưa cấu hình hoặc lỗi · not_implemented: tiêu chí cần AI chưa làm, điểm là số minh họa.
+ */
+export type MeasurementStatus = "ok" | "fallback" | "no_data" | "unavailable" | "not_implemented";
+
+export type Confidence = "high" | "medium" | "low";
+
+/** Đối tượng làm dẫn chứng của một tiêu chí (điểm gần nhất, đường gần nhất…). */
+export interface MeasurementEvidence {
+    name: string;
+    lat: number;
+    lng: number;
+    distanceM: number;
+    minutes?: number;
+}
 
 export interface EvaluatedCriterion {
-    /** Một trong 19 mã cố định (xem criteria-icons.ts). */
+    /** Mã tiêu chí cố định (xem criteria-icons.ts). */
     id: CriterionId;
     label: string;
     group: CriterionGroup;
@@ -84,6 +101,21 @@ export interface EvaluatedCriterion {
     /** Trọng số đang dùng (0–5): của người dùng nếu đã đặt, không thì mặc định. */
     weight: number;
     defaultWeight: number;
+    status: MeasurementStatus;
+    confidence: Confidence;
+    /** Có góp vào điểm tổng không. */
+    counted: boolean;
+    /** Vì sao chưa đo được, hoặc giới hạn đã biết. */
+    note: string | null;
+    blockingHit: boolean;
+    evidence: MeasurementEvidence[];
+}
+
+export interface EvaluationBlocking {
+    criterionId: string;
+    label: string;
+    message: string;
+    cap: number;
 }
 
 export interface CriterionWeight {
@@ -114,13 +146,19 @@ export interface PlaceEvaluation {
     summary: string;
     strengths: { points: number; items: EvaluatedCriterion[] };
     weaknesses: { points: number; items: EvaluatedCriterion[] };
+    /** Có mặt nhưng không vào điểm tổng: chưa có dữ liệu, nguồn lỗi, dữ liệu mỏng, hoặc tiêu chí AI chưa làm. */
+    pending: EvaluatedCriterion[];
     skipped: EvaluatedCriterion[];
     criteriaCount: number;
+    /** Tỷ lệ (0–1, theo trọng số) tiêu chí đo được; dưới 0,6 thì điểm tổng chỉ để tham khảo. */
+    coverage: number;
+    /** Điều kiện chặn đang giới hạn điểm tổng. */
+    blocking: EvaluationBlocking[];
     /** Địa điểm chuẩn hóa mà điểm bấm được gom vào. */
     placeId: string;
-    /** fresh: lượt này gọi AI; shared: nhận bản phân tích mới nhất đã có của địa điểm. */
+    /** fresh: lượt này đo mới; shared: nhận bản phân tích mới nhất đã có của địa điểm. */
     source: "fresh" | "shared";
-    /** Lúc bản phân tích được tạo (lần AI chạy). */
+    /** Lúc bản phân tích được tạo (lần đo). */
     analyzedAt: string;
     /** Phiên bản dữ liệu của bản phân tích này. */
     datasetVersion: number;

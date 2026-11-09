@@ -1,5 +1,6 @@
-import { readFile, writeFile } from 'node:fs/promises';
 import { DataSource } from 'typeorm';
+import { isolatedDatabaseUrl } from '../../../../test/helpers/geo-test-db.js';
+import { MemoryRedis, MemoryStorage } from '../../../../test/helpers/memory-services.js';
 import { buildPackage, gzipLines } from '../../../../test/helpers/package-zip.js';
 import type { RedisService } from '../../../integrations/redis/redis.service.js';
 import type { StorageService } from '../../../integrations/storage/storage.service.js';
@@ -19,40 +20,6 @@ import { GeoSchemaService } from './geo-schema.service.js';
 const DATABASE_URL = process.env.GEO_TEST_DATABASE_URL;
 const ADMIN = '00000000-0000-7000-8000-00000000000a';
 
-class MemoryStorage {
-  readonly objects = new Map<string, Buffer>();
-  async getPresignedPutUrl(key: string): Promise<string> {
-    return `memory://${key}`;
-  }
-  async objectSize(key: string): Promise<number | null> {
-    return this.objects.get(key)?.length ?? null;
-  }
-  async downloadObjectToFile(key: string, path: string): Promise<void> {
-    const data = this.objects.get(key);
-    if (!data) throw new Error('NoSuchKey');
-    await writeFile(path, data, { flag: 'wx' });
-  }
-  async putObjectFromFile(key: string, path: string): Promise<void> {
-    this.objects.set(key, await readFile(path));
-  }
-  async deleteObject(key: string): Promise<void> {
-    this.objects.delete(key);
-  }
-}
-
-class MemoryRedis {
-  private readonly values = new Map<string, unknown>();
-  async get<T>(key: string): Promise<T | undefined> {
-    return this.values.get(key) as T | undefined;
-  }
-  async set(key: string, value: unknown): Promise<void> {
-    this.values.set(key, value);
-  }
-  async del(key: string): Promise<void> {
-    this.values.delete(key);
-  }
-}
-
 describe.skipIf(!DATABASE_URL)('đường nhập gói và bản phát hành trên PostGIS', () => {
   let dataSource: DataSource;
   let storage: MemoryStorage;
@@ -69,7 +36,7 @@ describe.skipIf(!DATABASE_URL)('đường nhập gói và bản phát hành trê
   }
 
   beforeAll(async () => {
-    dataSource = new DataSource({ type: 'postgres', url: DATABASE_URL, entities: [MapDatasetVersionEntity], synchronize: false });
+    dataSource = new DataSource({ type: 'postgres', url: await isolatedDatabaseUrl(DATABASE_URL as string, 'li_test_pipeline'), entities: [MapDatasetVersionEntity], synchronize: false });
     await dataSource.initialize();
     await dataSource.query('DROP SCHEMA IF EXISTS geo CASCADE; DROP SCHEMA IF EXISTS geo_staging CASCADE; DROP TABLE IF EXISTS map_dataset_versions CASCADE');
     await dataSource.synchronize();

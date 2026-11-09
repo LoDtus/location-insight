@@ -11,7 +11,7 @@ import type { CriterionWeight } from "@/features/map/map.types";
 import { showToast } from "@/shared/components/toast/toast-store";
 
 /**
- * Modal quản lý trọng số của 19 tiêu chí: mỗi tiêu chí một dãy 0–5, tiêu chí đã đổi có nền vàng nhạt, chip "Đã đổi"
+ * Modal quản lý trọng số của các tiêu chí: mỗi tiêu chí một dãy 0–5, tiêu chí đã đổi có nền vàng nhạt, chip "Đã đổi"
  * và nút về mặc định; "Đặt lại tất cả" ở chân modal. Đổi là lưu ngay, điểm của mọi địa điểm tính lại theo đó.
  */
 export default function MapWeightsDialog({ onClose }: { onClose: () => void }): JSX.Element | null {

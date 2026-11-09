@@ -22,7 +22,7 @@ import sys
 import zipfile
 from collections import Counter
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from package_tool import CONTRACTS, ROOT, git_commit, validate_zip  # noqa: E402
@@ -38,9 +38,13 @@ LAYERS = [
     ("mock.places", "point@1", "Điểm tiện ích giả: chợ, nhà thuốc, trường, bệnh viện…"),
     ("mock.roads", "line@1", "Đường giả có road_class"),
     ("mock.landuse", "area@1", "Vùng sử dụng đất giả (ODT, CLN, LUC, DGT)"),
-    ("mock.pop_100m", "grid@1", "Mật độ dân số giả trên lưới vn2000-100m"),
+    ("mock.pop_100m", "grid@1", "Dân số giả theo ô 100 m (tiêu chí Mật độ dân cư)"),
+    ("mock.green_100m", "grid@1", "% diện tích có cây theo ô 100 m (tiêu chí Mảng xanh)"),
+    ("mock.flood_rp100", "grid@1", "Độ sâu ngập sông chu kỳ 100 năm, m (tiêu chí Ngập sông)"),
+    ("mock.elev_100m", "grid@1", "Cao độ mặt đất, m (tiêu chí Độ cao tương đối)"),
 ]
 
+# Cùng category/kind với tools/data/osm_places.py, để tiêu chí trong backend (criteria.ts) đo được trên gói giả.
 PLACE_CATEGORIES = {
     "market": ("marketplace", "Chợ"),
     "pharmacy": ("pharmacy", "Nhà thuốc"),
@@ -48,7 +52,11 @@ PLACE_CATEGORIES = {
     "hospital": ("hospital", "Bệnh viện"),
     "park": ("park", "Công viên"),
     "supermarket": ("supermarket", "Siêu thị"),
-    "bus_stop": ("bus_stop", "Điểm dừng xe buýt"),
+    "bus": ("bus_stop", "Điểm dừng xe buýt"),
+    "food": ("cafe", "Quán"),
+    "townhall": ("townhall", "UBND phường"),
+    "hardware": ("hardware", "Cửa hàng vật tư"),
+    "metro": ("subway", "Ga metro"),
 }
 STREETS = ["Hàng Bông", "Kim Mã", "Láng", "Trường Chinh", "Giải Phóng", "Nguyễn Trãi", "Cầu Giấy", "Lạc Long Quân", "Bạch Mai", "Đội Cấn"]
 ROAD_CLASSES = ["trunk", "primary", "secondary", "tertiary", "residential", "residential", "alley", "alley"]
@@ -164,21 +172,37 @@ def geojsonl(features: list[dict[str, Any]]) -> bytes:
     return gzip.compress(text.encode("utf-8"), mtime=0)
 
 
-def population_csv(seed: int) -> bytes:
-    """Ô lưới quanh trung tâm (cell_id = hàng * columns + cột). Một phần ô để trống = ngoài vùng phủ."""
+# Ô lưới chứa tâm rải điểm (Hồ Gươm trên VN-2000 / UTM 48N, lưới vn2000-100m): hàng 575, cột 628.
+GRID_CENTER = (575, 628)
+
+
+def grid_csv(seed: int, value: Callable[[float, random.Random], str]) -> bytes:
+    """Ô lưới quanh tâm (cell_id = hàng * columns + cột). `value` nhận khoảng cách (số ô) tới tâm; xa hơn 95 ô để trống = ngoài vùng phủ."""
     rng = random.Random(seed)
-    center_row, center_col = 520, 440
+    center_row, center_col = GRID_CENTER
     lines = ["cell_id,value"]
-    for row in range(center_row - 60, center_row + 60):
-        for col in range(center_col - 80, center_col + 80):
+    for row in range(center_row - 80, center_row + 80):
+        for col in range(center_col - 100, center_col + 100):
             distance = math.hypot(row - center_row, col - center_col)
-            cell = row * GRID["columns"] + col
-            if distance > 75:
-                lines.append(f"{cell},")
-                continue
-            value = 2500 * math.exp(-((distance / 35) ** 2)) * rng.uniform(0.7, 1.3)
-            lines.append(f"{cell},{value:.1f}")
+            lines.append(f"{row * GRID['columns'] + col},{value(distance, rng) if distance <= 95 else ''}")
     return ("\n".join(lines) + "\n").encode("utf-8")
+
+
+def population(distance: float, rng: random.Random) -> str:
+    return f"{250 * math.exp(-((distance / 45) ** 2)) * rng.uniform(0.7, 1.3):.1f}"
+
+
+def green(distance: float, rng: random.Random) -> str:
+    return f"{min(100.0, 5 + distance * 0.5 + rng.uniform(0, 20)):.1f}"
+
+
+def flood(distance: float, rng: random.Random) -> str:
+    # Một vành ngập giả cách tâm 1,8–2,4 km; còn lại 0 (trong vùng phủ, không ngập).
+    return f"{rng.uniform(0.2, 1.6):.2f}" if 18 <= distance <= 24 else "0"
+
+
+def elevation(distance: float, rng: random.Random) -> str:
+    return f"{8 + distance * 0.04 + rng.uniform(-1.5, 1.5):.1f}"
 
 
 # ───────────────────────────── gói ─────────────────────────────
@@ -258,12 +282,20 @@ def build() -> list[tuple[str, str, str]]:
     write_zip("03-mock.landuse-2026-11-01", manifest, data, {"coverage.geojson": coverage_geojson()})
     plan.append(("03-mock.landuse-2026-11-01.zip", "validated", "Khuôn area@1, có coverage.geojson."))
 
-    data = population_csv(seed=4)
-    rows = data.count(b"\n") - 1
-    manifest = manifest_for("grid@1", "mock.pop_100m", "R2026-mock", data, rows, {}, gridCode=GRID["code"], params={"radius_m": 0})
-    manifest["crs"] = "EPSG:3405"
-    write_zip("04-mock.pop_100m-R2026-mock", manifest, data)
-    plan.append(("04-mock.pop_100m-R2026-mock.zip", "validated", "Khuôn grid@1 trên lưới vn2000-100m, có ô trống (ngoài vùng phủ)."))
+    grids = [
+        ("mock.pop_100m", population, "Khuôn grid@1 trên lưới vn2000-100m, có ô trống (ngoài vùng phủ)."),
+        ("mock.green_100m", green, "Lưới % cây xanh."),
+        ("mock.flood_rp100", flood, "Lưới độ sâu ngập; có vành ngập sâu hơn 1 m để thấy điều kiện chặn."),
+        ("mock.elev_100m", elevation, "Lưới cao độ."),
+    ]
+    for number, (layer, fn, note) in enumerate(grids):
+        data = grid_csv(seed=4 + number, value=fn)
+        rows = data.count(b"\n") - 1
+        manifest = manifest_for("grid@1", layer, "R2026-mock", data, rows, {}, gridCode=GRID["code"], params={"cell_m": 100})
+        manifest["crs"] = "EPSG:3405"
+        name = f"04{'abcd'[number]}-{layer}-R2026-mock"
+        write_zip(name, manifest, data)
+        plan.append((f"{name}.zip", "validated", note))
 
     # Bản mới của mock.places: bỏ 3 điểm, thêm 5 điểm → 8/320 = 2.5% thay đổi, dưới ngưỡng cảnh báo 5%.
     added = [dict(row, feature_key=f"mock:p9{index:04d}") for index, row in enumerate(places(seed=11, count=5))]
@@ -336,7 +368,7 @@ Sinh bởi `python3 tools/data/mock_packages.py`. Dữ liệu ngẫu nhiên, **k
 | --- | --- | --- |
 {files}
 
-Sau gói 01–04: tab "Bản phát hành" → tạo bản nháp, chọn 4 phiên bản lớp vừa Lưu, phát hành. Rồi thử 05–07 và các gói 9x.
+Sau gói 01–04d: tab "Bản phát hành" → tạo bản nháp, chọn 7 phiên bản lớp vừa Lưu, phát hành. Rồi đánh giá một điểm gần Hồ Gươm trên bản đồ. Rồi thử 05–07 và các gói 9x.
 Gói đã nộp thì nộp lại bị từ chối (`package_duplicate`); muốn thử lại từ đầu thì chạy `/reset` hoặc xóa job/phiên bản tương ứng.
 """,
         encoding="utf-8",

@@ -42,7 +42,8 @@ function scoreText(value: number | string | null | undefined): string {
 function groupsOption(places: ChartPlace[], table: CompareTable, narrow: boolean): EChartOption {
     const categories: Array<{ key: "overall" | CriterionGroup; label: string }> = [
         { key: "overall", label: "Điểm tổng" },
-        ...table.groups.map((group) => ({ key: group.group, label: group.label })),
+        // Nhóm AI chưa thực hiện chỉ có số minh họa: không vẽ.
+        ...table.groups.filter((group) => group.group !== "ai").map((group) => ({ key: group.group, label: group.label })),
     ];
     return {
         textStyle: { fontFamily: FONT, color: INK },

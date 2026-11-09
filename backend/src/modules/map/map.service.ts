@@ -280,8 +280,32 @@ export class MapService {
     return routes;
   }
 
+  /**
+   * Thời gian đi (phút) từ `origin` tới từng điểm `destinations` bằng Vietmap Matrix v4 (một lượt gọi, nguồn là
+   * điểm 0). Đi chung cache, ngân sách ngày và cầu dao với các API khác. Đích không tới được trả null. Hết ngân sách
+   * hoặc Vietmap lỗi thì ném lỗi để nơi gọi chuyển sang đo dự phòng.
+   */
+  async travelMinutes(
+    origin: { lat: number; lng: number },
+    destinations: ReadonlyArray<{ lat: number; lng: number }>,
+    vehicle: 'motorcycle' | 'car',
+  ): Promise<Array<number | null>> {
+    if (destinations.length === 0) return [];
+    const points = [origin, ...destinations].map((point) => `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`);
+    return this.cached('matrix', `${vehicle}:${points.join('|')}`, async () => {
+      const result = await this.client.get('/api/matrix/v4', {
+        point: points,
+        vehicle,
+        sources: '0',
+        destinations: destinations.map((_, index) => String(index + 1)).join(';'),
+        annotation: 'duration',
+      });
+      return parseMatrixMinutes(result.body, destinations.length);
+    });
+  }
+
   async usage(): Promise<MapUsagePayload> {
-    const apis: MapApi[] = ['autocomplete', 'place', 'reverse', 'route'];
+    const apis: MapApi[] = ['autocomplete', 'place', 'reverse', 'route', 'matrix'];
     const upstream: Record<string, number> = {};
     const cacheHits: Record<string, number> = {};
     for (const api of apis) {
@@ -353,4 +377,18 @@ export class MapService {
       this.logger.warn('Ghi cache bản đồ thất bại');
     }
   }
+}
+
+/** Đọc hàng đầu của `durations` (giây) từ Vietmap Matrix v4 thành phút. Phản hồi lạ thì ném lỗi. */
+export function parseMatrixMinutes(body: unknown, count: number): Array<number | null> {
+  const record = typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : null;
+  const rows = record && Array.isArray(record.durations) ? (record.durations as unknown[]) : null;
+  const first = rows && Array.isArray(rows[0]) ? (rows[0] as unknown[]) : null;
+  if (!record || (record.code !== undefined && record.code !== 'OK') || !first) {
+    throw new BusinessException(ErrorCode.EXTERNAL_SERVICE_ERROR, 'Dịch vụ bản đồ trả thời gian đi không hợp lệ.', null, HttpStatus.BAD_GATEWAY);
+  }
+  return Array.from({ length: count }, (_, index) => {
+    const seconds = first[index];
+    return typeof seconds === 'number' && Number.isFinite(seconds) && seconds >= 0 ? Math.round((seconds / 60) * 10) / 10 : null;
+  });
 }

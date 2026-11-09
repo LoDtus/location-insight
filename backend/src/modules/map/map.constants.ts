@@ -11,7 +11,8 @@ export type MapStyleId = (typeof MAP_STYLES)[number];
 export const ROUTE_VEHICLES = ['car', 'motorcycle'] as const;
 export type RouteVehicle = (typeof ROUTE_VEHICLES)[number];
 
-export type MapApi = 'autocomplete' | 'place' | 'reverse' | 'route';
+/** `matrix`: thời gian đi cho tiêu chí đánh giá (Vietmap Matrix v4), chỉ gọi nội bộ. */
+export type MapApi = 'autocomplete' | 'place' | 'reverse' | 'route' | 'matrix';
 /** Thao tác chỉ chạy trong hệ thống (không gọi Vietmap) nhưng vẫn giới hạn theo người dùng. */
 export type MapLocalApi = 'config' | 'evaluate' | 'evaluation-read' | 'saved' | 'search-pins' | 'layers' | 'weights';
 
@@ -35,6 +36,8 @@ export const MAP_USER_LIMITS: Readonly<
   place: { limit: 30, windowSeconds: 60 },
   reverse: { limit: 30, windowSeconds: 60 },
   route: { limit: 20, windowSeconds: 60 },
+  /** Không trừ theo người dùng (gọi trong lượt đánh giá, đã giới hạn bởi `evaluate`); khai cho đủ kiểu. */
+  matrix: { limit: 30, windowSeconds: 60 },
 };
 
 /** TTL cache (giây) theo mức đổi của dữ liệu. */
@@ -43,6 +46,8 @@ export const MAP_CACHE_TTL: Readonly<Record<MapApi, number>> = {
   place: 60 * 60,
   reverse: 24 * 60 * 60,
   route: 3 * 60,
+  /** Thời gian đi giữa hai tọa độ ít đổi; kết quả đánh giá chỉ lưu số phút đã suy ra (threat-model T6). */
+  matrix: 24 * 60 * 60,
 };
 
 export const SEARCH_SCOPES = ['POI', 'ADDRESS', 'VILLAGE', 'WARD', 'DIST', 'CITY', 'STREET'] as const;

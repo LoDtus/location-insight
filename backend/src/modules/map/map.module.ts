@@ -21,6 +21,8 @@ import { MapDatasetAdminController, MapImportsAdminController, MapLayersAdminCon
 import { GeoLayersService } from './datasets/geo-layers.service.js';
 import { GeoSchemaService } from './datasets/geo-schema.service.js';
 import { MapPlacesService } from './map-places.service.js';
+import { OpenAqClient } from './measure/openaq.client.js';
+import { PlaceMeasureService } from './measure/place-measure.service.js';
 import { MapWeightsService } from './map-weights.service.js';
 import { MapAdminController, MapController } from './map.controller.js';
 import { MapConfig } from './map.config.js';
@@ -57,6 +59,8 @@ import { VietmapClient } from './vietmap.client.js';
     MapPlacesService,
     MapLayersService,
     MapWeightsService,
+    OpenAqClient,
+    PlaceMeasureService,
   ],
   exports: [MapService],
 })

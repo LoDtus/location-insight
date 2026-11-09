@@ -50,7 +50,7 @@ import { COMPARE_MAX, reloadSavedPlaces, savedTitle } from "@/features/map/hooks
 import { PLACE_KIND_LABEL } from "@/features/map/map-place-match";
 import { PIN_ZOOM } from "@/features/map/map.geo";
 import { getCompare, isAbortError, mapErrorMessage, reorderCompare, runEvaluation, updateSavedPlace } from "@/features/map/map.service";
-import type { CompareItem, MapPoint } from "@/features/map/map.types";
+import type { CompareItem, EvaluatedCriterion, MapPoint } from "@/features/map/map.types";
 import { showToast } from "@/shared/components/toast/toast-store";
 import { getConfirmModal } from "@/shared/utils/confirm.utils";
 
@@ -96,7 +96,7 @@ function Row({ label, children, className = "" }: { label: ReactNode; children: 
 }
 
 /**
- * Bảng so sánh địa điểm đã lưu: mỗi cột một địa điểm, hàng là điểm tổng và 19 tiêu chí. Điểm lấy từ lượt đánh giá
+ * Bảng so sánh địa điểm đã lưu: mỗi cột một địa điểm, hàng là điểm tổng và từng tiêu chí. Điểm lấy từ lượt đánh giá
  * gần nhất của chính người dùng; địa điểm chưa đánh giá thì mời mở bản đồ để đánh giá.
  */
 export default function CompareScreen({ root = "/app" }: { root?: "/app" | "/admin" }): JSX.Element {
@@ -115,7 +115,7 @@ export default function CompareScreen({ root = "/app" }: { root?: "/app" | "/adm
     );
 
     /**
-     * Đánh giá ngay tại bảng (chỉ khi người dùng bấm): nhận bản phân tích mới nhất của địa điểm, chưa có thì AI chạy;
+     * Đánh giá ngay tại bảng (chỉ khi người dùng bấm): nhận bản phân tích mới nhất của địa điểm, chưa có thì đo mới;
      * mỗi lần bấm là một lượt của người dùng. Xong thì cột hiện điểm theo trọng số của chính họ.
      */
     async function evaluate(item: CompareItem): Promise<void> {
@@ -127,7 +127,7 @@ export default function CompareScreen({ root = "/app" }: { root?: "/app" | "/adm
             void reloadSavedPlaces();
             const updated = fresh.find((entry) => entry.id === item.id)?.evaluation;
             showToast({
-                title: source === "fresh" ? "AI đã đánh giá xong địa điểm" : "Đã có kết quả đánh giá địa điểm",
+                title: source === "fresh" ? "Đã đánh giá xong địa điểm" : "Đã có kết quả đánh giá địa điểm",
                 description:
                     updated?.overall != null
                         ? `${savedTitle(item)}: ${formatScore(updated.overall)}/10, mức ${updated.rating.toLowerCase()}.`
@@ -301,7 +301,7 @@ export default function CompareScreen({ root = "/app" }: { root?: "/app" | "/adm
                         <p className="m-0 mt-1 text-sm text-charcoal/65">
                             {state.status === "ready" && items.length > 0
                                 ? `${items.length}/${COMPARE_MAX} địa điểm. Điểm lấy từ lượt đánh giá gần nhất của chính bạn.`
-                                : `So sánh tối đa ${COMPARE_MAX} địa điểm đã lưu theo 19 tiêu chí đánh giá.`}
+                                : `So sánh tối đa ${COMPARE_MAX} địa điểm đã lưu theo các tiêu chí đánh giá.`}
                         </p>
                     </div>
                     <Link
@@ -394,7 +394,7 @@ export default function CompareScreen({ root = "/app" }: { root?: "/app" | "/adm
                     >
                         <div className="mt-3 overflow-x-auto rounded-lg border border-charcoal/10 [scrollbar-width:thin]">
                             <table className="w-full border-collapse">
-                                <caption className="sr-only">Bảng so sánh {items.length} địa điểm theo điểm tổng và 19 tiêu chí</caption>
+                                <caption className="sr-only">Bảng so sánh {items.length} địa điểm theo điểm tổng và từng tiêu chí</caption>
                                 <thead>
                                     <tr>
                                         <th scope="col" className={`${LABEL_CELL} align-bottom text-xs`}>
@@ -567,13 +567,15 @@ export default function CompareScreen({ root = "/app" }: { root?: "/app" | "/adm
                                                                         {cell ? (
                                                                             <div className="flex items-start gap-2.5">
                                                                                 <ScoreRing
-                                                                                    value={cell.score}
+                                                                                    value={unmeasuredCell(cell) ? null : cell.score}
                                                                                     size={36}
-                                                                                    muted={cell.skipped}
+                                                                                    muted={cell.skipped || !cell.counted}
                                                                                     label={
                                                                                         cell.skipped
                                                                                             ? `${row.label}: đã bỏ qua`
-                                                                                            : `${row.label}: ${formatScore(cell.score)} trên 10`
+                                                                                            : unmeasuredCell(cell)
+                                                                                              ? `${row.label}: chưa có điểm`
+                                                                                              : `${row.label}: ${formatScore(cell.score)} trên 10${cell.counted ? "" : ", không tính vào điểm tổng"}`
                                                                                     }
                                                                                 />
                                                                                 <div className="min-w-0">
@@ -590,7 +592,11 @@ export default function CompareScreen({ root = "/app" }: { root?: "/app" | "/adm
                                                                                     <p
                                                                                         className={`m-0 text-xs ${cell.skipped ? "text-charcoal/35" : "text-charcoal/60"}`}
                                                                                     >
-                                                                                        {cell.skipped ? "Đã bỏ qua" : cell.detail}
+                                                                                        {cell.skipped
+                                                                                            ? "Đã bỏ qua"
+                                                                                            : cell.status === "not_implemented" && !cell.manual
+                                                                                              ? `Chưa thực hiện · ${cell.detail}`
+                                                                                              : cell.detail}
                                                                                     </p>
                                                                                 </div>
                                                                             </div>
@@ -700,4 +706,9 @@ function SortableRow({ id, title, label, children }: { id: string; title: string
             {children}
         </tr>
     );
+}
+
+/** Ô chưa đo được (chưa có dữ liệu, nguồn lỗi) và người dùng chưa tự chấm: không hiện số. */
+function unmeasuredCell(cell: EvaluatedCriterion): boolean {
+    return !cell.manual && (cell.status === "no_data" || cell.status === "unavailable");
 }

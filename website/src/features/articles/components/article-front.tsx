@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type FormEvent, type JSX, type MouseEvent, type ReactNode, type RefObject } from "react";
 
+import { articleCoverSrc, isVectorCover } from "@/features/articles/article-cover";
 import { listRecommendedForMe } from "@/features/articles/articles.api";
 import type { ArticleCard, ArticleHome } from "@/features/articles/articles";
 import { FRONT_SECTIONS, isFresh, relativeTime, type FrontSectionId } from "@/features/articles/front-sections";
@@ -20,12 +21,13 @@ import { useSectionSpy } from "./front/use-section-spy";
  * Trang /bai-viet kiểu trang nhất báo lớn. Mỗi mục là MỘT hàng riêng, có neo #id (URL đổi theo mục đang đọc, thanh
  * mục dính đánh dấu mục hiện tại) và một bố cục riêng để người đọc nhận ra mình đang ở đâu khi lướt:
  * - #tieu-diem: bài dẫn lớn + cột bài phụ có ảnh nhỏ.
- * - #moi-nhat: dòng tin theo giờ (cột giờ đăng | tít + sapo), hai cột, không ảnh, phân trang.
- * - #noi-bat: bảng xếp hạng đánh số lớn, số hạng nối tiếp qua các trang.
+ * - #moi-nhat: dòng tin theo giờ (cột giờ đăng | tít + sapo | ảnh nhỏ), hai cột, phân trang.
+ * - #noi-bat: bảng xếp hạng đánh số lớn (ảnh trên đầu cột ở màn rộng), số hạng nối tiếp qua các trang.
  * - #de-xuat: băng trượt ngang thẻ ảnh (cuộn chạm, nút trước/tiếp).
  * - #video-anh: dải nền tối, một bài lớn + danh sách ảnh nhỏ, phân trang.
  * - #duoc-quan-tam: lưới bento, bài dẫn phủ ảnh + các ô lấy số bình luận làm điểm nhấn, phân trang.
  * - #chu-de: bốn cột theo chủ đề, lối "Xem thêm" sang trang lọc.
+ * Mọi bài đều có thumbnail: bài chưa có ảnh bìa dùng minh họa bản đồ của chủ đề (article-cover.ts).
  */
 
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green";
@@ -64,7 +66,17 @@ function href(card: ArticleCard): string {
 
 /* ---------------- Mảnh dùng chung ---------------- */
 
-function FormatBadge({ card, text }: { card: ArticleCard; text: Text }): JSX.Element | null {
+function FormatBadge({ card, text, compact = false }: { card: ArticleCard; text: Text; compact?: boolean }): JSX.Element | null {
+    if (compact && card.format !== "standard") {
+        // Ảnh nhỏ: chỉ biểu tượng ở góc, không che nội dung ảnh.
+        const Icon = card.format === "video" ? Play : Images;
+        return (
+            <span className="absolute bottom-1 left-1 inline-flex size-6 items-center justify-center rounded-full bg-black/65 text-white">
+                <Icon size={12} className={card.format === "video" ? "translate-x-px fill-current" : ""} aria-hidden />
+                <span className="sr-only">{text(["articles", "front", card.format === "video" ? "video" : "photo"])}</span>
+            </span>
+        );
+    }
     if (card.format === "video") {
         return (
             <span className="absolute inset-0 flex items-center justify-center">
@@ -85,13 +97,43 @@ function FormatBadge({ card, text }: { card: ArticleCard; text: Text }): JSX.Ele
     return null;
 }
 
-/** Ảnh bìa (chỉ khi bài có ảnh). Ảnh nằm trong liên kết ẩn khỏi bàn phím: tít bên cạnh đã là liên kết chính. */
-function Cover({ card, sizes, priority = false, className = "", text }: { card: ArticleCard; sizes: string; priority?: boolean; className?: string; text: Text }): JSX.Element | null {
-    if (!card.coverImage?.startsWith("/")) return null;
+/** Ảnh nền của thẻ: ảnh bìa, hoặc minh họa của chủ đề khi bài chưa có ảnh. */
+function CoverImage({ card, sizes, priority = false }: { card: ArticleCard; sizes: string; priority?: boolean }): JSX.Element {
+    const src = articleCoverSrc(card);
     return (
-        <Link href={href(card)} tabIndex={-1} aria-hidden className={`relative block overflow-hidden bg-charcoal/[0.06] ${className}`}>
-            <Image src={card.coverImage} alt="" fill sizes={sizes} priority={priority} className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03] motion-reduce:transition-none" />
-            <FormatBadge card={card} text={text} />
+        <Image
+            src={src}
+            alt=""
+            fill
+            sizes={sizes}
+            priority={priority}
+            unoptimized={isVectorCover(src)}
+            className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03] motion-reduce:transition-none"
+        />
+    );
+}
+
+/** Thumbnail của bài. Ảnh nằm trong liên kết ẩn khỏi bàn phím: tít bên cạnh đã là liên kết chính. */
+function Cover({
+    card,
+    sizes,
+    priority = false,
+    compact = false,
+    className = "",
+    text,
+}: {
+    card: ArticleCard;
+    sizes: string;
+    priority?: boolean;
+    /** Ảnh nhỏ (dưới khoảng 120px): nhãn định dạng thu về biểu tượng. */
+    compact?: boolean;
+    className?: string;
+    text: Text;
+}): JSX.Element {
+    return (
+        <Link href={href(card)} tabIndex={-1} aria-hidden className={`relative block shrink-0 overflow-hidden bg-charcoal/[0.06] ${className}`}>
+            <CoverImage card={card} sizes={sizes} priority={priority} />
+            <FormatBadge card={card} text={text} compact={compact} />
         </Link>
     );
 }
@@ -211,7 +253,7 @@ function Spotlight({ lead, secondary, text, dates }: { lead: ArticleCard; second
                                     <p className="m-0 line-clamp-2 text-sm leading-relaxed text-charcoal/75">{card.lede}</p>
                                     <Meta card={card} text={text} dates={dates} />
                                 </div>
-                                <Cover card={card} text={text} sizes="96px" className="aspect-square w-24 shrink-0 rounded-sm" />
+                                <Cover card={card} text={text} sizes="96px" compact className="aspect-square w-24 shrink-0 rounded-sm" />
                             </article>
                         </li>
                     ))}
@@ -230,7 +272,7 @@ function LatestWire({ paged, text, dates }: { paged: PagedSection; text: Text; d
                 {paged.items.map((card) => {
                     const relative = relativeTime(card.publishedAt, dates.now, dates.tag);
                     return (
-                        <li key={card.slug} className="grid grid-cols-[4.75rem_1fr] gap-4 border-b border-charcoal/12 py-4">
+                        <li key={card.slug} className="group grid grid-cols-[4.25rem_1fr_auto] gap-3 border-b border-charcoal/12 py-4 sm:grid-cols-[4.75rem_1fr_auto] sm:gap-4">
                             <p className="m-0 flex flex-col font-sans text-xs leading-tight text-charcoal/60">
                                 <time dateTime={card.publishedAt} className="text-base font-bold text-charcoal tabular-nums" suppressHydrationWarning>
                                     {dates.time(card.publishedAt)}
@@ -251,6 +293,7 @@ function LatestWire({ paged, text, dates }: { paged: PagedSection; text: Text; d
                                     {card.readingMinutes ? ` · ${text(["articles", "front", "readMinutes"]).replace("{count}", String(card.readingMinutes))}` : ""}
                                 </p>
                             </article>
+                            <Cover card={card} text={text} sizes="112px" compact className="aspect-[4/3] w-20 self-start rounded-sm sm:w-28" />
                         </li>
                     );
                 })}
@@ -270,13 +313,21 @@ function PopularRanks({ paged, text, dates }: { paged: PagedSection; text: Text;
                 {paged.items.map((card, index) => (
                     <li
                         key={card.slug}
-                        className="relative flex min-w-0 gap-4 border-b border-charcoal/12 py-4 lg:flex-col lg:gap-2 lg:border-b-0 lg:py-0 lg:before:absolute lg:before:inset-y-0 lg:before:-left-4 lg:before:w-px lg:before:bg-charcoal/12 lg:first:before:hidden"
+                        className="group relative flex min-w-0 gap-4 border-b border-charcoal/12 py-4 lg:flex-col lg:gap-2 lg:border-b-0 lg:py-0 lg:before:absolute lg:before:inset-y-0 lg:before:-left-4 lg:before:w-px lg:before:bg-charcoal/12 lg:first:before:hidden"
                     >
+                        {/* Màn hẹp: ảnh nhỏ cuối hàng. Màn rộng: ảnh trên đầu cột, số hạng ngay dưới. */}
+                        <Cover
+                            card={card}
+                            text={text}
+                            sizes="(min-width: 1024px) 18vw, 80px"
+                            compact
+                            className="order-last aspect-square w-20 self-start rounded-sm lg:order-first lg:mb-1 lg:aspect-[3/2] lg:w-full"
+                        />
                         <span className="w-12 shrink-0 font-serif text-5xl leading-[0.9] font-bold text-green tabular-nums lg:w-auto">
                             <span className="sr-only">{fill(text(["articles", "front", "rank"]), start + index + 1, locale)}: </span>
                             <span aria-hidden>{start + index + 1}</span>
                         </span>
-                        <article className="flex min-w-0 flex-col gap-1.5">
+                        <article className="flex min-w-0 flex-1 flex-col gap-1.5">
                             <Headline card={card} className="text-base leading-snug" />
                             <Meta
                                 card={card}
@@ -353,14 +404,7 @@ function RecommendedRail({ items, text, dates }: { items: ArticleCard[]; text: T
             {items.map((card) => (
                 <li key={card.slug} className="w-[74%] shrink-0 snap-start sm:w-[44%] lg:w-[calc((100%-3.75rem)/4)]">
                     <article className="group flex h-full flex-col gap-2">
-                        {card.coverImage?.startsWith("/") ? (
-                            <Cover card={card} text={text} sizes="(min-width: 1024px) 25vw, 74vw" className="aspect-[4/3] rounded-sm" />
-                        ) : (
-                            // Bài chỉ có chữ: sapo lên khung trích dẫn cùng tỉ lệ để băng trượt giữ nhịp, không dùng khối màu thay ảnh.
-                            <Link href={href(card)} tabIndex={-1} aria-hidden className="flex aspect-[4/3] items-end rounded-sm border border-charcoal/12 bg-cream/45 p-4 no-underline">
-                                <span className="line-clamp-4 font-serif text-[1.05rem] leading-snug text-charcoal/80 italic">“{card.lede}”</span>
-                            </Link>
-                        )}
+                        <Cover card={card} text={text} sizes="(min-width: 1024px) 25vw, 74vw" className="aspect-[4/3] rounded-sm" />
                         <Headline card={card} className="text-base leading-snug" />
                         <Meta card={card} text={text} dates={dates} />
                     </article>
@@ -423,18 +467,13 @@ function EngagedBento({ paged, text, dates }: { paged: PagedSection; text: Text;
         </p>
     );
     if (!first) return <PageBody paged={paged}>{null}</PageBody>;
-    const hasCover = Boolean(first.coverImage?.startsWith("/"));
     return (
         <PageBody paged={paged}>
             <ul className="m-0 grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-4 lg:grid-rows-2">
                 <li className="sm:col-span-2 lg:row-span-2">
-                    <article className={`group relative flex h-full min-h-[22rem] flex-col justify-end overflow-hidden rounded-sm p-6 ${hasCover ? "text-white" : "bg-charcoal text-cream"}`}>
-                        {hasCover && first.coverImage ? (
-                            <>
-                                <Image src={first.coverImage} alt="" fill sizes="(min-width: 1024px) 50vw, 100vw" className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03] motion-reduce:transition-none" />
-                                <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-black/5" />
-                            </>
-                        ) : null}
+                    <article className="group relative flex h-full min-h-[22rem] flex-col justify-end overflow-hidden rounded-sm bg-charcoal p-6 text-white">
+                        <CoverImage card={first} sizes="(min-width: 1024px) 50vw, 100vw" />
+                        <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-black/5" />
                         <div className="relative flex flex-col gap-2">
                             <p className="m-0 font-sans text-xs font-semibold text-gold">{text(["articles", "topics", first.topic])}</p>
                             <h3 className="m-0 font-serif text-2xl leading-tight font-bold text-balance sm:text-3xl">
@@ -450,7 +489,8 @@ function EngagedBento({ paged, text, dates }: { paged: PagedSection; text: Text;
                 </li>
                 {rest.map((card) => (
                     <li key={card.slug}>
-                        <article className="group flex h-full flex-col gap-2 rounded-sm border border-charcoal/12 p-5">
+                        <article className="group flex h-full flex-col gap-2 overflow-hidden rounded-sm border border-charcoal/12 p-5 pt-0">
+                            <Cover card={card} text={text} sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw" className="-mx-5 mb-2 aspect-[16/9]" />
                             <p className="m-0 flex items-baseline gap-1.5 font-serif text-charcoal">
                                 <span className="text-4xl leading-none font-bold tabular-nums">{new Intl.NumberFormat(locale === "en" ? "en-US" : "vi-VN").format(card.comments)}</span>
                                 <span className="font-sans text-xs font-semibold text-charcoal/60">{text(["articles", "front", "comments"]).replace("{count}", "").trim()}</span>
@@ -501,7 +541,10 @@ function TopicColumns({ topics, text, dates }: { topics: ArticleHome["topics"]; 
                             <ul className="m-0 flex list-none flex-col divide-y divide-charcoal/10 p-0">
                                 {rest.map((card) => (
                                     <li key={card.slug} className="py-2.5">
-                                        <Headline card={card} as="h4" className="text-[0.95rem] leading-snug font-semibold" />
+                                        <article className="group flex items-start gap-3">
+                                            <Cover card={card} text={text} sizes="72px" compact className="aspect-[4/3] w-[4.5rem] rounded-sm" />
+                                            <Headline card={card} as="h4" className="min-w-0 flex-1 text-[0.95rem] leading-snug font-semibold" />
+                                        </article>
                                     </li>
                                 ))}
                             </ul>

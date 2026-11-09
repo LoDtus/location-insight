@@ -2,14 +2,13 @@ import Image from "next/image";
 import Link from "next/link";
 import type { JSX } from "react";
 
+import { articleCoverSrc, isVectorCover } from "@/features/articles/article-cover";
 import type { PublicArticle } from "@/features/articles/articles";
 
+/** Ảnh nhỏ của bài; bài chưa có ảnh bìa dùng minh họa của chủ đề. */
 function Thumb({ item, className }: { item: PublicArticle; className: string }): JSX.Element {
-    return item.coverImage?.startsWith("/") ? (
-        <Image src={item.coverImage} alt="" width={300} height={180} className={`shrink-0 object-cover ${className}`} />
-    ) : (
-        <span aria-hidden className={`shrink-0 bg-charcoal/10 ${className}`} />
-    );
+    const src = articleCoverSrc(item);
+    return <Image src={src} alt="" width={300} height={180} unoptimized={isVectorCover(src)} className={`shrink-0 bg-charcoal/[0.06] object-cover ${className}`} />;
 }
 
 /**

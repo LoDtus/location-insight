@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { articleCoverSrc, isVectorCover } from "@/features/articles/article-cover";
 import {
     ARTICLE_SORTS,
     ARTICLE_TOPICS,
@@ -188,16 +189,15 @@ export default function ArticleBrowser({ list }: { list: PublishedList }) {
                     {list.items.map((article, index) => (
                         <li key={article.slug}>
                             <article className="flex h-full flex-col overflow-hidden rounded-2xl border border-charcoal/15 bg-white">
-                                {article.coverImage?.startsWith("/") ? (
-                                    <Image
-                                        src={article.coverImage}
-                                        alt=""
-                                        width={640}
-                                        height={360}
-                                        className="aspect-video w-full object-cover"
-                                        priority={index === 0}
-                                    />
-                                ) : null}
+                                <Image
+                                    src={articleCoverSrc(article)}
+                                    alt=""
+                                    width={640}
+                                    height={360}
+                                    unoptimized={isVectorCover(articleCoverSrc(article))}
+                                    className="aspect-video w-full bg-charcoal/[0.06] object-cover"
+                                    priority={index === 0}
+                                />
                                 <div className="flex flex-1 flex-col gap-2 p-4">
                                     <p className="m-0 text-sm text-charcoal/75">
                                         <span>{text(["articles", "topics", article.topic])}</span>

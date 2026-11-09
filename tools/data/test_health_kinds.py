@@ -14,7 +14,8 @@ class HealthKindTest(unittest.TestCase):
             self.assertEqual(health_kind(name, "clinic"), "hospital", name)
 
     def test_clinics(self) -> None:
-        for name in ["Trạm y tế phường Láng Hạ", "Tram y te Thach That", "Điểm Trạm Y Tế Hoàng Văn Thụ", "Phòng khám đa khoa Medlatec", "Nhà hộ sinh Đống Đa", "Trung tâm Y tế quận Thanh Xuân", "Nha khoa Paris", "VNVC Phố Nhổn", ""]:
+        for name in ["Trạm y tế phường Láng Hạ", "Tram y te Thach That", "Điểm Trạm Y Tế Hoàng Văn Thụ", "Phòng khám đa khoa Medlatec", "Nhà hộ sinh Đống Đa", "Trung tâm Y tế quận Thanh Xuân", "Nha khoa Paris", "VNVC Phố Nhổn", "",
+                     "Phòng khám đa khoa Bệnh viện Đại học Y Hà Nội - Cơ sở Cầu Giấy", "Phòng khám Đa khoa Kỹ thuật cao Bệnh viện Hà Thành"]:
             self.assertEqual(health_kind(name, "hospital"), "clinic", name)
 
     def test_non_medical(self) -> None:

@@ -18,6 +18,9 @@ import unicodedata
 NON_MEDICAL = re.compile(
     r"\b(spa|massage|tham my vien|nha thuoc|hieu thuoc|paris miki|kinh mat|thu y|pet|kinh doanh|day nha|chung cu)\b"
 )
+# Tên bắt đầu bằng loại cơ sở nhỏ thì là cơ sở y tế, kể cả khi nhắc bệnh viện chủ quản
+# ("Phòng khám đa khoa Bệnh viện Đại học Y Hà Nội - Cơ sở Cầu Giấy").
+CLINIC_PREFIX = re.compile(r"^(phong kham|pk|pkck|tram y te|tram xa|diem y te|diem tram|nha ho sinh|nha khoa|trung tam y te|ttyt)\b")
 HOSPITAL = re.compile(r"(^|\b)(benh vien|bv|hospital|thu cuc)\b|^vien\b")
 CLINIC = re.compile(
     r"\b(tram y te|tram xa|diem y te|diem tram|phong kham|pk|pkck|nha khoa|nha ho sinh|trung tam y te|ttyt|phong y te|"
@@ -40,6 +43,8 @@ def health_kind(name: str | None, osm_kind: str) -> str | None:
         return "clinic"
     if NON_MEDICAL.search(text) and not HOSPITAL.search(text):
         return None
+    if CLINIC_PREFIX.search(text):
+        return "clinic"
     if HOSPITAL.search(text):
         return "hospital"
     if CLINIC.search(text):

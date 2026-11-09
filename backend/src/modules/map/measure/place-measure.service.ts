@@ -101,7 +101,7 @@ export class PlaceMeasureService {
       }
     });
     this.logger.log(`Đo ${lat.toFixed(5)},${lng.toFixed(5)} theo bản ${datasetVersion}: ${Date.now() - started} ms`);
-    return measurements;
+    return measurements.map((item) => withLayerSource(item, geo.layers));
   }
 
   /* ---------------- PostGIS ---------------- */
@@ -568,4 +568,16 @@ function fromAir(definition: CriterionDefinition, air: Awaited<ReturnType<OpenAq
 
 function round6(value: number): number {
   return Math.round(value * 1e6) / 1e6;
+}
+
+/**
+ * "Nguồn" của tiêu chí theo lớp thực sự đã đọc (ghi công của lớp), không theo tên cố định trong code: lớp demo hay
+ * nguồn thay thế hiện đúng tên của nó. Thời gian đi lấy từ Vietmap thì ghi thêm.
+ */
+export function withLayerSource(item: CriterionMeasurement, layers: readonly ReleaseLayer[]): CriterionMeasurement {
+  const used = layers.filter((layer) => item.layerVersions?.includes(layer.versionId));
+  const names = [...new Set(used.map((layer) => layer.attribution.trim() || layer.layerCode))];
+  if (names.length === 0) return item;
+  const travel = item.unit === 'phút' ? ', thời gian đi: Vietmap' : '';
+  return { ...item, source: `${names.join('; ')}${travel}` };
 }

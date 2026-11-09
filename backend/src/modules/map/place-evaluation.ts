@@ -88,6 +88,8 @@ export interface CriterionMeasurement {
   expiresAt?: string;
   /** Vì sao không đo được, hoặc giới hạn đã biết. */
   note?: string;
+  /** Nguồn theo lớp dữ liệu thực sự đã đọc; thiếu thì dùng nguồn trong định nghĩa tiêu chí. */
+  source?: string;
 }
 
 export interface CriterionOverride {
@@ -314,7 +316,7 @@ export function buildEvaluation(
       groupLabel: CRITERION_GROUPS[definition.group],
       verdict: measured.verdict,
       detail: measured.detail,
-      source: definition.source,
+      source: measured.source ?? definition.source,
       score: manual ? normalizeManualScore(override.score as number) : measured.autoScore,
       autoScore: measured.autoScore,
       manual,

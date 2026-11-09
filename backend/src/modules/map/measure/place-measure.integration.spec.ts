@@ -147,6 +147,8 @@ describe.skipIf(!DATABASE_URL)('đo tiêu chí trên PostGIS', () => {
     expect(market?.evidence?.[0]?.name).toBe('Chợ gần');
     expect(market?.layerVersions).toHaveLength(1);
     expect(market?.method).toBe('nearest@1');
+    // Nguồn theo ghi công của lớp đã đọc (lớp demo hiện đúng tên của nó), thời gian đi ghi thêm Vietmap.
+    expect(market?.source).toBe('test');
 
     // Phòng khám không phải bệnh viện (lọc theo kind); thời gian đi lấy từ Matrix, chọn đích nhanh nhất.
     const hospital = items.get('benh-vien');
@@ -154,6 +156,7 @@ describe.skipIf(!DATABASE_URL)('đo tiêu chí trên PostGIS', () => {
     expect(hospital?.unit).toBe('phút');
     expect(hospital?.evidence?.[0]?.name).toBe('Bệnh viện A');
     expect(hospital?.expiresAt).toBeTruthy();
+    expect(hospital?.source).toBe('test, thời gian đi: Vietmap');
 
     expect(items.get('quan-an')).toMatchObject({ status: 'ok', value: 5, radiusM: 500 });
     // Dẫn chứng vẽ trên bản đồ: từng quán trong 500 m, ô lưới quanh địa điểm, vòng ngưỡng đạt trọn điểm.

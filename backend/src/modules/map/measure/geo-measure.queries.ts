@@ -250,13 +250,15 @@ export interface ReleaseLayer {
   versionId: string;
   layerCode: string;
   geometryKind: 'point' | 'line' | 'area' | 'grid';
+  /** Ghi công của lớp (geo.layers.attribution): hiện làm "Nguồn" của tiêu chí. */
+  attribution: string;
 }
 
 /** Phiên bản lớp của bản phát hành còn dùng được: `ready` và lớp không bị chặn giấy phép. */
 export async function queryReleaseLayers(dataSource: DataSource, versionIds: string[]): Promise<ReleaseLayer[]> {
   if (versionIds.length === 0) return [];
   const rows = (await dataSource.query(
-    `SELECT v.id::text AS "versionId", v.layer_code AS "layerCode", l.geometry_kind AS "geometryKind"
+    `SELECT v.id::text AS "versionId", v.layer_code AS "layerCode", l.geometry_kind AS "geometryKind", l.attribution
      FROM geo.layer_versions v JOIN geo.layers l ON l.code = v.layer_code
      WHERE v.id = ANY ($1::uuid[]) AND v.status = 'ready' AND l.usage <> 'blocked'`,
     [versionIds],

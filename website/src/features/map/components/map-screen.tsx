@@ -212,6 +212,8 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
     const [evidence, setEvidence] = useState<EvidenceOverlay | null>(null);
     const [evidenceLoading, setEvidenceLoading] = useState(false);
     const evidenceAbortRef = useRef<AbortController | null>(null);
+    /** Tiêu chí và địa điểm đang hiện dẫn chứng: để bấm ghim lựa chọn khác thì dựng lại với lựa chọn đó. */
+    const evidenceSourceRef = useRef<{ item: EvaluatedCriterion; origin: MapPoint } | null>(null);
 
     const fitEvidence = useCallback((overlay: EvidenceOverlay) => {
         const root = rootRef.current;
@@ -219,10 +221,13 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
         // Chừa thêm chỗ cho nhãn của ghim dẫn chứng (nhãn rộng ~200 px, neo giữa) và thẻ chú thích ở dưới.
         const LABEL_ROOM = 90;
         // Mobile: panel là bottom sheet nằm đè lên bản đồ, khi xem dẫn chứng thu còn ~34% chiều cao.
-        const sheet = typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches && root ? root.clientHeight * 0.36 : 0;
+        const mobile = typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches;
+        const sheet = mobile && root ? root.clientHeight * 0.36 : 0;
+        // Desktop: thẻ chú thích nằm dưới đáy bản đồ (~150 px), chừa chỗ để ghim không bị che.
+        const caption = mobile ? 60 : 170;
         const inset = {
             right: (root && area ? Math.max(0, root.clientWidth - area.clientWidth) : 0) + LABEL_ROOM,
-            bottom: Math.max(sheet, root && area ? Math.max(0, root.clientHeight - area.clientHeight) : 0) + 60,
+            bottom: Math.max(sheet, root && area ? Math.max(0, root.clientHeight - area.clientHeight) : 0) + caption,
         };
         mapRef.current?.fitBounds(overlay.bbox, LABEL_ROOM, inset);
     }, []);
@@ -236,10 +241,11 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
 
     /** Vẽ dẫn chứng: lớp phủ dựng ngay (nét nối thẳng), rồi thay bằng đường đi thật khi Vietmap trả tuyến. */
     const showEvidence = useCallback(
-        (item: EvaluatedCriterion | null, origin: MapPoint) => {
+        (item: EvaluatedCriterion | null, origin: MapPoint, choice = 0) => {
             clearEvidence();
+            evidenceSourceRef.current = item ? { item, origin } : null;
             if (!item) return;
-            const plan = planEvidence(item, origin);
+            const plan = planEvidence(item, origin, choice);
             if (!plan) {
                 showToast({
                     title: `${item.label}: chưa có dẫn chứng trên bản đồ`,
@@ -1104,6 +1110,10 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                 }}
                 onFailure={setFailed}
                 evidence={visibleEvidence}
+                onEvidencePick={(choice) => {
+                    const source = evidenceSourceRef.current;
+                    if (source) showEvidence(source.item, source.origin, choice);
+                }}
             />
             <div className="pointer-events-none absolute inset-0">
                 <div className="flex h-full w-full min-h-0">

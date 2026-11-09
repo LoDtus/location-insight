@@ -124,6 +124,8 @@ function criterion(id: EvaluatedCriterion["id"], score: number, skipped = false)
         cells: [],
         cellM: null,
         radiusM: null,
+        paths: [],
+        zones: [],
     };
 }
 

@@ -647,6 +647,14 @@ Tham khảo:
   - Độ phủ dưới 60% thì nhãn là "Chỉ tham khảo".
   - Tiêu chí AI (ngập úng sau mưa, quy hoạch, an ninh) có số minh họa ổn định theo tọa độ và nằm trong nhóm "Chưa tính vào điểm".
 - **Dẫn chứng:** số đo mang theo đối tượng gần nhất, danh sách quán, ô lưới quanh địa điểm và bán kính. Website (`evidence-overlay.ts`) vẽ theo cách đo: đường đi thật, nét nối, vòng ngưỡng, chấm, ô tô màu.
+- **Số lựa chọn theo tiêu chí** (`evidence` trong `criteria.ts`, không đổi điểm số):
+  - Tối đa 3 ghim đánh số ①②③, chỉ một tuyến mỗi lúc. Bấm ghim khác thì đổi tuyến và so với ①.
+  - Chợ, siêu thị: 3 lựa chọn. Công viên, metro: 2. UBND, vật tư: 1.
+  - Trường: mầm non gần nhất và 2 trường phổ thông. Hiệu thuốc, xe buýt: 3 lựa chọn, chỉ ghim, không có tuyến.
+  - Số phút của các lựa chọn lấy bằng một lượt Vietmap Matrix riêng lúc đánh giá. Lượt này lỗi thì chỉ thiếu nhãn số phút, không ảnh hưởng điểm.
+  - Đường lớn và ồn giao thông trả hình dạng đường cắt trong 600 m. Tiêu chí ồn trả thêm vùng đệm 80 m / 300 m.
+  - Ngập sông thêm các ô trong 300 m; điểm vẫn chấm theo ô chứa địa điểm.
+  - Không khí: 2 trạm. Nội đô: vòng 3/10/20 km. Độ cao: thang hai chiều so với ô chứa địa điểm.
 
 ### Hệ quả <!-- key: consequences -->
 

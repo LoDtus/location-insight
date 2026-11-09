@@ -51,6 +51,17 @@ export interface MeasurementEvidence {
   lng: number;
   distanceM: number;
   minutes?: number;
+  /** Nhóm của lựa chọn (trường: "Mầm non", "Phổ thông"). */
+  group?: string;
+  /** Số đo tại đối tượng (PM2.5 của trạm) và thời điểm đo. */
+  value?: number;
+  observedAt?: string;
+}
+
+/** Vùng đệm quanh đường (vùng ồn): vòng ngoài các đa giác, [lng, lat]. */
+export interface MeasurementZone {
+  meters: number;
+  rings: Array<Array<[number, number]>>;
 }
 
 export interface MeasurementCell {
@@ -80,6 +91,9 @@ export interface CriterionMeasurement {
   /** Ô lưới quanh địa điểm (tâm ô và giá trị) để tô trên bản đồ; cỡ ô `cellM` mét. */
   cells?: MeasurementCell[];
   cellM?: number;
+  /** Hình dạng đường làm dẫn chứng (đã cắt quanh địa điểm), [lng, lat]. */
+  paths?: Array<Array<[number, number]>>;
+  zones?: MeasurementZone[];
   /** Bán kính có nghĩa với tiêu chí (bán kính đếm, bán kính lưới) hoặc ngưỡng đạt trọn điểm, để vẽ vòng tròn. */
   radiusM?: number;
   blockingHit?: boolean;
@@ -128,6 +142,8 @@ export interface EvaluatedCriterion {
   cells: MeasurementCell[];
   cellM: number | null;
   radiusM: number | null;
+  paths: Array<Array<[number, number]>>;
+  zones: MeasurementZone[];
 }
 
 export interface EvaluationBlocking {
@@ -335,6 +351,8 @@ export function buildEvaluation(
       cells: measured.cells ?? [],
       cellM: measured.cellM ?? null,
       radiusM: measured.radiusM ?? null,
+      paths: measured.paths ?? [],
+      zones: measured.zones ?? [],
     });
   }
 

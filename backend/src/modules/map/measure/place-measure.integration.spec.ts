@@ -95,9 +95,13 @@ describe.skipIf(!DATABASE_URL)('đo tiêu chí trên PostGIS', () => {
       placeRow('osm:h2', 'hospital', 'hospital', 'Bệnh viện B', 0, -2500),
       placeRow('osm:c1', 'hospital', 'clinic', 'Phòng khám', 100, 0),
       placeRow('osm:b1', 'bus', 'bus_stop', 'Điểm dừng', 0, 100),
+      placeRow('osm:s1', 'school', 'kindergarten', 'Mầm non Hoa Sen', 250, 0),
+      placeRow('osm:s2', 'school', 'school', 'Tiểu học A', 0, 400),
+      placeRow('osm:s3', 'school', 'school', 'THCS B', -700, 0),
+      placeRow('osm:s4', 'school', 'school', 'THPT C', -1500, 0),
       ...[50, 120, 200, 260, 330].map((m, i) => placeRow(`osm:f${i}`, 'food', 'cafe', `Quán ${i}`, -m, m / 2)),
     ];
-    const placeCounts = { market: 2, pharmacy: 1, hospital: 3, bus: 1, food: 5 };
+    const placeCounts = { market: 2, pharmacy: 1, hospital: 3, bus: 1, food: 5, school: 4 };
     const manifest: Record<string, string> = {};
     manifest['osm.places'] = await load('osm.places', 'point@1', Buffer.from(`${places.join('\n')}\n`), places.length - 1, placeCounts);
     manifest['osm.roads'] = await load('osm.roads', 'line@1', gzipLines([lineFeature('osm:w1', 'primary', 100, 'Phố Lớn'), lineFeature('osm:w2', 'trunk', 1000, 'Đường Trục')]), 2, { road: 2 });
@@ -163,11 +167,26 @@ describe.skipIf(!DATABASE_URL)('đo tiêu chí trên PostGIS', () => {
     expect(items.get('quan-an')?.evidence).toHaveLength(5);
     expect(items.get('mat-do-dan-cu')?.cells).toHaveLength(81);
     expect(items.get('mat-do-dan-cu')?.cellM).toBe(100);
-    const center = items.get('ngap-song')?.cells?.[0];
-    expect(items.get('ngap-song')?.cells).toHaveLength(1);
-    expect(Math.abs((center?.lat ?? 0) - P.lat)).toBeLessThan(0.001);
-    expect(Math.abs((center?.lng ?? 0) - P.lng)).toBeLessThan(0.001);
+    // Ngập sông: điểm theo ô chứa địa điểm, dẫn chứng thêm các ô trong 300 m (29 ô).
+    const floodCells = items.get('ngap-song')?.cells ?? [];
+    expect(floodCells).toHaveLength(29);
+    const wet = floodCells.find((cell) => cell.value > 0);
+    expect(Math.abs((wet?.lat ?? 0) - P.lat)).toBeLessThan(0.001);
+    expect(Math.abs((wet?.lng ?? 0) - P.lng)).toBeLessThan(0.001);
     expect(items.get('cho')?.radiusM).toBe(300);
+    // Nhiều lựa chọn kèm số phút (lượt Matrix dẫn chứng), sắp theo khoảng cách.
+    expect(items.get('cho')?.evidence?.map((item) => item.name)).toEqual(['Chợ gần', 'Chợ xa']);
+    expect(items.get('cho')?.evidence?.every((item) => typeof item.minutes === 'number')).toBe(true);
+    // Trường: mầm non gần nhất + 2 trường phổ thông gần nhất, gắn nhóm; THPT C (xa hơn) không vào.
+    expect(items.get('truong-hoc')?.evidence?.map((item) => `${item.group}:${item.name}`)).toEqual([
+      'Mầm non:Mầm non Hoa Sen',
+      'Phổ thông:Tiểu học A',
+      'Phổ thông:THCS B',
+    ]);
+    // Đường lớn: hình dạng đoạn đường trong 600 m; ồn: đường trục xa hơn 600 m nên không có vùng ồn.
+    expect(items.get('duong-lon')?.paths?.length).toBeGreaterThan(0);
+    expect(items.get('duong-lon')?.paths?.[0]?.length).toBeGreaterThanOrEqual(2);
+    expect(items.get('on-giao-thong')?.zones).toEqual([]);
     expect(items.get('xe-buyt')?.autoScore).toBe(10);
     expect(items.get('metro')).toMatchObject({ status: 'no_data' });
     expect(items.get('duong-lon')?.detail).toMatch(/Phố Lớn/);
@@ -184,7 +203,8 @@ describe.skipIf(!DATABASE_URL)('đo tiêu chí trên PostGIS', () => {
     const evaluation = buildEvaluation(P.lat, P.lng, [...items.values()], []);
     expect(evaluation.blocking.map((item) => item.criterionId)).toEqual(['ngap-song']);
     expect(evaluation.overall).toBeLessThanOrEqual(4);
-    expect(maps.calls).toBe(2);
+    // Mỗi lượt đo 2 lượt Matrix (chấm điểm + dẫn chứng), đo 2 lần (làm nóng + đo).
+    expect(maps.calls).toBe(4);
   });
 
   it('Vietmap lỗi: thời gian đi chuyển sang khoảng cách, hạ độ tin, các tiêu chí khác không ảnh hưởng', async () => {

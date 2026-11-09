@@ -45,6 +45,21 @@ export interface LineRequest {
   versions: string[];
   roadClasses: string[];
   searchM: number;
+  /** Cắt hình dạng đường trong bán kính này để làm dẫn chứng. */
+  clipM: number;
+  /** Lấy mọi đường trong `clipM` (vùng ồn), không chỉ đường gần nhất. */
+  allWithin: boolean;
+  /** Vùng đệm (mét) quanh các đường đã cắt. */
+  zonesM: number[];
+}
+
+/** Đường (LineString) theo [lng, lat]. */
+export type PathCoordinates = Array<[number, number]>;
+
+export interface LineZone {
+  meters: number;
+  /** Vòng ngoài của các đa giác vùng đệm. */
+  rings: PathCoordinates[];
 }
 
 export interface LineRow {
@@ -55,6 +70,8 @@ export interface LineRow {
   lng: number | null;
   distance_m: number | null;
   version: string | null;
+  paths: PathCoordinates[];
+  zones: LineZone[];
 }
 
 /** Mét trên một độ vĩ (xấp xỉ, đủ cho vẽ ô 100 m). */
@@ -124,11 +141,14 @@ ORDER BY r.id, n.distance_m NULLS LAST`;
 
 const LINE_SQL = `
 WITH pt AS (SELECT ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography AS g),
-req AS (SELECT * FROM jsonb_to_recordset($3::jsonb) AS r(id text, versions uuid[], "roadClasses" text[], "searchM" float8))
-SELECT r.id, n.name, n.road_class, n.lat, n.lng, n.distance_m, n.version
+req AS (
+  SELECT * FROM jsonb_to_recordset($3::jsonb)
+    AS r(id text, versions uuid[], "roadClasses" text[], "searchM" float8, "clipM" float8, "allWithin" boolean, "zonesM" float8[])
+)
+SELECT r.id, n.name, n.road_class, n.lat, n.lng, n.distance_m, n.version, pa.paths, zo.zones
 FROM req r CROSS JOIN pt
 LEFT JOIN LATERAL (
-  SELECT f.name, f.road_class, f.layer_version_id::text AS version, ST_Distance(f.geom, pt.g) AS distance_m,
+  SELECT f.name, f.road_class, f.layer_version_id::text AS version, ST_Distance(f.geom, pt.g) AS distance_m, f.geom,
          ST_Y(ST_ClosestPoint(f.geom::geometry, pt.g::geometry)) AS lat, ST_X(ST_ClosestPoint(f.geom::geometry, pt.g::geometry)) AS lng
   FROM geo.line_features f
   WHERE f.layer_version_id = ANY (r.versions)
@@ -136,7 +156,29 @@ LEFT JOIN LATERAL (
     AND ST_DWithin(f.geom, pt.g, r."searchM")
   ORDER BY f.geom <-> pt.g
   LIMIT 1
-) n ON true`;
+) n ON true
+-- Dẫn chứng: hình dạng đường cắt trong clipM (đường gần nhất, hoặc mọi đường khi allWithin), rút gọn ~2 m.
+LEFT JOIN LATERAL (
+  SELECT array_agg(ST_Intersection(s.geom::geometry, ST_Buffer(pt.g, r."clipM")::geometry)) AS parts
+  FROM (
+    SELECT n.geom WHERE NOT r."allWithin" AND n.geom IS NOT NULL
+    UNION ALL
+    (SELECT f.geom FROM geo.line_features f
+     WHERE r."allWithin" AND f.layer_version_id = ANY (r.versions) AND f.road_class = ANY (r."roadClasses")
+       AND ST_DWithin(f.geom, pt.g, r."clipM")
+     ORDER BY f.geom <-> pt.g LIMIT 12)
+  ) s
+) clip ON true
+LEFT JOIN LATERAL (
+  SELECT json_agg(ST_AsGeoJSON(ST_Simplify(p, 0.00002))::json) AS paths
+  FROM unnest(clip.parts) AS p WHERE NOT ST_IsEmpty(p)
+) pa ON true
+LEFT JOIN LATERAL (
+  SELECT json_agg(json_build_object('meters', z, 'geometry',
+           ST_AsGeoJSON(ST_Simplify(ST_Buffer(ST_Union(clip.parts)::geography, z)::geometry, 0.00002))::json) ORDER BY z) AS zones
+  FROM unnest(coalesce(r."zonesM", ARRAY[]::float8[])) AS z
+  WHERE clip.parts IS NOT NULL
+) zo ON true`;
 
 /**
  * cell_id = hàng × columns + cột, hàng tính từ origin_y đi lên (geo.grids). Khoảng cách ô tính giữa tâm ô chứa
@@ -221,8 +263,15 @@ export async function queryPoints(dataSource: DataSource, lat: number, lng: numb
 
 export async function queryLines(dataSource: DataSource, lat: number, lng: number, requests: LineRequest[]): Promise<LineRow[]> {
   if (requests.length === 0) return [];
-  const rows = await readOnly<LineRow>(dataSource, LINE_SQL, [lng, lat, JSON.stringify(requests)]);
-  return rows.map((row) => ({ ...row, lat: numeric(row.lat), lng: numeric(row.lng), distance_m: numeric(row.distance_m) }));
+  const rows = await readOnly<LineRow & { paths: unknown; zones: unknown }>(dataSource, LINE_SQL, [lng, lat, JSON.stringify(requests)]);
+  return rows.map((row) => ({
+    ...row,
+    lat: numeric(row.lat),
+    lng: numeric(row.lng),
+    distance_m: numeric(row.distance_m),
+    paths: Array.isArray(row.paths) ? row.paths.flatMap(lineCoordinates) : [],
+    zones: Array.isArray(row.zones) ? row.zones.flatMap(zoneOf) : [],
+  }));
 }
 
 export async function queryGrids(dataSource: DataSource, lat: number, lng: number, requests: GridRequest[]): Promise<GridRow[]> {
@@ -264,4 +313,44 @@ export async function queryReleaseLayers(dataSource: DataSource, versionIds: str
     [versionIds],
   )) as ReleaseLayer[];
   return rows;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function position(value: unknown): [number, number] | null {
+  return Array.isArray(value) && typeof value[0] === 'number' && typeof value[1] === 'number' ? [round6(value[0]), round6(value[1])] : null;
+}
+
+function positions(value: unknown): PathCoordinates {
+  return Array.isArray(value) ? value.map(position).filter((item): item is [number, number] => item !== null) : [];
+}
+
+function round6(value: number): number {
+  return Math.round(value * 1e6) / 1e6;
+}
+
+/** GeoJSON LineString/MultiLineString (hoặc GeometryCollection khi cắt) → danh sách đường. */
+export function lineCoordinates(geometry: unknown): PathCoordinates[] {
+  if (!isRecord(geometry)) return [];
+  if (geometry.type === 'LineString') return [positions(geometry.coordinates)].filter((line) => line.length >= 2);
+  if (geometry.type === 'MultiLineString' && Array.isArray(geometry.coordinates)) return geometry.coordinates.map(positions).filter((line) => line.length >= 2);
+  if (geometry.type === 'GeometryCollection' && Array.isArray(geometry.geometries)) return geometry.geometries.flatMap(lineCoordinates);
+  return [];
+}
+
+/** Vùng đệm GeoJSON Polygon/MultiPolygon → vòng ngoài. */
+export function zoneOf(value: unknown): LineZone[] {
+  if (!isRecord(value) || typeof value.meters !== 'number' || !isRecord(value.geometry)) return [];
+  const geometry = value.geometry;
+  const coords = geometry.coordinates;
+  const rings =
+    geometry.type === 'Polygon' && Array.isArray(coords)
+      ? [positions(coords[0])]
+      : geometry.type === 'MultiPolygon' && Array.isArray(coords)
+        ? coords.map((polygon) => (Array.isArray(polygon) ? positions(polygon[0]) : []))
+        : [];
+  const valid = rings.filter((ring) => ring.length >= 4);
+  return valid.length > 0 ? [{ meters: value.meters, rings: valid }] : [];
 }

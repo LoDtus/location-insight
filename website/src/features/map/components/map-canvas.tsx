@@ -107,6 +107,8 @@ interface MapCanvasProps {
     onFailure: (failed: boolean) => void;
     /** Dẫn chứng của tiêu chí đang chọn trong bảng đánh giá (evidence-overlay.ts). */
     evidence?: EvidenceOverlay | null;
+    /** Bấm ghim lựa chọn số `choice` (0 = gần nhất) để đổi tuyến dẫn chứng. */
+    onEvidencePick?: (choice: number) => void;
     handleRef: Ref<MapHandle>;
 }
 
@@ -141,6 +143,7 @@ const LISTING_VIEW_PADDING = 0.25;
 const SRC_EVIDENCE = "li-evidence";
 const LAYER_EVIDENCE_FILL = "li-evidence-fill";
 const LAYER_EVIDENCE_OUTLINE = "li-evidence-outline";
+const LAYER_EVIDENCE_ROAD = "li-evidence-road";
 const LAYER_EVIDENCE_CASING = "li-evidence-route-casing";
 const LAYER_EVIDENCE_ROUTE = "li-evidence-route";
 const LAYER_EVIDENCE_CONNECTOR = "li-evidence-connector";
@@ -191,6 +194,7 @@ export default function MapCanvas({
     onViewport,
     onFailure,
     evidence = null,
+    onEvidencePick,
     handleRef,
 }: MapCanvasProps) {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -214,6 +218,10 @@ export default function MapCanvas({
     const listingMarkersRef = useRef<Map<string, VietmapMarker>>(new Map());
     const evidenceRef = useRef<EvidenceOverlay | null>(evidence);
     const evidenceMarkersRef = useRef<VietmapMarker[]>([]);
+    const evidencePickRef = useRef(onEvidencePick);
+    useEffect(() => {
+        evidencePickRef.current = onEvidencePick;
+    }, [onEvidencePick]);
     const initialStyleRef = useRef(styleId);
     const appliedStyleRef = useRef(styleId);
 
@@ -708,6 +716,15 @@ export default function MapCanvas({
             paint: { "line-color": color, "line-width": 2, "line-dasharray": [2, 1.5], "line-opacity": 0.8 },
         });
         const layout = { "line-cap": "round", "line-join": "round" } as const;
+        // Hình dạng đường làm dẫn chứng (đường lớn, đường trục): nét dày bán trong suốt, nằm dưới tuyến đi.
+        map.addLayer({
+            id: LAYER_EVIDENCE_ROAD,
+            type: "line",
+            source: SRC_EVIDENCE,
+            filter: ["==", ["get", "kind"], "road"] as never,
+            layout,
+            paint: { "line-color": color, "line-width": 8, "line-opacity": 0.6 },
+        });
         map.addLayer({
             id: LAYER_EVIDENCE_CASING,
             type: "line",
@@ -747,7 +764,10 @@ export default function MapCanvas({
         });
     }
 
-    /** Ghim có nhãn của đối tượng chính (và chấm phụ khi ít), dạng DOM để chữ rõ trên mọi nền. */
+    /**
+     * Ghim có nhãn (lựa chọn đang chọn và các lựa chọn khác khi ít), dạng DOM để chữ rõ trên mọi nền. Lựa chọn có
+     * `choice` là nút: bấm để đổi tuyến sang lựa chọn đó.
+     */
     function syncEvidenceMarkers(): void {
         const map = mapRef.current;
         const lib = libRef.current;
@@ -760,13 +780,24 @@ export default function MapCanvas({
         );
         for (const point of labelled) {
             const target = point.emphasis === "target";
-            const element = document.createElement("div");
+            const clickable = point.choice !== null && !target;
+            const element = document.createElement(clickable ? "button" : "div");
             element.setAttribute(MARKER_ATTR, "evidence");
-            element.setAttribute("role", "img");
-            element.setAttribute("aria-label", point.label ?? "");
-            element.className = "pointer-events-none flex flex-col items-center";
+            if (clickable && element instanceof HTMLButtonElement) {
+                element.type = "button";
+                element.setAttribute("aria-label", `Xem đường tới ${point.label ?? ""}`);
+                element.title = "Xem đường tới lựa chọn này";
+                element.addEventListener("click", (event) => {
+                    event.stopPropagation();
+                    if (point.choice !== null) evidencePickRef.current?.(point.choice);
+                });
+            } else {
+                element.setAttribute("role", "img");
+                element.setAttribute("aria-label", point.label ?? "");
+            }
+            element.className = `flex flex-col items-center border-0 bg-transparent p-0 ${clickable ? "cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green" : "pointer-events-none"}`;
             const chip = document.createElement("span");
-            chip.className = `mb-1 max-w-56 truncate rounded-md px-2 py-0.5 text-[11px] leading-4 font-semibold whitespace-nowrap shadow-[0_2px_6px_rgba(16,17,17,0.25)] ${target ? "text-white" : "bg-white text-charcoal"}`;
+            chip.className = `mb-1 max-w-72 truncate rounded-md px-2 py-0.5 text-[11px] leading-4 font-semibold whitespace-nowrap shadow-[0_2px_6px_rgba(16,17,17,0.25)] ${target ? "text-white" : "bg-white text-charcoal ring-1 ring-charcoal/15"} ${clickable ? "hover:ring-2 hover:ring-green" : ""}`;
             if (target) chip.style.backgroundColor = point.color;
             chip.textContent = point.label;
             const dot = document.createElement("span");

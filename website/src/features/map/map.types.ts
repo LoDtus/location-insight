@@ -81,6 +81,17 @@ export interface MeasurementEvidence {
     lng: number;
     distanceM: number;
     minutes?: number;
+    /** Nhóm lựa chọn (trường: "Mầm non", "Phổ thông"). */
+    group?: string;
+    /** Số đo tại đối tượng (PM2.5 của trạm) và lúc đo. */
+    value?: number;
+    observedAt?: string;
+}
+
+/** Vùng đệm quanh đường (vùng ồn), vòng ngoài [lng, lat]. */
+export interface MeasurementZone {
+    meters: number;
+    rings: Array<Array<[number, number]>>;
 }
 
 export interface EvaluatedCriterion {
@@ -118,6 +129,9 @@ export interface EvaluatedCriterion {
     cellM: number | null;
     /** Bán kính đếm/lưới, hoặc ngưỡng đạt trọn điểm (mét). */
     radiusM: number | null;
+    /** Hình dạng đường làm dẫn chứng, [lng, lat]. */
+    paths: Array<Array<[number, number]>>;
+    zones: MeasurementZone[];
 }
 
 export interface MeasurementCell {

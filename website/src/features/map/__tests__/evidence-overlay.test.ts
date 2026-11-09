@@ -32,6 +32,8 @@ function criterion(patch: Partial<EvaluatedCriterion>): EvaluatedCriterion {
         cells: [],
         cellM: null,
         radiusM: 300,
+        paths: [],
+        zones: [],
         ...patch,
     };
 }
@@ -72,7 +74,8 @@ describe("dẫn chứng trên bản đồ", () => {
             }),
             origin,
         );
-        expect(plan?.overlay.points.map((point) => point.label)).toEqual(["BV A · 1,5 km · 9 phút xe máy", "BV B · 14 phút"]);
+        expect(plan?.overlay.points.map((point) => point.label)).toEqual(["① BV A · 1,5 km · 9 phút", "② BV B · 2,5 km · 14 phút"]);
+        expect(plan?.overlay.points.map((point) => point.choice)).toEqual([0, 1]);
         expect(planEvidence(criterion({ id: "ubnd", label: "UBND" }), origin)?.overlay.caption).toMatch(/tới UBND gần nhất/);
     });
 
@@ -110,5 +113,105 @@ describe("dẫn chứng trên bản đồ", () => {
         expect(hasEvidence(criterion({ status: "no_data", evidence: [] }))).toBe(false);
         expect(planEvidence(criterion({ status: "not_implemented", method: "ai_pending@0", evidence: [] }), origin)).toBeNull();
         expect(planEvidence(criterion({ method: "grid_mean@1", cells: [] }), origin)).toBeNull();
+    });
+
+    it("nhiều lựa chọn: bấm ② thì tuyến tới ②, chú thích so với ①", () => {
+        const options = [
+            { name: "Chợ A", lat: 21.032, lng: 105.85, distanceM: 220, minutes: 2 },
+            { name: "Chợ B", lat: 21.035, lng: 105.852, distanceM: 560, minutes: 5 },
+            { name: "Chợ C", lat: 21.025, lng: 105.845, distanceM: 760, minutes: 6 },
+        ];
+        const first = planEvidence(criterion({ id: "cho", label: "Chợ", evidence: options }), origin);
+        expect(first?.routeTo).toEqual({ lat: 21.032, lng: 105.85 });
+        expect(first?.overlay.points.map((point) => point.emphasis)).toEqual(["target", "other", "other"]);
+        const second = planEvidence(criterion({ id: "cho", label: "Chợ", evidence: options }), origin, 1);
+        expect(second?.routeTo).toEqual({ lat: 21.035, lng: 105.852 });
+        expect(second?.overlay.selected).toBe(1);
+        expect(second?.overlay.caption).toMatch(/Đang xem ② Chợ B: xa hơn ① 340 m, chậm hơn 3 phút/);
+        const close = [options[0], { ...options[1], minutes: 2.4 }];
+        expect(planEvidence(criterion({ id: "cho", label: "Chợ", evidence: close }), origin, 1)?.overlay.caption).toMatch(/thời gian đi tương đương/);
+    });
+
+    it("trường: nhãn ghi cấp học; hiệu thuốc chỉ ghim, không tuyến", () => {
+        const plan = planEvidence(
+            criterion({
+                evidence: [
+                    { name: "Hoa Sen", lat: 21.031, lng: 105.85, distanceM: 120, group: "Mầm non", minutes: 1 },
+                    { name: "Tiểu học A", lat: 21.033, lng: 105.85, distanceM: 330, group: "Phổ thông", minutes: 3 },
+                ],
+            }),
+            origin,
+        );
+        expect(plan?.overlay.points[0].label).toBe("① Mầm non · Hoa Sen · 120 m · 1 phút");
+        const pharmacy = planEvidence(
+            criterion({
+                id: "hieu-thuoc",
+                label: "Hiệu thuốc",
+                evidence: [
+                    { name: "A", lat: 21.031, lng: 105.85, distanceM: 100 },
+                    { name: "B", lat: 21.032, lng: 105.85, distanceM: 210 },
+                ],
+            }),
+            origin,
+        );
+        expect(pharmacy?.routeTo).toBeNull();
+        expect(pharmacy?.overlay.lines).toEqual([]);
+        expect(pharmacy?.overlay.points.every((point) => point.choice === null)).toBe(true);
+    });
+
+    it("ồn giao thông: tô đường trục và vùng ồn 80 m đậm hơn 300 m", () => {
+        const ring: Array<[number, number]> = [
+            [105.84, 21.02],
+            [105.86, 21.02],
+            [105.86, 21.04],
+            [105.84, 21.02],
+        ];
+        const plan = planEvidence(
+            criterion({
+                id: "on-giao-thong",
+                method: "line_nearest@1",
+                radiusM: 600,
+                evidence: [{ name: "Đường Láng", lat: 21.031, lng: 105.85, distanceM: 120 }],
+                paths: [
+                    [
+                        [105.84, 21.031],
+                        [105.86, 21.031],
+                    ],
+                ],
+                zones: [
+                    { meters: 80, rings: [ring] },
+                    { meters: 300, rings: [ring] },
+                ],
+            }),
+            origin,
+        );
+        expect(plan?.overlay.lines.map((line) => line.style)).toEqual(["road", "connector"]);
+        const zones = plan?.overlay.areas.filter((area) => !area.outline) ?? [];
+        expect(zones.map((area) => area.opacity)).toEqual([0.09, 0.22]);
+        expect(plan?.overlay.legend).toHaveLength(2);
+    });
+
+    it("độ cao: tô theo chênh so với ô chứa địa điểm (thang hai chiều)", () => {
+        const cells = [
+            { lat: 21.03, lng: 105.85, value: 10 },
+            { lat: 21.031, lng: 105.85, value: 12 },
+            { lat: 21.029, lng: 105.85, value: 8 },
+            { lat: 21.03, lng: 105.851, value: 10.2 },
+        ];
+        const plan = planEvidence(criterion({ id: "do-cao", method: "grid_relative@1", cells, cellM: 100, radiusM: 500, evidence: [] }), origin);
+        const colors = plan?.overlay.areas.slice(0, 4).map((area) => area.color);
+        expect(colors).toEqual(["#e5e7eb", "#8a5a1f", "#1d4ed8", "#e5e7eb"]);
+        expect(plan?.overlay.legend?.[0][1]).toMatch(/thấp hơn/);
+    });
+
+    it("nội đô: vòng 3/10/20 km không kéo khung nhìn ra 20 km", () => {
+        const plan = planEvidence(
+            criterion({ id: "noi-do", method: "anchor@1", radiusM: null, evidence: [{ name: "Hồ Gươm", lat: 21.0285, lng: 105.852, distanceM: 1800, minutes: 6 }] }),
+            origin,
+        );
+        expect(plan?.overlay.areas).toHaveLength(3);
+        expect(plan?.overlay.areas.every((area) => area.fit === false)).toBe(true);
+        const [minLng, , maxLng] = plan?.overlay.bbox ?? [0, 0, 0];
+        expect(maxLng - minLng).toBeLessThan(0.01);
     });
 });

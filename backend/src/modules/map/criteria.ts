@@ -43,6 +43,16 @@ export interface BlockingRule {
   message: string;
 }
 
+/**
+ * Dẫn chứng hiện trên bản đồ của tiêu chí điểm (không ảnh hưởng điểm số): lấy `take` chỗ gần nhất, hoặc theo
+ * nhóm (trường: mầm non / phổ thông). `minutes`: lấy thêm số phút đi xe máy (một lượt Vietmap Matrix chung).
+ */
+export interface EvidenceSpec {
+  take: number;
+  groups?: ReadonlyArray<{ label: string; kinds: readonly string[]; take: number }>;
+  minutes?: boolean;
+}
+
 export type CriterionMethod =
   /** Đối tượng điểm gần nhất (đường chim bay) và số đối tượng trong `supportM` để tính độ tin. */
   | {
@@ -54,6 +64,7 @@ export type CriterionMethod =
       searchM: number;
       supportM: number;
       minSupport: number;
+      evidence?: EvidenceSpec;
     }
   /** Như `nearest` nhưng chấm theo thời gian đi thật (Vietmap Matrix) tới `candidates` điểm gần nhất. */
   | {
@@ -72,15 +83,28 @@ export type CriterionMethod =
     }
   /** Đếm đối tượng trong bán kính, trừ hao tuyến tính theo khoảng cách (như decay 'linear' của pandana). */
   | { method: 'count'; version: 1; theme: string; categories: readonly string[]; radiusM: number }
-  /** Đường gần nhất thuộc các cấp đường. */
-  | { method: 'line_nearest'; version: 1; theme: string; roadClasses: readonly string[]; searchM: number }
+  /**
+   * Đường gần nhất thuộc các cấp đường. Dẫn chứng: hình dạng đường trong `clipM` quanh địa điểm (chỉ đường gần
+   * nhất, hoặc mọi đường khi `allWithin`), và vùng đệm `zonesM` quanh các đường đó (vùng ồn).
+   */
+  | {
+      method: 'line_nearest';
+      version: 1;
+      theme: string;
+      roadClasses: readonly string[];
+      searchM: number;
+      clipM: number;
+      allWithin?: boolean;
+      zonesM?: readonly number[];
+    }
   /** Mốc cố định: thời gian đi (Vietmap) nếu có, không thì khoảng cách. */
   | { method: 'anchor'; version: 1; anchor: { lat: number; lng: number }; vehicle: 'motorcycle'; fallback: Scoring }
   /** Lưới: tổng, trung bình các ô trong bán kính, giá trị ô chứa điểm, hoặc chênh ô chứa điểm so với trung vị. */
   | { method: 'grid_sum' | 'grid_mean' | 'grid_relative'; version: 1; theme: string; radiusM: number }
-  | { method: 'grid_cell'; version: 1; theme: string }
+  /** Giá trị ô chứa điểm; dẫn chứng thêm các ô trong `evidenceRadiusM` để thấy vệt quanh địa điểm. */
+  | { method: 'grid_cell'; version: 1; theme: string; evidenceRadiusM: number }
   /** Trạm quan trắc gần nhất (OpenAQ), bỏ nếu xa hơn `maxStationM`. */
-  | { method: 'air_station'; version: 1; parameter: 'pm25'; maxStationM: number; maxAgeHours: number }
+  | { method: 'air_station'; version: 1; parameter: 'pm25'; maxStationM: number; maxAgeHours: number; stations: number }
   /** Cần AI (GĐ3): chưa thực hiện. */
   | { method: 'ai_pending'; version: 0 };
 
@@ -112,7 +136,7 @@ function near(
   good: number,
   bad: number,
   confidence: Confidence,
-  extra: { searchM?: number; kinds?: string[]; caveat?: string; group?: CriterionGroup } = {},
+  extra: { searchM?: number; kinds?: string[]; caveat?: string; group?: CriterionGroup; evidence?: EvidenceSpec } = {},
 ): CriterionDefinition {
   const searchM = extra.searchM ?? Math.max(bad * 1.5, 1000);
   return {
@@ -122,7 +146,7 @@ function near(
     status: 'live',
     source: OSM,
     noun,
-    measure: { method: 'nearest', version: 1, theme: PLACES, categories, kinds: extra.kinds, searchM, supportM: bad, minSupport: 1 },
+    measure: { method: 'nearest', version: 1, theme: PLACES, categories, kinds: extra.kinds, searchM, supportM: bad, minSupport: 1, evidence: extra.evidence },
     scoring: { curve: 'decay', good, bad },
     confidence,
     caveat: extra.caveat,
@@ -149,12 +173,15 @@ function aiPending(id: string, label: string, noun: string, caveat: string): Cri
  * giống cách Walk Score cho trọn điểm trong 5 phút đi bộ rồi giảm dần.
  */
 export const CRITERIA: readonly CriterionDefinition[] = [
-  near('cho', 'Chợ', 'chợ', ['market'], 300, 1200, 'medium', { caveat: 'Chợ cóc thường không có trên bản đồ.' }),
-  near('hieu-thuoc', 'Hiệu thuốc', 'hiệu thuốc', ['pharmacy'], 200, 900, 'high'),
-  near('sieu-thi', 'Siêu thị', 'siêu thị', ['supermarket'], 300, 1500, 'medium'),
-  near('ubnd', 'UBND', 'UBND', ['townhall'], 400, 2000, 'medium', { caveat: 'Bản đồ không đủ trụ sở UBND phường.' }),
+  // Dẫn chứng: chợ, siêu thị 3 lựa chọn (chợ cóc thiếu, thương hiệu quyết định); hiệu thuốc 3 nhưng không cần số
+  // phút (gần, dày); UBND và vật tư 1 (mỗi nơi một UBND, vật tư quá thưa).
+  near('cho', 'Chợ', 'chợ', ['market'], 300, 1200, 'medium', { caveat: 'Chợ cóc thường không có trên bản đồ.', evidence: { take: 3, minutes: true } }),
+  near('hieu-thuoc', 'Hiệu thuốc', 'hiệu thuốc', ['pharmacy'], 200, 900, 'high', { evidence: { take: 3 } }),
+  near('sieu-thi', 'Siêu thị', 'siêu thị', ['supermarket'], 300, 1500, 'medium', { evidence: { take: 3, minutes: true } }),
+  near('ubnd', 'UBND', 'UBND', ['townhall'], 400, 2000, 'medium', { caveat: 'Bản đồ không đủ trụ sở UBND phường.', evidence: { take: 1, minutes: true } }),
   near('vat-tu', 'Cửa hàng vật tư', 'cửa hàng vật tư', ['hardware'], 400, 2000, 'low', {
     caveat: 'Rất thưa trên bản đồ mở: chỉ để tham khảo, không tính vào điểm tổng.',
+    evidence: { take: 1 },
   }),
   {
     id: 'quan-an',
@@ -169,8 +196,18 @@ export const CRITERIA: readonly CriterionDefinition[] = [
     confidence: 'medium',
     caveat: 'Không tách được quán ăn sáng, quán vỉa hè.',
   },
-  near('cong-vien', 'Công viên', 'công viên', ['park'], 300, 1500, 'high'),
-  near('truong-hoc', 'Trường học', 'trường', ['school'], 300, 1200, 'high'),
+  near('cong-vien', 'Công viên', 'công viên', ['park'], 300, 1500, 'high', { evidence: { take: 2, minutes: true } }),
+  // Chọn trường theo cấp học: dẫn chứng là mầm non gần nhất và 2 trường phổ thông gần nhất.
+  near('truong-hoc', 'Trường học', 'trường', ['school'], 300, 1200, 'high', {
+    evidence: {
+      take: 3,
+      minutes: true,
+      groups: [
+        { label: 'Mầm non', kinds: ['kindergarten'], take: 1 },
+        { label: 'Phổ thông', kinds: ['school'], take: 2 },
+      ],
+    },
+  }),
   {
     id: 'duong-lon',
     label: 'Đường lớn',
@@ -178,7 +215,7 @@ export const CRITERIA: readonly CriterionDefinition[] = [
     status: 'live',
     source: OSM,
     noun: 'đường lớn',
-    measure: { method: 'line_nearest', version: 1, theme: 'roads', roadClasses: ['motorway', 'trunk', 'primary', 'secondary'], searchM: 3000 },
+    measure: { method: 'line_nearest', version: 1, theme: 'roads', roadClasses: ['motorway', 'trunk', 'primary', 'secondary'], searchM: 3000, clipM: 600 },
     scoring: { curve: 'decay', good: 150, bad: 900 },
     confidence: 'high',
   },
@@ -194,8 +231,13 @@ export const CRITERIA: readonly CriterionDefinition[] = [
     scoring: { curve: 'decay', good: 12, bad: 45 },
     confidence: 'high',
   },
-  near('metro', 'Ga metro', 'ga metro', ['metro'], 600, 2000, 'medium', { searchM: 6000, group: 'move', caveat: 'Mạng metro còn thưa.' }),
-  near('xe-buyt', 'Điểm xe buýt', 'điểm dừng', ['bus'], 150, 500, 'high', { searchM: 1500, group: 'move' }),
+  near('metro', 'Ga metro', 'ga metro', ['metro'], 600, 2000, 'medium', {
+    searchM: 6000,
+    group: 'move',
+    caveat: 'Mạng metro còn thưa.',
+    evidence: { take: 2, minutes: true },
+  }),
+  near('xe-buyt', 'Điểm xe buýt', 'điểm dừng', ['bus'], 150, 500, 'high', { searchM: 1500, group: 'move', evidence: { take: 3 } }),
   {
     id: 'on-giao-thong',
     label: 'Ồn giao thông',
@@ -203,7 +245,7 @@ export const CRITERIA: readonly CriterionDefinition[] = [
     status: 'live',
     source: OSM,
     noun: 'đường trục',
-    measure: { method: 'line_nearest', version: 1, theme: 'roads', roadClasses: ['motorway', 'trunk'], searchM: 3000 },
+    measure: { method: 'line_nearest', version: 1, theme: 'roads', roadClasses: ['motorway', 'trunk'], searchM: 3000, clipM: 600, allWithin: true, zonesM: [80, 300] },
     // Càng xa đường trục càng yên tĩnh.
     scoring: { curve: 'decay', good: 600, bad: 80 },
     confidence: 'medium',
@@ -253,7 +295,7 @@ export const CRITERIA: readonly CriterionDefinition[] = [
     status: 'live',
     source: 'OpenAQ',
     noun: 'trạm quan trắc',
-    measure: { method: 'air_station', version: 1, parameter: 'pm25', maxStationM: 3000, maxAgeHours: 48 },
+    measure: { method: 'air_station', version: 1, parameter: 'pm25', maxStationM: 3000, maxAgeHours: 48, stations: 2 },
     // PM2.5 µg/m³: 15 là hướng dẫn 24 giờ của WHO (2021); 75 gấp 1,5 lần ngưỡng 24 giờ QCVN 05:2023.
     scoring: { curve: 'decay', good: 15, bad: 75 },
     confidence: 'medium',
@@ -278,7 +320,7 @@ export const CRITERIA: readonly CriterionDefinition[] = [
     status: 'live',
     source: 'JRC Global River Flood Hazard',
     noun: 'vệt ngập',
-    measure: { method: 'grid_cell', version: 1, theme: 'flood_rp100' },
+    measure: { method: 'grid_cell', version: 1, theme: 'flood_rp100', evidenceRadiusM: 300 },
     // Độ sâu (m) ở chu kỳ 100 năm.
     scoring: { curve: 'decay', good: 0, bad: 1.5 },
     confidence: 'high',

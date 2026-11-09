@@ -21,6 +21,7 @@ import {
   queryPoints,
   queryReleaseLayers,
   type GridRow,
+  type LineRequest,
   type LineRow,
   type PointRequest,
   type PointRow,
@@ -116,24 +117,39 @@ export class PlaceMeasureService {
         layers.filter((layer) => layer.geometryKind === kind && layerTheme(layer.layerCode) === theme).map((layer) => layer.versionId);
 
       const pointRequests: PointRequest[] = [];
-      const lineRequests: Array<{ id: string; versions: string[]; roadClasses: string[]; searchM: number }> = [];
+      const lineRequests: LineRequest[] = [];
       const gridRequests: Array<{ id: string; versions: string[]; radiusM: number }> = [];
       for (const definition of CRITERIA) {
         const m = definition.measure;
         if (m.method === 'nearest' || m.method === 'travel_time') {
           const versions = versionsOf(m.theme, 'point');
           if (versions.length === 0) continue;
-          const take = m.method === 'travel_time' ? m.candidates : 1;
+          const evidence = m.method === 'nearest' ? m.evidence : undefined;
+          const take = m.method === 'travel_time' ? m.candidates : evidence && !evidence.groups ? Math.max(1, evidence.take) : 1;
           pointRequests.push({ id: definition.id, versions, categories: [...m.categories], kinds: m.kinds ? [...m.kinds] : null, searchM: m.searchM, take, countM: m.supportM });
+          // Dẫn chứng theo nhóm (trường: mầm non / phổ thông): mỗi nhóm một yêu cầu riêng, cùng câu SQL.
+          evidence?.groups?.forEach((group, index) => {
+            pointRequests.push({ id: groupRequestId(definition.id, index), versions, categories: [...m.categories], kinds: [...group.kinds], searchM: m.searchM, take: group.take, countM: 1 });
+          });
         } else if (m.method === 'count') {
           const versions = versionsOf(m.theme, 'point');
           if (versions.length > 0) pointRequests.push({ id: definition.id, versions, categories: [...m.categories], kinds: null, searchM: m.radiusM, take: COUNT_EVIDENCE_MAX, countM: m.radiusM });
         } else if (m.method === 'line_nearest') {
           const versions = versionsOf(m.theme, 'line');
-          if (versions.length > 0) lineRequests.push({ id: definition.id, versions, roadClasses: [...m.roadClasses], searchM: m.searchM });
+          if (versions.length > 0) {
+            lineRequests.push({
+              id: definition.id,
+              versions,
+              roadClasses: [...m.roadClasses],
+              searchM: m.searchM,
+              clipM: m.clipM,
+              allWithin: m.allWithin === true,
+              zonesM: [...(m.zonesM ?? [])],
+            });
+          }
         } else if (m.method === 'grid_sum' || m.method === 'grid_mean' || m.method === 'grid_relative' || m.method === 'grid_cell') {
           const versions = versionsOf(m.theme, 'grid');
-          if (versions.length > 0) gridRequests.push({ id: definition.id, versions: versions.slice(0, 1), radiusM: m.method === 'grid_cell' ? 0 : m.radiusM });
+          if (versions.length > 0) gridRequests.push({ id: definition.id, versions: versions.slice(0, 1), radiusM: m.method === 'grid_cell' ? m.evidenceRadiusM : m.radiusM });
         }
       }
       const [points, lines, grids] = await Promise.all([
@@ -156,40 +172,55 @@ export class PlaceMeasureService {
 
   /* ---------------- Vietmap Matrix ---------------- */
 
-  /** Một lượt Matrix cho mọi tiêu chí thời gian đi (ứng viên bệnh viện + mốc Hồ Gươm). */
+  /**
+   * Thời gian đi xe máy (Vietmap Matrix), hai lượt chạy song song:
+   * - lượt chấm điểm: ứng viên bệnh viện + mốc Hồ Gươm; lỗi thì các tiêu chí này đo dự phòng theo khoảng cách;
+   * - lượt dẫn chứng: các lựa chọn của tiêu chí điểm có `evidence.minutes`; lỗi thì chỉ thiếu nhãn số phút.
+   * Tách hai lượt để một lượt dẫn chứng nhiều điểm (có thể vượt giới hạn gói) không làm hỏng điểm số.
+   */
   private async measureTravel(origin: Point, geo: GeoResults): Promise<TravelResults> {
-    const targets: Array<{ id: string; points: Point[] }> = [];
+    const scoring: Array<{ id: string; points: Point[] }> = [];
+    const info: Array<{ id: string; points: Point[] }> = [];
+    const located = (id: string): Point[] =>
+      (geo.points.get(id) ?? []).filter((row) => row.lat !== null && row.lng !== null).map((row) => ({ lat: row.lat as number, lng: row.lng as number }));
     for (const definition of CRITERIA) {
       const m = definition.measure;
       if (m.method === 'travel_time') {
-        const candidates = (geo.points.get(definition.id) ?? []).filter((row) => row.lat !== null && row.lng !== null);
-        if (candidates.length > 0) targets.push({ id: definition.id, points: candidates.map((row) => ({ lat: row.lat as number, lng: row.lng as number })) });
+        const points = located(definition.id);
+        if (points.length > 0) scoring.push({ id: definition.id, points });
       } else if (m.method === 'anchor') {
-        targets.push({ id: definition.id, points: [m.anchor] });
+        scoring.push({ id: definition.id, points: [m.anchor] });
+      } else if (m.method === 'nearest' && m.evidence?.minutes) {
+        const ids = m.evidence.groups ? m.evidence.groups.map((_, index) => groupRequestId(definition.id, index)) : [definition.id];
+        for (const id of ids) {
+          const points = located(id);
+          if (points.length > 0) info.push({ id, points });
+        }
       }
     }
     const result: TravelResults = { minutes: new Map(), failed: false };
-    if (targets.length === 0) return result;
-    try {
-      // Mọi tiêu chí thời gian đi hiện dùng xe máy: gộp một lượt gọi.
-      const flat = targets.flatMap((target) => target.points);
-      const minutes = await this.maps.travelMinutes(origin, flat, 'motorcycle');
+    const call = async (targets: Array<{ id: string; points: Point[] }>): Promise<void> => {
+      if (targets.length === 0) return;
+      const minutes = await this.maps.travelMinutes(origin, targets.flatMap((target) => target.points), 'motorcycle');
       let offset = 0;
       for (const target of targets) {
         result.minutes.set(target.id, minutes.slice(offset, offset + target.points.length));
         offset += target.points.length;
       }
-    } catch (error) {
-      this.logger.warn(`Vietmap Matrix không dùng được, đo dự phòng theo khoảng cách: ${error instanceof Error ? error.message : String(error)}`);
+    };
+    const [scored, informed] = await Promise.allSettled([call(scoring), call(info)]);
+    if (scored.status === 'rejected') {
+      this.logger.warn(`Vietmap Matrix không dùng được, đo dự phòng theo khoảng cách: ${errorText(scored.reason)}`);
       result.failed = true;
     }
+    if (informed.status === 'rejected') this.logger.warn(`Không lấy được số phút cho dẫn chứng: ${errorText(informed.reason)}`);
     return result;
   }
 
   private async measureAir(origin: Point): Promise<Awaited<ReturnType<OpenAqClient['nearestPm25']>> | null> {
     const definition = CRITERIA.find((item) => item.measure.method === 'air_station');
     if (!definition || definition.measure.method !== 'air_station') return null;
-    return this.air.nearestPm25(origin.lat, origin.lng, definition.measure.maxStationM, definition.measure.maxAgeHours);
+    return this.air.nearestPm25(origin.lat, origin.lng, definition.measure.maxStationM, definition.measure.maxAgeHours, definition.measure.stations);
   }
 
   /* ---------------- Gộp kết quả ---------------- */
@@ -330,6 +361,7 @@ export class PlaceMeasureService {
       autoScore: score,
       verdict: verdictFor(definition, score),
       detail: `Cách ${definition.noun} gần nhất ${formatDistance(distance)}${support > 1 ? `, ${support} chỗ trong ${formatDistance(m.supportM)}` : ''}`,
+      evidence: nearestEvidence(definition, m, geo, travel, evidence),
       radiusM: goodRing(definition.scoring),
       status: 'ok',
       confidence,
@@ -337,7 +369,6 @@ export class PlaceMeasureService {
       unit: 'm',
       method,
       layerVersions: versions,
-      evidence,
       note: definition.caveat,
     };
   }
@@ -363,6 +394,7 @@ export class PlaceMeasureService {
           unit: 'm',
           method: `${m.method}@${m.version}`,
           layerVersions: versions,
+          radiusM: goodRing(definition.scoring),
           note: definition.caveat,
         };
       }
@@ -384,6 +416,8 @@ export class PlaceMeasureService {
       layerVersions: versions,
       evidence: [{ name: row.name || definition.noun, lat: row.lat, lng: row.lng, distanceM: distance }],
       radiusM: goodRing(definition.scoring),
+      paths: row.paths,
+      zones: row.zones,
       note: definition.caveat,
     };
   }
@@ -403,7 +437,8 @@ export class PlaceMeasureService {
     }
     const values = rows.filter((row) => row.value !== null).map((row) => ({ value: row.value as number, distanceM: row.distance_m }));
     const center = values.find((item) => item.distanceM === 0)?.value ?? null;
-    const radiusM = m.method === 'grid_cell' ? 0 : m.radiusM;
+    // Ngập sông: điểm theo ô chứa địa điểm, dẫn chứng gồm các ô trong evidenceRadiusM.
+    const radiusM = m.method === 'grid_cell' ? m.evidenceRadiusM : m.radiusM;
     const expected = cellsWithin(radiusM);
     // Thiếu nhiều ô (ngoài vùng phủ) thì hạ độ tin.
     const confidence = values.length < expected * 0.7 ? lowerConfidence(definition.confidence) : definition.confidence;
@@ -543,7 +578,7 @@ export function unmeasured(definition: CriterionDefinition, status: 'no_data' | 
 function fromAir(definition: CriterionDefinition, air: Awaited<ReturnType<OpenAqClient['nearestPm25']>> | null): CriterionMeasurement {
   if (!air || air.kind === 'unavailable') return unmeasured(definition, 'unavailable', air?.reason ?? 'Chưa cấu hình nguồn không khí.');
   if (air.kind === 'none') return unmeasured(definition, 'no_data', 'Không có trạm quan trắc PM2.5 còn hoạt động trong 3 km.');
-  const reading = air.reading;
+  const [reading, ...others] = air.readings;
   const scoring: Scoring = definition.scoring;
   const score = scoreOf(reading.pm25, scoring);
   const hours = (Date.now() - new Date(reading.observedAt).getTime()) / 3600000;
@@ -558,7 +593,15 @@ function fromAir(definition: CriterionDefinition, air: Awaited<ReturnType<OpenAq
     value: reading.pm25,
     unit: 'µg/m³',
     method: `${definition.measure.method}@${definition.measure.version}`,
-    evidence: [{ name: reading.stationName, lat: reading.lat, lng: reading.lng, distanceM: reading.distanceM }],
+    // Trạm thứ hai (nếu có) để thấy hai trạm có lệch nhau không; điểm chấm theo trạm gần nhất.
+    evidence: [reading, ...others].map((item) => ({
+      name: item.stationName,
+      lat: item.lat,
+      lng: item.lng,
+      distanceM: item.distanceM,
+      value: item.pm25,
+      observedAt: item.observedAt,
+    })),
     radiusM: definition.measure.method === 'air_station' ? definition.measure.maxStationM : undefined,
     observedAt: reading.observedAt,
     expiresAt: new Date(Date.now() + AIR_TTL_HOURS * 3600000).toISOString(),
@@ -580,4 +623,47 @@ export function withLayerSource(item: CriterionMeasurement, layers: readonly Rel
   if (names.length === 0) return item;
   const travel = item.unit === 'phút' ? ', thời gian đi: Vietmap' : '';
   return { ...item, source: `${names.join('; ')}${travel}` };
+}
+
+/** Mã yêu cầu SQL của nhóm dẫn chứng thứ `index` (trường: mầm non / phổ thông). */
+function groupRequestId(criterionId: string, index: number): string {
+  return `${criterionId}#${index}`;
+}
+
+function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Dẫn chứng của tiêu chí điểm: theo nhóm (mỗi nhóm `take` chỗ, gắn nhãn nhóm) hoặc `take` chỗ gần nhất; kèm số
+ * phút xe máy nếu lượt Matrix dẫn chứng thành công. Sắp theo khoảng cách để đánh số ①②③ trên bản đồ.
+ */
+function nearestEvidence(
+  definition: CriterionDefinition,
+  m: Extract<CriterionMethod, { method: 'nearest' | 'travel_time' | 'count' }>,
+  geo: GeoResults,
+  travel: TravelResults,
+  fallback: MeasurementEvidence[],
+): MeasurementEvidence[] {
+  if (m.method !== 'nearest') return fallback;
+  const fromRows = (requestId: string, group?: string): MeasurementEvidence[] => {
+    const minutes = travel.minutes.get(requestId) ?? [];
+    return (geo.points.get(requestId) ?? [])
+      .filter((row) => row.distance_m !== null && row.lat !== null && row.lng !== null)
+      .map((row, index) => ({
+        // Đối tượng không có tên trên bản đồ: ghi rõ để không lẫn với tên thật.
+        name: row.name || `${definition.noun} chưa có tên`,
+        lat: row.lat as number,
+        lng: row.lng as number,
+        distanceM: Math.round(row.distance_m as number),
+        ...(minutes[index] !== null && minutes[index] !== undefined ? { minutes: minutes[index] as number } : {}),
+        ...(group ? { group } : {}),
+      }));
+  };
+  const spec = m.evidence;
+  if (!spec) return fallback.slice(0, 1);
+  const items = spec.groups
+    ? spec.groups.flatMap((group, index) => fromRows(groupRequestId(definition.id, index), group.label))
+    : fromRows(definition.id).slice(0, spec.take);
+  return items.length > 0 ? items.sort((a, b) => a.distanceM - b.distanceM) : fallback.slice(0, 1);
 }

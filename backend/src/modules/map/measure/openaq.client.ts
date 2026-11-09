@@ -25,7 +25,8 @@ export interface AirReading {
   observedAt: string;
 }
 
-export type AirResult = { kind: 'ok'; reading: AirReading } | { kind: 'none' } | { kind: 'unavailable'; reason: string };
+/** `readings`: trạm gần nhất trước, tối đa số trạm yêu cầu. */
+export type AirResult = { kind: 'ok'; readings: AirReading[] } | { kind: 'none' } | { kind: 'unavailable'; reason: string };
 
 interface StationCandidate {
   id: number;
@@ -93,9 +94,9 @@ export class OpenAqClient {
     return this.config.openaqApiKey.length > 0;
   }
 
-  async nearestPm25(lat: number, lng: number, maxStationM: number, maxAgeHours: number): Promise<AirResult> {
+  async nearestPm25(lat: number, lng: number, maxStationM: number, maxAgeHours: number, stations = 1): Promise<AirResult> {
     if (!this.enabled) return { kind: 'unavailable', reason: 'Chưa cấu hình OPENAQ_API_KEY.' };
-    const key = `cache:map:air:pm25:${lat.toFixed(2)},${lng.toFixed(2)}:${maxStationM}`;
+    const key = `cache:map:air:pm25:v2:${lat.toFixed(2)},${lng.toFixed(2)}:${maxStationM}:${stations}`;
     try {
       const hit = await this.redis.get<AirResult>(key);
       if (hit && (hit.kind === 'ok' || hit.kind === 'none')) return this.withDistance(hit, lat, lng);
@@ -103,7 +104,7 @@ export class OpenAqClient {
       // Redis lỗi: gọi thẳng.
     }
     try {
-      const value = await this.fetchNearest(lat, lng, maxStationM, maxAgeHours);
+      const value = await this.fetchNearest(lat, lng, maxStationM, maxAgeHours, stations);
       try {
         await this.redis.set(key, value, CACHE_TTL_MS);
       } catch {
@@ -119,10 +120,13 @@ export class OpenAqClient {
   /** Khoảng cách tính lại theo đúng điểm hỏi (khóa cache làm tròn ~1 km). */
   private withDistance(result: AirResult, lat: number, lng: number): AirResult {
     if (result.kind !== 'ok') return result;
-    return { kind: 'ok', reading: { ...result.reading, distanceM: Math.round(haversineM({ lat, lng }, result.reading)) } };
+    const readings = result.readings
+      .map((reading) => ({ ...reading, distanceM: Math.round(haversineM({ lat, lng }, reading)) }))
+      .sort((a, b) => a.distanceM - b.distanceM);
+    return { kind: 'ok', readings };
   }
 
-  private async fetchNearest(lat: number, lng: number, maxStationM: number, maxAgeHours: number): Promise<AirResult> {
+  private async fetchNearest(lat: number, lng: number, maxStationM: number, maxAgeHours: number, wanted: number): Promise<AirResult> {
     const radius = Math.min(25000, Math.max(1000, Math.round(maxStationM)));
     const list = await this.get('/v3/locations', {
       coordinates: `${lat.toFixed(5)},${lng.toFixed(5)}`,
@@ -137,16 +141,15 @@ export class OpenAqClient {
       .map((item) => ({ ...item, distanceM: haversineM({ lat, lng }, item) }))
       .filter((item) => item.distanceM <= maxStationM)
       .sort((a, b) => a.distanceM - b.distanceM);
-    // Trạm gần nhất có thể chưa có số pm25 mới: thử tối đa 3 trạm.
-    for (const station of stations.slice(0, 3)) {
+    // Trạm gần có thể chưa có số pm25 mới: thử tối đa wanted + 2 trạm.
+    const readings: AirReading[] = [];
+    for (const station of stations.slice(0, wanted + 2)) {
+      if (readings.length >= wanted) break;
       const latest = parseLatest(await this.get(`/v3/locations/${station.id}/latest`, {}), station.sensorIds);
       if (!latest || latest.utc < minUtc) continue;
-      return {
-        kind: 'ok',
-        reading: { stationName: station.name, lat: station.lat, lng: station.lng, distanceM: Math.round(station.distanceM), pm25: latest.value, observedAt: latest.utc },
-      };
+      readings.push({ stationName: station.name, lat: station.lat, lng: station.lng, distanceM: Math.round(station.distanceM), pm25: latest.value, observedAt: latest.utc });
     }
-    return { kind: 'none' };
+    return readings.length > 0 ? { kind: 'ok', readings } : { kind: 'none' };
   }
 
   private async get(path: string, params: Record<string, string>): Promise<unknown> {

@@ -265,31 +265,36 @@ def build() -> list[tuple[str, str, str]]:
     write_zip("04-mock.pop_100m-R2026-mock", manifest, data)
     plan.append(("04-mock.pop_100m-R2026-mock.zip", "validated", "Khuôn grid@1 trên lưới vn2000-100m, có ô trống (ngoài vùng phủ)."))
 
-    # Bản mới của mock.places: bỏ 8 điểm, thêm 10 điểm → lệch ~0.6%, có diff thêm/bớt.
-    added = [dict(row, feature_key=f"mock:p9{index:04d}") for index, row in enumerate(places(seed=11, count=10))]
-    updated = base_places[8:] + added
+    # Bản mới của mock.places: bỏ 3 điểm, thêm 5 điểm → 8/320 = 2.5% thay đổi, dưới ngưỡng cảnh báo 5%.
+    added = [dict(row, feature_key=f"mock:p9{index:04d}") for index, row in enumerate(places(seed=11, count=5))]
+    updated = base_places[3:] + added
     place_package("05-mock.places-2026-11-08", "2026-11-08", updated, sourceDate="2026-11-08")
-    plan.append(("05-mock.places-2026-11-08.zip", "validated", "Bản cập nhật: so với bản đang phát hành thấy +10 / −8 điểm."))
+    plan.append(("05-mock.places-2026-11-08.zip", "validated", "Bản cập nhật: so với bản đang phát hành thấy +5 / −3 điểm."))
+
+    drifted = base_places[:300] + [dict(row, feature_key=f"mock:p8{index:04d}") for index, row in enumerate(places(seed=12, count=8))]
+    place_package("06-mock.places-2026-11-08-r1", "2026-11-08-r1", drifted, sourceDate="2026-11-08")
+    plan.append(("06-mock.places-2026-11-08-r1.zip", "validated, có cảnh báo (row_count_delta_warn)", "−20 / +8 điểm (8.75%): phải ghi lý do chấp nhận mới Lưu được."))
 
     shrunk = base_places[:200]
-    place_package("06-mock.places-2026-11-08-r2", "2026-11-08-r2", shrunk, sourceDate="2026-11-08")
-    plan.append(("06-mock.places-2026-11-08-r2.zip", "rejected (row_count_delta)", "Mất 37.5% số dòng so với bản phát hành, vượt ngưỡng chặn 20%. Cần đã phát hành gói 01."))
+    place_package("07-mock.places-2026-11-08-r2", "2026-11-08-r2", shrunk, sourceDate="2026-11-08")
+    plan.append(("07-mock.places-2026-11-08-r2.zip", "rejected (row_count_delta)", "Mất 37.5% số dòng so với bản phát hành, vượt ngưỡng chặn 20%. Cần đã phát hành gói 01."))
 
     # ── Gói lỗi cố ý ──
-    rows_ = places(seed=21, count=30)
+    # Gói lỗi dựa trên bản 01 (320 dòng) để chỉ hiện đúng một lỗi, không kèm lỗi lệch số dòng.
+    rows_ = [dict(row) for row in base_places]
     data = places_csv(rows_)
-    manifest = manifest_for("point@1", "mock.places", "bad-checksum", data, len(rows_), dict(Counter(r["category"] for r in rows_)))
+    manifest = manifest_for("point@1", "mock.places", "bad-checksum", data, len(rows_), dict(sorted(Counter(r["category"] for r in rows_).items())))
     manifest["dataSha256"] = "0" * 64
     write_zip("90-bad-checksum", manifest, data)
     plan.append(("90-bad-checksum.zip", "rejected (data_checksum)", "dataSha256 trong manifest không khớp data.csv."))
 
-    rows_ = places(seed=22, count=30)
+    rows_ = [dict(row) for row in base_places]
     for row in rows_[:10]:
         row["lat"], row["lng"] = "10.776889", "106.700806"  # TP.HCM
     place_package("91-bad-outside-bbox", "bad-outside-bbox", rows_)
-    plan.append(("91-bad-outside-bbox.zip", "rejected (inside_bbox)", "10/30 điểm nằm ở TP.HCM."))
+    plan.append(("91-bad-outside-bbox.zip", "rejected (inside_bbox)", "10/320 điểm nằm ở TP.HCM."))
 
-    rows_ = places(seed=23, count=30)
+    rows_ = [dict(row) for row in base_places]
     rows_[5]["feature_key"] = rows_[4]["feature_key"]
     place_package("92-bad-duplicate-key", "bad-duplicate-key", rows_)
     plan.append(("92-bad-duplicate-key.zip", "rejected (duplicate_key)", "Hai dòng trùng feature_key."))

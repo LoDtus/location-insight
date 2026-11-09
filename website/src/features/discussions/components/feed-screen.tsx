@@ -19,6 +19,7 @@ import {
     type DiscussionPost,
     type DiscussionTopic,
 } from "@/features/discussions/discussions.api";
+import { FollowedReplies } from "@/features/discussions/components/followed-replies";
 import { PostCard } from "@/features/discussions/components/post-card";
 import { useAuthorPresence } from "@/features/discussions/components/use-author-presence";
 import { usePostActions } from "@/features/discussions/components/use-post-actions";
@@ -294,6 +295,7 @@ export function FeedScreen({ root }: { root: ShellRoot }): JSX.Element {
                                     });
                                 }}
                             />
+                            <FollowedReplies post={post} root={root} />
                         </li>
                     ))}
                 </ol>

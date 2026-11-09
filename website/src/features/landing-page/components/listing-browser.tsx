@@ -3,6 +3,7 @@
 import {
     Bath,
     Bed,
+    Heart,
     LayoutGrid,
     List,
     Ruler,
@@ -13,8 +14,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
+import type { ShellRoot } from "@/features/app/shell";
 import ListingGallery from "@/features/landing-page/components/listing-gallery";
 import Pagination from "@/shared/components/ui/pagination";
 import {
@@ -32,11 +34,63 @@ import {
     type ListingPurpose,
     type SortKey,
 } from "@/features/landing-page/data/listings";
+import { parseDrafts, readDraftsRaw } from "@/features/properties/property-drafts";
 import { useLocale, useLocaleMessages } from "@/shared/hooks/useLocale";
 import type { LocaleMessages } from "@/shared/types/locale.types";
 import { getLocaleValue } from "@/shared/utils/locale.utils";
 
-const PAGE_SIZE = 6;
+/** Số dòng mỗi trang ở dạng lưới; số cột đo theo bề rộng khung kết quả (xem columnsForWidth). */
+const GRID_ROWS = 4;
+/** Dạng danh sách: mỗi tin một dòng. */
+const LIST_PAGE_SIZE = 8;
+const INTEREST_KEY = "property-interest";
+
+/**
+ * Số cột theo bề rộng khung kết quả (không phải màn hình), nên cạnh thanh lọc hay thanh bên của ứng dụng vẫn đủ rộng.
+ * Màn tiêu chuẩn (1920 px) cho 5 tin trên một dòng.
+ */
+function columnsForWidth(width: number): number {
+    if (width >= 1100) return 5;
+    if (width >= 880) return 4;
+    if (width >= 640) return 3;
+    if (width >= 420) return 2;
+    return 1;
+}
+
+const interestListeners = new Set<() => void>();
+
+function subscribeInterest(listener: () => void): () => void {
+    interestListeners.add(listener);
+
+    return () => interestListeners.delete(listener);
+}
+
+/** Chuỗi thô trong sessionStorage ("" khi chưa có hoặc bị chặn); snapshot ổn định cho useSyncExternalStore. */
+function readInterestRaw(): string {
+    try {
+        return sessionStorage.getItem(INTEREST_KEY) ?? "";
+    } catch {
+        return "";
+    }
+}
+
+function parseInterest(raw: string): Set<string> {
+    try {
+        const parsed: unknown = raw ? JSON.parse(raw) : [];
+
+        if (!Array.isArray(parsed)) {
+            return new Set();
+        }
+
+        return new Set(parsed.filter((item): item is string => typeof item === "string"));
+    } catch {
+        return new Set();
+    }
+}
+
+function subscribeNothing(): () => void {
+    return () => undefined;
+}
 
 const FIELD_CLASS =
     "box-border min-h-11 w-full rounded-full border border-charcoal/20 bg-white px-4 text-sm text-charcoal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green";
@@ -136,12 +190,17 @@ function ListingCard({
     locale,
     view,
     eager,
+    href,
+    interest,
 }: {
     listing: Listing;
     messages: LocaleMessages;
     locale: string;
     view: "grid" | "list";
     eager: boolean;
+    href: string;
+    /** Chỉ trong ứng dụng: nút quan tâm (lưu trong phiên trình duyệt). */
+    interest?: { on: boolean; label: string; toggle: () => void };
 }) {
     const specs: { icon: LucideIcon; text: string }[] = [
         { icon: Ruler, text: formatArea(listing.areaM2, locale) },
@@ -179,7 +238,7 @@ function ListingCard({
             >
                 <div className="relative">
                     <Link
-                        href={listingPath(listing)}
+                        href={href}
                         tabIndex={-1}
                         aria-hidden="true"
                         className="absolute inset-0 z-0"
@@ -193,12 +252,28 @@ function ListingCard({
                             eager={eager}
                         />
                     </div>
+                    {interest ? (
+                        <button
+                            type="button"
+                            aria-pressed={interest.on}
+                            aria-label={interest.label}
+                            title={interest.label}
+                            className={`pointer-events-auto absolute top-3 right-3 z-20 inline-flex size-11 items-center justify-center rounded-full border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green ${interest.on ? "border-green bg-green text-cream" : "border-charcoal/15 bg-white text-charcoal"}`}
+                            onClick={interest.toggle}
+                        >
+                            <Heart
+                                size={18}
+                                aria-hidden="true"
+                                className={interest.on ? "fill-current" : ""}
+                            />
+                        </button>
+                    ) : null}
                 </div>
                 <Link
-                    href={listingPath(listing)}
+                    href={href}
                     className="flex min-w-0 flex-col gap-2 p-4 text-inherit no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
                 >
-                    <div className="flex items-baseline justify-between gap-3">
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                         <p className="m-0 text-xl font-semibold text-green tabular-nums">
                             {formatListingPrice(listing, locale)}
                         </p>
@@ -235,7 +310,12 @@ function ListingCard({
     );
 }
 
-export default function ListingBrowser() {
+export default function ListingBrowser({
+    app,
+}: {
+    /** Trong ứng dụng: gốc của vùng làm việc (/app hoặc /admin). Không truyền thì là trang công khai /nha-dat. */
+    app?: { root: ShellRoot };
+} = {}) {
     const router = useRouter();
     const params = useSearchParams();
     const { locale } = useLocale();
@@ -250,7 +330,16 @@ export default function ListingBrowser() {
     const [draft, setDraft] = useState(query);
     const [syncedQuery, setSyncedQuery] = useState(query);
     const [filtersOpen, setFiltersOpen] = useState(false);
+    const [columns, setColumns] = useState(5);
+    const interestRaw = useSyncExternalStore(subscribeInterest, readInterestRaw, () => "");
+    const draftsRaw = useSyncExternalStore(subscribeNothing, readDraftsRaw, () => "");
+    const interest = useMemo(() => parseInterest(interestRaw), [interestRaw]);
+    const drafts = useMemo(() => parseDrafts(draftsRaw), [draftsRaw]);
     const searchTimer = useRef<number | null>(null);
+    const resultsHost = useRef<HTMLDivElement>(null);
+    const basePath = app ? `${app.root}/properties` : "/nha-dat";
+    const watch = Boolean(app) && params.get("watch") === "1";
+    const vi = locale === "vi";
 
     if (query !== syncedQuery) {
         setSyncedQuery(query);
@@ -264,6 +353,41 @@ export default function ListingBrowser() {
             }
         };
     }, []);
+
+    useEffect(() => {
+        const node = resultsHost.current;
+
+        if (!node) {
+            return;
+        }
+
+        const measure = (): void => setColumns(columnsForWidth(node.clientWidth));
+
+        measure();
+        const observer = new ResizeObserver(measure);
+
+        observer.observe(node);
+
+        return () => observer.disconnect();
+    }, []);
+
+    function toggleInterest(id: string): void {
+        const next = new Set(interest);
+
+        if (next.has(id)) {
+            next.delete(id);
+        } else {
+            next.add(id);
+        }
+
+        try {
+            sessionStorage.setItem(INTEREST_KEY, JSON.stringify([...next]));
+        } catch {
+            // Trình duyệt chặn lưu trữ: không lưu được, danh sách vẫn như cũ.
+        }
+
+        interestListeners.forEach((listener) => listener());
+    }
 
     function text(path: string[]): string {
         return getLocaleValue(messages, path);
@@ -285,7 +409,7 @@ export default function ListingBrowser() {
         }
 
         const queryString = next.toString();
-        router.replace(queryString ? `/nha-dat?${queryString}` : "/nha-dat", {
+        router.replace(queryString ? `${basePath}?${queryString}` : basePath, {
             scroll: false,
         });
     }
@@ -324,11 +448,17 @@ export default function ListingBrowser() {
             kind: null,
             district: null,
             price: null,
+            watch: null,
         });
     }
 
+    const listings = app ? [...drafts, ...LISTINGS] : LISTINGS;
     const needle = fold(query.trim());
-    const results = LISTINGS.filter((listing) => {
+    const results = listings.filter((listing) => {
+        if (watch && !interest.has(listing.id)) {
+            return false;
+        }
+
         if (purpose && listing.purpose !== purpose) {
             return false;
         }
@@ -354,9 +484,10 @@ export default function ListingBrowser() {
         );
     }).sort((left, right) => compareListings(left, right, sort));
 
-    const totalPages = Math.ceil(results.length / PAGE_SIZE);
+    const pageSize = view === "list" ? LIST_PAGE_SIZE : columns * GRID_ROWS;
+    const totalPages = Math.ceil(results.length / pageSize);
     const currentPage = totalPages === 0 ? 1 : Math.min(readPage(params.get("page")), totalPages);
-    const pageItems = results.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+    const pageItems = results.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
     function onPageChange(page: number): void {
         commit({ page: page <= 1 ? null : String(page) }, false);
@@ -366,10 +497,10 @@ export default function ListingBrowser() {
     const priceRanges = purpose === "thue" ? RENT_PRICE_RANGES : SALE_PRICE_RANGES;
     const priceGroup = purpose === "thue" ? "rentPrices" : "salePrices";
     const hasFilters = Boolean(
-        query || purpose || kinds.length > 0 || districts.length > 0 || price,
+        query || purpose || kinds.length > 0 || districts.length > 0 || price || watch,
     );
     const districtOptions = DISTRICTS.filter((district) =>
-        LISTINGS.some((listing) => listing.district === district),
+        listings.some((listing) => listing.district === district),
     );
 
     const chips: { key: string; label: string; clear: Record<string, string | null> }[] =
@@ -411,18 +542,48 @@ export default function ListingBrowser() {
         });
     }
 
+    if (watch) {
+        chips.push({
+            key: "watch",
+            label: vi ? "Đã quan tâm" : "Watching",
+            clear: { watch: null },
+        });
+    }
+
     const optionClass =
         "flex min-h-11 cursor-pointer items-center gap-2 text-sm leading-snug";
 
     return (
-        <div className="box-border px-4 py-8 sm:px-8 xl:px-50">
-            <header className="max-w-3xl">
-                <h1 className="m-0 text-3xl leading-tight font-semibold tracking-tight md:text-4xl">
-                    {text(["catalog", "title"])}
-                </h1>
-                <p className="mt-3 max-w-xl text-base leading-relaxed text-charcoal/75">
-                    {text(["catalog", "lede"])}
-                </p>
+        <div
+            className={`box-border px-4 py-8 sm:px-8 ${app ? "" : "xl:px-50"}`}
+        >
+            <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+                <div className="max-w-3xl">
+                    <h1 className="m-0 text-3xl leading-tight font-semibold tracking-tight md:text-4xl">
+                        {text(["catalog", "title"])}
+                    </h1>
+                    <p className="mt-3 max-w-xl text-base leading-relaxed text-charcoal/75">
+                        {text(["catalog", "lede"])}
+                    </p>
+                </div>
+                {app ? (
+                    <div className="flex flex-wrap items-center gap-3">
+                        {app.root === "/admin" ? (
+                            <Link
+                                href={`${app.root}/properties/new`}
+                                className="inline-flex min-h-11 items-center rounded-full bg-green px-4 font-semibold text-cream no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
+                            >
+                                {vi ? "Đăng tin mới" : "New listing"}
+                            </Link>
+                        ) : null}
+                        <Link
+                            href={`${app.root}/map`}
+                            className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
+                        >
+                            {vi ? "Mở bản đồ" : "Open the map"}
+                        </Link>
+                    </div>
+                ) : null}
             </header>
             <div className="mt-8 flex flex-col gap-3 lg:flex-row lg:items-end">
                 <div className="min-w-0 flex-1">
@@ -503,7 +664,7 @@ export default function ListingBrowser() {
                     {text(["catalog", filtersOpen ? "hideFilters" : "showFilters"])}
                 </button>
             </div>
-            <div className="mt-6 lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start lg:gap-10">
+            <div className="mt-6 lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start lg:gap-8">
                 <aside
                     aria-label={text(["catalog", "filters"])}
                     className={`${filtersOpen ? "mb-6 block" : "hidden"} lg:sticky lg:top-0 lg:mb-0 lg:block lg:max-h-[100cqh] lg:overflow-auto`}
@@ -615,8 +776,26 @@ export default function ListingBrowser() {
                             </p>
                         ) : null}
                     </fieldset>
+                    {app ? (
+                        <fieldset className="m-0 mt-4 border-0 p-0">
+                            <legend className="mb-1 text-sm font-semibold">
+                                {vi ? "Quan tâm" : "Watching"}
+                            </legend>
+                            <label className={optionClass}>
+                                <input
+                                    type="checkbox"
+                                    className="size-4 accent-green"
+                                    checked={watch}
+                                    onChange={() => commit({ watch: watch ? null : "1" })}
+                                />
+                                {vi
+                                    ? `Chỉ tin đã quan tâm (${interest.size})`
+                                    : `Watched only (${interest.size})`}
+                            </label>
+                        </fieldset>
+                    ) : null}
                 </aside>
-                <div id="ket-qua" className="min-w-0 scroll-mt-4">
+                <div id="ket-qua" ref={resultsHost} className="min-w-0 scroll-mt-4">
                     {chips.length > 0 ? (
                         <ul className="m-0 mb-4 flex list-none flex-wrap gap-2 p-0">
                             {chips.map((chip) => (
@@ -656,10 +835,11 @@ export default function ListingBrowser() {
                         </div>
                     ) : (
                         <div
-                            className={
+                            className={view === "list" ? "flex flex-col gap-4" : "grid gap-4"}
+                            style={
                                 view === "list"
-                                    ? "flex flex-col gap-4"
-                                    : "grid grid-cols-1 gap-4 sm:grid-cols-2"
+                                    ? undefined
+                                    : { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }
                             }
                         >
                             {pageItems.map((listing, index) => (
@@ -669,7 +849,23 @@ export default function ListingBrowser() {
                                     messages={messages}
                                     locale={locale}
                                     view={view}
-                                    eager={index < 2}
+                                    eager={index < columns}
+                                    href={app ? `${app.root}/properties/${listing.slug}` : listingPath(listing)}
+                                    interest={
+                                        app
+                                            ? {
+                                                  on: interest.has(listing.id),
+                                                  label: interest.has(listing.id)
+                                                      ? vi
+                                                          ? "Bỏ quan tâm"
+                                                          : "Stop watching"
+                                                      : vi
+                                                        ? "Quan tâm"
+                                                        : "Watch",
+                                                  toggle: () => toggleInterest(listing.id),
+                                              }
+                                            : undefined
+                                    }
                                 />
                             ))}
                         </div>

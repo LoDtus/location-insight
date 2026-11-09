@@ -48,16 +48,28 @@ function isListing(value: unknown): value is Listing {
     );
 }
 
-export function readDrafts(): Listing[] {
-    if (typeof window === "undefined") return [];
+/** Chuỗi thô trong localStorage ("" khi chưa có hoặc bị chặn); dùng làm snapshot ổn định cho useSyncExternalStore. */
+export function readDraftsRaw(): string {
+    if (typeof window === "undefined") return "";
     try {
-        const raw = localStorage.getItem(DRAFT_KEY);
+        return localStorage.getItem(DRAFT_KEY) ?? "";
+    } catch {
+        return "";
+    }
+}
+
+export function parseDrafts(raw: string): Listing[] {
+    try {
         const parsed: unknown = raw ? JSON.parse(raw) : [];
         if (!Array.isArray(parsed)) return [];
         return parsed.filter(isListing);
     } catch {
         return [];
     }
+}
+
+export function readDrafts(): Listing[] {
+    return parseDrafts(readDraftsRaw());
 }
 
 export function saveDraft(listing: Listing): void {

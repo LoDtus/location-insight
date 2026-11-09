@@ -69,7 +69,11 @@ paths:
         - { name: cursor, in: query, schema: { type: string } }
       responses:
         "200":
-          description: Mỗi phần tử gồm tác giả, chủ đề, đoạn đầu, số trả lời, số thích, media
+          description: >-
+            Mỗi phần tử gồm tác giả, chủ đề, đoạn đầu, số trả lời, số thích, media. Danh sách feed (posts, topics/{slug},
+            authors/{username}/posts, bookmarks) thêm `followedReplies` (tối đa 3 bình luận mới nhất của những người
+            người xem đang theo dõi, cũ trước) và `followedReplyTotal` (tổng số bình luận của họ). Khác nhau theo từng
+            người xem; loại bình luận bị ẩn/xóa, của người chặn nhau và của chính người xem.
     post:
       summary: Đăng bài gốc
       x-permission: discussion:write

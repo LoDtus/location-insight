@@ -53,6 +53,8 @@ const SCHEDULE_MAX_MS = 30 * 24 * 60 * 60 * 1000;
 /** Một người xem tính một lượt xem cho mỗi bài trong 24 giờ. */
 const VIEW_DEDUPE_SECONDS = 24 * 60 * 60;
 const FEED_PAGE = 6;
+/** Số bình luận của người mình theo dõi hiện sẵn dưới mỗi bài ở feed; phần còn lại xem trong chi tiết bài. */
+const FOLLOWED_REPLY_PREVIEW = 3;
 const IMAGE_MAX = 8 * 1024 * 1024;
 const VIDEO_MAX = 50 * 1024 * 1024;
 const CLEANUP_MS = 7 * 24 * 60 * 60 * 1000;
@@ -91,6 +93,13 @@ export interface ReportView {
   reportCount: number;
   post: { id: string; body: string; status: PostStatus; authorName: string; authorUsername: string | null; rootId: string | null } | null;
   reporterName: string;
+}
+
+/** Bài ở feed kèm bình luận của những người người xem đang theo dõi (mới nhất trước, hiển thị theo thứ tự thời gian). */
+export interface FeedPostView extends PostView {
+  followedReplies: PostView[];
+  /** Tổng số bình luận của người đang theo dõi (có thể lớn hơn số hiển thị). */
+  followedReplyTotal: number;
 }
 
 export interface MediaView {
@@ -474,7 +483,7 @@ export class DiscussionsService {
     const ordered = slice.flatMap((mark) => rows.filter((row) => row.id === mark.postId));
     const last = slice.at(-1);
     return {
-      items: await this.present(ordered, viewerId),
+      items: await this.withFollowedReplies(await this.present(ordered, viewerId), viewerId),
       nextCursor: hasMore && last ? writeCursor(last.createdAt, last.postId) : null,
     };
   }
@@ -818,10 +827,61 @@ export class DiscussionsService {
     const slice = hasMore ? rows.slice(0, FEED_PAGE) : rows;
     const last = slice.at(-1);
     return {
-      items: await this.present(slice, viewerId),
+      items: await this.withFollowedReplies(await this.present(slice, viewerId), viewerId),
       nextCursor:
         sort === 'newest' && hasMore && last ? writeCursor(last.createdAt, last.id) : null,
     };
+  }
+
+  /**
+   * Gắn vào mỗi bài của feed các bình luận của người người xem đang theo dõi, để hiện ngay dưới bài mà không cần mở
+   * chi tiết. Mỗi người xem thấy khác nhau. Một truy vấn cho cả trang (không N+1): lấy FOLLOWED_REPLY_PREVIEW bình
+   * luận mới nhất mỗi bài cùng tổng số. Bài gốc đã qua CAN_SEE nên bình luận (kế thừa quyền của bài gốc) cũng được
+   * xem; vẫn loại bình luận bị ẩn/xóa, của người chặn nhau và của chính người xem.
+   */
+  private async withFollowedReplies(views: PostView[], viewerId: string): Promise<FeedPostView[]> {
+    const rootIds = views.filter((view) => view.rootId === null && view.replyCount > 0).map((view) => view.id);
+    if (!viewerId || rootIds.length === 0) {
+      return views.map((view) => ({ ...view, followedReplies: [], followedReplyTotal: 0 }));
+    }
+    const rows: Array<{ id: string; root_id: string; total: string }> = await this.dataSource.query(
+      `SELECT id, root_id, total FROM (
+         SELECT r.id, r.root_id, r.created_at,
+                ROW_NUMBER() OVER (PARTITION BY r.root_id ORDER BY r.created_at DESC, r.id DESC) AS rn,
+                COUNT(*) OVER (PARTITION BY r.root_id) AS total
+           FROM discussion_posts r
+           JOIN user_follows f ON f.follower_id = $1 AND f.followee_id = r.author_id
+          WHERE r.root_id = ANY($2::uuid[])
+            AND r.status = 'visible'
+            AND r.deleted_at IS NULL
+            AND r.author_id <> $1
+            AND NOT EXISTS (
+              SELECT 1 FROM user_blocks ub
+               WHERE (ub.blocker_id = $1 AND ub.blocked_id = r.author_id)
+                  OR (ub.blocker_id = r.author_id AND ub.blocked_id = $1))
+       ) ranked
+       WHERE rn <= $3
+       ORDER BY root_id, created_at ASC, id ASC`,
+      [viewerId, rootIds, FOLLOWED_REPLY_PREVIEW],
+    );
+    if (rows.length === 0) {
+      return views.map((view) => ({ ...view, followedReplies: [], followedReplyTotal: 0 }));
+    }
+    const entities = await this.posts.find({ where: { id: In(rows.map((row) => row.id)) } });
+    const presented = await this.present(entities, viewerId);
+    const byId = new Map(presented.map((view) => [view.id, view]));
+    const grouped = new Map<string, { replies: PostView[]; total: number }>();
+    for (const row of rows) {
+      const view = byId.get(row.id);
+      if (!view) continue;
+      const entry = grouped.get(row.root_id) ?? { replies: [], total: Number(row.total) };
+      entry.replies.push(view);
+      grouped.set(row.root_id, entry);
+    }
+    return views.map((view) => {
+      const entry = grouped.get(view.id);
+      return { ...view, followedReplies: entry?.replies ?? [], followedReplyTotal: entry?.total ?? 0 };
+    });
   }
 
   private async present(posts: DiscussionPostEntity[], viewerId: string): Promise<PostView[]> {

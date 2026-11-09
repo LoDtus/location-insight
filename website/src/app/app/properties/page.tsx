@@ -1,11 +1,13 @@
 import { Suspense } from "react";
 
-import PropertyCatalog from "@/features/properties/components/property-catalog";
+import ListingBrowser from "@/features/landing-page/components/listing-browser";
 
 export default function Page() {
     return (
-        <Suspense fallback={<div className="min-h-full" />}>
-            <PropertyCatalog root="/app" />
-        </Suspense>
+        <main className="box-border h-full overflow-auto bg-white">
+            <Suspense fallback={<div className="min-h-full" />}>
+                <ListingBrowser app={{ root: "/app" }} />
+            </Suspense>
+        </main>
     );
 }

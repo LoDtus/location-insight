@@ -49,6 +49,13 @@ export interface DiscussionPost {
     authorOnline: boolean;
     createdAt: string;
     media: DiscussionMedia[];
+    /**
+     * Chỉ có ở danh sách feed: bình luận mới nhất của những người bạn đang theo dõi (cũ trước, mới sau), khác nhau
+     * theo từng người xem.
+     */
+    followedReplies?: DiscussionPost[];
+    /** Tổng số bình luận của người bạn theo dõi trên bài này (có thể lớn hơn số đang hiển thị). */
+    followedReplyTotal?: number;
 }
 
 export interface DiscussionPage<T> {

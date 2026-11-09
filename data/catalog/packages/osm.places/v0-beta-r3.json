@@ -1,0 +1,40 @@
+{
+  "contract": "point@1",
+  "layer": "osm.places",
+  "label": "v0-beta-r3",
+  "sourceDate": null,
+  "crs": "EPSG:4326",
+  "sources": [
+    {
+      "catalog": "data/catalog/snapshots/places/curated/2026-10-18.json",
+      "url": "",
+      "sha256": "f17e6e8046a9dfd9128968149fead90b97e300c7b132642d729dad5a66414ca5",
+      "license": "ODbL"
+    }
+  ],
+  "pipeline": {
+    "tool": "tools/data/osm_places.py + tools/data/seed_v0.py",
+    "commit": "b73d8a68f141a477799175a930f0562e1ca098f8",
+    "dirty": false
+  },
+  "manualSteps": [],
+  "rowCount": 12718,
+  "categories": {
+    "bank": 1399,
+    "bus": 4135,
+    "food": 2261,
+    "hardware": 19,
+    "hospital": 411,
+    "market": 227,
+    "metro": 39,
+    "park": 747,
+    "pharmacy": 245,
+    "school": 2788,
+    "supermarket": 268,
+    "townhall": 179
+  },
+  "dataSha256": "bb74d738e03c6e13fb902d8dea641d2981e93dd0e2bbad5b78c881c4cb41bbc2",
+  "gridCode": null,
+  "params": {},
+  "notes": "Bản beta v0: điểm tiện ích OSM đã gộp trùng."
+}

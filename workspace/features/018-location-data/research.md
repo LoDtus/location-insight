@@ -598,3 +598,62 @@ Khi rà thiết kế, thấy năm chỗ có thể làm sai kết quả mà khôn
 ### Khả năng đảo ngược <!-- key: reversibility -->
 
 Mọi thứ nằm trong code và cột `jsonb`. Bỏ một quy tắc là sửa code và phát hành bản `kind = criteria`.
+
+---
+
+## Bản ghi quyết định 15 — Đo tiêu chí, quy ra điểm, dẫn chứng trên bản đồ <!-- key: decision_record -->
+
+**Status:** Accepted — bổ sung Decision Record 10 và 14
+**Category:** New Architecture Pattern
+**Door Type:** Two-way (cheap to reverse)
+
+### Bối cảnh <!-- key: context -->
+
+Cần thay số minh họa bằng số đo thật cho 19 tiêu chí đo tự động được, đánh dấu rõ 3 tiêu chí cần AI chưa làm, và cho người dùng tự kiểm con số bằng dẫn chứng trên bản đồ.
+
+Tham khảo:
+- [Walk Score methodology](https://walkscore.com/methodology): trọn điểm trong 5 phút đi bộ, giảm dần theo khoảng cách, "độ sâu lựa chọn" cho quán ăn.
+- [kcredit/Walkable-Accessibility-Score](https://github.com/kcredit/Walkable-Accessibility-Score): tái lập Walk Score bằng hàm suy giảm logistic theo khoảng cách Euclid.
+- [UDST/pandana](https://udst.github.io/pandana/network.html) `aggregate(decay='linear')`: đếm có trừ hao tuyến tính theo khoảng cách.
+- [Vietmap Matrix v4](https://maps.vietmap.vn/docs/map-api/matrix-version/matrix-v4/) và [OpenAQ v3](https://docs.openaq.org).
+
+### Các phương án đã xem xét <!-- key: options_considered -->
+
+| Option | Fit with existing stack | Maintainability (solo-dev) | Reversibility | Notes |
+| --- | --- | --- | --- | --- |
+| Nội suy tuyến tính kẹp 0–10 (Bản ghi 10) | Cao | Cao | Cao | Gãy khúc ở hai ngưỡng: lệch 20 m quanh ngưỡng làm điểm nhảy |
+| Logistic | Cao | Trung bình | Cao | Mượt nhưng không có ngưỡng 0 và 10 rõ để giải thích |
+| **Smoothstep giữa `good` và `bad`** | Cao | Cao | Cao | Phẳng ở hai đầu như logistic, vẫn có ngưỡng rõ |
+| Tiêu chí ghim mã lớp (`osm.places`) | Trung bình | Thấp | Cao | Thêm nguồn cùng chủ đề phải sửa code |
+| **Tiêu chí đọc lớp theo chủ đề (phần sau dấu chấm)** | Cao | Cao | Cao | `osm.places`, `qhtd.places`, `mock.places` đều vào tiêu chí điểm |
+
+### Quyết định <!-- key: decision -->
+
+- **Định nghĩa** ở `backend/src/modules/map/criteria.ts`: `method@version`, chủ đề lớp, ngưỡng, độ tin gốc, điều kiện chặn (ngập sông chu kỳ 100 năm sâu từ 1 m thì điểm tổng tối đa 4).
+- **Quy ra điểm** (`scoring.ts`):
+  - `decay`: smoothstep, dùng cho khoảng cách, thời gian đi, PM2.5, độ cao, độ sâu ngập.
+  - `saturate`: 10·(1 − 2^(−n/half)), dùng cho đếm có trừ hao theo khoảng cách.
+  - `peak`: dùng cho mật độ dân cư (đông vừa phải là tốt nhất).
+- **Đo** (`measure/`):
+  - Mỗi dạng hình học một câu SQL gộp mọi tiêu chí (`jsonb_to_recordset` + `LATERAL`). Điểm dùng KNN `<->` có giới hạn `ST_DWithin`. Lưới: sinh mã ô trong bán kính rồi tra theo khóa chính.
+  - Ba câu chạy song song, mỗi câu trong transaction READ ONLY có `statement_timeout` 2 s và `jit = off`. Ước lượng chi phí của `generate_series` từng kích hoạt JIT tốn khoảng 300 ms cho một câu chạy vài ms.
+  - Gộp trùng giữa các nguồn lúc đếm bằng ô 40 m trên VN-2000.
+- **Lưới không tính sẵn bán kính:** giá trị theo từng ô 100 m (`pop_100m`, `green_100m`, `flood_rp100`, `elev_100m`). Bán kính nằm trong tiêu chí. Việc này thay cho `worldpop.pop_500m` của Bản ghi 14 và gỡ ràng buộc ngầm giữa tham số và dữ liệu.
+- **Nguồn ngoài:**
+  - Một lượt Vietmap Matrix v4 cho mỗi lần đánh giá (ứng viên bệnh viện + Hồ Gươm), đi chung cache, ngân sách và cầu dao. Lỗi thì đo theo khoảng cách, `status = fallback`, hạ độ tin một bậc.
+  - OpenAQ v3: trạm PM2.5 gần nhất trong 3 km, cache 1 giờ theo ô khoảng 1 km. Thiếu `OPENAQ_API_KEY` thì `unavailable`.
+- **Trạng thái số đo:** `ok`, `fallback`, `no_data`, `unavailable`, `not_implemented`.
+  - Điểm tổng chỉ gồm `ok`/`fallback` có độ tin từ `medium`, hoặc tiêu chí người dùng tự chấm.
+  - Độ phủ dưới 60% thì nhãn là "Chỉ tham khảo".
+  - Tiêu chí AI (ngập úng sau mưa, quy hoạch, an ninh) có số minh họa ổn định theo tọa độ và nằm trong nhóm "Chưa tính vào điểm".
+- **Dẫn chứng:** số đo mang theo đối tượng gần nhất, danh sách quán, ô lưới quanh địa điểm và bán kính. Website (`evidence-overlay.ts`) vẽ theo cách đo: đường đi thật, nét nối, vòng ngưỡng, chấm, ô tô màu.
+
+### Hệ quả <!-- key: consequences -->
+
+- Đo một tọa độ mất 50–115 ms trên PostGIS (test tích hợp), cộng một lượt Vietmap nếu chưa có cache.
+- Gói lưới phải có giá trị 0 cho ô trong vùng phủ (ví dụ ô không ngập). Để trống nghĩa là ngoài vùng phủ.
+- Chưa làm: đánh giá theo `criteria_snapshot` của bản đã ghim (đang dùng định nghĩa trong code), điểm mẫu khi phát hành, ghi số đo ra bảng riêng `map_place_measurements` (đang nằm trong `map_place_analyses.measurements`).
+
+### Khả năng đảo ngược <!-- key: reversibility -->
+
+Đổi đường cong hay ngưỡng là sửa `criteria.ts`/`scoring.ts` và tăng `method_version`. Kết quả cũ giữ điểm đã tính.

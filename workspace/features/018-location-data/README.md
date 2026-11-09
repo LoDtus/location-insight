@@ -246,3 +246,10 @@ Làm theo ba giai đoạn ([research.md](research.md) Bản ghi 12). Đặc tả
   - `tools/data/package_tool.py`: `pack` và `validate`.
   - Khác thiết kế: kho gói dùng bucket S3 sẵn có thay volume riêng; tải gói bằng URL ký sẵn thay multipart; chặn ghi bằng trigger + cờ `geo.write_mode`, chưa tách role.
   - Chưa làm: khôi phục phiên bản từ gói, job kiểm toàn vẹn hằng tuần, điểm mẫu khi phát hành (cần logic đánh giá), lớp bản đồ đọc `geo` thay `map_pois`, kiểm tra `criteria_inputs_present`/`method_supported` (CRITERIA chưa khai `inputs`).
+- **Đo thật và dẫn chứng trên bản đồ (Bản ghi 15):**
+  - 19 tiêu chí đo trên PostGIS, Vietmap Matrix (bệnh viện, nội đô) và OpenAQ (không khí).
+  - 3 tiêu chí cần AI (ngập úng sau mưa, quy hoạch, an ninh) gắn "Chưa thực hiện", có số minh họa, không tính điểm.
+  - Quy ra điểm bằng smoothstep, saturate, peak. Tiêu chí đọc lớp theo chủ đề. Lưới theo ô 100 m, bán kính nằm trong tiêu chí.
+  - Bấm một tiêu chí trong bảng đánh giá thì bản đồ vẽ dẫn chứng: đường đi, vòng ngưỡng, chấm, ô lưới.
+  - Biến mới `OPENAQ_API_KEY`.
+

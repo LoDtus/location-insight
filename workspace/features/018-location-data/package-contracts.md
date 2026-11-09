@@ -65,7 +65,7 @@ Trường của manifest viết camelCase, giống JSON của API.
 | Trường | Quy tắc |
 | --- | --- |
 | `contract` | Khuôn server hỗ trợ: `point@1`, `line@1`, `area@1`, `grid@1` |
-| `layer` | Phải có trong `geo.layers` và cùng `geometry_kind` với khuôn |
+| `layer` | Phải có trong `geo.layers` và cùng `geometry_kind` với khuôn. Phần sau dấu chấm là **chủ đề** mà tiêu chí đọc: `places`, `roads`, `pop_100m`, `green_100m`, `flood_rp100`, `elev_100m` (backend `criteria.ts`) |
 | `label` | `^[0-9A-Za-z][0-9A-Za-z._-]{0,39}$` |
 | `crs` | `EPSG:4326`. Khuôn `line` và `area` chấp nhận thêm `EPSG:3405`, server đổi sang 4326. Không đoán hệ tọa độ |
 | `sources` | Ít nhất 1. `catalog` trỏ tới biên bản đã commit trong `data/catalog/snapshots`; `license` bắt buộc |
@@ -124,7 +124,8 @@ cell_id,value
 ```
 
 - `cell_id` phải nằm trong phạm vi của `gridCode`.
-- `value` rỗng nghĩa là ô ngoài vùng phủ, không phải 0.
+- `value` rỗng nghĩa là ô ngoài vùng phủ, không phải 0. Ô trong vùng phủ mà không có hiện tượng thì ghi `0` (ví dụ ô không ngập), nếu không tiêu chí sẽ báo "chưa có dữ liệu".
+- Giá trị theo từng ô 100 m, không tính sẵn theo bán kính: bán kính là tham số của tiêu chí (research.md Bản ghi 15).
 - Raster gốc (WorldPop, WorldCover, JRC, FABDEM) được tính ra lưới ở máy. Server không nhận GeoTIFF.
 
 ## 4. Đổi khuôn

@@ -70,5 +70,11 @@
             "title": "Thỏa thuận API",
             "description": "Điều kiện dùng API khi Địa Thế mở cho bên khác."
         }
+    },
+    "document": {
+        "toc": "Mục lục",
+        "tocOpen": "Xem mục lục",
+        "backToList": "Tất cả tài liệu pháp lý",
+        "documents": "Tài liệu pháp lý"
     }
 }

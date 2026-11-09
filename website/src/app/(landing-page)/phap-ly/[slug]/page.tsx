@@ -60,6 +60,17 @@ export default async function Page({
         <LegalDocument
             title={getLocaleValue(messages, ["documents", slug, "title"])}
             markdown={markdown ?? ""}
+            labels={{
+                toc: getLocaleValue(messages, ["document", "toc"]),
+                tocOpen: getLocaleValue(messages, ["document", "tocOpen"]),
+                backToList: getLocaleValue(messages, ["document", "backToList"]),
+                documents: getLocaleValue(messages, ["document", "documents"]),
+            }}
+            currentSlug={slug}
+            documents={LEGAL_DOCUMENTS.map((item) => ({
+                slug: item.slug,
+                title: getLocaleValue(messages, ["documents", item.slug, "title"]),
+            }))}
         />
     );
 }

@@ -70,5 +70,11 @@
             "title": "API agreement",
             "description": "Terms for using the API if it is opened to others."
         }
+    },
+    "document": {
+        "toc": "On this page",
+        "tocOpen": "Show contents",
+        "backToList": "All legal documents",
+        "documents": "Legal documents"
     }
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { cellRing, classify, hasEvidence, planEvidence, withRoute } from "@/features/map/evidence-overlay";
+import { cellRing, classify, hasEvidence, planEvidence } from "@/features/map/evidence-overlay";
 import type { EvaluatedCriterion, MapRoute } from "@/features/map/map.types";
 
 const origin = { lat: 21.03, lng: 105.85 };
@@ -41,7 +41,7 @@ function criterion(patch: Partial<EvaluatedCriterion>): EvaluatedCriterion {
 describe("dẫn chứng trên bản đồ", () => {
     it("tiện ích gần nhất: cần đường đi thật, tạm nét đứt, vòng ngưỡng đạt trọn điểm, nhãn tên và khoảng cách", () => {
         const plan = planEvidence(criterion({}), origin);
-        expect(plan?.routeTo).toEqual({ lat: 21.0327, lng: 105.85 });
+        expect(plan?.routeTargets).toEqual([{ choice: 0, point: { lat: 21.0327, lng: 105.85 } }]);
         expect(plan?.overlay.lines[0].style).toBe("connector");
         expect(plan?.overlay.areas).toHaveLength(1);
         expect(plan?.overlay.points[0]).toMatchObject({ emphasis: "target", label: "Trường A · 300 m" });
@@ -53,12 +53,11 @@ describe("dẫn chứng trên bản đồ", () => {
     });
 
     it("thay nét đứt bằng tuyến thật khi có đường đi", () => {
-        const plan = planEvidence(criterion({}), origin);
         const route = { distanceM: 420, durationS: 95, bbox: [105.849, 21.03, 105.851, 21.033], geometry: [[105.85, 21.03], [105.851, 21.031], [105.85, 21.0327]], steps: [], congestion: null } as MapRoute;
-        const next = withRoute(plan!.overlay, route);
-        expect(next.lines[0]).toMatchObject({ style: "route" });
-        expect(next.lines[0].coordinates).toHaveLength(3);
-        expect(next.caption).toMatch(/420 m, khoảng 2 phút xe máy/);
+        const next = planEvidence(criterion({}), origin, 0, { 0: route })?.overlay;
+        expect(next?.lines[0]).toMatchObject({ style: "route", emphasis: "primary" });
+        expect(next?.lines[0].coordinates).toHaveLength(3);
+        expect(next?.caption).toMatch(/Theo đường đi: 420 m · 2 phút/);
     });
 
     it("bệnh viện: ứng viên khác có nhãn phút; UBND giữ nguyên chữ viết tắt", () => {
@@ -92,7 +91,7 @@ describe("dẫn chứng trên bản đồ", () => {
             }),
             origin,
         );
-        expect(plan?.routeTo).toBeNull();
+        expect(plan?.routeTargets).toEqual([]);
         expect(plan?.overlay.points[0].weight).toBeGreaterThan(plan?.overlay.points[1].weight ?? 1);
         expect(plan?.overlay.areas[0].outline).toBe(true);
     });
@@ -122,11 +121,18 @@ describe("dẫn chứng trên bản đồ", () => {
             { name: "Chợ C", lat: 21.025, lng: 105.845, distanceM: 760, minutes: 6 },
         ];
         const first = planEvidence(criterion({ id: "cho", label: "Chợ", evidence: options }), origin);
-        expect(first?.routeTo).toEqual({ lat: 21.032, lng: 105.85 });
+        // Tuyến tới cả 3 lựa chọn cùng lúc, mỗi lựa chọn một màu khớp ghim.
+        expect(first?.routeTargets.map((target) => target.choice)).toEqual([0, 1, 2]);
+        expect(first?.overlay.lines).toHaveLength(3);
+        expect(new Set(first?.overlay.lines.map((line) => line.color)).size).toBe(3);
         expect(first?.overlay.points.map((point) => point.emphasis)).toEqual(["target", "other", "other"]);
+        expect(new Set(first?.overlay.points.map((point) => point.color))).toEqual(new Set(first?.overlay.lines.map((line) => line.color)));
         const second = planEvidence(criterion({ id: "cho", label: "Chợ", evidence: options }), origin, 1);
-        expect(second?.routeTo).toEqual({ lat: 21.035, lng: 105.852 });
         expect(second?.overlay.selected).toBe(1);
+        // Tuyến đang chọn vẽ sau cùng (nằm trên), các tuyến khác mảnh hơn.
+        const lines = second?.overlay.lines ?? [];
+        expect(lines[lines.length - 1]).toMatchObject({ emphasis: "primary", color: second?.overlay.points[1].color });
+        expect(lines.slice(0, -1).every((line) => line.emphasis === "secondary")).toBe(true);
         expect(second?.overlay.caption).toMatch(/Đang xem ② Chợ B: xa hơn ① 340 m, chậm hơn 3 phút/);
         const close = [options[0], { ...options[1], minutes: 2.4 }];
         expect(planEvidence(criterion({ id: "cho", label: "Chợ", evidence: close }), origin, 1)?.overlay.caption).toMatch(/thời gian đi tương đương/);
@@ -154,7 +160,7 @@ describe("dẫn chứng trên bản đồ", () => {
             }),
             origin,
         );
-        expect(pharmacy?.routeTo).toBeNull();
+        expect(pharmacy?.routeTargets).toEqual([]);
         expect(pharmacy?.overlay.lines).toEqual([]);
         expect(pharmacy?.overlay.points.every((point) => point.choice === null)).toBe(true);
     });

@@ -42,6 +42,8 @@ export interface EvidenceLine {
     /** route: đường đi thật; connector: nét đứt nối thẳng; road: tô hình dạng đường làm dẫn chứng. */
     style: "route" | "connector" | "road";
     color: string;
+    /** Tuyến đang chọn: nét dày, nằm trên cùng; tuyến khác mảnh và nhạt hơn. */
+    emphasis?: "primary" | "secondary";
 }
 
 export interface EvidencePoint {
@@ -75,9 +77,15 @@ export interface EvidenceOverlay {
 
 export interface EvidencePlan {
     overlay: EvidenceOverlay;
-    /** Cần lấy đường đi thật tới điểm này (Vietmap Route) rồi gọi `withRoute`. */
-    routeTo: MapPoint | null;
+    /** Các đích cần lấy đường đi thật (Vietmap Route); có tuyến rồi thì gọi lại `planEvidence` kèm `routes`. */
+    routeTargets: Array<{ choice: number; point: MapPoint }>;
 }
+
+/** Tuyến đã lấy được theo thứ tự lựa chọn (0 = gần nhất). */
+export type EvidenceRoutes = Readonly<Record<number, MapRoute>>;
+
+/** Màu theo lựa chọn ①②③ (đi cùng số trên ghim, không phân biệt chỉ bằng màu). */
+const CHOICE_COLORS = ["#026a4e", "#1d6fd1", "#b45309", "#7c3aed", "#be185d"] as const;
 
 const COLORS: Record<EvidenceTone, string> = {
     green: "#026a4e",
@@ -234,66 +242,69 @@ function comparison(options: readonly MeasurementEvidence[], selected: number): 
 }
 
 /**
- * Kế hoạch vẽ dẫn chứng của tiêu chí tại `origin`, với lựa chọn thứ `selected` (0 = gần nhất) đang có tuyến. Trả
- * null nếu tiêu chí chưa có gì để vẽ. `routeTo` là đích cần lấy đường đi thật; trong lúc chờ (hoặc khi lấy đường
- * lỗi) lớp phủ đã có nét đứt nối thẳng.
+ * Kế hoạch vẽ dẫn chứng của tiêu chí tại `origin`. Tiêu chí có tuyến vẽ tuyến tới MỌI lựa chọn cùng lúc (mỗi lựa
+ * chọn một màu, khớp số trên ghim); `selected` là tuyến được làm nổi. `routes` là các tuyến đã lấy được; lựa chọn
+ * chưa có tuyến thì tạm nét đứt nối thẳng. Trả null nếu tiêu chí chưa có gì để vẽ.
  */
-export function planEvidence(item: EvaluatedCriterion, origin: MapPoint, selected = 0): EvidencePlan | null {
+export function planEvidence(item: EvaluatedCriterion, origin: MapPoint, selected = 0, routes: EvidenceRoutes = {}): EvidencePlan | null {
     if (!hasEvidence(item)) return null;
     const method = base(item);
     const options = item.evidence;
     const pick = Math.min(Math.max(0, selected), Math.max(0, options.length - 1));
-    const straight = (to: MapPoint, color: string): EvidenceLine => ({
+    const straight = (to: MapPoint, color: string, emphasis?: EvidenceLine["emphasis"]): EvidenceLine => ({
         coordinates: [
             [origin.lng, origin.lat],
             [to.lng, to.lat],
         ],
         style: "connector",
         color,
+        emphasis,
     });
 
     if (method === "nearest" || method === "travel_time" || method === "anchor") {
         const routed = ROUTED.has(item.id);
-        const color = method === "nearest" ? COLORS.green : COLORS.blue;
-        const target = options[pick];
+        const many = options.length > 1;
+        const colorOf = (index: number): string => (many ? CHOICE_COLORS[index % CHOICE_COLORS.length] : method === "nearest" ? COLORS.green : COLORS.blue);
         const areas: EvidenceArea[] = [];
         if (item.radiusM && method === "nearest") areas.push({ ring: ringOf(origin, item.radiusM), color: COLORS.green, opacity: 0.06, outline: true });
         if (method === "anchor") {
-            for (const radius of INNER_RINGS_M) areas.push({ ring: ringOf(target, radius), color: COLORS.slate, opacity: 0, outline: true, fit: false });
+            for (const radius of INNER_RINGS_M) areas.push({ ring: ringOf(options[0], radius), color: COLORS.slate, opacity: 0, outline: true, fit: false });
         }
         const points: EvidencePoint[] = options.map((option, index) => ({
             lat: option.lat,
             lng: option.lng,
             emphasis: index === pick ? "target" : "other",
             label: choiceLabel(item, option, index, options.length),
-            color: index === pick ? color : COLORS.slate,
-            weight: index === pick ? 1 : 0.7,
-            choice: options.length > 1 && routed ? index : null,
+            color: routed ? colorOf(index) : index === pick ? colorOf(0) : COLORS.slate,
+            weight: index === pick ? 1 : 0.8,
+            choice: many && routed ? index : null,
         }));
+        // Tuyến tới mọi lựa chọn; tuyến đang chọn vẽ sau cùng để nằm trên.
+        const lines: EvidenceLine[] = routed
+            ? options
+                  .map((option, index): EvidenceLine => {
+                      const route = routes[index];
+                      const emphasis = index === pick ? "primary" : "secondary";
+                      return route ? { coordinates: route.geometry, style: "route", color: colorOf(index), emphasis } : straight(option, colorOf(index), emphasis);
+                  })
+                  .sort((a, b) => (a.emphasis === "primary" ? 1 : 0) - (b.emphasis === "primary" ? 1 : 0))
+            : [];
         const ringNote = item.radiusM && method === "nearest" ? ` Vòng tròn: trong ${formatMeters(item.radiusM)} đạt trọn điểm.` : "";
-        const choiceNote = options.length > 1 && routed ? " Bấm số trên bản đồ để xem đường tới lựa chọn khác." : "";
+        const byRoad = routed ? routeSummary(options, routes) : "";
+        const pickNote = many && routed ? ` Bấm số trên bản đồ để làm nổi một tuyến.${comparison(options, pick)}` : "";
         let caption: string;
         if (method === "anchor") {
-            caption = `${item.detail}. Vòng nét đứt: 3, 10 và 20 km quanh Hồ Gươm.`;
+            caption = `${item.detail}. Vòng nét đứt: 3, 10 và 20 km quanh Hồ Gươm.${byRoad}`;
         } else if (method === "travel_time") {
-            caption = `${item.detail}.${choiceNote}${comparison(options, pick)}`;
+            caption = `${item.detail}.${byRoad}${pickNote}`;
         } else if (routed) {
-            caption = `${options.length > 1 ? `${options.length} lựa chọn gần nhất. ` : ""}Đường đi tới ${lowerFirst(item.label)} gần nhất: ${options[0].name}, ${formatMeters(options[0].distanceM)} đường chim bay.${ringNote}${choiceNote}${comparison(options, pick)}`;
+            caption = `${many ? `Tuyến xe máy tới ${options.length} ${lowerFirst(item.label)} gần nhất.` : `Đường đi tới ${lowerFirst(item.label)} gần nhất: ${options[0].name}, ${formatMeters(options[0].distanceM)} đường chim bay.`}${byRoad}${ringNote}${pickNote}`;
         } else {
             caption = `${options.length} ${lowerFirst(item.label)} gần nhất, gần nhất cách ${formatMeters(options[0].distanceM)}.${ringNote}`;
         }
         return {
-            overlay: finish({
-                criterionId: item.id,
-                origin,
-                areas,
-                lines: routed ? [straight(target, color)] : [],
-                points,
-                caption,
-                legend: null,
-                selected: pick,
-            }),
-            routeTo: routed ? { lat: target.lat, lng: target.lng } : null,
+            overlay: finish({ criterionId: item.id, origin, areas, lines, points, caption, legend: null, selected: pick }),
+            routeTargets: routed ? options.map((option, index) => ({ choice: index, point: { lat: option.lat, lng: option.lng } })) : [],
         };
     }
 
@@ -320,7 +331,7 @@ export function planEvidence(item: EvaluatedCriterion, origin: MapPoint, selecte
                 legend: null,
                 selected: 0,
             }),
-            routeTo: null,
+            routeTargets: [],
         };
     }
 
@@ -356,7 +367,7 @@ export function planEvidence(item: EvaluatedCriterion, origin: MapPoint, selecte
                 legend,
                 selected: 0,
             }),
-            routeTo: null,
+            routeTargets: [],
         };
     }
 
@@ -411,7 +422,7 @@ export function planEvidence(item: EvaluatedCriterion, origin: MapPoint, selecte
                 legend,
                 selected: 0,
             }),
-            routeTo: null,
+            routeTargets: [],
         };
     }
 
@@ -440,23 +451,19 @@ export function planEvidence(item: EvaluatedCriterion, origin: MapPoint, selecte
                 legend: null,
                 selected: 0,
             }),
-            routeTo: null,
+            routeTargets: [],
         };
     }
     return null;
 }
 
-/** Thay nét nối thẳng tới lựa chọn đang chọn bằng đường đi thật khi đã lấy được tuyến. */
-export function withRoute(overlay: EvidenceOverlay, route: MapRoute): EvidenceOverlay {
-    const connector = overlay.lines.find((line) => line.style === "connector");
-    const color = connector?.color ?? COLORS.green;
-    const minutes = Math.round(route.durationS / 60);
-    const caption = overlay.caption.includes("Theo đường đi")
-        ? overlay.caption
-        : `${overlay.caption} Theo đường đi: ${formatMeters(route.distanceM)}, khoảng ${minutes} phút xe máy.`;
-    return finish({
-        ...overlay,
-        lines: [...overlay.lines.filter((line) => line !== connector), { coordinates: route.geometry, style: "route", color }],
-        caption,
+/** " Theo đường đi: ① 960 m · 2 phút; ② 1,2 km · 3 phút." cho các lựa chọn đã có tuyến. */
+function routeSummary(options: readonly MeasurementEvidence[], routes: EvidenceRoutes): string {
+    const parts = options.flatMap((_, index) => {
+        const route = routes[index];
+        if (!route) return [];
+        const mark = options.length > 1 ? `${MARKS[index] ?? index + 1} ` : "";
+        return [`${mark}${formatMeters(route.distanceM)} · ${Math.max(1, Math.round(route.durationS / 60))} phút`];
     });
+    return parts.length > 0 ? ` Theo đường đi: ${parts.join("; ")}.` : "";
 }

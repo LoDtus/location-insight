@@ -51,7 +51,7 @@ import {
     formatCoordinates,
     placeLink,
 } from "@/features/map/map.geo";
-import { planEvidence, withRoute, type EvidenceOverlay } from "@/features/map/evidence-overlay";
+import { planEvidence, type EvidenceOverlay, type EvidenceRoutes } from "@/features/map/evidence-overlay";
 import { getRoutes, isAbortError, mapErrorMessage, reverseGeocode, searchPinResults } from "@/features/map/map.service";
 import {
     DEFAULT_MAP_CENTER,
@@ -64,6 +64,7 @@ import type {
     EvaluatedCriterion,
     MapConfig,
     MapPlace,
+    MapRoute,
     MapPoint,
     MapStyleId,
     PinResult,
@@ -209,11 +210,17 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
     const mapAreaRef = useRef<HTMLDivElement>(null);
 
     // ---- Dẫn chứng của tiêu chí trên bản đồ (bấm một dòng trong bảng đánh giá) ----
-    const [evidence, setEvidence] = useState<EvidenceOverlay | null>(null);
+    /**
+     * Tiêu chí đang hiện dẫn chứng, lựa chọn đang làm nổi và các tuyến đã lấy được. Lớp phủ dựng lại từ trạng thái
+     * này (planEvidence), nên bấm ghim khác chỉ đổi `selected`, không gọi lại Vietmap.
+     */
+    const [evidenceState, setEvidenceState] = useState<{ item: EvaluatedCriterion; origin: MapPoint; selected: number; routes: EvidenceRoutes } | null>(null);
     const [evidenceLoading, setEvidenceLoading] = useState(false);
     const evidenceAbortRef = useRef<AbortController | null>(null);
-    /** Tiêu chí và địa điểm đang hiện dẫn chứng: để bấm ghim lựa chọn khác thì dựng lại với lựa chọn đó. */
-    const evidenceSourceRef = useRef<{ item: EvaluatedCriterion; origin: MapPoint } | null>(null);
+    const evidence = useMemo(
+        () => (evidenceState ? (planEvidence(evidenceState.item, evidenceState.origin, evidenceState.selected, evidenceState.routes)?.overlay ?? null) : null),
+        [evidenceState],
+    );
 
     const fitEvidence = useCallback((overlay: EvidenceOverlay) => {
         const root = rootRef.current;
@@ -236,16 +243,18 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
         evidenceAbortRef.current?.abort();
         evidenceAbortRef.current = null;
         setEvidenceLoading(false);
-        setEvidence(null);
+        setEvidenceState(null);
     }, []);
 
-    /** Vẽ dẫn chứng: lớp phủ dựng ngay (nét nối thẳng), rồi thay bằng đường đi thật khi Vietmap trả tuyến. */
+    /**
+     * Vẽ dẫn chứng: lớp phủ dựng ngay (nét nối thẳng tới mọi lựa chọn), rồi lấy tuyến xe máy tới tất cả lựa chọn
+     * song song; tuyến nào về trước thì thay nét nối của lựa chọn đó.
+     */
     const showEvidence = useCallback(
-        (item: EvaluatedCriterion | null, origin: MapPoint, choice = 0) => {
+        (item: EvaluatedCriterion | null, origin: MapPoint) => {
             clearEvidence();
-            evidenceSourceRef.current = item ? { item, origin } : null;
             if (!item) return;
-            const plan = planEvidence(item, origin, choice);
+            const plan = planEvidence(item, origin);
             if (!plan) {
                 showToast({
                     title: `${item.label}: chưa có dẫn chứng trên bản đồ`,
@@ -258,31 +267,38 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                 });
                 return;
             }
-            setEvidence(plan.overlay);
+            setEvidenceState({ item, origin, selected: 0, routes: {} });
             fitEvidence(plan.overlay);
-            if (!plan.routeTo) return;
+            if (plan.routeTargets.length === 0) return;
             const controller = new AbortController();
             evidenceAbortRef.current = controller;
             setEvidenceLoading(true);
-            getRoutes(origin, plan.routeTo, "motorcycle", { alternatives: false, avoid: null, departAt: null }, controller.signal)
-                .then((routes) => {
-                    if (controller.signal.aborted || routes.length === 0) return;
-                    const next = withRoute(plan.overlay, routes[0]);
-                    setEvidence(next);
-                    fitEvidence(next);
-                })
-                .catch(() => {
-                    // Không lấy được tuyến (hết hạn mức, lỗi mạng): giữ nét nối thẳng, chú thích vẫn đúng.
-                })
-                .finally(() => {
-                    if (evidenceAbortRef.current === controller) {
-                        evidenceAbortRef.current = null;
-                        setEvidenceLoading(false);
-                    }
-                });
+            const collected: Record<number, MapRoute> = {};
+            void Promise.allSettled(
+                plan.routeTargets.map(({ choice, point }) =>
+                    getRoutes(origin, point, "motorcycle", { alternatives: false, avoid: null, departAt: null }, controller.signal).then((routes) => {
+                        if (controller.signal.aborted || routes.length === 0) return;
+                        collected[choice] = routes[0];
+                        setEvidenceState((current) => (current && current.item === item ? { ...current, routes: { ...current.routes, [choice]: routes[0] } } : current));
+                    }),
+                ),
+            ).then(() => {
+                if (evidenceAbortRef.current !== controller) return;
+                evidenceAbortRef.current = null;
+                setEvidenceLoading(false);
+                // Đưa cả các tuyến vào khung nhìn (tuyến có thể vòng xa hơn đường chim bay).
+                const full = planEvidence(item, origin, 0, collected);
+                if (full && Object.keys(collected).length > 0) fitEvidence(full.overlay);
+            });
         },
         [clearEvidence, fitEvidence],
     );
+
+    /** Bấm ghim ①②③: làm nổi tuyến của lựa chọn đó (tuyến đã có sẵn, không gọi lại). */
+    const pickEvidence = useCallback((choice: number) => {
+        setEvidenceState((current) => (current ? { ...current, selected: choice } : current));
+    }, []);
+
     const lastWrittenRef = useRef(canonicalQuery(paramsString));
     const isAdmin = root === "/admin";
     const focus: MapPoint = { lat: viewport.lat, lng: viewport.lng };
@@ -1110,10 +1126,7 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                 }}
                 onFailure={setFailed}
                 evidence={visibleEvidence}
-                onEvidencePick={(choice) => {
-                    const source = evidenceSourceRef.current;
-                    if (source) showEvidence(source.item, source.origin, choice);
-                }}
+                onEvidencePick={pickEvidence}
             />
             <div className="pointer-events-none absolute inset-0">
                 <div className="flex h-full w-full min-h-0">

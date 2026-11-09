@@ -159,6 +159,7 @@ describe.skipIf(!DATABASE_URL)('đo tiêu chí trên PostGIS', () => {
     expect(hospital?.status).toBe('ok');
     expect(hospital?.unit).toBe('phút');
     expect(hospital?.evidence?.[0]?.name).toBe('Bệnh viện A');
+    expect(hospital?.evidence?.every((item) => typeof item.minutes === 'number')).toBe(true);
     expect(hospital?.expiresAt).toBeTruthy();
     expect(hospital?.source).toBe('test, thời gian đi: Vietmap');
 

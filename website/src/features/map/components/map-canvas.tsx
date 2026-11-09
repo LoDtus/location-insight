@@ -678,7 +678,13 @@ export default function MapCanvas({
                 })),
                 ...overlay.lines.map((line) => ({
                     type: "Feature",
-                    properties: { kind: line.style, color: line.color },
+                    // Tuyến đang chọn dày và đậm; tuyến của lựa chọn khác mảnh, nhạt hơn để vẫn đọc được khi chồng nhau.
+                    properties: {
+                        kind: line.style,
+                        color: line.color,
+                        width: line.emphasis === "secondary" ? 3.5 : 5.5,
+                        opacity: line.emphasis === "secondary" ? 0.7 : 1,
+                    },
                     geometry: { type: "LineString", coordinates: line.coordinates },
                 })),
                 ...overlay.points
@@ -731,7 +737,7 @@ export default function MapCanvas({
             source: SRC_EVIDENCE,
             filter: ["==", ["get", "kind"], "route"] as never,
             layout,
-            paint: { "line-color": "#ffffff", "line-width": 9 },
+            paint: { "line-color": "#ffffff", "line-width": ["+", ["get", "width"], 3.5] as never, "line-opacity": ["get", "opacity"] as never },
         });
         map.addLayer({
             id: LAYER_EVIDENCE_ROUTE,
@@ -739,7 +745,7 @@ export default function MapCanvas({
             source: SRC_EVIDENCE,
             filter: ["==", ["get", "kind"], "route"] as never,
             layout,
-            paint: { "line-color": color, "line-width": 5 },
+            paint: { "line-color": color, "line-width": ["get", "width"] as never, "line-opacity": ["get", "opacity"] as never },
         });
         map.addLayer({
             id: LAYER_EVIDENCE_CONNECTOR,
@@ -747,7 +753,7 @@ export default function MapCanvas({
             source: SRC_EVIDENCE,
             filter: ["==", ["get", "kind"], "connector"] as never,
             layout,
-            paint: { "line-color": color, "line-width": 3, "line-dasharray": [1, 2] },
+            paint: { "line-color": color, "line-width": 3, "line-dasharray": [1, 2], "line-opacity": ["get", "opacity"] as never },
         });
         map.addLayer({
             id: LAYER_EVIDENCE_POINTS,

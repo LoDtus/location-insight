@@ -315,8 +315,11 @@ export class PlaceMeasureService {
         .filter((item): item is { value: number; index: number } => item.value !== null)
         .sort((a, b) => a.value - b.value)[0];
       if (reachable) {
+        // Số phút cho mọi ứng viên (nhãn ghim và so sánh trên bản đồ); điểm chấm theo ứng viên nhanh nhất.
+        minutes?.forEach((value, index) => {
+          if (value !== null && evidence[index]) evidence[index].minutes = value;
+        });
         const best = evidence[reachable.index];
-        best.minutes = reachable.value;
         const score = scoreOf(reachable.value, definition.scoring);
         return {
           id: definition.id,

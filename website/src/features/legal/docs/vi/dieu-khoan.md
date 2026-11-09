@@ -82,7 +82,7 @@ Trong phạm vi pháp luật cho phép:
 
 - Người vận hành không chịu trách nhiệm về thiệt hại gián tiếp, mất cơ hội, mất lợi nhuận, mất dữ liệu hoặc thiệt hại phát sinh từ quyết định mua, bán, thuê, đầu tư, đặt cọc hay giao dịch dựa trên tin đăng hoặc kết quả phân tích.
 - Người vận hành không chịu trách nhiệm về hành vi, nội dung, cam kết hoặc giao dịch giữa người dùng với nhau, hoặc với bên thứ ba.
-- Tổng mức trách nhiệm bồi thường của Người vận hành đối với một người dùng về mọi khiếu nại liên quan đến dịch vụ không vượt quá tổng số tiền người dùng đó đã thanh toán cho Địa Thế trong 12 tháng liền trước thời điểm phát sinh sự việc. Nếu số tiền đó nhỏ hơn 500.000 đồng, hoặc bạn dùng dịch vụ miễn phí, mức trần là 500.000 đồng.
+- Tổng mức trách nhiệm bồi thường của Người vận hành đối với một người dùng về mọi khiếu nại liên quan đến dịch vụ không vượt quá tổng số tiền người dùng đó đã thanh toán cho Địa Thế trong 12 tháng liền trước thời điểm phát sinh sự việc. Với dịch vụ miễn phí, mức này là 0 đồng.
 
 Các giới hạn trên không áp dụng đối với trách nhiệm mà pháp luật không cho phép loại trừ hoặc giới hạn, bao gồm thiệt hại do lỗi cố ý của Người vận hành, hoặc vi phạm nghiêm trọng nghĩa vụ của Người vận hành, và không làm mất các quyền của người tiêu dùng theo pháp luật về bảo vệ quyền lợi người tiêu dùng.
 

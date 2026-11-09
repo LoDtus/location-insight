@@ -82,7 +82,7 @@ To the extent permitted by law:
 
 - The Operator is not liable for indirect loss, loss of opportunity, loss of profit, loss of data, or loss arising from decisions to buy, sell, rent, invest, pay a deposit or transact based on a Listing or an Analysis Result.
 - The Operator is not liable for the conduct, content, promises or transactions between Users, or between Users and third parties.
-- The Operator's total liability to a User for all claims relating to the service is limited to the total amount that User paid to Địa Thế in the 12 months before the event giving rise to the claim. If that amount is less than VND 500,000, or you use the service for free, the cap is VND 500,000.
+- The Operator's total liability to a User for all claims relating to the service is limited to the total amount that User paid to Địa Thế in the 12 months before the event giving rise to the claim. For free use of the service, that amount is VND 0.
 
 These limits do not apply to liability that the law does not allow to be excluded or limited, including loss caused by the Operator's wilful misconduct, or serious breach of the Operator's obligations, and they do not remove consumer rights under consumer protection law.
 

@@ -163,6 +163,10 @@ describe.skipIf(!DATABASE_URL)('đo tiêu chí trên PostGIS', () => {
     expect(hospital?.expiresAt).toBeTruthy();
     expect(hospital?.source).toBe('test, thời gian đi: Vietmap');
 
+    // Phòng khám (kind clinic) vào "Cơ sở y tế", không vào "Bệnh viện".
+    expect(items.get('co-so-y-te')).toMatchObject({ status: 'ok' });
+    expect(items.get('co-so-y-te')?.evidence?.[0]?.name).toBe('Phòng khám');
+    expect(hospital?.evidence?.some((item) => item.name === 'Phòng khám')).toBe(false);
     expect(items.get('quan-an')).toMatchObject({ status: 'ok', value: 5, radiusM: 500 });
     // Dẫn chứng vẽ trên bản đồ: từng quán trong 500 m, ô lưới quanh địa điểm, vòng ngưỡng đạt trọn điểm.
     expect(items.get('quan-an')?.evidence).toHaveLength(5);

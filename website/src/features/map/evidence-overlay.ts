@@ -13,7 +13,7 @@ import type { EvaluatedCriterion, MapPoint, MapRoute, MeasurementCell, Measureme
  * | Chợ, siêu thị (3), công viên, metro (2), UBND, vật tư (1) | ghim đánh số + tuyến tới lựa chọn đang chọn + vòng "đạt trọn điểm" |
  * | Trường học                                 | mầm non gần nhất + 2 trường phổ thông, ghim ghi cấp, tuyến       |
  * | Hiệu thuốc (3), xe buýt (3)                 | chỉ ghim và vòng ngưỡng (gần, dày; tuyến không thêm thông tin)   |
- * | Bệnh viện (3)                               | ghim kèm số phút, tuyến tới lựa chọn đang chọn                   |
+ * | Bệnh viện (3), cơ sở y tế (3)               | ghim kèm số phút, tuyến tới cả 3 lựa chọn                        |
  * | Nội đô                                      | tuyến tới Hồ Gươm + vòng 3/10/20 km                              |
  * | Quán ăn                                     | vòng 500 m + chấm từng quán, đậm dần khi gần                     |
  * | Đường lớn                                   | tô đoạn đường lớn gần nhất + nét nối vuông góc                   |
@@ -116,7 +116,7 @@ const DIVERGING_ELEVATION: ReadonlyArray<{ max: number; color: string; label: st
 const INNER_RINGS_M = [3000, 10000, 20000] as const;
 
 /** Tiêu chí điểm có tuyến đường tới lựa chọn đang chọn; còn lại (hiệu thuốc, xe buýt) chỉ ghim. */
-const ROUTED = new Set(["cho", "sieu-thi", "ubnd", "vat-tu", "cong-vien", "truong-hoc", "metro", "benh-vien", "noi-do"]);
+const ROUTED = new Set(["cho", "sieu-thi", "ubnd", "vat-tu", "cong-vien", "truong-hoc", "metro", "benh-vien", "co-so-y-te", "noi-do"]);
 
 const MARKS = ["①", "②", "③", "④", "⑤"];
 

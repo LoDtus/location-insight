@@ -11,6 +11,7 @@ import {
     Mountain,
     Pill,
     School,
+    Stethoscope,
     ShieldCheck,
     ShoppingCart,
     Store,
@@ -25,7 +26,7 @@ import {
 } from "lucide-react";
 
 /**
- * Tiêu chí của đánh giá địa điểm, khớp `CRITERIA` trong backend criteria.ts: 19 tiêu chí đo tự động
+ * Tiêu chí của đánh giá địa điểm, khớp `CRITERIA` trong backend criteria.ts: 20 tiêu chí đo tự động
  * (workspace/features/000-ideas/tieu-chi.md) và 3 tiêu chí cần AI chưa thực hiện (trả số minh họa, không tính điểm).
  */
 export const CRITERION_IDS = [
@@ -43,6 +44,7 @@ export const CRITERION_IDS = [
     "xe-buyt",
     "on-giao-thong",
     "benh-vien",
+    "co-so-y-te",
     "mat-do-dan-cu",
     "khong-khi",
     "do-cao",
@@ -71,6 +73,7 @@ export const CRITERION_ICON: Record<CriterionId, LucideIcon> = {
     "xe-buyt": Bus,
     "on-giao-thong": Volume2,
     "benh-vien": Hospital,
+    "co-so-y-te": Stethoscope,
     "mat-do-dan-cu": Users,
     "khong-khi": Wind,
     "do-cao": Mountain,

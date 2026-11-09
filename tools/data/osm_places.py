@@ -22,6 +22,9 @@ from pathlib import Path
 
 import osmium
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from health_kinds import health_kind  # noqa: E402
+
 # Hộp bao Hà Nội [minLng, minLat, maxLng, maxLat].
 HANOI_BBOX = (105.28, 20.56, 106.02, 21.39)
 DEDUPE_M = 40.0
@@ -73,12 +76,19 @@ class Handler(osmium.SimpleHandler):
         if not match or not in_hanoi(lat, lng):
             return
         category, value = match
+        name = clean(tags.get("name:vi") or tags.get("name") or tags.get("brand") or tags.get("operator"), 160)
+        if category == "hospital":
+            # Thẻ OSM lẫn trạm y tế, phòng khám, spa: phân loại lại theo tên (health_kinds.py).
+            kind_by_name = health_kind(name, value)
+            if kind_by_name is None:
+                return
+            value = kind_by_name
         self.rows.append(
             {
                 "sourceId": f"{kind}{osm_id}",
                 "category": category,
                 "kind": value,
-                "name": clean(tags.get("name:vi") or tags.get("name") or tags.get("brand") or tags.get("operator"), 160),
+                "name": name,
                 "lat": round(lat, 6),
                 "lng": round(lng, 6),
             }

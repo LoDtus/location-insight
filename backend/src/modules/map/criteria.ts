@@ -275,6 +275,13 @@ export const CRITERIA: readonly CriterionDefinition[] = [
     scoring: { curve: 'decay', good: 8, bad: 25 },
     confidence: 'high',
   },
+  // Trạm y tế, phòng khám, nhà hộ sinh, nha khoa (OSM gắn lẫn với bệnh viện; tách theo tên ở tools/data/health_kinds.py).
+  near('co-so-y-te', 'Cơ sở y tế', 'cơ sở y tế', ['hospital'], 300, 1500, 'medium', {
+    kinds: ['clinic'],
+    group: 'health',
+    caveat: 'Trạm y tế, phòng khám, nhà hộ sinh; không gồm bệnh viện.',
+    evidence: { take: 3, minutes: true },
+  }),
   {
     id: 'mat-do-dan-cu',
     label: 'Mật độ dân cư',
@@ -369,6 +376,7 @@ export const DEFAULT_WEIGHTS: Readonly<Record<string, number>> = {
   'xe-buyt': 2,
   'on-giao-thong': 3,
   'benh-vien': 3,
+  'co-so-y-te': 2,
   'mat-do-dan-cu': 1,
   'khong-khi': 3,
   'do-cao': 2,

@@ -204,9 +204,7 @@ describe('MapEvaluationService', () => {
     const { service, analyses, weights } = setup();
     const first = await service.run(A, lat, lng, false);
     const hospital = [...first.evaluation.strengths.items, ...first.evaluation.weaknesses.items].find((item) => item.id === 'benh-vien');
-    for (const id of ['cho', 'hieu-thuoc', 'sieu-thi', 'ubnd', 'vat-tu', 'quan-an', 'cong-vien', 'truong-hoc', 'duong-lon', 'noi-do', 'metro', 'xe-buyt', 'on-giao-thong', 'mat-do-dan-cu', 'khong-khi', 'do-cao', 'ngap-song', 'mang-xanh']) {
-      weights.set(id, 0);
-    }
+    for (const definition of CRITERIA) if (definition.id !== 'benh-vien') weights.set(definition.id, 0);
     const reopened = await service.mine(A, lat, lng);
     expect(reopened.evaluation?.overall).toBe(hospital?.score);
     expect(analyses.rows).toHaveLength(1);

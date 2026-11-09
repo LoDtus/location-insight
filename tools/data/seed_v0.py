@@ -36,6 +36,7 @@ from pyproj import CRS, Transformer
 from rasterio.windows import from_bounds
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from health_kinds import health_kind  # noqa: E402
 from package_tool import CONTRACTS, ROOT, pack  # noqa: E402
 
 LABEL = "v0-beta"
@@ -148,6 +149,12 @@ def build_places() -> Path:
         writer.writerow(["feature_key", "category", "kind", "name", "lat", "lng", "is_planned", "attrs"])
         for line in reader:
             item = json.loads(line)
+            if item["category"] == "hospital":
+                # Bệnh viện / cơ sở y tế theo tên; điểm không phải y tế (spa, nhà thuốc…) bỏ khỏi gói.
+                kind = health_kind(item.get("name"), item.get("kind") or "")
+                if kind is None:
+                    continue
+                item["kind"] = kind
             writer.writerow([f"osm:{item['sourceId']}", item["category"], item.get("kind") or "", (item.get("name") or "")[:200], item["lat"], item["lng"], "false", ""])
             rows += 1
     print(f"osm.places: {rows} điểm")
@@ -314,9 +321,12 @@ def package(layer: str, contract: str, data: Path, sources: list[str], tool: str
 
 
 def main() -> int:
+    global LABEL
     parser = argparse.ArgumentParser(description="Dựng bộ dữ liệu nền beta/demo v0 và đóng gói.")
     parser.add_argument("--only", nargs="*", default=None, help="chỉ dựng các lớp này (mã lớp)")
+    parser.add_argument("--label", default=LABEL, help="nhãn gói (sửa gói thì thêm hậu tố, ví dụ v0-beta-r2)")
     args = parser.parse_args()
+    LABEL = args.label
     want = (lambda code: args.only is None or code in args.only)
     tool = "tools/data/seed_v0.py"
 

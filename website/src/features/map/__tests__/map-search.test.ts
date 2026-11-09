@@ -118,6 +118,12 @@ function criterion(id: EvaluatedCriterion["id"], score: number, skipped = false)
         note: null,
         blockingHit: false,
         evidence: [],
+        method: null,
+        unit: null,
+        value: null,
+        cells: [],
+        cellM: null,
+        radiusM: null,
     };
 }
 

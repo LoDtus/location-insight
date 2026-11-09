@@ -155,7 +155,16 @@ describe.skipIf(!DATABASE_URL)('đo tiêu chí trên PostGIS', () => {
     expect(hospital?.evidence?.[0]?.name).toBe('Bệnh viện A');
     expect(hospital?.expiresAt).toBeTruthy();
 
-    expect(items.get('quan-an')).toMatchObject({ status: 'ok', value: 5 });
+    expect(items.get('quan-an')).toMatchObject({ status: 'ok', value: 5, radiusM: 500 });
+    // Dẫn chứng vẽ trên bản đồ: từng quán trong 500 m, ô lưới quanh địa điểm, vòng ngưỡng đạt trọn điểm.
+    expect(items.get('quan-an')?.evidence).toHaveLength(5);
+    expect(items.get('mat-do-dan-cu')?.cells).toHaveLength(81);
+    expect(items.get('mat-do-dan-cu')?.cellM).toBe(100);
+    const center = items.get('ngap-song')?.cells?.[0];
+    expect(items.get('ngap-song')?.cells).toHaveLength(1);
+    expect(Math.abs((center?.lat ?? 0) - P.lat)).toBeLessThan(0.001);
+    expect(Math.abs((center?.lng ?? 0) - P.lng)).toBeLessThan(0.001);
+    expect(items.get('cho')?.radiusM).toBe(300);
     expect(items.get('xe-buyt')?.autoScore).toBe(10);
     expect(items.get('metro')).toMatchObject({ status: 'no_data' });
     expect(items.get('duong-lon')?.detail).toMatch(/Phố Lớn/);

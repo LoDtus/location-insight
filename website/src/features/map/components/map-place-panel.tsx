@@ -33,8 +33,10 @@ interface MapPlacePanelProps {
     onNearby: () => void;
     /** Sao chép liên kết mở lại đúng điểm này (giống "Sao chép địa điểm" ở menu chuột phải). */
     onCopyLink: () => void;
-    /** Chọn tiêu chí trong phần đánh giá: chỗ nối để sau này vẽ dẫn chứng của tiêu chí lên bản đồ. */
+    /** Chọn tiêu chí trong phần đánh giá: vẽ dẫn chứng của tiêu chí lên bản đồ (null = bỏ chọn). */
     onCriterionSelect?: (criterion: EvaluatedCriterion | null) => void;
+    /** Tiêu chí đang hiện dẫn chứng trên bản đồ (null khi đã ẩn). */
+    activeCriterionId?: string | null;
     /** Sau một lượt đánh giá mới. */
     onEvaluated?: () => void;
     /** Mở từ danh sách kết quả: nút mũi tên trái quay lại danh sách. */
@@ -70,6 +72,7 @@ export default function MapPlacePanel({
     onNearby,
     onCopyLink,
     onCriterionSelect,
+    activeCriterionId,
     onEvaluated,
     onBack,
     backLabel = "Quay lại danh sách kết quả",
@@ -144,7 +147,16 @@ export default function MapPlacePanel({
     }
 
     return (
-        <MapPanel title="Địa điểm" titleId="tieu-de-dia-diem" onClose={onClose} size="wide" actions={actions} onBack={onBack} backLabel={backLabel}>
+        <MapPanel
+            title="Địa điểm"
+            titleId="tieu-de-dia-diem"
+            onClose={onClose}
+            size="wide"
+            actions={actions}
+            onBack={onBack}
+            backLabel={backLabel}
+            peek={activeCriterionId !== null && activeCriterionId !== undefined}
+        >
             {selection.status === "loading" ? (
                 <div aria-busy="true" className="grid gap-2">
                     <p className="m-0 flex items-center gap-2 text-sm text-charcoal/70" role="status">
@@ -332,6 +344,7 @@ export default function MapPlacePanel({
                     point={selection.point}
                     placeName={place?.name || coordinates}
                     onCriterionSelect={onCriterionSelect}
+                    activeCriterionId={activeCriterionId}
                     onEvaluated={onEvaluated}
                 /> : null}
 

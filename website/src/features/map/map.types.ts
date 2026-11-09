@@ -109,6 +109,21 @@ export interface EvaluatedCriterion {
     note: string | null;
     blockingHit: boolean;
     evidence: MeasurementEvidence[];
+    /** Cách đo, ví dụ `nearest@1`: chọn cách vẽ dẫn chứng trên bản đồ (evidence-overlay.ts). */
+    method: string | null;
+    unit: string | null;
+    value: number | null;
+    /** Ô lưới quanh địa điểm (tâm ô, giá trị) cho tiêu chí dạng lưới. */
+    cells: MeasurementCell[];
+    cellM: number | null;
+    /** Bán kính đếm/lưới, hoặc ngưỡng đạt trọn điểm (mét). */
+    radiusM: number | null;
+}
+
+export interface MeasurementCell {
+    lat: number;
+    lng: number;
+    value: number;
 }
 
 export interface EvaluationBlocking {

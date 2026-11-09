@@ -15,13 +15,15 @@ interface MapPanelProps {
     /** Có thì hiện nút mũi tên trái trước tiêu đề (vd. quay lại danh sách kết quả). */
     onBack?: () => void;
     backLabel?: string;
+    /** Mobile: thu bottom sheet thấp xuống để thấy bản đồ (đang xem dẫn chứng). Desktop không đổi. */
+    peek?: boolean;
 }
 
 /** Khung bên phải trên desktop, bottom sheet trên mobile. Viền nhạt, không dùng viền đen. */
-export default function MapPanel({ title, titleId, onClose, children, size = "default", actions, onBack, backLabel = "Quay lại" }: MapPanelProps) {
+export default function MapPanel({ title, titleId, onClose, children, size = "default", actions, onBack, backLabel = "Quay lại", peek = false }: MapPanelProps) {
     const width = size === "wide" ? "lg:w-[30rem]" : "lg:w-[24rem]";
     return (
-        <div className={`pointer-events-auto absolute inset-x-2 bottom-2 z-20 max-h-[70%] lg:static lg:inset-auto lg:z-auto lg:h-full lg:max-h-none ${width} lg:shrink-0 lg:p-2`}>
+        <div className={`pointer-events-auto absolute inset-x-2 bottom-2 z-20 ${peek ? "max-h-[34%]" : "max-h-[70%]"} lg:static lg:inset-auto lg:z-auto lg:h-full lg:max-h-none ${width} lg:shrink-0 lg:p-2`}>
             <section
                 aria-labelledby={titleId}
                 className="flex h-full max-h-full flex-col overflow-hidden rounded-lg border border-charcoal/10 bg-white shadow-[0_8px_28px_rgba(16,17,17,0.14)] lg:shadow-[0_2px_10px_rgba(16,17,17,0.08)]"

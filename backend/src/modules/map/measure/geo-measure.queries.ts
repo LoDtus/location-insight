@@ -11,7 +11,7 @@ import type { DataSource } from 'typeorm';
  * - **Lưới:** chuyển điểm sang hệ của lưới, sinh mã các ô trong bán kính bằng phép tính (không cần chỉ mục không
  *   gian), rồi tra `grid_values` theo khóa chính.
  *
- * Mọi câu chạy trong transaction READ ONLY với `statement_timeout` để một câu chậm không giữ kết nối.
+ * Mọi câu chạy trong transaction READ ONLY với `statement_timeout` để một câu chậm không giữ kết nối, và tắt JIT.
  */
 
 export const STATEMENT_TIMEOUT_MS = 2000;
@@ -57,6 +57,21 @@ export interface LineRow {
   version: string | null;
 }
 
+/** Mét trên một độ vĩ (xấp xỉ, đủ cho vẽ ô 100 m). */
+const METERS_PER_DEGREE = 111320;
+
+interface GridRawRow {
+  id: string;
+  version: string;
+  distance_m: number;
+  value: number | null;
+  center_lat: number;
+  center_lng: number;
+  dr: number;
+  dc: number;
+  cell_m: number;
+}
+
 export interface GridRequest {
   id: string;
   versions: string[];
@@ -68,6 +83,10 @@ export interface GridRow {
   version: string;
   distance_m: number;
   value: number | null;
+  /** Tâm ô (WGS84) để vẽ. */
+  lat: number;
+  lng: number;
+  cell_m: number;
 }
 
 const POINT_SQL = `
@@ -137,17 +156,25 @@ cell AS (
          ceil(lv."radiusM" / lv.cell_size_m)::int AS reach
   FROM lv CROSS JOIN LATERAL ST_Transform(ST_SetSRID(ST_MakePoint($1, $2), 4326), lv.srid) AS p
 ),
+-- Tâm ô chứa điểm đổi về WGS84 một lần; ô lân cận suy ra bằng độ lệch mét ở TypeScript (ST_Transform từng ô chậm).
+cell_center AS (
+  SELECT cell.*, ST_Transform(ST_SetSRID(ST_MakePoint(cell.origin_x + (cell.col + 0.5) * cell.cell_size_m,
+                                                      cell.origin_y + (cell.row_no + 0.5) * cell.cell_size_m), cell.srid), 4326) AS c
+  FROM cell
+),
 cand AS (
   SELECT cell.id, cell.version, (cell.row_no + dr)::bigint * cell.columns + (cell.col + dc) AS cell_id,
-         sqrt((dr * dr + dc * dc)::float8) * cell.cell_size_m AS distance_m
-  FROM cell
+         sqrt((dr * dr + dc * dc)::float8) * cell.cell_size_m AS distance_m, cell.cell_size_m, dr, dc,
+         ST_Y(cell.c) AS center_lat, ST_X(cell.c) AS center_lng
+  FROM cell_center AS cell
   CROSS JOIN LATERAL generate_series(-cell.reach, cell.reach) AS dr
   CROSS JOIN LATERAL generate_series(-cell.reach, cell.reach) AS dc
   WHERE cell.col + dc BETWEEN 0 AND cell.columns - 1
     AND cell.row_no + dr BETWEEN 0 AND cell.rows - 1
     AND sqrt((dr * dr + dc * dc)::float8) * cell.cell_size_m <= cell."radiusM"
 )
-SELECT cand.id, cand.version::text AS version, cand.distance_m, g.value
+SELECT cand.id, cand.version::text AS version, cand.distance_m, g.value,
+       cand.center_lat, cand.center_lng, cand.dr, cand.dc, cand.cell_size_m AS cell_m
 FROM cand
 JOIN geo.grid_values g ON g.layer_version_id = cand.version AND g.cell_id = cand.cell_id`;
 
@@ -166,6 +193,9 @@ async function readOnly<T>(dataSource: DataSource, sql: string, params: unknown[
     // SET TRANSACTION phải đứng trước mọi câu khác trong transaction.
     await manager.query('SET TRANSACTION READ ONLY');
     await manager.query(`SET LOCAL statement_timeout = ${STATEMENT_TIMEOUT_MS}`);
+    // Câu ngắn kiểu OLTP: ước lượng của generate_series/jsonb_to_recordset làm chi phí ảo lên hàng triệu và kích
+    // hoạt JIT (biên dịch ~300 ms cho câu chạy vài ms). Tắt JIT trong transaction này.
+    await manager.query('SET LOCAL jit = off');
     return (await manager.query(sql, params)) as T[];
   });
 }
@@ -197,8 +227,23 @@ export async function queryLines(dataSource: DataSource, lat: number, lng: numbe
 
 export async function queryGrids(dataSource: DataSource, lat: number, lng: number, requests: GridRequest[]): Promise<GridRow[]> {
   if (requests.length === 0) return [];
-  const rows = await readOnly<GridRow>(dataSource, GRID_SQL, [lng, lat, JSON.stringify(requests)]);
-  return rows.map((row) => ({ ...row, distance_m: numeric(row.distance_m) ?? 0, value: numeric(row.value) }));
+  const raw = await readOnly<GridRawRow>(dataSource, GRID_SQL, [lng, lat, JSON.stringify(requests)]);
+  return raw.map((row) => {
+    const size = numeric(row.cell_m) ?? 100;
+    const centerLat = numeric(row.center_lat) ?? lat;
+    const centerLng = numeric(row.center_lng) ?? lng;
+    const dr = numeric(row.dr) ?? 0;
+    const dc = numeric(row.dc) ?? 0;
+    return {
+      id: row.id,
+      version: row.version,
+      distance_m: numeric(row.distance_m) ?? 0,
+      value: numeric(row.value),
+      lat: centerLat + (dr * size) / METERS_PER_DEGREE,
+      lng: centerLng + (dc * size) / (METERS_PER_DEGREE * Math.cos((centerLat * Math.PI) / 180)),
+      cell_m: size,
+    };
+  });
 }
 
 export interface ReleaseLayer {

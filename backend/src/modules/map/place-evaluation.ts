@@ -53,6 +53,12 @@ export interface MeasurementEvidence {
   minutes?: number;
 }
 
+export interface MeasurementCell {
+  lat: number;
+  lng: number;
+  value: number;
+}
+
 /** Kết quả đo tự động của một tiêu chí (chưa gộp chỉnh tay). Lưu nguyên trong `map_place_analyses.measurements`. */
 export interface CriterionMeasurement {
   id: string;
@@ -71,6 +77,11 @@ export interface CriterionMeasurement {
   /** Phiên bản lớp đã đọc (nguồn gốc kết quả, AC-07). */
   layerVersions?: string[];
   evidence?: MeasurementEvidence[];
+  /** Ô lưới quanh địa điểm (tâm ô và giá trị) để tô trên bản đồ; cỡ ô `cellM` mét. */
+  cells?: MeasurementCell[];
+  cellM?: number;
+  /** Bán kính có nghĩa với tiêu chí (bán kính đếm, bán kính lưới) hoặc ngưỡng đạt trọn điểm, để vẽ vòng tròn. */
+  radiusM?: number;
   blockingHit?: boolean;
   /** Thời điểm quan sát của nguồn biến động (OpenAQ, Vietmap) và hạn dùng của số đo đó. */
   observedAt?: string;
@@ -108,6 +119,13 @@ export interface EvaluatedCriterion {
   note: string | null;
   blockingHit: boolean;
   evidence: MeasurementEvidence[];
+  /** Cách đo (`nearest@1`…): giao diện chọn cách vẽ dẫn chứng theo đây. */
+  method: string | null;
+  unit: string | null;
+  value: number | null;
+  cells: MeasurementCell[];
+  cellM: number | null;
+  radiusM: number | null;
 }
 
 export interface EvaluationBlocking {
@@ -309,6 +327,12 @@ export function buildEvaluation(
       note: measured.note ?? (confidence === 'low' && status === 'ok' ? (definition.caveat ?? 'Dữ liệu mỏng.') : null),
       blockingHit: measured.blockingHit === true,
       evidence: measured.evidence ?? [],
+      method: measured.method ?? null,
+      unit: measured.unit ?? null,
+      value: measured.value ?? null,
+      cells: measured.cells ?? [],
+      cellM: measured.cellM ?? null,
+      radiusM: measured.radiusM ?? null,
     });
   }
 

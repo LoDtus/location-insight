@@ -18,6 +18,7 @@ import {
 import { loadVietmap, styleUrl, type VietmapModule } from "@/features/map/map-gl";
 import type { PoiFeatureCollection } from "@/features/map/hooks/use-map-overlays";
 import { POI_CATEGORIES, POI_MIN_ZOOM, POI_STYLE, isPoiCategory, type PoiCategory } from "@/features/map/map-overlays";
+import type { EvidenceOverlay } from "@/features/map/evidence-overlay";
 import type { MapConfig, MapPoint, MapRoute, MapStyleId } from "@/features/map/map.types";
 
 
@@ -26,7 +27,8 @@ export interface MapHandle {
     zoomOut: () => void;
     resetNorth: () => void;
     flyTo: (point: MapPoint, zoom?: number) => void;
-    fitBounds: (bbox: [number, number, number, number], paddingLeft?: number) => void;
+    /** `inset`: phần khung bị panel che (px) để đưa nội dung vào vùng còn thấy. */
+    fitBounds: (bbox: [number, number, number, number], paddingLeft?: number, inset?: { right?: number; bottom?: number }) => void;
     /** Hiện chấm "vị trí của tôi" và bay tới đó. */
     showMyLocation: (point: MapPoint) => void;
     /** Thả (hoặc gỡ, khi null) ghim của chuột phải, kèm hiệu ứng bật xuống. */
@@ -103,6 +105,8 @@ interface MapCanvasProps {
     activeResultId: string | null;
     onViewport: (viewport: MapViewport) => void;
     onFailure: (failed: boolean) => void;
+    /** Dẫn chứng của tiêu chí đang chọn trong bảng đánh giá (evidence-overlay.ts). */
+    evidence?: EvidenceOverlay | null;
     handleRef: Ref<MapHandle>;
 }
 
@@ -134,6 +138,15 @@ const LISTING_CLUSTER_MAX_ZOOM = 15;
 const LISTING_CLUSTER_CELL_PX = 56;
 /** Chỉ tạo nhãn tin rao trong khung nhìn nới thêm chừng này (tỷ lệ mỗi cạnh). */
 const LISTING_VIEW_PADDING = 0.25;
+const SRC_EVIDENCE = "li-evidence";
+const LAYER_EVIDENCE_FILL = "li-evidence-fill";
+const LAYER_EVIDENCE_OUTLINE = "li-evidence-outline";
+const LAYER_EVIDENCE_CASING = "li-evidence-route-casing";
+const LAYER_EVIDENCE_ROUTE = "li-evidence-route";
+const LAYER_EVIDENCE_CONNECTOR = "li-evidence-connector";
+const LAYER_EVIDENCE_POINTS = "li-evidence-points";
+/** Nhãn cho chấm phụ chỉ khi ít chấm (ứng viên bệnh viện); nhiều chấm (quán ăn) thì chỉ có title. */
+const EVIDENCE_LABEL_MAX = 5;
 const MARKER_ATTR = "data-map-marker";
 const PIN_COLOR = "#026a4e";
 const DROPPED_PIN_SRC = "/icons/map-pin.svg";
@@ -177,6 +190,7 @@ export default function MapCanvas({
     activeResultId,
     onViewport,
     onFailure,
+    evidence = null,
     handleRef,
 }: MapCanvasProps) {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -198,6 +212,8 @@ export default function MapCanvas({
     const radiusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const resultMarkersRef = useRef<Array<{ id: string; marker: VietmapMarker }>>([]);
     const listingMarkersRef = useRef<Map<string, VietmapMarker>>(new Map());
+    const evidenceRef = useRef<EvidenceOverlay | null>(evidence);
+    const evidenceMarkersRef = useRef<VietmapMarker[]>([]);
     const initialStyleRef = useRef(styleId);
     const appliedStyleRef = useRef(styleId);
 
@@ -221,13 +237,13 @@ export default function MapCanvas({
                     zoom: zoom ?? Math.max(map.getZoom(), 16),
                 });
             },
-            fitBounds: (bbox, paddingLeft = 0) => {
+            fitBounds: (bbox, paddingLeft = 0, inset = {}) => {
                 mapRef.current?.fitBounds(
                     [
                         [bbox[0], bbox[1]],
                         [bbox[2], bbox[3]],
                     ],
-                    { padding: { top: 80, bottom: 80, left: 80 + paddingLeft, right: 80 }, maxZoom: 17 },
+                    { padding: { top: 80, bottom: 80 + (inset.bottom ?? 0), left: 80 + paddingLeft, right: 80 + (inset.right ?? 0) }, maxZoom: 17 },
                 );
             },
             dropPin: (point) => {
@@ -640,6 +656,127 @@ export default function MapCanvas({
         return element;
     }
 
+    /** GeoJSON của dẫn chứng: vùng (vòng ngưỡng, ô lưới), đường (tuyến thật, nét nối), chấm phụ. */
+    function evidenceData(): unknown {
+        const overlay = evidenceRef.current;
+        if (!overlay) return emptyFeatures();
+        return {
+            type: "FeatureCollection",
+            features: [
+                ...overlay.areas.map((area) => ({
+                    type: "Feature",
+                    properties: { kind: "area", color: area.color, opacity: area.opacity, outline: area.outline },
+                    geometry: { type: "Polygon", coordinates: [area.ring] },
+                })),
+                ...overlay.lines.map((line) => ({
+                    type: "Feature",
+                    properties: { kind: line.style, color: line.color },
+                    geometry: { type: "LineString", coordinates: line.coordinates },
+                })),
+                ...overlay.points
+                    .filter((point) => point.emphasis === "other")
+                    .map((point) => ({
+                        type: "Feature",
+                        properties: { kind: "point", color: point.color, weight: point.weight },
+                        geometry: { type: "Point", coordinates: [point.lng, point.lat] },
+                    })),
+            ],
+        };
+    }
+
+    function ensureEvidenceLayers(map: VietmapMap): void {
+        const data = evidenceData() as never;
+        const source = map.getSource(SRC_EVIDENCE);
+        if (source && "setData" in source) {
+            (source as unknown as { setData: (d: unknown) => void }).setData(data);
+            return;
+        }
+        map.addSource(SRC_EVIDENCE, { type: "geojson", data });
+        const color = ["get", "color"] as never;
+        map.addLayer({
+            id: LAYER_EVIDENCE_FILL,
+            type: "fill",
+            source: SRC_EVIDENCE,
+            filter: ["==", ["get", "kind"], "area"] as never,
+            paint: { "fill-color": color, "fill-opacity": ["get", "opacity"] as never },
+        });
+        map.addLayer({
+            id: LAYER_EVIDENCE_OUTLINE,
+            type: "line",
+            source: SRC_EVIDENCE,
+            filter: ["all", ["==", ["get", "kind"], "area"], ["==", ["get", "outline"], true]] as never,
+            paint: { "line-color": color, "line-width": 2, "line-dasharray": [2, 1.5], "line-opacity": 0.8 },
+        });
+        const layout = { "line-cap": "round", "line-join": "round" } as const;
+        map.addLayer({
+            id: LAYER_EVIDENCE_CASING,
+            type: "line",
+            source: SRC_EVIDENCE,
+            filter: ["==", ["get", "kind"], "route"] as never,
+            layout,
+            paint: { "line-color": "#ffffff", "line-width": 9 },
+        });
+        map.addLayer({
+            id: LAYER_EVIDENCE_ROUTE,
+            type: "line",
+            source: SRC_EVIDENCE,
+            filter: ["==", ["get", "kind"], "route"] as never,
+            layout,
+            paint: { "line-color": color, "line-width": 5 },
+        });
+        map.addLayer({
+            id: LAYER_EVIDENCE_CONNECTOR,
+            type: "line",
+            source: SRC_EVIDENCE,
+            filter: ["==", ["get", "kind"], "connector"] as never,
+            layout,
+            paint: { "line-color": color, "line-width": 3, "line-dasharray": [1, 2] },
+        });
+        map.addLayer({
+            id: LAYER_EVIDENCE_POINTS,
+            type: "circle",
+            source: SRC_EVIDENCE,
+            filter: ["==", ["get", "kind"], "point"] as never,
+            paint: {
+                "circle-color": color,
+                "circle-opacity": ["get", "weight"] as never,
+                "circle-radius": 6,
+                "circle-stroke-color": "#ffffff",
+                "circle-stroke-width": 1.5,
+            },
+        });
+    }
+
+    /** Ghim có nhãn của đối tượng chính (và chấm phụ khi ít), dạng DOM để chữ rõ trên mọi nền. */
+    function syncEvidenceMarkers(): void {
+        const map = mapRef.current;
+        const lib = libRef.current;
+        for (const marker of evidenceMarkersRef.current) marker.remove();
+        evidenceMarkersRef.current = [];
+        const overlay = evidenceRef.current;
+        if (!map || !lib || !overlay) return;
+        const labelled = overlay.points.filter(
+            (point) => point.label && (point.emphasis === "target" || overlay.points.length <= EVIDENCE_LABEL_MAX),
+        );
+        for (const point of labelled) {
+            const target = point.emphasis === "target";
+            const element = document.createElement("div");
+            element.setAttribute(MARKER_ATTR, "evidence");
+            element.setAttribute("role", "img");
+            element.setAttribute("aria-label", point.label ?? "");
+            element.className = "pointer-events-none flex flex-col items-center";
+            const chip = document.createElement("span");
+            chip.className = `mb-1 max-w-56 truncate rounded-md px-2 py-0.5 text-[11px] leading-4 font-semibold whitespace-nowrap shadow-[0_2px_6px_rgba(16,17,17,0.25)] ${target ? "text-white" : "bg-white text-charcoal"}`;
+            if (target) chip.style.backgroundColor = point.color;
+            chip.textContent = point.label;
+            const dot = document.createElement("span");
+            dot.className = `rounded-full border-2 border-white shadow-[0_1px_4px_rgba(16,17,17,0.35)] ${target ? "size-4" : "size-3"}`;
+            dot.style.backgroundColor = target ? point.color : "#4b5563";
+            element.append(chip, dot);
+            evidenceMarkersRef.current.push(new lib.Marker({ element, anchor: "bottom", offset: [0, 6] }).setLngLat([point.lng, point.lat]).addTo(map));
+        }
+    }
+
     function ensureRouteLayers(map: VietmapMap): void {
         if (!map.getSource(SRC_ALT)) {
             map.addSource(SRC_ALT, { type: "geojson", data: emptyFeatures() as never });
@@ -760,6 +897,7 @@ export default function MapCanvas({
                     ensureCircleLayers(map);
                     ensureRadiusLayers(map);
                     ensureRouteLayers(map);
+                    ensureEvidenceLayers(map);
                     void ensureTraffic(map);
                 };
                 map.on("load", () => {
@@ -769,6 +907,7 @@ export default function MapCanvas({
                     syncResults();
                     syncListings();
                     placeDrop();
+                    syncEvidenceMarkers();
                     report();
                 });
                 map.on("styledata", () => {
@@ -962,6 +1101,23 @@ export default function MapCanvas({
     useEffect(() => {
         syncMarkers();
     }, [from, to]);
+
+    // Dẫn chứng của tiêu chí đang chọn.
+    useEffect(() => {
+        evidenceRef.current = evidence;
+        const map = mapRef.current;
+        // Không chặn theo isStyleLoaded(): hàm này trả false cả khi chỉ đang tải ô nền (vừa fitBounds), làm lỡ
+        // lần cập nhật tuyến. Nguồn đã có thì setData luôn được; style chưa sẵn sàng thì "load"/"styledata" sẽ vẽ.
+        if (map) {
+            try {
+                ensureEvidenceLayers(map);
+            } catch {
+                // style chưa sẵn sàng
+            }
+        }
+        syncEvidenceMarkers();
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- hàm vẽ đọc giá trị mới nhất qua ref
+    }, [evidence]);
 
     // `.vietmapgl-map` đặt position:relative nên không dùng chung với absolute: bọc ngoài để giữ kích thước.
     return (

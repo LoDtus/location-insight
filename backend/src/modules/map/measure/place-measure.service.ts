@@ -32,6 +32,13 @@ import { OpenAqClient } from './openaq.client.js';
 const TRAVEL_TTL_DAYS = 30;
 /** Không khí đổi theo giờ. */
 const AIR_TTL_HOURS = 6;
+/** Số đối tượng tối đa trả về làm dẫn chứng cho tiêu chí đếm (vẽ trên bản đồ). */
+const COUNT_EVIDENCE_MAX = 40;
+
+/** Ngưỡng đạt trọn điểm (mét) của tiêu chí chấm theo khoảng cách: vẽ thành vòng tròn trên bản đồ. */
+function goodRing(scoring: Scoring): number | undefined {
+  return scoring.curve === 'decay' && scoring.good > 0 ? scoring.good : undefined;
+}
 
 type Point = { lat: number; lng: number };
 
@@ -120,7 +127,7 @@ export class PlaceMeasureService {
           pointRequests.push({ id: definition.id, versions, categories: [...m.categories], kinds: m.kinds ? [...m.kinds] : null, searchM: m.searchM, take, countM: m.supportM });
         } else if (m.method === 'count') {
           const versions = versionsOf(m.theme, 'point');
-          if (versions.length > 0) pointRequests.push({ id: definition.id, versions, categories: [...m.categories], kinds: null, searchM: m.radiusM, take: 1, countM: m.radiusM });
+          if (versions.length > 0) pointRequests.push({ id: definition.id, versions, categories: [...m.categories], kinds: null, searchM: m.radiusM, take: COUNT_EVIDENCE_MAX, countM: m.radiusM });
         } else if (m.method === 'line_nearest') {
           const versions = versionsOf(m.theme, 'line');
           if (versions.length > 0) lineRequests.push({ id: definition.id, versions, roadClasses: [...m.roadClasses], searchM: m.searchM });
@@ -238,7 +245,10 @@ export class PlaceMeasureService {
     if (m.method === 'count') {
       const weighted = rows[0]?.weighted ?? 0;
       const score = scoreOf(weighted, definition.scoring);
+      const points = rows.filter((row) => row.distance_m !== null && row.lat !== null && row.lng !== null);
       return {
+        radiusM: m.radiusM,
+        evidence: points.map((row) => ({ name: row.name || definition.noun, lat: row.lat as number, lng: row.lng as number, distanceM: Math.round(row.distance_m as number) })),
         id: definition.id,
         autoScore: score,
         verdict: verdictFor(definition, score),
@@ -320,6 +330,7 @@ export class PlaceMeasureService {
       autoScore: score,
       verdict: verdictFor(definition, score),
       detail: `Cách ${definition.noun} gần nhất ${formatDistance(distance)}${support > 1 ? `, ${support} chỗ trong ${formatDistance(m.supportM)}` : ''}`,
+      radiusM: goodRing(definition.scoring),
       status: 'ok',
       confidence,
       value: distance,
@@ -372,6 +383,7 @@ export class PlaceMeasureService {
       method: `${m.method}@${m.version}`,
       layerVersions: versions,
       evidence: [{ name: row.name || definition.noun, lat: row.lat, lng: row.lng, distanceM: distance }],
+      radiusM: goodRing(definition.scoring),
       note: definition.caveat,
     };
   }
@@ -395,7 +407,18 @@ export class PlaceMeasureService {
     const expected = cellsWithin(radiusM);
     // Thiếu nhiều ô (ngoài vùng phủ) thì hạ độ tin.
     const confidence = values.length < expected * 0.7 ? lowerConfidence(definition.confidence) : definition.confidence;
-    const base = { id: definition.id, status: 'ok' as const, confidence, method: `${m.method}@${m.version}`, layerVersions: versions, note: definition.caveat };
+    const cells = values.length > 0 ? rows.filter((row) => row.value !== null).map((row) => ({ lat: round6(row.lat), lng: round6(row.lng), value: row.value as number })) : [];
+    const base = {
+      id: definition.id,
+      status: 'ok' as const,
+      confidence,
+      method: `${m.method}@${m.version}`,
+      layerVersions: versions,
+      note: definition.caveat,
+      cells,
+      cellM: rows[0]?.cell_m ?? 100,
+      radiusM,
+    };
 
     if (m.method === 'grid_sum') {
       if (values.length === 0) return { ...unmeasured(definition, 'no_data', 'Các ô quanh địa điểm chưa có số liệu.'), layerVersions: versions };
@@ -536,8 +559,13 @@ function fromAir(definition: CriterionDefinition, air: Awaited<ReturnType<OpenAq
     unit: 'µg/m³',
     method: `${definition.measure.method}@${definition.measure.version}`,
     evidence: [{ name: reading.stationName, lat: reading.lat, lng: reading.lng, distanceM: reading.distanceM }],
+    radiusM: definition.measure.method === 'air_station' ? definition.measure.maxStationM : undefined,
     observedAt: reading.observedAt,
     expiresAt: new Date(Date.now() + AIR_TTL_HOURS * 3600000).toISOString(),
     note: definition.caveat,
   };
+}
+
+function round6(value: number): number {
+  return Math.round(value * 1e6) / 1e6;
 }

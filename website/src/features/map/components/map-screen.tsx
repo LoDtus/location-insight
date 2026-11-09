@@ -1,6 +1,6 @@
 "use client";
 
-import { Bookmark, Loader2, Scale, Settings, SlidersHorizontal } from "lucide-react";
+import { Bookmark, Loader2, MapPinned, Scale, Settings, SlidersHorizontal, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -51,7 +51,8 @@ import {
     formatCoordinates,
     placeLink,
 } from "@/features/map/map.geo";
-import { isAbortError, mapErrorMessage, reverseGeocode, searchPinResults } from "@/features/map/map.service";
+import { planEvidence, withRoute, type EvidenceOverlay } from "@/features/map/evidence-overlay";
+import { getRoutes, isAbortError, mapErrorMessage, reverseGeocode, searchPinResults } from "@/features/map/map.service";
 import {
     DEFAULT_MAP_CENTER,
     DEFAULT_MAP_ZOOM,
@@ -60,6 +61,7 @@ import {
     type SavedMapView,
 } from "@/features/map/map-view-memory";
 import type {
+    EvaluatedCriterion,
     MapConfig,
     MapPlace,
     MapPoint,
@@ -203,6 +205,78 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
     const [results, setResults] = useState<ResultsState | null>(null);
     const resultsRef = useRef<AbortController | null>(null);
     const rootRef = useRef<HTMLDivElement>(null);
+    /** Vùng bản đồ còn thấy (không bị panel che): để đưa dẫn chứng vào giữa phần nhìn được. */
+    const mapAreaRef = useRef<HTMLDivElement>(null);
+
+    // ---- Dẫn chứng của tiêu chí trên bản đồ (bấm một dòng trong bảng đánh giá) ----
+    const [evidence, setEvidence] = useState<EvidenceOverlay | null>(null);
+    const [evidenceLoading, setEvidenceLoading] = useState(false);
+    const evidenceAbortRef = useRef<AbortController | null>(null);
+
+    const fitEvidence = useCallback((overlay: EvidenceOverlay) => {
+        const root = rootRef.current;
+        const area = mapAreaRef.current;
+        // Chừa thêm chỗ cho nhãn của ghim dẫn chứng (nhãn rộng ~200 px, neo giữa) và thẻ chú thích ở dưới.
+        const LABEL_ROOM = 90;
+        // Mobile: panel là bottom sheet nằm đè lên bản đồ, khi xem dẫn chứng thu còn ~34% chiều cao.
+        const sheet = typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches && root ? root.clientHeight * 0.36 : 0;
+        const inset = {
+            right: (root && area ? Math.max(0, root.clientWidth - area.clientWidth) : 0) + LABEL_ROOM,
+            bottom: Math.max(sheet, root && area ? Math.max(0, root.clientHeight - area.clientHeight) : 0) + 60,
+        };
+        mapRef.current?.fitBounds(overlay.bbox, LABEL_ROOM, inset);
+    }, []);
+
+    const clearEvidence = useCallback(() => {
+        evidenceAbortRef.current?.abort();
+        evidenceAbortRef.current = null;
+        setEvidenceLoading(false);
+        setEvidence(null);
+    }, []);
+
+    /** Vẽ dẫn chứng: lớp phủ dựng ngay (nét nối thẳng), rồi thay bằng đường đi thật khi Vietmap trả tuyến. */
+    const showEvidence = useCallback(
+        (item: EvaluatedCriterion | null, origin: MapPoint) => {
+            clearEvidence();
+            if (!item) return;
+            const plan = planEvidence(item, origin);
+            if (!plan) {
+                showToast({
+                    title: `${item.label}: chưa có dẫn chứng trên bản đồ`,
+                    description:
+                        item.status === "not_implemented"
+                            ? "Tiêu chí này chưa được thực hiện, điểm hiện là số minh họa."
+                            : "Tiêu chí chưa đo được nên chưa có gì để vẽ.",
+                    tone: "info",
+                    duration: 3500,
+                });
+                return;
+            }
+            setEvidence(plan.overlay);
+            fitEvidence(plan.overlay);
+            if (!plan.routeTo) return;
+            const controller = new AbortController();
+            evidenceAbortRef.current = controller;
+            setEvidenceLoading(true);
+            getRoutes(origin, plan.routeTo, "motorcycle", { alternatives: false, avoid: null, departAt: null }, controller.signal)
+                .then((routes) => {
+                    if (controller.signal.aborted || routes.length === 0) return;
+                    const next = withRoute(plan.overlay, routes[0]);
+                    setEvidence(next);
+                    fitEvidence(next);
+                })
+                .catch(() => {
+                    // Không lấy được tuyến (hết hạn mức, lỗi mạng): giữ nét nối thẳng, chú thích vẫn đúng.
+                })
+                .finally(() => {
+                    if (evidenceAbortRef.current === controller) {
+                        evidenceAbortRef.current = null;
+                        setEvidenceLoading(false);
+                    }
+                });
+        },
+        [clearEvidence, fitEvidence],
+    );
     const lastWrittenRef = useRef(canonicalQuery(paramsString));
     const isAdmin = root === "/admin";
     const focus: MapPoint = { lat: viewport.lat, lng: viewport.lng };
@@ -798,6 +872,10 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
         );
     }
     const readyConfig = configState.config;
+    // Dẫn chứng chỉ hiện khi đang mở đúng địa điểm đã bấm (đóng panel hay chọn chỗ khác thì tự ẩn).
+    const visibleEvidence =
+        evidence && panel === "place" && selection.status !== "none" && sameSpot(evidence.origin, selection.point) ? evidence : null;
+
     const sidePanel =
         panel === "directions" ? (
             <MapDirectionsPanel
@@ -831,6 +909,8 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
             <MapPlacePanel
                 selection={selection}
                 root={root}
+                activeCriterionId={visibleEvidence?.criterionId ?? null}
+                onCriterionSelect={(item) => showEvidence(item, selection.point)}
                 onBack={
                     placeOrigin === "results" && results
                         ? () => {
@@ -1023,11 +1103,12 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                     setViewportReady(true);
                 }}
                 onFailure={setFailed}
+                evidence={visibleEvidence}
             />
             <div className="pointer-events-none absolute inset-0">
                 <div className="flex h-full w-full min-h-0">
                     <div className="relative flex min-h-0 min-w-0 flex-1">
-                        <div className="relative min-h-0 min-w-0 flex-1">
+                        <div ref={mapAreaRef} className="relative min-h-0 min-w-0 flex-1">
                             {readyConfig.searchEnabled ? (
                                 <div className="pointer-events-auto absolute top-2 right-2 left-2 z-20 flex max-w-xl items-start gap-2">
                                     <MapSearchBar
@@ -1161,6 +1242,9 @@ function MapScreenInner({ placeId, root = "/app" }: MapScreenProps) {
                                     if (viewport.zoom < POI_MIN_ZOOM) mapRef.current?.zoomTo(POI_MIN_ZOOM);
                                 }}
                             />
+                            {visibleEvidence ? (
+                                <EvidenceCaption overlay={visibleEvidence} loading={evidenceLoading} onFit={() => fitEvidence(visibleEvidence)} onClose={clearEvidence} />
+                            ) : null}
                             <MapScaleBar zoom={viewport.zoom} latitude={viewport.lat} />
                             <MapZoomControls
                                 onZoomIn={() => mapRef.current?.zoomIn()}
@@ -1238,5 +1322,64 @@ export default function MapScreen(props: MapScreenProps) {
         <Suspense fallback={<div className="h-full w-full bg-white" />}>
             <MapScreenInner {...props} />
         </Suspense>
+    );
+}
+
+/** Cùng một chỗ (lệch dưới ~1 m): dẫn chứng thuộc địa điểm đang mở. */
+function sameSpot(a: MapPoint, b: MapPoint): boolean {
+    return Math.abs(a.lat - b.lat) < 1e-5 && Math.abs(a.lng - b.lng) < 1e-5;
+}
+
+/** Thẻ giải thích dẫn chứng đang vẽ: câu mô tả, chú giải màu (nếu là lưới), nút đưa vào khung nhìn và đóng. */
+function EvidenceCaption({
+    overlay,
+    loading,
+    onFit,
+    onClose,
+}: {
+    overlay: EvidenceOverlay;
+    loading: boolean;
+    onFit: () => void;
+    onClose: () => void;
+}) {
+    return (
+        <div
+            role="status"
+            aria-live="polite"
+            className="pointer-events-auto absolute top-14 left-1/2 z-10 w-[min(28rem,calc(100%-1rem))] -translate-x-1/2 rounded-lg bg-white/95 p-3 text-sm shadow-[0_4px_16px_rgba(16,17,17,0.18)] ring-1 ring-charcoal/10 backdrop-blur-sm lg:top-auto lg:bottom-6"
+        >
+            <div className="flex items-start gap-2">
+                <MapPinned size={16} aria-hidden className="mt-0.5 shrink-0 text-green" />
+                <p className="m-0 min-w-0 flex-1 leading-snug text-charcoal/85">
+                    {overlay.caption}
+                    {loading ? (
+                        <span className="ml-1 inline-flex items-center gap-1 text-xs text-charcoal/55">
+                            <Loader2 size={12} className="animate-spin" aria-hidden /> đang lấy đường đi…
+                        </span>
+                    ) : null}
+                </p>
+                <button
+                    type="button"
+                    onClick={onClose}
+                    aria-label="Ẩn dẫn chứng trên bản đồ"
+                    className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-charcoal/60 hover:bg-charcoal/5 hover:text-charcoal focus-visible:outline-2 focus-visible:outline-green"
+                >
+                    <X size={15} aria-hidden />
+                </button>
+            </div>
+            {overlay.legend ? (
+                <ul aria-label="Chú giải" className="m-0 mt-2 flex list-none flex-wrap gap-x-3 gap-y-1 p-0 text-[11px] text-charcoal/70">
+                    {overlay.legend.map(([color, label]) => (
+                        <li key={label} className="inline-flex items-center gap-1 tabular-nums">
+                            <span aria-hidden className="size-3 rounded-sm ring-1 ring-charcoal/10" style={{ backgroundColor: color }} />
+                            {label}
+                        </li>
+                    ))}
+                </ul>
+            ) : null}
+            <button type="button" onClick={onFit} className="mt-1.5 bg-transparent p-0 text-xs font-semibold text-green hover:underline focus-visible:outline-2 focus-visible:outline-green">
+                Xem toàn bộ dẫn chứng
+            </button>
+        </div>
     );
 }

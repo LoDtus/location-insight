@@ -9,6 +9,7 @@ import { getMyEvaluation, isAbortError, mapErrorMessage, overrideCriterion, rese
 import { showToast } from "@/shared/components/toast/toast-store";
 import ScoreRing, { formatScore as score, scoreTone } from "@/features/map/components/score-ring";
 import { CRITERION_ICON } from "@/features/map/criteria-icons";
+import { hasEvidence } from "@/features/map/evidence-overlay";
 import type { EvaluatedCriterion, MapPoint, PlaceEvaluation } from "@/features/map/map.types";
 
 /** Dưới tỷ lệ này (theo trọng số) tiêu chí đo được thì điểm tổng chỉ để tham khảo (khớp COVERAGE_MIN của backend). */
@@ -56,16 +57,19 @@ export default function MapPlaceEvaluation({
     point,
     placeName,
     onCriterionSelect,
+    activeCriterionId,
     onEvaluated,
 }: {
     point: MapPoint;
     /** Tên địa điểm dùng trong thông báo. */
     placeName: string;
     /**
-     * Chọn một tiêu chí (bấm vào dòng). Chỗ nối để sau này vẽ dẫn chứng trên bản đồ, vd. đường đi tới các
-     * trường gần nhất cho tiêu chí "Trường học". null = bỏ chọn.
+     * Chọn một tiêu chí (bấm vào dòng): màn bản đồ vẽ dẫn chứng của tiêu chí (evidence-overlay.ts), vd. đường đi
+     * tới trường gần nhất cho tiêu chí "Trường học". null = bỏ chọn.
      */
     onCriterionSelect?: (criterion: EvaluatedCriterion | null) => void;
+    /** Tiêu chí đang hiện dẫn chứng (do màn bản đồ giữ); có thì dòng được chọn đi theo giá trị này. */
+    activeCriterionId?: string | null;
     /** Gọi sau mỗi lượt đánh giá mới (vd. để danh sách "Đã lưu" cập nhật điểm). */
     onEvaluated?: () => void;
 }): JSX.Element {
@@ -123,7 +127,8 @@ export default function MapPlaceEvaluation({
             duration: 3000,
         });
     }
-    const [selected, setSelected] = useState<string | null>(null);
+    const [ownSelected, setSelected] = useState<string | null>(null);
+    const selected = activeCriterionId === undefined ? ownSelected : activeCriterionId;
 
     function select(item: EvaluatedCriterion): void {
         const next = selected === item.id ? null : item.id;
@@ -465,6 +470,7 @@ function CriterionRow({
     // Không đo được (chưa có dữ liệu, nguồn lỗi): không hiện số; số minh họa và dữ liệu mỏng: hiện nhưng nhạt.
     const unmeasured = !item.manual && (item.status === "no_data" || item.status === "unavailable");
     const muted = skipped || item.counted === false;
+    const withEvidence = hasEvidence(item);
     const Icon = CRITERION_ICON[item.id];
 
     function submit(event: FormEvent<HTMLFormElement>): void {
@@ -488,7 +494,7 @@ function CriterionRow({
                     type="button"
                     aria-pressed={isSelected}
                     onClick={() => onSelect(item)}
-                    title="Xem dẫn chứng trên bản đồ (sắp có)"
+                    title={withEvidence ? "Xem dẫn chứng trên bản đồ" : "Chưa có dẫn chứng trên bản đồ"}
                     className="flex min-w-0 flex-1 cursor-pointer items-start gap-3 rounded-sm bg-transparent p-0 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
                 >
                     <span
@@ -506,11 +512,13 @@ function CriterionRow({
                                 <span className="rounded bg-charcoal/5 px-1.5 py-px text-[11px] font-semibold text-charcoal/55">Không tính</span>
                             ) : null}
                             {skipped ? null : <StatusBadge item={item} />}
-                            <MapPinned
-                                size={13}
-                                aria-hidden
-                                className={`text-green transition-opacity duration-150 motion-reduce:transition-none ${isSelected ? "opacity-100" : "opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100"}`}
-                            />
+                            {withEvidence ? (
+                                <MapPinned
+                                    size={13}
+                                    aria-hidden
+                                    className={`text-green transition-opacity duration-150 motion-reduce:transition-none ${isSelected ? "opacity-100" : "opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100"}`}
+                                />
+                            ) : null}
                         </span>
                         <span className={`mt-0.5 block text-sm ${skipped ? "text-charcoal/40 line-through decoration-charcoal/30" : "text-charcoal/80"}`}>
                             <span className={`font-semibold ${muted ? "text-charcoal/60" : TONE_TEXT[scoreTone(item.score)]}`}>{item.verdict}</span>

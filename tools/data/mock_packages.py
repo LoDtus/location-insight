@@ -336,7 +336,7 @@ Sinh bởi `python3 tools/data/mock_packages.py`. Dữ liệu ngẫu nhiên, **k
 | --- | --- | --- |
 {files}
 
-Sau gói 01–04: tab "Bản phát hành" → tạo bản nháp, chọn 4 phiên bản lớp vừa Lưu, phát hành. Rồi thử 05 và 06.
+Sau gói 01–04: tab "Bản phát hành" → tạo bản nháp, chọn 4 phiên bản lớp vừa Lưu, phát hành. Rồi thử 05–07 và các gói 9x.
 Gói đã nộp thì nộp lại bị từ chối (`package_duplicate`); muốn thử lại từ đầu thì chạy `/reset` hoặc xóa job/phiên bản tương ứng.
 """,
         encoding="utf-8",

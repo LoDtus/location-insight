@@ -83,6 +83,10 @@ Mất `raw` cũ không làm mất khả năng thu hồi, vì phiên bản cũ đ
 - **Không commit:** `.pbf`, GeoTIFF, GeoParquet, Excel, GTFS, JSON thu từ trang web, gói `.zip`, và mọi file nằm trong `raw`, `interim`, `processed`, `packages`.
 - Volume Postgres đã bị bỏ qua riêng. Không copy database vào đây.
 
+## Gói giả để thử giao diện
+
+`python3 tools/data/mock_packages.py` sinh vào `mock/packages/` (git bỏ qua) bốn lớp nguồn `mock` (điểm, đường, vùng, lưới), một bản cập nhật, và các gói lỗi cố ý. `mock/packages/README.md` ghi lớp cần tạo và kết quả mong đợi của từng gói. Dữ liệu ngẫu nhiên, chỉ dùng trên máy dev.
+
 ## Thêm hoặc cập nhật một nguồn
 
 1. **Chọn miền và mã nguồn:** viết thường, gạch ngang, ví dụ `osm`, `so-cong-thuong`, `qhtd-hanoi`.

@@ -150,7 +150,8 @@ def check_csv(text: str, contract: str, report: Report) -> None:
             report.row_error(line_no, "feature_key bị trùng.")
         keys.add(row["feature_key"])
         inside += in_bbox(float(row["lng"]), float(row["lat"]))
-    check_inside_ratio(inside, report)
+    if spec["geometryKind"] != "grid":
+        check_inside_ratio(inside, report)
 
 
 def check_geojsonl(lines: Iterator[str], contract: str, crs: str, report: Report) -> None:

@@ -655,6 +655,11 @@ Tham khảo:
   - Đường lớn và ồn giao thông trả hình dạng đường cắt trong 600 m. Tiêu chí ồn trả thêm vùng đệm 80 m / 300 m.
   - Ngập sông thêm các ô trong 300 m; điểm vẫn chấm theo ô chứa địa điểm.
   - Không khí: 2 trạm. Nội đô: vòng 3/10/20 km. Độ cao: thang hai chiều so với ô chứa địa điểm.
+  - Tuyến tới mọi lựa chọn vẽ cùng lúc, mỗi lựa chọn một màu khớp số trên ghim. Mỗi lần bấm tiêu chí tốn tối đa 3 lượt Vietmap Route.
+- **Bệnh viện và Cơ sở y tế là hai tiêu chí riêng.**
+  - Thẻ `amenity=hospital|clinic` trên OSM Hà Nội lẫn trạm y tế, phòng khám, nhà hộ sinh, spa.
+  - `tools/data/health_kinds.py` phân loại lại theo tên: tên bắt đầu bằng phòng khám, trạm y tế… thì là cơ sở y tế; có "bệnh viện", "BV", "viện…" thì là bệnh viện; spa, nhà thuốc, kính mắt thì bỏ.
+  - Bản beta v0 r3 có 159 bệnh viện và 252 cơ sở y tế.
 
 ### Hệ quả <!-- key: consequences -->
 
